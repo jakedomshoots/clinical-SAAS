@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
-import { QUERY_KEYS } from '@concierge-os/shared';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
 import type { Appointment } from '@concierge-os/shared';
-import { ChevronLeft, ChevronRight, Plus, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface AppointmentListResponse {
   data: Appointment[];
@@ -38,14 +39,23 @@ export const Route = createFileRoute('/scheduling/')({
 
 function SchedulePage() {
   const api = useApi();
+  const queryClient = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
+  const [showNewAppointment, setShowNewAppointment] = useState(false);
+  const [newAppointment, setNewAppointment] = useState({
+    patient_name: '',
+    provider_name: 'Dr. Nora Ellis',
+    start_time: '',
+    type: 'Office visit',
+    notes: '',
+  });
 
   const startStr = formatDate(weekStart);
   const endDate = new Date(weekStart);
   endDate.setDate(endDate.getDate() + 7);
   const endStr = formatDate(endDate);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: [...QUERY_KEYS.APPOINTMENTS, startStr, endStr],
     queryFn: () =>
       api.get<AppointmentListResponse>(`/schedule/appointments?start_date=${startStr}&end_date=${endStr}`),
@@ -61,6 +71,27 @@ function SchedulePage() {
     return days;
   }, [weekStart]);
 
+  const createMutation = useMutation({
+    mutationFn: () => {
+      const start = new Date(newAppointment.start_time);
+      const end = new Date(start.getTime() + 30 * 60 * 1000);
+      return api.post<Appointment>('/schedule', {
+        patient_name: newAppointment.patient_name,
+        provider_name: newAppointment.provider_name,
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        type: newAppointment.type,
+        notes: newAppointment.notes || null,
+        status: 'scheduled',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+      setShowNewAppointment(false);
+      setNewAppointment({ patient_name: '', provider_name: 'Dr. Nora Ellis', start_time: '', type: 'Office visit', notes: '' });
+    },
+  });
+
   function appointmentsForDay(day: Date): Appointment[] {
     if (!data?.data) return [];
     const dayStr = formatDate(day);
@@ -71,7 +102,7 @@ function SchedulePage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-clinic-800">Schedule</h1>
-        <button className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
+        <button onClick={() => setShowNewAppointment(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
           <Plus className="h-4 w-4" />
           New Appointment
         </button>
@@ -113,42 +144,104 @@ function SchedulePage() {
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-clinic-400" />
-        </div>
+        <LoadingState label="Loading schedule" />
+      ) : isError ? (
+        <ErrorState title="Unable to load schedule" detail={error instanceof Error ? error.message : 'The schedule could not be loaded.'} />
       ) : (
-        <div className="grid grid-cols-7 gap-0 rounded-lg border border-clinic-200 bg-white">
-          {weekDays.map((day, i) => {
-            const apps = appointmentsForDay(day);
-            const isToday = formatDate(day) === formatDate(new Date());
-            return (
-              <div
-                key={i}
-                className={`min-h-32 border-r border-b border-clinic-100 p-2 last:border-r-0 ${
-                  isToday ? 'bg-accent-50/50' : ''
-                }`}
-              >
-                <div className={`mb-2 text-center text-xs font-semibold ${isToday ? 'text-accent-700' : 'text-clinic-500'}`}>
-                  <div>{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                  <div className="text-lg">{day.getDate()}</div>
-                </div>
-                <div className="space-y-1">
-                  {apps.map((appt) => (
-                    <div
-                      key={appt.id}
-                      className={`rounded border px-2 py-1 text-xs ${STATUS_COLORS[appt.status]}`}
-                    >
-                      <div className="font-medium">
-                        {new Date(appt.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+        <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
+          <div className="grid min-w-[56rem] grid-cols-7 gap-0">
+            {weekDays.map((day, i) => {
+              const apps = appointmentsForDay(day);
+              const isToday = formatDate(day) === formatDate(new Date());
+              return (
+                <div
+                  key={i}
+                  className={`min-h-32 border-r border-b border-clinic-100 p-2 last:border-r-0 ${
+                    isToday ? 'bg-accent-50/50' : ''
+                  }`}
+                >
+                  <div className={`mb-2 text-center text-xs font-semibold ${isToday ? 'text-accent-700' : 'text-clinic-500'}`}>
+                    <div>{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                    <div className="text-lg">{day.getDate()}</div>
+                  </div>
+                  <div className="space-y-1">
+                    {apps.map((appt) => (
+                      <div
+                        key={appt.id}
+                        className={`rounded border px-2 py-1 text-xs ${STATUS_COLORS[appt.status]}`}
+                      >
+                        <div className="font-medium">
+                          {new Date(appt.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </div>
+                        <div className="truncate">{appt.patient_name || 'Unknown'}</div>
+                        <div className="text-[10px] opacity-70">{appt.type}</div>
                       </div>
-                      <div className="truncate">{appt.patient_name || 'Unknown'}</div>
-                      <div className="text-[10px] opacity-70">{appt.type}</div>
-                    </div>
-                  ))}
+                    ))}
+                    {apps.length === 0 && i === 0 && (
+                      <div className="rounded-md border border-dashed border-clinic-200 p-2 text-center text-xs text-clinic-400">
+                        No visits
+                      </div>
+                    )}
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !isError && data?.data.length === 0 && (
+        <div className="mt-4 rounded-lg border border-clinic-200 bg-white">
+          <EmptyState title="No appointments this week" detail="Create an appointment to populate the clinic schedule." />
+        </div>
+      )}
+
+      {showNewAppointment && (
+        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              createMutation.mutate();
+            }}
+            className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
+          >
+            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-clinic-900">New Appointment</h2>
+              <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-medium text-clinic-700">
+                  Patient
+                  <input required value={newAppointment.patient_name} onChange={(event) => setNewAppointment({ ...newAppointment, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                </label>
+                <label className="text-sm font-medium text-clinic-700">
+                  Provider
+                  <input required value={newAppointment.provider_name} onChange={(event) => setNewAppointment({ ...newAppointment, provider_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                </label>
+                <label className="text-sm font-medium text-clinic-700">
+                  Start time
+                  <input required type="datetime-local" value={newAppointment.start_time} onChange={(event) => setNewAppointment({ ...newAppointment, start_time: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                </label>
+                <label className="text-sm font-medium text-clinic-700">
+                  Type
+                  <input required value={newAppointment.type} onChange={(event) => setNewAppointment({ ...newAppointment, type: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                </label>
               </div>
-            );
-          })}
+              <label className="block text-sm font-medium text-clinic-700">
+                Notes
+                <textarea value={newAppointment.notes} onChange={(event) => setNewAppointment({ ...newAppointment, notes: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
+              <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
+              <button disabled={createMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+                {createMutation.isPending ? 'Creating...' : 'Create appointment'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

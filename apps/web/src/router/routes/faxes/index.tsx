@@ -1,10 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
-import { QUERY_KEYS } from '@concierge-os/shared';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
 import type { Fax } from '@concierge-os/shared';
-import { Send, Loader2, ArrowDownToLine, ArrowUpFromLine, FileText, Check, Search } from 'lucide-react';
+import { Send, ArrowDownToLine, ArrowUpFromLine, FileText, Search, X } from 'lucide-react';
 
 interface FaxListResponse {
   data: Fax[];
@@ -37,8 +38,11 @@ function FaxCenterPage() {
   const [tab, setTab] = useState<'inbox' | 'outbox'>('inbox');
   const [page, setPage] = useState(1);
   const [selectedFax, setSelectedFax] = useState<Fax | null>(null);
+  const [showSendFax, setShowSendFax] = useState(false);
+  const [matchPatient, setMatchPatient] = useState('');
+  const [sendFax, setSendFax] = useState({ to_number: '', patient_name: '', pages: '1', ocr_text: '' });
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: [...QUERY_KEYS.FAXES, tab, page],
     queryFn: () => {
       const direction = tab === 'inbox' ? 'inbound' : 'outbound';
@@ -46,12 +50,38 @@ function FaxCenterPage() {
     },
   });
 
+  const sendMutation = useMutation({
+    mutationFn: () => api.post<Fax>('/faxes', {
+      to_number: sendFax.to_number,
+      patient_name: sendFax.patient_name || null,
+      pages: Number(sendFax.pages) || 1,
+      ocr_text: sendFax.ocr_text || 'Queued outbound fax.',
+    }),
+    onSuccess: (fax) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES });
+      setTab('outbox');
+      setSelectedFax(fax);
+      setShowSendFax(false);
+      setSendFax({ to_number: '', patient_name: '', pages: '1', ocr_text: '' });
+    },
+  });
+
+  const matchMutation = useMutation({
+    mutationFn: ({ id, patient_name }: { id: string; patient_name: string }) =>
+      api.patch<Fax>(`/faxes/${id}`, { patient_name, matched_by: 'manual' }),
+    onSuccess: (fax) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES });
+      setSelectedFax(fax);
+      setMatchPatient('');
+    },
+  });
+
   return (
-    <div className="flex gap-6">
-      <div className="flex-1">
+    <div className="flex flex-col gap-6 xl:flex-row">
+      <div className="min-w-0 flex-1">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-semibold text-clinic-800">Fax Center</h1>
-          <button className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
+          <button onClick={() => setShowSendFax(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
             <Send className="h-4 w-4" />
             Send Fax
           </button>
@@ -74,12 +104,12 @@ function FaxCenterPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-clinic-400" />
-          </div>
+          <LoadingState label="Loading faxes" />
+        ) : isError ? (
+          <ErrorState title="Unable to load faxes" detail={error instanceof Error ? error.message : 'The fax queue could not be loaded.'} />
         ) : (
-          <div className="overflow-hidden rounded-lg border border-clinic-200 bg-white">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
+            <table className="w-full min-w-[48rem] text-sm">
               <thead className="border-b border-clinic-200 bg-clinic-50">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium text-clinic-500 w-8"></th>
@@ -122,8 +152,11 @@ function FaxCenterPage() {
                 ))}
                 {(!data?.data || data.data.length === 0) && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-clinic-400">
-                      No faxes in {tab}
+                    <td colSpan={7}>
+                      <EmptyState
+                        title={`No faxes in ${tab}`}
+                        detail={tab === 'inbox' ? 'Inbound documents will appear here for OCR review and chart matching.' : 'Outbound fax activity will appear here after sending.'}
+                      />
                     </td>
                   </tr>
                 )}
@@ -134,7 +167,7 @@ function FaxCenterPage() {
       </div>
 
       {selectedFax && (
-        <div className="w-80 shrink-0 rounded-lg border border-clinic-200 bg-white p-4">
+        <div className="w-full shrink-0 rounded-lg border border-clinic-200 bg-white p-4 xl:w-80">
           <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-700">
             <FileText className="h-4 w-4" />
             Fax Detail
@@ -164,12 +197,70 @@ function FaxCenterPage() {
           )}
           {!selectedFax.patient_id && (
             <div className="mt-4">
-              <button className="flex w-full items-center justify-center gap-2 rounded-md border border-clinic-300 py-1.5 text-xs text-clinic-600 hover:bg-clinic-100">
+              <input
+                value={matchPatient}
+                onChange={(event) => setMatchPatient(event.target.value)}
+                placeholder="Patient name"
+                className="mb-2 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+              />
+              <button
+                onClick={() => {
+                  if (!selectedFax || !matchPatient) return;
+                  matchMutation.mutate({ id: selectedFax.id, patient_name: matchPatient });
+                }}
+                disabled={matchMutation.isPending || !matchPatient}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-clinic-300 py-1.5 text-xs text-clinic-600 hover:bg-clinic-100"
+              >
                 <Search className="h-3.5 w-3.5" />
-                Match to Patient
+                {matchMutation.isPending ? 'Matching...' : 'Match to Patient'}
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {showSendFax && (
+        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              sendMutation.mutate();
+            }}
+            className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
+          >
+            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-clinic-900">Send Fax</h2>
+              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm font-medium text-clinic-700">
+                  To number
+                  <input required value={sendFax.to_number} onChange={(event) => setSendFax({ ...sendFax, to_number: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" placeholder="+13125550123" />
+                </label>
+                <label className="text-sm font-medium text-clinic-700">
+                  Pages
+                  <input required type="number" min="1" value={sendFax.pages} onChange={(event) => setSendFax({ ...sendFax, pages: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                </label>
+              </div>
+              <label className="block text-sm font-medium text-clinic-700">
+                Patient
+                <input value={sendFax.patient_name} onChange={(event) => setSendFax({ ...sendFax, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+              </label>
+              <label className="block text-sm font-medium text-clinic-700">
+                Cover note
+                <textarea value={sendFax.ocr_text} onChange={(event) => setSendFax({ ...sendFax, ocr_text: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
+              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
+              <button disabled={sendMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+                {sendMutation.isPending ? 'Sending...' : 'Queue fax'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

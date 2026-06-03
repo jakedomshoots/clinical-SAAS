@@ -20,6 +20,7 @@ src-tauri/gen/
 *.swp
 .DS_Store
 *.log
+*.tsbuildinfo
 coverage/
 .coverage
 htmlcov/

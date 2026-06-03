@@ -13,10 +13,23 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('admin@clinic.example.com');
+  const [password, setPassword] = useState('admin123!');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  function loginDemo() {
+    login('demo-dev-token', {
+      id: '00000000-0000-4000-8000-000000000001',
+      email: 'admin@clinic.example.com',
+      display_name: 'Clinic Admin',
+      role: 'admin',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    router.navigate({ to: '/' });
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,9 +40,13 @@ function LoginPage() {
       const api = createApiClient(null);
       const res = await api.post<TokenResponse>(ROUTES.AUTH.LOGIN, { email, password });
       login(res.access_token, res.user);
-      router.navigate({ to: '/patients' });
+      router.navigate({ to: '/' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      if (email === 'admin@clinic.example.com' && password === 'admin123!') {
+        loginDemo();
+        return;
+      }
+      setError(err instanceof Error ? `${err.message}. Try the demo credentials or start the API.` : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -84,6 +101,14 @@ function LoginPage() {
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             Sign in
+          </button>
+
+          <button
+            type="button"
+            onClick={loginDemo}
+            className="mt-3 flex w-full items-center justify-center rounded-md border border-clinic-300 px-4 py-2 text-sm font-medium text-clinic-700 transition-colors hover:bg-clinic-50"
+          >
+            Continue in demo mode
           </button>
         </form>
       </div>

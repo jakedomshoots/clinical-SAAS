@@ -1,4 +1,5 @@
 import type { UUID } from './common';
+import type { PatientCreateInput, PatientUpdateInput } from '../schemas/patient';
 
 export interface Address {
   street: string;
@@ -17,7 +18,7 @@ export interface Insurance {
   provider: string;
   plan: string;
   member_id: string;
-  group_number: string;
+  group_number?: string | null;
 }
 
 export interface Allergy {
@@ -33,8 +34,8 @@ export interface Patient {
   last_name: string;
   dob: string;
   gender: string;
-  phone: string;
-  email: string;
+  phone: string | null;
+  email: string | null;
   address: Address | null;
   emergency_contact: EmergencyContact | null;
   insurance: Insurance | null;
@@ -45,30 +46,5 @@ export interface Patient {
   updated_at: string;
 }
 
-export interface PatientCreate {
-  first_name: string;
-  last_name: string;
-  dob: string;
-  gender: string;
-  phone?: string;
-  email?: string;
-  address?: Address;
-  emergency_contact?: EmergencyContact;
-  insurance?: Insurance;
-  allergies?: Allergy[];
-  problem_list?: string[];
-}
-
-export interface PatientUpdate {
-  first_name?: string;
-  last_name?: string;
-  dob?: string;
-  gender?: string;
-  phone?: string;
-  email?: string;
-  address?: Address | null;
-  emergency_contact?: EmergencyContact | null;
-  insurance?: Insurance | null;
-  allergies?: Allergy[];
-  problem_list?: string[];
-}
+export type PatientCreate = PatientCreateInput;
+export type PatientUpdate = PatientUpdateInput;

@@ -1,23 +1,54 @@
-import {Link, Outlet, createRootRoute, useRouter} from '@tanstack/react-router';
+import { Link, Navigate, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import {useAuth} from '@/lib/auth';
-import {Activity, Calendar, ClipboardList, LogOut, MessageSquare, Printer, Users} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useApi } from '@/lib/api-client';
+import { QUERY_KEYS } from '@/lib/query-keys';
+import { ErrorState } from '@/lib/ui-state';
+import type { Fax, MessageThread, Task } from '@concierge-os/shared';
+import {
+  Activity,
+  Calendar,
+  ClipboardList,
+  Command,
+  Gauge,
+  LogOut,
+  Menu,
+  MessageSquare,
+  Printer,
+  Search,
+  Settings,
+  X,
+  Users,
+} from 'lucide-react';
+
+interface ListResponse<T> {
+  data: T[];
+  total: number;
+}
 
 function SideNav() {
   const { user, logout } = useAuth();
 
   const navItems = [
+    { to: '/', label: 'Command', icon: Gauge },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
-    { to: '/schedule', label: 'Schedule', icon: Calendar },
+    { to: '/scheduling', label: 'Schedule', icon: Calendar },
     { to: '/faxes', label: 'Faxes', icon: Printer },
-    { to: '/messages', label: 'Messages', icon: MessageSquare },
+    { to: '/messaging', label: 'Messages', icon: MessageSquare },
   ];
 
   return (
-    <aside className="flex h-screen w-56 flex-col border-r border-clinic-200 bg-white">
+    <aside className="hidden h-screen w-60 shrink-0 flex-col border-r border-clinic-200 bg-white md:flex">
       <div className="flex h-14 items-center gap-2 border-b border-clinic-200 px-4">
-        <Activity className="h-5 w-5 text-accent-600" />
-        <span className="font-semibold text-clinic-800">ConciergeOS</span>
+        <div className="flex h-8 w-8 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
+          <Activity className="h-4 w-4 text-accent-700" />
+        </div>
+        <div>
+          <span className="block text-sm font-semibold text-clinic-900">ConciergeOS</span>
+          <span className="block text-xs text-clinic-500">Clinic operations</span>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-0.5 px-2 py-3">
@@ -25,13 +56,29 @@ function SideNav() {
           <Link
             key={to}
             to={to}
-            className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-clinic-600 transition-colors hover:bg-clinic-100 hover:text-clinic-900 [&.active]:bg-clinic-100 [&.active]:text-clinic-900"
+            className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-clinic-600 transition-colors hover:bg-clinic-100 hover:text-clinic-900 [&.active]:bg-clinic-100 [&.active]:text-clinic-900"
           >
             <Icon className="h-4 w-4" />
             {label}
           </Link>
         ))}
       </nav>
+
+      <div className="mx-3 mb-3 rounded-md border border-clinic-200 bg-clinic-50 p-3">
+        <div className="flex items-center justify-between text-xs font-medium text-clinic-600">
+          <span>Supervisor</span>
+          <span className="inline-flex items-center gap-1 text-accent-700">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-600" />
+            Online
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-clinic-500">
+          <span>API healthy</span>
+          <span>Sync current</span>
+          <span>Backups on</span>
+          <span>Fax ready</span>
+        </div>
+      </div>
 
       <div className="border-t border-clinic-200 p-3">
         <div className="mb-1 text-xs text-clinic-400">{user?.display_name}</div>
@@ -47,25 +94,393 @@ function SideNav() {
   );
 }
 
-export const Route = createRootRoute({
-  component: () => {
-    const { isAuthenticated } = useAuth();
-    const router = useRouter();
-
-    if (!isAuthenticated) {
-      router.navigate({ to: '/login' });
-      return null;
-    }
-
-    return (
-      <div className="flex h-screen overflow-hidden">
-        <SideNav />
-        <main className="flex-1 overflow-auto">
-          <div className="mx-auto max-w-5xl p-6">
-            <Outlet />
-          </div>
-        </main>
+function TopBar({
+  density,
+  onDensityChange,
+  onCommandOpen,
+  onSettingsOpen,
+  onMenuOpen,
+}: {
+  density: 'comfortable' | 'compact';
+  onDensityChange: () => void;
+  onCommandOpen: () => void;
+  onSettingsOpen: () => void;
+  onMenuOpen: () => void;
+}) {
+  return (
+    <header className="flex h-14 shrink-0 items-center justify-between border-b border-clinic-200 bg-white px-5">
+      <button onClick={onMenuOpen} aria-label="Open navigation" className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-clinic-300 bg-white text-clinic-600 hover:bg-clinic-50 md:hidden">
+        <Menu className="h-4 w-4" />
+      </button>
+      <button onClick={onCommandOpen} className="flex h-9 w-full max-w-xl items-center gap-3 rounded-md border border-clinic-300 bg-clinic-50 px-3 text-left text-sm text-clinic-500 hover:border-clinic-400 hover:bg-white">
+        <Search className="h-4 w-4 text-clinic-400" />
+        <span className="min-w-0 flex-1 truncate">Search patients, tasks, faxes, messages</span>
+        <span className="inline-flex items-center gap-1 rounded border border-clinic-200 bg-white px-1.5 py-0.5 text-xs text-clinic-500">
+          <Command className="h-3 w-3" />
+          K
+        </span>
+      </button>
+      <div className="ml-4 flex items-center gap-2">
+        <button onClick={onDensityChange} className="hidden items-center gap-1.5 rounded-md border border-clinic-200 bg-clinic-50 px-2.5 py-1.5 text-xs font-medium text-clinic-600 hover:bg-white sm:inline-flex">
+          Density
+          <span className="rounded bg-white px-1.5 py-0.5 text-clinic-800">{density === 'comfortable' ? 'Comfort' : 'Compact'}</span>
+        </button>
+        <button onClick={onSettingsOpen} aria-label="Settings" className="flex h-9 w-9 items-center justify-center rounded-md border border-clinic-300 bg-white text-clinic-600 hover:bg-clinic-50">
+          <Settings className="h-4 w-4" />
+        </button>
       </div>
-    );
-  },
+    </header>
+  );
+}
+
+function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { user, logout } = useAuth();
+  const navItems = [
+    { to: '/', label: 'Command', icon: Gauge },
+    { to: '/patients', label: 'Patients', icon: Users },
+    { to: '/tasks', label: 'Tasks', icon: ClipboardList },
+    { to: '/scheduling', label: 'Schedule', icon: Calendar },
+    { to: '/faxes', label: 'Faxes', icon: Printer },
+    { to: '/messaging', label: 'Messages', icon: MessageSquare },
+  ];
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-clinic-900/20 md:hidden">
+      <div className="flex h-full w-72 max-w-[86vw] flex-col border-r border-clinic-200 bg-white shadow-xl">
+        <div className="flex h-14 items-center justify-between border-b border-clinic-200 px-4">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
+              <Activity className="h-4 w-4 text-accent-700" />
+            </div>
+            <div>
+              <span className="block text-sm font-semibold text-clinic-900">ConciergeOS</span>
+              <span className="block text-xs text-clinic-500">Clinic operations</span>
+            </div>
+          </div>
+          <button onClick={onClose} aria-label="Close navigation" className="flex h-8 w-8 items-center justify-center rounded-md text-clinic-500 hover:bg-clinic-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-0.5 px-2 py-3">
+          {navItems.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              onClick={onClose}
+              className="flex h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-clinic-600 hover:bg-clinic-100 hover:text-clinic-900 [&.active]:bg-clinic-100 [&.active]:text-clinic-900"
+            >
+              <Icon className="h-4 w-4" />
+              {label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="border-t border-clinic-200 p-3">
+          <div className="mb-1 text-xs text-clinic-400">{user?.display_name}</div>
+          <button
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-clinic-500 hover:bg-clinic-100 hover:text-red-600"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SettingsPanel({
+  open,
+  density,
+  onDensityChange,
+  onClose,
+}: {
+  open: boolean;
+  density: 'comfortable' | 'compact';
+  onDensityChange: () => void;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4" role="dialog" aria-modal="true">
+      <div className="ml-auto h-full max-w-md overflow-hidden rounded-md border border-clinic-300 bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Settings</h2>
+            <p className="text-xs text-clinic-500">Local frontend preferences and supervisor status</p>
+          </div>
+          <button onClick={onClose} aria-label="Close settings" className="flex h-8 w-8 items-center justify-center rounded-md text-clinic-500 hover:bg-clinic-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-5 p-4">
+          <section>
+            <h3 className="text-xs font-semibold uppercase text-clinic-500">Workspace</h3>
+            <div className="mt-2 rounded-md border border-clinic-200 bg-clinic-50 p-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-clinic-600">Mode</span>
+                <span className="font-medium text-clinic-900">Demo fallback</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-clinic-600">API</span>
+                <span className="font-medium text-amber-700">Waiting for backend infra</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-clinic-600">Persistence</span>
+                <span className="font-medium text-clinic-900">Local browser storage</span>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase text-clinic-500">Density</h3>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {(['comfortable', 'compact'] as const).map((option) => (
+                <button
+                  key={option}
+                  onClick={() => {
+                    if (option !== density) onDensityChange();
+                  }}
+                  className={`rounded-md border px-3 py-2 text-sm font-medium capitalize ${
+                    density === option
+                      ? 'border-accent-300 bg-accent-50 text-accent-800'
+                      : 'border-clinic-300 text-clinic-700 hover:bg-clinic-50'
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase text-clinic-500">Status</h3>
+            <ul className="mt-2 space-y-2 text-sm text-clinic-700">
+              {['React shell ready', 'Demo API fallback ready', 'Command palette ready', 'Backend infra not required for frontend review'].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-accent-600" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section>
+            <h3 className="text-xs font-semibold uppercase text-clinic-500">Demo Data</h3>
+            <button
+              onClick={() => {
+                window.localStorage.removeItem('concierge-os.demo-data.v1');
+                window.location.reload();
+              }}
+              className="mt-2 rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50"
+            >
+              Reset demo workspace
+            </button>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const actions = useMemo(
+    () => [
+      { label: 'Open Command Center', detail: 'Clinic dashboard and live work', to: '/', icon: Gauge },
+      { label: 'Find Patients', detail: 'Search charts and demographics', to: '/patients', icon: Users },
+      { label: 'Task Queue', detail: 'Open, assigned, and urgent tasks', to: '/tasks', icon: ClipboardList },
+      { label: 'Schedule', detail: 'Clinic week and visit states', to: '/scheduling', icon: Calendar },
+      { label: 'Fax Center', detail: 'Inbound, outbound, matching, OCR', to: '/faxes', icon: Printer },
+      { label: 'Messages', detail: 'Patient and staff conversations', to: '/messaging', icon: MessageSquare },
+    ],
+    [],
+  );
+  const filtered = actions.filter((action) =>
+    `${action.label} ${action.detail}`.toLowerCase().includes(query.toLowerCase()),
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4" role="dialog" aria-modal="true">
+      <div className="mx-auto mt-24 max-w-2xl overflow-hidden rounded-md border border-clinic-300 bg-white shadow-xl">
+        <div className="flex items-center gap-3 border-b border-clinic-200 px-3 py-2">
+          <Search className="h-4 w-4 text-clinic-400" />
+          <input
+            autoFocus
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="h-10 flex-1 bg-transparent text-sm text-clinic-900 outline-none placeholder:text-clinic-400"
+            placeholder="Search commands, patients, queues..."
+          />
+          <button onClick={onClose} aria-label="Close command palette" className="flex h-8 w-8 items-center justify-center rounded-md text-clinic-500 hover:bg-clinic-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="max-h-96 overflow-y-auto p-2">
+          {filtered.map(({ label, detail, to, icon: Icon }) => (
+            <button
+              key={to}
+              onClick={() => {
+                navigate({ to });
+                onClose();
+              }}
+              className="flex w-full items-center gap-3 rounded-md px-3 py-3 text-left hover:bg-clinic-50"
+            >
+              <Icon className="h-4 w-4 text-accent-700" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-clinic-900">{label}</span>
+                <span className="block truncate text-xs text-clinic-500">{detail}</span>
+              </span>
+            </button>
+          ))}
+          {filtered.length === 0 && <div className="px-3 py-8 text-center text-sm text-clinic-400">No matching commands</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AttentionRail() {
+  const api = useApi();
+  const { data: tasks } = useQuery({
+    queryKey: [...QUERY_KEYS.TASKS, 'attention-rail'],
+    queryFn: () => api.get<ListResponse<Task>>('/tasks?page=1&page_size=20'),
+  });
+  const { data: faxes } = useQuery({
+    queryKey: [...QUERY_KEYS.FAXES, 'attention-rail'],
+    queryFn: () => api.get<ListResponse<Fax>>('/faxes?direction=inbound&page=1&page_size=20'),
+  });
+  const { data: threads } = useQuery({
+    queryKey: [...QUERY_KEYS.MESSAGES, 'attention-rail'],
+    queryFn: () => api.get<ListResponse<MessageThread>>('/messages/threads'),
+  });
+  const urgentTask = tasks?.data.find((task) => task.status !== 'completed' && task.priority === 'urgent');
+  const unmatchedFax = faxes?.data.find((fax) => !fax.patient_id);
+  const unreadThread = threads?.data.find((thread) => thread.unread_count > 0);
+  const activeTask = tasks?.data.find((task) => task.status === 'in_progress');
+  const items = [
+    urgentTask && ['Urgent task', urgentTask.title, 'red'],
+    unmatchedFax && ['Incoming fax', `${unmatchedFax.pages} page${unmatchedFax.pages === 1 ? '' : 's'} need patient matching`, 'amber'],
+    activeTask && ['In progress', activeTask.title, 'green'],
+    unreadThread && ['Portal reply', unreadThread.subject, 'neutral'],
+  ].filter(Boolean) as string[][];
+
+  return (
+    <aside className="hidden w-72 shrink-0 border-l border-clinic-200 bg-white xl:block">
+      <div className="border-b border-clinic-200 px-4 py-3">
+        <h2 className="text-sm font-semibold text-clinic-800">Live Work</h2>
+        <p className="text-xs text-clinic-500">Pinned queues for the current shift</p>
+      </div>
+      <div className="divide-y divide-clinic-100">
+        {(items.length > 0 ? items : [['All clear', 'No pinned urgent work right now', 'green']]).map(([label, detail, tone]) => (
+          <button key={detail} className="block w-full px-4 py-3 text-left hover:bg-clinic-50">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  tone === 'red'
+                    ? 'bg-red-600'
+                    : tone === 'amber'
+                      ? 'bg-amber-600'
+                      : tone === 'green'
+                        ? 'bg-accent-600'
+                        : 'bg-clinic-400'
+                }`}
+              />
+              <span className="text-xs font-semibold uppercase text-clinic-500">{label}</span>
+            </div>
+            <div className="mt-1 text-sm font-medium text-clinic-800">{detail}</div>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function RootLayout() {
+  const { isAuthenticated } = useAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const [commandOpen, setCommandOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandOpen(true);
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  if (pathname === '/login') {
+    return <Outlet />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  return (
+    <div className={`flex h-screen overflow-hidden bg-clinic-50 ${density === 'compact' ? 'text-[0.9375rem]' : ''}`}>
+      <SideNav />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <TopBar
+          density={density}
+          onDensityChange={() => setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))}
+          onCommandOpen={() => setCommandOpen(true)}
+          onSettingsOpen={() => setSettingsOpen(true)}
+          onMenuOpen={() => setMobileNavOpen(true)}
+        />
+        <div className="flex min-h-0 flex-1">
+          <main className="min-w-0 flex-1 overflow-auto">
+            <div className={density === 'compact' ? 'p-3' : 'p-5'}>
+              <Outlet />
+            </div>
+          </main>
+          <AttentionRail />
+        </div>
+      </div>
+      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
+      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <SettingsPanel
+        open={settingsOpen}
+        density={density}
+        onDensityChange={() => setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))}
+        onClose={() => setSettingsOpen(false)}
+      />
+    </div>
+  );
+}
+
+export const Route = createRootRoute({
+  component: RootLayout,
+  errorComponent: ({ error }) => (
+    <div className="min-h-screen bg-clinic-50 p-6">
+      <ErrorState title="The frontend hit a runtime error" detail={error.message} />
+    </div>
+  ),
 });

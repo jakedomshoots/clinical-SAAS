@@ -29,3 +29,16 @@ export const WS_CHANNELS = {
   SCHEDULE: 'events:schedule',
   SYSTEM: 'events:system',
 } as const;
+
+export const QUERY_KEYS = {
+  PATIENTS: ['patients'] as const,
+  PATIENT: (id: string) => ['patients', id] as const,
+  TASKS: ['tasks'] as const,
+  TASK: (id: string) => ['tasks', id] as const,
+  APPOINTMENTS: ['appointments'] as const,
+  FAXES: ['faxes'] as const,
+  FAX: (id: string) => ['faxes', id] as const,
+  MESSAGES: ['messages'] as const,
+  THREAD: (id: string) => ['messages', 'threads', id] as const,
+  USER: ['user'] as const,
+} as const;

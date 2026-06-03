@@ -1,0 +1,387 @@
+import type { Appointment, Fax, Message, MessageThread, Patient, PatientUpdate, Task } from '@concierge-os/shared';
+
+const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
+const now = new Date('2026-06-03T13:30:00-04:00');
+
+function iso(offsetHours = 0) {
+  return new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
+}
+
+function uuid(n: number) {
+  return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+}
+
+interface DemoStore {
+  patients: Patient[];
+  tasks: Task[];
+  appointments: Appointment[];
+  faxes: Fax[];
+  messages: Message[];
+}
+
+let patients: Patient[] = [
+  {
+    id: uuid(101),
+    mrn: 'MRN-10492',
+    first_name: 'Mary',
+    last_name: 'Collins',
+    dob: '1961-04-18',
+    gender: 'Female',
+    phone: '(312) 555-0184',
+    email: 'mary.collins@example.test',
+    address: { street: '412 Prairie Ave', city: 'Chicago', state: 'IL', zip: '60616' },
+    emergency_contact: { name: 'Evan Collins', relationship: 'Spouse', phone: '(312) 555-0119' },
+    insurance: { provider: 'BlueCross', plan: 'PPO', member_id: 'BC-884221', group_number: '1037' },
+    allergies: [{ substance: 'Penicillin', reaction: 'Hives', severity: 'moderate' }],
+    problem_list: ['Hypertension', 'Type 2 diabetes', 'Hyperlipidemia'],
+    is_active: true,
+    created_at: iso(-240),
+    updated_at: iso(-1),
+  },
+  {
+    id: uuid(102),
+    mrn: 'MRN-11807',
+    first_name: 'Andre',
+    last_name: 'Miller',
+    dob: '1978-10-02',
+    gender: 'Male',
+    phone: '(312) 555-0128',
+    email: 'andre.miller@example.test',
+    address: { street: '88 Lake Shore Dr', city: 'Chicago', state: 'IL', zip: '60611' },
+    emergency_contact: null,
+    insurance: { provider: 'Aetna', plan: 'HMO', member_id: 'AET-442901', group_number: '8812' },
+    allergies: [],
+    problem_list: ['Asthma', 'GERD'],
+    is_active: true,
+    created_at: iso(-180),
+    updated_at: iso(-2),
+  },
+  {
+    id: uuid(103),
+    mrn: 'MRN-12138',
+    first_name: 'Sofia',
+    last_name: 'Nguyen',
+    dob: '1989-01-25',
+    gender: 'Female',
+    phone: '(312) 555-0173',
+    email: 'sofia.nguyen@example.test',
+    address: { street: '1700 W Division St', city: 'Chicago', state: 'IL', zip: '60622' },
+    emergency_contact: { name: 'Minh Nguyen', relationship: 'Brother', phone: '(312) 555-0144' },
+    insurance: null,
+    allergies: [{ substance: 'Sulfa', reaction: 'Rash', severity: 'mild' }],
+    problem_list: ['Hypothyroidism'],
+    is_active: true,
+    created_at: iso(-90),
+    updated_at: iso(-5),
+  },
+  {
+    id: uuid(104),
+    mrn: 'MRN-12881',
+    first_name: 'James',
+    last_name: 'Patel',
+    dob: '1994-07-11',
+    gender: 'Male',
+    phone: '(312) 555-0190',
+    email: 'james.patel@example.test',
+    address: null,
+    emergency_contact: null,
+    insurance: { provider: 'United Healthcare', plan: 'Choice Plus', member_id: 'UHC-099321', group_number: '5501' },
+    allergies: [],
+    problem_list: [],
+    is_active: true,
+    created_at: iso(-72),
+    updated_at: iso(-6),
+  },
+  {
+    id: uuid(105),
+    mrn: 'MRN-13644',
+    first_name: 'Lena',
+    last_name: 'Brooks',
+    dob: '1955-11-09',
+    gender: 'Female',
+    phone: '(312) 555-0107',
+    email: 'lena.brooks@example.test',
+    address: { street: '205 Oak St', city: 'Oak Park', state: 'IL', zip: '60302' },
+    emergency_contact: { name: 'Theo Brooks', relationship: 'Son', phone: '(312) 555-0133' },
+    insurance: { provider: 'Medicare', plan: 'Part B', member_id: 'MCR-72118', group_number: '' },
+    allergies: [{ substance: 'Latex', reaction: 'Contact dermatitis', severity: 'mild' }],
+    problem_list: ['Atrial fibrillation', 'Osteoarthritis'],
+    is_active: true,
+    created_at: iso(-48),
+    updated_at: iso(-3),
+  },
+];
+
+let tasks: Task[] = [
+  { id: uuid(201), title: 'Call Mary Collins with potassium result', description: 'Critical lab callback and medication reconciliation.', priority: 'urgent', status: 'open', due_date: iso(1), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(101), patient_name: 'Mary Collins', creator_id: uuid(1), created_at: iso(-8), updated_at: iso(-1) },
+  { id: uuid(202), title: 'Room Andre Miller', description: 'Update medication list and repeat blood pressure.', priority: 'high', status: 'in_progress', due_date: iso(0.5), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(102), patient_name: 'Andre Miller', creator_id: uuid(1), created_at: iso(-2), updated_at: iso(-0.5) },
+  { id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) },
+  { id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) },
+  { id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) },
+];
+
+let appointments: Appointment[] = [
+  { id: uuid(301), patient_id: uuid(101), patient_name: 'Mary Collins', provider_id: uuid(2), provider_name: 'Dr. Nora Ellis', start_time: '2026-06-03T08:30:00-04:00', end_time: '2026-06-03T09:00:00-04:00', type: 'Annual wellness', status: 'checked_in', notes: 'Vitals complete.', created_at: iso(-120), updated_at: iso(-4) },
+  { id: uuid(302), patient_id: uuid(102), patient_name: 'Andre Miller', provider_id: uuid(2), provider_name: 'Dr. Nora Ellis', start_time: '2026-06-03T09:00:00-04:00', end_time: '2026-06-03T09:30:00-04:00', type: 'Follow-up', status: 'in_progress', notes: 'Medication list needs review.', created_at: iso(-110), updated_at: iso(-1) },
+  { id: uuid(303), patient_id: uuid(103), patient_name: 'Sofia Nguyen', provider_id: uuid(2), provider_name: 'Dr. Nora Ellis', start_time: '2026-06-03T09:30:00-04:00', end_time: '2026-06-03T10:00:00-04:00', type: 'Lab review', status: 'scheduled', notes: null, created_at: iso(-100), updated_at: iso(-12) },
+  { id: uuid(304), patient_id: uuid(104), patient_name: 'James Patel', provider_id: uuid(6), provider_name: 'Dr. Omar Singh', start_time: '2026-06-03T10:00:00-04:00', end_time: '2026-06-03T10:45:00-04:00', type: 'New patient', status: 'scheduled', notes: 'Forms pending.', created_at: iso(-98), updated_at: iso(-9) },
+  { id: uuid(305), patient_id: uuid(105), patient_name: 'Lena Brooks', provider_id: uuid(6), provider_name: 'Dr. Omar Singh', start_time: '2026-06-04T10:30:00-04:00', end_time: '2026-06-04T11:00:00-04:00', type: 'Medication check', status: 'scheduled', notes: null, created_at: iso(-80), updated_at: iso(-7) },
+];
+
+let faxes: Fax[] = [
+  { id: uuid(401), direction: 'inbound', status: 'received', from_number: '+13125550100', to_number: '+13125550999', pages: 4, file_url: null, patient_id: uuid(101), patient_name: 'Mary Collins', matched_by: 'MRN detected', ocr_text: 'LabCorp final report. Potassium 5.9 mmol/L. Please review urgently.', created_at: iso(-1.4) },
+  { id: uuid(402), direction: 'inbound', status: 'processing', from_number: '+13125550177', to_number: '+13125550999', pages: 2, file_url: null, patient_id: null, patient_name: null, matched_by: null, ocr_text: 'Referral authorization notice. Patient name partially obscured.', created_at: iso(-2.5) },
+  { id: uuid(403), direction: 'outbound', status: 'sent', from_number: '+13125550999', to_number: '+13125550122', pages: 7, file_url: null, patient_id: uuid(105), patient_name: 'Lena Brooks', matched_by: 'manual', ocr_text: 'Cardiology referral packet and medication history.', created_at: iso(-24) },
+  { id: uuid(404), direction: 'outbound', status: 'failed', from_number: '+13125550999', to_number: '+13125550188', pages: 3, file_url: null, patient_id: uuid(103), patient_name: 'Sofia Nguyen', matched_by: 'manual', ocr_text: 'Insurance appeal documentation.', created_at: iso(-5) },
+];
+
+let messages: Message[] = [
+  { id: uuid(501), sender_id: uuid(101), sender_name: 'Mary Collins', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?', thread_id: uuid(601), is_read: false, created_at: iso(-2) },
+  { id: uuid(502), sender_id: uuid(1), sender_name: 'Clinic Admin', recipient_id: uuid(101), recipient_name: 'Mary Collins', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.', thread_id: uuid(601), is_read: true, created_at: iso(-1.5) },
+  { id: uuid(503), sender_id: uuid(103), sender_name: 'Sofia Nguyen', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Medication refill', body: 'Can you send my thyroid medication refill to the usual pharmacy?', thread_id: uuid(602), is_read: false, created_at: iso(-4) },
+  { id: uuid(504), sender_id: uuid(5), sender_name: 'Sam Rivera', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Front desk handoff', body: 'James Patel forms are missing insurance card images.', thread_id: uuid(603), is_read: true, created_at: iso(-6) },
+];
+
+function readStoredDemoData(): DemoStore | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(DEMO_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as DemoStore) : null;
+  } catch {
+    window.localStorage.removeItem(DEMO_STORAGE_KEY);
+    return null;
+  }
+}
+
+function saveDemoData() {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(
+    DEMO_STORAGE_KEY,
+    JSON.stringify({ patients, tasks, appointments, faxes, messages }),
+  );
+}
+
+const storedDemoData = readStoredDemoData();
+if (storedDemoData) {
+  patients = storedDemoData.patients;
+  tasks = storedDemoData.tasks;
+  appointments = storedDemoData.appointments;
+  faxes = storedDemoData.faxes;
+  messages = storedDemoData.messages;
+}
+
+function paginate<T>(rows: T[], page: number, pageSize: number) {
+  const start = (page - 1) * pageSize;
+  return rows.slice(start, start + pageSize);
+}
+
+function threads(): MessageThread[] {
+  const grouped = new Map<string, Message[]>();
+  for (const message of messages) {
+    const threadId = message.thread_id ?? message.id;
+    grouped.set(threadId, [...(grouped.get(threadId) ?? []), message]);
+  }
+
+  return [...grouped.entries()].map(([id, items]) => {
+    const sorted = [...items].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const lastMessage = sorted[sorted.length - 1];
+    const participants = new Map<string, string>();
+    for (const item of sorted) {
+      participants.set(item.sender_id, item.sender_name);
+      participants.set(item.recipient_id, item.recipient_name);
+    }
+    return {
+      id,
+      subject: lastMessage.subject,
+      participants: [...participants.entries()].map(([participantId, name]) => ({ id: participantId, name })),
+      last_message: lastMessage,
+      unread_count: sorted.filter((item) => !item.is_read).length,
+    };
+  }).sort((a, b) => b.last_message.created_at.localeCompare(a.last_message.created_at));
+}
+
+export async function demoRequest<T>(method: string, rawPath: string, body?: unknown): Promise<T | undefined> {
+  const url = new URL(rawPath, 'http://demo.local');
+  const path = url.pathname.replace(/^\/api/, '');
+  const page = Number(url.searchParams.get('page') ?? '1');
+  const pageSize = Number(url.searchParams.get('page_size') ?? '20');
+
+  if (method === 'GET' && path === '/health') return { status: 'ok', version: 'demo' } as T;
+
+  if (path === '/patients') {
+    if (method === 'POST') {
+      const incoming = body as Partial<Patient>;
+      const patient: Patient = {
+        id: uuid(900 + patients.length),
+        mrn: `MRN-${14000 + patients.length}`,
+        first_name: incoming.first_name ?? 'New',
+        last_name: incoming.last_name ?? 'Patient',
+        dob: incoming.dob ?? '1980-01-01',
+        gender: incoming.gender ?? 'Unknown',
+        phone: incoming.phone ?? null,
+        email: incoming.email ?? null,
+        address: null,
+        emergency_contact: null,
+        insurance: null,
+        allergies: [],
+        problem_list: [],
+        is_active: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      patients = [patient, ...patients];
+      saveDemoData();
+      return patient as T;
+    }
+    const search = (url.searchParams.get('search') ?? '').toLowerCase().trim();
+    const filtered = search
+      ? patients.filter((patient) =>
+          [patient.mrn, patient.first_name, patient.last_name, patient.email, patient.phone]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search)),
+        )
+      : patients;
+    return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  const patientMatch = path.match(/^\/patients\/([^/]+)$/);
+  if (patientMatch) {
+    const patient = patients.find((item) => item.id === patientMatch[1]);
+    if (!patient) throw new Error('Patient not found');
+    if (method === 'PATCH') {
+      patients = patients.map((item) =>
+        item.id === patient.id ? { ...item, ...(body as PatientUpdate), updated_at: new Date().toISOString() } : item,
+      );
+      saveDemoData();
+      return patients.find((item) => item.id === patient.id) as T;
+    }
+    return patient as T;
+  }
+
+  if (path === '/tasks') {
+    if (method === 'POST') {
+      const incoming = body as Partial<Task>;
+      const task: Task = {
+        id: uuid(920 + tasks.length),
+        title: incoming.title ?? 'New task',
+        description: incoming.description ?? null,
+        priority: incoming.priority ?? 'normal',
+        status: incoming.status ?? 'open',
+        due_date: incoming.due_date ?? null,
+        assigned_to_id: null,
+        assigned_to_name: incoming.assigned_to_name ?? 'Clinic Admin',
+        patient_id: incoming.patient_id ?? null,
+        patient_name: incoming.patient_name ?? null,
+        creator_id: uuid(1),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      tasks = [task, ...tasks];
+      saveDemoData();
+      return task as T;
+    }
+    const status = url.searchParams.get('status');
+    const filtered = status ? tasks.filter((task) => task.status === status) : tasks;
+    return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  const taskMatch = path.match(/^\/tasks\/([^/]+)$/);
+  if (taskMatch && method === 'PATCH') {
+    tasks = tasks.map((task) =>
+      task.id === taskMatch[1] ? { ...task, ...(body as Partial<Task>), updated_at: new Date().toISOString() } : task,
+    );
+    saveDemoData();
+    return tasks.find((task) => task.id === taskMatch[1]) as T;
+  }
+
+  if (path === '/schedule/appointments') {
+    return { data: appointments, total: appointments.length } as T;
+  }
+
+  if (path === '/schedule' && method === 'POST') {
+    const appointment = {
+      id: uuid(940),
+      patient_id: uuid(104),
+      patient_name: 'New Patient',
+      provider_id: uuid(2),
+      provider_name: 'Dr. Nora Ellis',
+      start_time: '2026-06-05T11:00:00-04:00',
+      end_time: '2026-06-05T11:30:00-04:00',
+      type: 'Office visit',
+      status: 'scheduled',
+      notes: null,
+      ...(body as Partial<Appointment>),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } satisfies Appointment;
+    appointments = [...appointments, appointment];
+    saveDemoData();
+    return appointment as T;
+  }
+
+  if (path === '/faxes') {
+    if (method === 'POST') {
+      const incoming = body as Partial<Fax>;
+      const fax: Fax = {
+        id: uuid(960 + faxes.length),
+        direction: 'outbound',
+        status: 'pending',
+        from_number: '+13125550999',
+        to_number: incoming.to_number ?? '+13125550000',
+        pages: incoming.pages ?? 1,
+        file_url: null,
+        patient_id: incoming.patient_id ?? null,
+        patient_name: incoming.patient_name ?? null,
+        matched_by: incoming.patient_id ? 'manual' : null,
+        ocr_text: incoming.ocr_text ?? 'Queued outbound fax.',
+        created_at: new Date().toISOString(),
+      };
+      faxes = [fax, ...faxes];
+      saveDemoData();
+      return fax as T;
+    }
+    const direction = url.searchParams.get('direction');
+    const filtered = direction ? faxes.filter((fax) => fax.direction === direction) : faxes;
+    return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  const faxMatch = path.match(/^\/faxes\/([^/]+)$/);
+  if (faxMatch && method === 'PATCH') {
+    faxes = faxes.map((fax) =>
+      fax.id === faxMatch[1] ? { ...fax, ...(body as Partial<Fax>) } : fax,
+    );
+    saveDemoData();
+    return faxes.find((fax) => fax.id === faxMatch[1]) as T;
+  }
+
+  if (path === '/messages/threads') {
+    const data = threads();
+    return { data, total: data.length } as T;
+  }
+
+  const threadMatch = path.match(/^\/messages\/threads\/([^/]+)$/);
+  if (threadMatch) {
+    return messages.filter((message) => message.thread_id === threadMatch[1]) as T;
+  }
+
+  if (path === '/messages' && method === 'POST') {
+    const incoming = body as { recipient_id: string; subject: string; body: string; thread_id?: string };
+    const message: Message = {
+      id: uuid(700 + messages.length),
+      sender_id: uuid(1),
+      sender_name: 'Clinic Admin',
+      recipient_id: incoming.recipient_id,
+      recipient_name: 'Care Team',
+      subject: incoming.subject,
+      body: incoming.body,
+      thread_id: incoming.thread_id ?? uuid(800 + messages.length),
+      is_read: true,
+      created_at: new Date().toISOString(),
+    };
+    messages = [...messages, message];
+    saveDemoData();
+    return message as T;
+  }
+
+  return undefined;
+}

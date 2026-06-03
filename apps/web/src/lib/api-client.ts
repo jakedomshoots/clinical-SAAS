@@ -1,6 +1,11 @@
 import { useAuth } from './auth';
+import { demoRequest } from './demo-api';
 
 const BASE = '/api';
+
+function normalizePath(path: string) {
+  return path.startsWith('/api/') ? path.slice(4) : path;
+}
 
 async function request<T>(
   method: string,
@@ -10,19 +15,31 @@ async function request<T>(
 ): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+  const normalizedPath = normalizePath(path);
 
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `Request failed: ${res.status}`);
+  if (token === 'demo-dev-token') {
+    const demo = await demoRequest<T>(method, normalizedPath, body);
+    if (demo !== undefined) return demo;
   }
 
-  return res.json();
+  try {
+    const res = await fetch(`${BASE}${normalizedPath}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || `Request failed: ${res.status}`);
+    }
+
+    return res.json();
+  } catch (error) {
+    const demo = await demoRequest<T>(method, normalizedPath, body);
+    if (demo !== undefined) return demo;
+    throw error;
+  }
 }
 
 export function createApiClient(token: string | null) {
