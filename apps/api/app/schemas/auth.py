@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, field_serializer, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 
 class UserOut(BaseModel):
@@ -13,9 +13,6 @@ class UserOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('created_at', 'updated_at')
-    def serialize_dt(self, dt: datetime) -> str:
-        return dt.isoformat() if dt else ''
 
 
 class UserCreate(BaseModel):

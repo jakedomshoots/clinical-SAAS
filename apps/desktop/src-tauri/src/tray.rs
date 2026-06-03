@@ -1,11 +1,10 @@
 use tauri::{
-    AppHandle, Runtime,
     menu::{Menu, MenuItem},
-    tray::{TrayIconBuilder, MouseButton, MouseButtonState, TrayIconEvent},
+    tray::TrayIconBuilder,
     Manager,
 };
 
-pub fn build_tray<R: Runtime>(app: &tauri::App<R>) -> Result<tauri::tray::TrayIcon<R>, tauri::Error> {
+pub fn build_tray<R: tauri::Runtime>(app: &tauri::App<R>) -> Result<tauri::tray::TrayIcon<R>, tauri::Error> {
     let open = MenuItem::with_id(app, "open", "Open Clinic Portal", true, None::<&str>)?;
     let backup = MenuItem::with_id(app, "backup", "Backup Now", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -24,9 +23,7 @@ pub fn build_tray<R: Runtime>(app: &tauri::App<R>) -> Result<tauri::tray::TrayIc
                     eprintln!("Failed to open: {}", e);
                 }
             }
-            "backup" => {
-                println!("Backup triggered");
-            }
+            "backup" => {}
             "settings" => {
                 if let Some(window) = app.get_window("main") {
                     let _ = window.show();

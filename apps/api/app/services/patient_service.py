@@ -11,25 +11,7 @@ def _generate_mrn() -> str:
     return f"MRN-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6].upper()}"
 
 
-def _patient_to_dict(patient: Patient) -> dict:
-    return {
-        "id": patient.id,
-        "mrn": patient.mrn,
-        "first_name": patient.first_name,
-        "last_name": patient.last_name,
-        "dob": patient.dob.isoformat() if patient.dob else None,
-        "gender": patient.gender,
-        "phone": patient.phone,
-        "email": patient.email,
-        "address": patient.address,
-        "emergency_contact": patient.emergency_contact,
-        "insurance": patient.insurance,
-        "allergies": patient.allergies,
-        "problem_list": patient.problem_list,
-        "is_active": patient.is_active,
-        "created_at": patient.created_at.isoformat() if patient.created_at else None,
-        "updated_at": patient.updated_at.isoformat() if patient.updated_at else None,
-    }
+from app.schemas.patient import PatientOut
 
 
 async def list_patients(
@@ -67,13 +49,13 @@ async def list_patients(
     result = await db.execute(query)
     patients = result.scalars().all()
 
-    return [_patient_to_dict(p) for p in patients], total
+    return [PatientOut.model_validate(p).model_dump() for p in patients], total
 
 
 async def get_patient(db: AsyncSession, patient_id: str) -> dict | None:
     result = await db.execute(select(Patient).where(Patient.id == patient_id))
     patient = result.scalar_one_or_none()
-    return _patient_to_dict(patient) if patient else None
+    return PatientOut.model_validate(patient).model_dump() if patient else None
 
 
 async def create_patient(
@@ -108,7 +90,7 @@ async def create_patient(
         payload={"mrn": patient.mrn, "name": f"{patient.first_name} {patient.last_name}"},
     )
 
-    return _patient_to_dict(patient)
+    return PatientOut.model_validate(patient).model_dump()
 
 
 async def update_patient(
@@ -123,7 +105,7 @@ async def update_patient(
         return None
 
     for field, value in data.items():
-        if value is not None and hasattr(patient, field):
+        if hasattr(patient, field):
             setattr(patient, field, value)
 
     await db.commit()
@@ -138,7 +120,7 @@ async def update_patient(
         payload={"updated_fields": list(data.keys())},
     )
 
-    return _patient_to_dict(patient)
+    return PatientOut.model_validate(patient).model_dump()
 
 
 async def deactivate_patient(
@@ -164,4 +146,4 @@ async def deactivate_patient(
         payload={"mrn": patient.mrn},
     )
 
-    return _patient_to_dict(patient)
+    return PatientOut.model_validate(patient).model_dump()

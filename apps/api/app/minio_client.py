@@ -12,7 +12,3 @@ minio = Minio(
 def ensure_bucket() -> None:
     if not minio.bucket_exists(settings.minio_bucket):
         minio.make_bucket(settings.minio_bucket)
-
-
-def get_minio() -> Minio:
-    return minio

@@ -9,8 +9,7 @@
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build"
   },
-  "app": {
-    "withGlobalTauri": true,
+  "app": {,
     "windows": [
       {
         "title": "ConciergeOS Server",

@@ -1,5 +1,5 @@
-from datetime import date
-from pydantic import BaseModel, Field
+from datetime import date, datetime
+from pydantic import BaseModel, Field, field_serializer, ConfigDict
 
 
 class AddressSchema(BaseModel):
@@ -57,11 +57,13 @@ class PatientUpdate(BaseModel):
 
 
 class PatientOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     mrn: str
     first_name: str
     last_name: str
-    dob: str
+    dob: date
     gender: str
     phone: str | None
     email: str | None
@@ -71,10 +73,16 @@ class PatientOut(BaseModel):
     allergies: list[dict] | None
     problem_list: list[str] | None
     is_active: bool
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    @field_serializer('dob')
+    def serialize_dob(self, d: date) -> str:
+        return d.isoformat()
+
+    @field_serializer('created_at', 'updated_at')
+    def serialize_dt(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else ''
 
 
 class PatientListOut(BaseModel):

@@ -34,7 +34,7 @@ jobs:
           node-version: 22
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck || echo "TypeScript typecheck (non-blocking)"
+      - run: pnpm typecheck
 
   test-api:
     runs-on: ubuntu-latest
