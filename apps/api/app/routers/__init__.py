@@ -1,1 +1,1 @@
-from app.routers import auth, patients  # noqa: F401
+from app.routers import auth, patients, tasks, scheduling, faxes, messages  # noqa: F401

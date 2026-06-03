@@ -38,7 +38,11 @@ async def health_check():
     return {"status": "ok", "version": "0.0.1"}
 
 
-from app.routers import auth, patients
+from app.routers import auth, patients, tasks, scheduling, faxes, messages
 
 app.include_router(auth.router)
 app.include_router(patients.router)
+app.include_router(tasks.router)
+app.include_router(scheduling.router)
+app.include_router(faxes.router)
+app.include_router(messages.router)
