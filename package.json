@@ -1,0 +1,25 @@
+{
+  "name": "concierge-os",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:web": "pnpm --filter @concierge-os/web dev",
+    "dev:api": "pnpm --filter @concierge-os/api dev",
+    "dev:infra": "docker compose -f docker/docker-compose.yml up -d",
+    "dev:infra:down": "docker compose -f docker/docker-compose.yml down",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck",
+    "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^15.12.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.16.0"
+  }
+}

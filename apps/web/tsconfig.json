@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@concierge-os/shared": ["../../packages/shared/src"],
+      "@concierge-os/shared/*": ["../../packages/shared/src/*"]
+    }
+  },
+  "include": ["src", "vite-env.d.ts"],
+  "references": [{ "path": "../../packages/shared" }]
+}

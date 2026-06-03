@@ -1,0 +1,18 @@
+from minio import Minio
+from app.config import settings
+
+minio = Minio(
+    settings.minio_endpoint,
+    access_key=settings.minio_access_key,
+    secret_key=settings.minio_secret_key,
+    secure=settings.minio_secure,
+)
+
+
+def ensure_bucket() -> None:
+    if not minio.bucket_exists(settings.minio_bucket):
+        minio.make_bucket(settings.minio_bucket)
+
+
+def get_minio() -> Minio:
+    return minio
