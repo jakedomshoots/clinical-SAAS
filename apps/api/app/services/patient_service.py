@@ -1,14 +1,14 @@
-import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.patient import Patient
 from app.models.user import User
 from app.services.audit_service import log_event
+import uuid
 
 
-def _generate_mrn(db_session: AsyncSession) -> str:
-    """Simple sequential MRN. Replace with your org's format."""
-    return f"MRN-{datetime.datetime.utcnow():%Y%m%d%H%M%S}"
+def _generate_mrn() -> str:
+    return f"MRN-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6].upper()}"
 
 
 def _patient_to_dict(patient: Patient) -> dict:
@@ -82,7 +82,7 @@ async def create_patient(
     data: dict,
 ) -> dict:
     patient = Patient(
-        mrn=_generate_mrn(db),
+        mrn=_generate_mrn(),
         first_name=data["first_name"],
         last_name=data["last_name"],
         dob=data["dob"],

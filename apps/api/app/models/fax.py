@@ -1,6 +1,6 @@
 import uuid
-from datetime import datetime
-from sqlalchemy import String, DateTime, Integer, Boolean, ForeignKey, Enum as SAEnum
+from datetime import datetime, timezone
+from sqlalchemy import String, DateTime, Integer, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 import enum
@@ -20,6 +20,10 @@ class FaxStatus(str, enum.Enum):
     failed = "failed"
 
 
+def utcnow():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 class Fax(Base):
     __tablename__ = "faxes"
 
@@ -33,4 +37,4 @@ class Fax(Base):
     patient_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
     matched_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
     ocr_text: Mapped[str | None] = mapped_column(String(10000), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

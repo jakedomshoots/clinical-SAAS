@@ -1,4 +1,8 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
 
 @theme {
   --color-clinic-50: #f8fafc;
@@ -23,18 +27,52 @@
   --color-accent-800: #166534;
   --color-accent-900: #14532d;
 
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-background: var(--clinic-50);
+  --color-foreground: var(--clinic-900);
+  --color-primary: var(--accent-600);
+  --color-primary-foreground: white;
+  --color-secondary: var(--clinic-100);
+  --color-secondary-foreground: var(--clinic-800);
+  --color-muted: var(--clinic-100);
+  --color-muted-foreground: var(--clinic-500);
+  --color-accent: var(--accent-100);
+  --color-accent-foreground: var(--accent-800);
+  --color-card: white;
+  --color-card-foreground: var(--clinic-900);
+  --color-popover: white;
+  --color-popover-foreground: var(--clinic-900);
+  --color-border: var(--clinic-200);
+  --color-input: var(--clinic-300);
+  --color-ring: var(--accent-500);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-chart-1: var(--accent-500);
+  --color-chart-2: var(--clinic-500);
+  --color-chart-3: var(--clinic-700);
+  --color-chart-4: var(--accent-700);
+  --color-chart-5: var(--clinic-800);
+  --radius: 0.375rem;
 }
 
 @layer base {
   body {
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    @apply bg-background text-foreground;
   }
 
   :focus-visible {
     outline: 2px solid var(--color-accent-500);
     outline-offset: 2px;
     border-radius: 2px;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply font-sans;
   }
 }

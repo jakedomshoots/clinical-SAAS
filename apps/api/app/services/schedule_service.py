@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.schedule import Appointment, AppointmentStatus, ProviderAvailability
@@ -33,7 +33,7 @@ async def list_appointments(
     status: str | None = None,
 ) -> tuple[list[dict], int]:
     if start_date is None:
-        start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     if end_date is None:
         end_date = start_date + timedelta(days=7)
 

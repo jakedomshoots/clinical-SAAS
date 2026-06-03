@@ -1,16 +1,21 @@
-from pydantic import BaseModel, EmailStr
+from datetime import datetime
+from pydantic import BaseModel, EmailStr, field_serializer, ConfigDict
 
 
 class UserOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     email: str
     display_name: str
     role: str
     is_active: bool
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
 
-    model_config = {"from_attributes": True}
+    @field_serializer('created_at', 'updated_at')
+    def serialize_dt(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else ''
 
 
 class UserCreate(BaseModel):

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -19,12 +19,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: str, role: str) -> str:
-    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": user_id,
         "role": role,
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
@@ -69,8 +69,8 @@ async def seed_admin(db: AsyncSession) -> User | None:
 
     user = await create_user(
         db,
-        email="admin@conciergeos.local",
-        password="admin123!",  # Should be changed on first login
+        email="admin@clinic.example.com",
+        password="admin123!",
         display_name="Clinic Admin",
         role="admin",
     )

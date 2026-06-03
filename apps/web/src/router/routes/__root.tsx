@@ -1,14 +1,6 @@
-import { createRootRoute, Link, Outlet, useRouter } from '@tanstack/react-router';
-import { useAuth } from '@/lib/auth';
-import {
-  Users,
-  ClipboardList,
-  Calendar,
-  Fax,
-  MessageSquare,
-  LogOut,
-  Activity,
-} from 'lucide-react';
+import {Link, Outlet, createRootRoute, useRouter} from '@tanstack/react-router';
+import {useAuth} from '@/lib/auth';
+import {Activity, Calendar, ClipboardList, LogOut, MessageSquare, Printer, Users} from 'lucide-react';
 
 function SideNav() {
   const { user, logout } = useAuth();
@@ -17,7 +9,7 @@ function SideNav() {
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/schedule', label: 'Schedule', icon: Calendar },
-    { to: '/faxes', label: 'Faxes', icon: Fax },
+    { to: '/faxes', label: 'Faxes', icon: Printer },
     { to: '/messages', label: 'Messages', icon: MessageSquare },
   ];
 

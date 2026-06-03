@@ -3,15 +3,21 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import engine, Base
+from app.database import engine, Base, async_session_factory
 from app.redis_client import redis
 from app.minio_client import ensure_bucket
+from app.services.auth_service import seed_admin
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Seed admin user on first boot
+    async with async_session_factory() as db:
+        await seed_admin(db)
+
     ensure_bucket()
     yield
     await engine.dispose()
@@ -38,7 +44,7 @@ async def health_check():
     return {"status": "ok", "version": "0.0.1"}
 
 
-from app.routers import auth, patients, tasks, scheduling, faxes, messages
+from app.routers import auth, patients, tasks, scheduling, faxes, messages, websocket
 
 app.include_router(auth.router)
 app.include_router(patients.router)
@@ -46,3 +52,4 @@ app.include_router(tasks.router)
 app.include_router(scheduling.router)
 app.include_router(faxes.router)
 app.include_router(messages.router)
+app.include_router(websocket.router)
