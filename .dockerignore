@@ -1,0 +1,12 @@
+.git
+.DS_Store
+**/.DS_Store
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/node_modules
+**/dist
+**/build
+apps/api/.venv
+apps/api/uv.lock

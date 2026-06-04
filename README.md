@@ -37,6 +37,14 @@ pnpm dev:web
 
 Open the web app at `http://localhost:5173`. If the API is unavailable, the frontend falls back to local demo data after login or API request failure.
 
+Run the containerized app stack:
+
+```sh
+docker compose -f docker/docker-compose.yml --profile app up --build
+```
+
+The containerized web app listens at `http://localhost:8080` and proxies `/api` to the API container.
+
 ## Environment
 
 Copy `.env.example` into the environment file used by each app as needed. The API reads `apps/api/.env` by default.
@@ -67,6 +75,12 @@ Backend:
 ```sh
 cd apps/api
 uv run pytest
+```
+
+Container config:
+
+```sh
+docker compose -f docker/docker-compose.yml --profile app config
 ```
 
 ## Daily-Use Readiness

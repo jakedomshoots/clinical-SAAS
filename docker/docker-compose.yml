@@ -1,4 +1,49 @@
 services:
+  api:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://concierge:concierge_dev@postgres:5432/concierge_os
+      REDIS_URL: redis://redis:6379/0
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: concierge-os
+      SECRET_KEY: change-me-in-production-use-a-long-random-string
+      CORS_ORIGINS: http://localhost:5173,http://localhost:8080,http://localhost:1420
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - concierge-net
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - concierge-net
+
   postgres:
     image: postgres:16-alpine
     ports:
