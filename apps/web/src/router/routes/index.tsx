@@ -9,11 +9,12 @@ import {
   FileText,
   Inbox,
   MessageSquare,
+  ShieldCheck,
   Users,
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type { Appointment, Fax, MessageThread, Task } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, MessageThread, Task } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
   component: CommandCenterPage,
@@ -49,6 +50,10 @@ function CommandCenterPage() {
   const { data: threads } = useQuery({
     queryKey: [...QUERY_KEYS.MESSAGES, 'command-center'],
     queryFn: () => api.get<ListResponse<MessageThread>>('/messages/threads'),
+  });
+  const { data: auditEvents } = useQuery({
+    queryKey: [...QUERY_KEYS.AUDIT, 'command-center'],
+    queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=6'),
   });
 
   const openTasks = tasks?.data.filter((task) => task.status !== 'completed' && task.status !== 'cancelled') ?? [];
@@ -86,6 +91,8 @@ function CommandCenterPage() {
     `${openTasks.filter((task) => task.priority === 'urgent').length} urgent tasks require same-day action`,
     `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'} across patient and staff threads`,
   ];
+
+  const recentAuditEvents = auditEvents?.data ?? [];
 
   return (
     <div className="space-y-5">
@@ -197,6 +204,29 @@ function CommandCenterPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="rounded-md border border-clinic-200 bg-white">
+            <div className="border-b border-clinic-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-clinic-800">Audit Trail</h2>
+              <p className="text-xs text-clinic-500">Recent confirmed actions and system events</p>
+            </div>
+            <div className="divide-y divide-clinic-100">
+              {recentAuditEvents.map((event) => (
+                <div key={event.id} className="flex gap-3 px-4 py-3">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-700" />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-clinic-900">{event.event_type.replaceAll('.', ' ')}</div>
+                    <div className="mt-0.5 truncate text-xs text-clinic-500">
+                      {event.entity_type} - {new Date(event.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {recentAuditEvents.length === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-clinic-400">No audit events yet</div>
+              )}
+            </div>
           </section>
         </aside>
       </div>

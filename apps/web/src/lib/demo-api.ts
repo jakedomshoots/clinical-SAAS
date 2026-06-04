@@ -1,4 +1,4 @@
-import type { Appointment, Fax, Message, MessageThread, Patient, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientUpdate, Task } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -17,6 +17,7 @@ interface DemoStore {
   appointments: Appointment[];
   faxes: Fax[];
   messages: Message[];
+  auditEvents?: AuditEvent[];
 }
 
 let patients: Patient[] = [
@@ -142,6 +143,18 @@ let messages: Message[] = [
   { id: uuid(504), sender_id: uuid(5), sender_name: 'Sam Rivera', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Front desk handoff', body: 'James Patel forms are missing insurance card images.', thread_id: uuid(603), is_read: true, created_at: iso(-6) },
 ];
 
+let auditEvents: AuditEvent[] = [
+  {
+    id: uuid(801),
+    actor_id: uuid(1),
+    event_type: 'demo.workspace_ready',
+    entity_type: 'workspace',
+    entity_id: uuid(1),
+    payload: { summary: 'Demo workspace initialized for frontend review' },
+    created_at: iso(-0.25),
+  },
+];
+
 function readStoredDemoData(): DemoStore | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -157,7 +170,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, messages }),
+    JSON.stringify({ patients, tasks, appointments, faxes, messages, auditEvents }),
   );
 }
 
@@ -168,6 +181,7 @@ if (storedDemoData) {
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
   messages = storedDemoData.messages;
+  auditEvents = storedDemoData.auditEvents ?? auditEvents;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -200,6 +214,21 @@ function threads(): MessageThread[] {
   }).sort((a, b) => b.last_message.created_at.localeCompare(a.last_message.created_at));
 }
 
+function logDemoEvent(event: Omit<AuditEvent, 'id' | 'actor_id' | 'created_at'> & { actor_id?: string | null }) {
+  auditEvents = [
+    {
+      id: uuid(1000 + auditEvents.length),
+      actor_id: event.actor_id ?? uuid(1),
+      event_type: event.event_type,
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+      payload: event.payload,
+      created_at: new Date().toISOString(),
+    },
+    ...auditEvents,
+  ].slice(0, 100);
+}
+
 export async function demoRequest<T>(method: string, rawPath: string, body?: unknown): Promise<T | undefined> {
   const url = new URL(rawPath, 'http://demo.local');
   const path = url.pathname.replace(/^\/api/, '');
@@ -207,6 +236,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   const pageSize = Number(url.searchParams.get('page_size') ?? '20');
 
   if (method === 'GET' && path === '/health') return { status: 'ok', version: 'demo' } as T;
+
+  if (method === 'GET' && path === '/audit') {
+    return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;
+  }
 
   if (path === '/patients') {
     if (method === 'POST') {
@@ -230,6 +263,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         updated_at: new Date().toISOString(),
       };
       patients = [patient, ...patients];
+      logDemoEvent({
+        event_type: 'patient.created',
+        entity_type: 'patient',
+        entity_id: patient.id,
+        payload: { patient_name: `${patient.first_name} ${patient.last_name}`, source: 'demo-ui' },
+      });
       saveDemoData();
       return patient as T;
     }
@@ -252,6 +291,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       patients = patients.map((item) =>
         item.id === patient.id ? { ...item, ...(body as PatientUpdate), updated_at: new Date().toISOString() } : item,
       );
+      logDemoEvent({
+        event_type: 'patient.updated',
+        entity_type: 'patient',
+        entity_id: patient.id,
+        payload: { patient_name: `${patient.first_name} ${patient.last_name}`, source: 'demo-ui' },
+      });
       saveDemoData();
       return patients.find((item) => item.id === patient.id) as T;
     }
@@ -277,6 +322,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         updated_at: new Date().toISOString(),
       };
       tasks = [task, ...tasks];
+      logDemoEvent({
+        event_type: incoming.description?.includes('Assistant staged') ? 'assistant.task_created' : 'task.created',
+        entity_type: 'task',
+        entity_id: task.id,
+        payload: {
+          title: task.title,
+          patient_name: task.patient_name,
+          priority: task.priority,
+          source: incoming.description?.includes('Assistant staged') ? 'clinical-assistant' : 'demo-ui',
+        },
+      });
       saveDemoData();
       return task as T;
     }
@@ -287,9 +343,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   const taskMatch = path.match(/^\/tasks\/([^/]+)$/);
   if (taskMatch && method === 'PATCH') {
+    const previous = tasks.find((task) => task.id === taskMatch[1]);
     tasks = tasks.map((task) =>
       task.id === taskMatch[1] ? { ...task, ...(body as Partial<Task>), updated_at: new Date().toISOString() } : task,
     );
+    const updated = tasks.find((task) => task.id === taskMatch[1]);
+    if (updated) {
+      logDemoEvent({
+        event_type: 'task.updated',
+        entity_type: 'task',
+        entity_id: updated.id,
+        payload: { title: updated.title, previous_status: previous?.status, status: updated.status, source: 'demo-ui' },
+      });
+    }
     saveDemoData();
     return tasks.find((task) => task.id === taskMatch[1]) as T;
   }
@@ -315,6 +381,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       updated_at: new Date().toISOString(),
     } satisfies Appointment;
     appointments = [...appointments, appointment];
+    logDemoEvent({
+      event_type: 'appointment.created',
+      entity_type: 'appointment',
+      entity_id: appointment.id,
+      payload: { patient_name: appointment.patient_name, start_time: appointment.start_time, source: 'demo-ui' },
+    });
     saveDemoData();
     return appointment as T;
   }
@@ -337,6 +409,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         created_at: new Date().toISOString(),
       };
       faxes = [fax, ...faxes];
+      logDemoEvent({
+        event_type: 'fax.created',
+        entity_type: 'fax',
+        entity_id: fax.id,
+        payload: { direction: fax.direction, patient_name: fax.patient_name, pages: fax.pages, source: 'demo-ui' },
+      });
       saveDemoData();
       return fax as T;
     }
@@ -350,6 +428,20 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     faxes = faxes.map((fax) =>
       fax.id === faxMatch[1] ? { ...fax, ...(body as Partial<Fax>) } : fax,
     );
+    const updated = faxes.find((fax) => fax.id === faxMatch[1]);
+    if (updated) {
+      logDemoEvent({
+        event_type: updated.matched_by?.includes('assistant') ? 'assistant.fax_match_staged' : 'fax.updated',
+        entity_type: 'fax',
+        entity_id: updated.id,
+        payload: {
+          patient_name: updated.patient_name,
+          matched_by: updated.matched_by,
+          pages: updated.pages,
+          source: updated.matched_by?.includes('assistant') ? 'clinical-assistant' : 'demo-ui',
+        },
+      });
+    }
     saveDemoData();
     return faxes.find((fax) => fax.id === faxMatch[1]) as T;
   }
@@ -379,6 +471,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       created_at: new Date().toISOString(),
     };
     messages = [...messages, message];
+    logDemoEvent({
+      event_type: incoming.body.includes('your care team is reviewing') ? 'assistant.message_drafted' : 'message.created',
+      entity_type: 'message',
+      entity_id: message.id,
+      payload: {
+        subject: message.subject,
+        recipient_id: message.recipient_id,
+        thread_id: message.thread_id,
+        source: incoming.body.includes('your care team is reviewing') ? 'clinical-assistant' : 'demo-ui',
+      },
+    });
     saveDemoData();
     return message as T;
   }

@@ -40,5 +40,6 @@ export const QUERY_KEYS = {
   FAX: (id: string) => ['faxes', id] as const,
   MESSAGES: ['messages'] as const,
   THREAD: (id: string) => ['messages', 'threads', id] as const,
+  AUDIT: ['audit'] as const,
   USER: ['user'] as const,
 } as const;

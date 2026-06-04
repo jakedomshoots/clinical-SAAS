@@ -431,6 +431,7 @@ function ClinicalAssistantPanel({
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS }),
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES }),
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT }),
     ]);
   };
 
