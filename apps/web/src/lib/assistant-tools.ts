@@ -10,6 +10,7 @@ interface ListResponse<T> {
 }
 
 export interface AssistantAction {
+  toolId: AssistantToolId;
   title: string;
   detail: string;
   confirmLabel: string;
@@ -25,6 +26,36 @@ export interface AssistantSuggestion {
   action: AssistantAction;
   pending: boolean;
 }
+
+export const ASSISTANT_TOOL_IDS = {
+  CREATE_FOLLOW_UP_TASK: 'clinical.create_follow_up_task',
+  DRAFT_PORTAL_REPLY: 'clinical.draft_portal_reply',
+  STAGE_FAX_MATCH: 'clinical.stage_fax_match',
+} as const;
+
+export type AssistantToolId = typeof ASSISTANT_TOOL_IDS[keyof typeof ASSISTANT_TOOL_IDS];
+
+export const ASSISTANT_TOOL_DEFINITIONS: Record<AssistantToolId, {
+  name: string;
+  description: string;
+  requiresConfirmation: boolean;
+}> = {
+  [ASSISTANT_TOOL_IDS.CREATE_FOLLOW_UP_TASK]: {
+    name: 'Create follow-up task',
+    description: 'Creates a staff task from the current clinical context.',
+    requiresConfirmation: true,
+  },
+  [ASSISTANT_TOOL_IDS.DRAFT_PORTAL_REPLY]: {
+    name: 'Draft portal reply',
+    description: 'Drafts a portal message without sending it.',
+    requiresConfirmation: true,
+  },
+  [ASSISTANT_TOOL_IDS.STAGE_FAX_MATCH]: {
+    name: 'Stage fax match',
+    description: 'Stages an inbound fax match for staff review.',
+    requiresConfirmation: true,
+  },
+};
 
 function routeLabelFor(pathname: string) {
   if (pathname.startsWith('/patients/')) return 'Patient chart';
@@ -139,6 +170,7 @@ export function useClinicalAssistantTools({
           tone: 'red',
           actionLabel: 'Create follow-up',
           action: {
+            toolId: ASSISTANT_TOOL_IDS.CREATE_FOLLOW_UP_TASK,
             title: 'Create follow-up task',
             detail: patient
               ? `This will create a high-priority task tied to ${patientName(patient)}.`
@@ -157,6 +189,7 @@ export function useClinicalAssistantTools({
           tone: 'amber',
           actionLabel: 'Stage match',
           action: {
+            toolId: ASSISTANT_TOOL_IDS.STAGE_FAX_MATCH,
             title: 'Stage fax match',
             detail: patient
               ? `This will attach the unmatched inbound fax to ${patientName(patient)}.`
@@ -173,6 +206,7 @@ export function useClinicalAssistantTools({
           tone: 'green',
           actionLabel: 'Draft update',
           action: {
+            toolId: ASSISTANT_TOOL_IDS.DRAFT_PORTAL_REPLY,
             title: 'Draft portal update',
             detail: 'This will draft a portal message but will not send it.',
             confirmLabel: 'Draft update',
@@ -187,6 +221,7 @@ export function useClinicalAssistantTools({
           tone: 'neutral',
           actionLabel: 'Draft reply',
           action: {
+            toolId: ASSISTANT_TOOL_IDS.DRAFT_PORTAL_REPLY,
             title: 'Draft portal reply',
             detail: `This will draft a reply in the "${unreadThread.subject}" thread but will not send it.`,
             confirmLabel: 'Draft reply',
@@ -213,6 +248,7 @@ export function useClinicalAssistantTools({
     tone: 'green',
     actionLabel: 'Create follow-up',
     action: {
+      toolId: ASSISTANT_TOOL_IDS.CREATE_FOLLOW_UP_TASK,
       title: 'Create follow-up task',
       detail: `This will create a general follow-up task from the ${routeLabel.toLowerCase()}.`,
       confirmLabel: 'Create task',

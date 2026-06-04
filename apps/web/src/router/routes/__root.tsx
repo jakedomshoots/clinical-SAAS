@@ -420,6 +420,9 @@ function ClinicalAssistantPanel({
           <div className="text-xs font-semibold uppercase text-amber-800">Confirm action</div>
           <div className="mt-1 text-sm font-semibold text-clinic-900">{pendingAction.title}</div>
           <p className="mt-1 text-xs leading-5 text-clinic-600">{pendingAction.detail}</p>
+          <div className="mt-2 rounded border border-amber-200 bg-white px-2 py-1 font-mono text-[0.6875rem] text-clinic-500">
+            {pendingAction.toolId}
+          </div>
           <div className="mt-3 flex gap-2">
             <button
               onClick={pendingAction.run}
