@@ -241,6 +241,85 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;
   }
 
+  if (path === '/assistant/actions/follow-up-task' && method === 'POST') {
+    const incoming = body as { context: string; title?: string; priority?: Task['priority']; patient_id?: string | null; due_date?: string | null };
+    const patient = patients.find((item) => item.id === incoming.patient_id);
+    const task: Task = {
+      id: uuid(920 + tasks.length),
+      title: incoming.title ?? `Assistant follow-up: ${patient ? `${patient.first_name} ${patient.last_name}` : incoming.context}`,
+      description: `Assistant staged this from: ${incoming.context}. Confirm chart context before outreach.`,
+      priority: incoming.priority ?? 'high',
+      status: 'open',
+      due_date: incoming.due_date ?? null,
+      assigned_to_id: null,
+      assigned_to_name: 'Clinic Admin',
+      patient_id: incoming.patient_id ?? null,
+      patient_name: patient ? `${patient.last_name}, ${patient.first_name}` : null,
+      creator_id: uuid(1),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    tasks = [task, ...tasks];
+    logDemoEvent({
+      event_type: 'assistant.task_created',
+      entity_type: 'task',
+      entity_id: task.id,
+      payload: { title: task.title, patient_name: task.patient_name, priority: task.priority, source: 'clinical-assistant' },
+    });
+    saveDemoData();
+    return task as T;
+  }
+
+  if (path === '/assistant/actions/portal-reply-draft' && method === 'POST') {
+    const incoming = body as { recipient_id: string; subject: string; body: string; thread_id?: string; context: string };
+    const message: Message = {
+      id: uuid(700 + messages.length),
+      sender_id: uuid(1),
+      sender_name: 'Clinic Admin',
+      recipient_id: incoming.recipient_id,
+      recipient_name: 'Care Team',
+      subject: incoming.subject,
+      body: incoming.body,
+      thread_id: incoming.thread_id ?? uuid(800 + messages.length),
+      is_read: true,
+      created_at: new Date().toISOString(),
+    };
+    messages = [...messages, message];
+    logDemoEvent({
+      event_type: 'assistant.message_drafted',
+      entity_type: 'message',
+      entity_id: message.id,
+      payload: { subject: message.subject, recipient_id: message.recipient_id, thread_id: message.thread_id, context: incoming.context, source: 'clinical-assistant' },
+    });
+    saveDemoData();
+    return message as T;
+  }
+
+  if (path === '/assistant/actions/fax-match' && method === 'POST') {
+    const incoming = body as { fax_id: string; patient_id: string; context: string };
+    const patient = patients.find((item) => item.id === incoming.patient_id);
+    faxes = faxes.map((fax) =>
+      fax.id === incoming.fax_id
+        ? {
+            ...fax,
+            patient_id: incoming.patient_id,
+            patient_name: patient ? `${patient.last_name}, ${patient.first_name}` : fax.patient_name,
+            matched_by: 'assistant suggested, user confirmed',
+          }
+        : fax,
+    );
+    const updated = faxes.find((fax) => fax.id === incoming.fax_id);
+    if (!updated) throw new Error('Fax not found');
+    logDemoEvent({
+      event_type: 'assistant.fax_match_staged',
+      entity_type: 'fax',
+      entity_id: updated.id,
+      payload: { patient_name: updated.patient_name, matched_by: updated.matched_by, pages: updated.pages, context: incoming.context, source: 'clinical-assistant' },
+    });
+    saveDemoData();
+    return updated as T;
+  }
+
   if (path === '/patients') {
     if (method === 'POST') {
       const incoming = body as Partial<Patient>;

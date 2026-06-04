@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { Fax, MessageThread, Patient, Task } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth';
 import { QUERY_KEYS } from '@/lib/query-keys';
 
 interface ListResponse<T> {
@@ -109,6 +110,7 @@ export function useClinicalAssistantTools({
   onCompleted: (message: string) => void;
 }) {
   const api = useApi();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const patientId = pathname.match(/^\/patients\/([^/]+)/)?.[1];
   const routeLabel = routeLabelFor(pathname);
@@ -147,14 +149,12 @@ export function useClinicalAssistantTools({
 
   const createFollowUpTask = useMutation({
     mutationFn: () =>
-      api.post<Task>('/tasks', {
+      api.post<Task>('/assistant/actions/follow-up-task', {
+        context: routeLabel,
         title: patient ? `Review chart and follow up with ${patientName(patient)}` : 'Review assistant flagged follow-up',
-        description: `Assistant staged this from the ${routeLabel.toLowerCase()}. Confirm chart context before outreach.`,
         priority: patient ? 'high' : 'normal',
-        status: 'open',
         due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
         patient_id: patient?.id ?? urgentTask?.patient_id ?? null,
-        patient_name: patient ? patientName(patient) : urgentTask?.patient_name ?? null,
       }),
     onSuccess: async () => {
       onCompleted('Follow-up task created');
@@ -164,8 +164,9 @@ export function useClinicalAssistantTools({
 
   const draftPortalReply = useMutation({
     mutationFn: () =>
-      api.post('/messages', {
-        recipient_id: patient?.id ?? unreadThread?.participants.find((participant) => participant.name !== 'Clinic Admin')?.id ?? 'patient',
+      api.post('/assistant/actions/portal-reply-draft', {
+        context: routeLabel,
+        recipient_id: unreadThread?.participants.find((participant) => participant.name !== 'Clinic Admin')?.id ?? user?.id ?? 'patient',
         subject: unreadThread?.subject ?? `Follow-up for ${patient ? patientName(patient) : 'your visit'}`,
         body: patient
           ? `Hi ${patient.first_name}, your care team is reviewing your chart and will follow up with next steps.`
@@ -180,10 +181,10 @@ export function useClinicalAssistantTools({
 
   const matchFaxToPatient = useMutation({
     mutationFn: () =>
-      api.patch<Fax>(`/faxes/${unmatchedFax?.id}`, {
+      api.post<Fax>('/assistant/actions/fax-match', {
+        context: routeLabel,
+        fax_id: unmatchedFax?.id,
         patient_id: patient?.id ?? urgentTask?.patient_id ?? '00000000-0000-4000-8000-000000000101',
-        patient_name: patient ? patientName(patient) : urgentTask?.patient_name ?? 'Mary Collins',
-        matched_by: 'assistant suggested, user confirmed',
       }),
     onSuccess: async () => {
       onCompleted('Fax match staged');
