@@ -7,7 +7,7 @@ from app.config import settings
 from app.database import Base, async_session_factory, engine
 from app.minio_client import ensure_bucket
 from app.redis_client import redis
-from app.routers import audit, auth, faxes, messages, patients, scheduling, tasks, websocket
+from app.routers import assistant, audit, auth, faxes, messages, patients, scheduling, tasks, websocket
 from app.services.auth_service import seed_admin
 
 
@@ -47,6 +47,7 @@ async def health_check():
 
 
 app.include_router(audit.router)
+app.include_router(assistant.router)
 app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(tasks.router)
