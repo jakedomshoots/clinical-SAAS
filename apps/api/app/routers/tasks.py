@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskListOut, TaskOut, TaskUpdate
 from app.services import task_service
@@ -38,13 +38,13 @@ async def get_task(task_id: str, db: AsyncSession = Depends(get_db), current_use
 
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
-async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_task(data: TaskCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(clinical_write_required)):
     task = await task_service.create_task(db, current_user, data.model_dump())
     return TaskOut(**task)
 
 
 @router.patch("/{task_id}", response_model=TaskOut)
-async def update_task(task_id: str, data: TaskUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_task(task_id: str, data: TaskUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(clinical_write_required)):
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")

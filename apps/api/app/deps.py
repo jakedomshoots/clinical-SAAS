@@ -49,3 +49,19 @@ def require_roles(*roles: UserRole):
         return current_user
 
     return dependency
+
+
+clinical_write_required = require_roles(
+    UserRole.admin,
+    UserRole.manager,
+    UserRole.provider,
+    UserRole.ma,
+)
+
+front_office_write_required = require_roles(
+    UserRole.admin,
+    UserRole.manager,
+    UserRole.front_desk,
+)
+
+manager_write_required = require_roles(UserRole.admin, UserRole.manager)

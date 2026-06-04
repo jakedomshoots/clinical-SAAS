@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.message import MessageOut, MessageSend, ThreadListOut, ThreadOut
 from app.services import message_service
@@ -23,7 +23,7 @@ async def list_messages(thread_id: str, db: AsyncSession = Depends(get_db), curr
 
 
 @router.post("", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
-async def send_message(data: MessageSend, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def send_message(data: MessageSend, db: AsyncSession = Depends(get_db), current_user: User = Depends(clinical_write_required)):
     msg = await message_service.send_message(db, current_user, data.model_dump())
     return MessageOut(**msg)
 
@@ -37,7 +37,7 @@ async def get_message(message_id: str, db: AsyncSession = Depends(get_db), curre
 
 
 @router.post("/{message_id}/read", response_model=MessageOut)
-async def mark_read(message_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def mark_read(message_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(clinical_write_required)):
     msg = await message_service.mark_read(db, current_user, message_id)
     if not msg:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Message not found")

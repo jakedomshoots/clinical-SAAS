@@ -70,3 +70,23 @@ async def admin_user(db: AsyncSession) -> User:
 def auth_headers(admin_user: User):
     token = create_access_token(admin_user.id, admin_user.role.value)
     return {"Authorization": f"Bearer {token}"}
+
+
+async def make_user(db: AsyncSession, role: UserRole, email: str) -> User:
+    user = User(
+        id=str(uuid.uuid4()),
+        email=email,
+        hashed_password=hash_password("password123!"),
+        display_name=f"{role.value} User",
+        role=role,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+def headers_for(user: User):
+    token = create_access_token(user.id, user.role.value)
+    return {"Authorization": f"Bearer {token}"}

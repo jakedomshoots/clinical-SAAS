@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.patient import PatientCreate, PatientListOut, PatientOut, PatientUpdate
 from app.services import patient_service
@@ -39,7 +39,7 @@ async def get_patient(
 async def create_patient(
     data: PatientCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(clinical_write_required),
 ):
     patient = await patient_service.create_patient(db, current_user, data.model_dump())
     return PatientOut(**patient)
@@ -50,7 +50,7 @@ async def update_patient(
     patient_id: str,
     data: PatientUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(clinical_write_required),
 ):
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
@@ -65,7 +65,7 @@ async def update_patient(
 async def deactivate_patient(
     patient_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(clinical_write_required),
 ):
     patient = await patient_service.deactivate_patient(db, current_user, patient_id)
     if not patient:

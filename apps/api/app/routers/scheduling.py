@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import front_office_write_required, get_current_user, manager_write_required
 from app.models.user import User
 from app.schemas.schedule import (
     AppointmentCreate, AppointmentListOut, AppointmentOut, AppointmentUpdate,
@@ -39,13 +39,13 @@ async def get_appointment(appointment_id: str, db: AsyncSession = Depends(get_db
 
 
 @router.post("/appointments", response_model=AppointmentOut, status_code=status.HTTP_201_CREATED)
-async def create_appointment(data: AppointmentCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def create_appointment(data: AppointmentCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(front_office_write_required)):
     appt = await schedule_service.create_appointment(db, current_user, data.model_dump())
     return AppointmentOut(**appt)
 
 
 @router.patch("/appointments/{appointment_id}", response_model=AppointmentOut)
-async def update_appointment(appointment_id: str, data: AppointmentUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def update_appointment(appointment_id: str, data: AppointmentUpdate, db: AsyncSession = Depends(get_db), current_user: User = Depends(front_office_write_required)):
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
@@ -56,7 +56,7 @@ async def update_appointment(appointment_id: str, data: AppointmentUpdate, db: A
 
 
 @router.post("/availability", response_model=AvailabilityOut, status_code=status.HTTP_201_CREATED)
-async def set_availability(data: AvailabilityCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+async def set_availability(data: AvailabilityCreate, db: AsyncSession = Depends(get_db), current_user: User = Depends(manager_write_required)):
     avail = await schedule_service.set_availability(db, current_user, data.model_dump())
     return AvailabilityOut(**avail)
 
