@@ -1,14 +1,16 @@
 import { Link, Navigate, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import {useAuth} from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { ErrorState } from '@/lib/ui-state';
-import type { Fax, MessageThread, Task } from '@concierge-os/shared';
+import type { Fax, MessageThread, Patient, Task } from '@concierge-os/shared';
 import {
   Activity,
+  Bot,
   Calendar,
+  Check,
   ClipboardList,
   Command,
   Gauge,
@@ -17,6 +19,7 @@ import {
   MessageSquare,
   Printer,
   Search,
+  Sparkles,
   Settings,
   X,
   Users,
@@ -361,40 +364,210 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-function AttentionRail() {
+function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
   const api = useApi();
+  const queryClient = useQueryClient();
+  const [completedAction, setCompletedAction] = useState<string | null>(null);
+  const patientId = pathname.match(/^\/patients\/([^/]+)/)?.[1];
+
   const { data: tasks } = useQuery({
-    queryKey: [...QUERY_KEYS.TASKS, 'attention-rail'],
+    queryKey: [...QUERY_KEYS.TASKS, 'clinical-assistant'],
     queryFn: () => api.get<ListResponse<Task>>('/tasks?page=1&page_size=20'),
   });
   const { data: faxes } = useQuery({
-    queryKey: [...QUERY_KEYS.FAXES, 'attention-rail'],
+    queryKey: [...QUERY_KEYS.FAXES, 'clinical-assistant'],
     queryFn: () => api.get<ListResponse<Fax>>('/faxes?direction=inbound&page=1&page_size=20'),
   });
   const { data: threads } = useQuery({
-    queryKey: [...QUERY_KEYS.MESSAGES, 'attention-rail'],
+    queryKey: [...QUERY_KEYS.MESSAGES, 'clinical-assistant'],
     queryFn: () => api.get<ListResponse<MessageThread>>('/messages/threads'),
   });
+  const { data: patient } = useQuery({
+    queryKey: patientId ? QUERY_KEYS.PATIENT(patientId) : ['clinical-assistant', 'no-patient'],
+    queryFn: () => api.get<Patient>(`/patients/${patientId}`),
+    enabled: Boolean(patientId),
+  });
+
   const urgentTask = tasks?.data.find((task) => task.status !== 'completed' && task.priority === 'urgent');
   const unmatchedFax = faxes?.data.find((fax) => !fax.patient_id);
   const unreadThread = threads?.data.find((thread) => thread.unread_count > 0);
   const activeTask = tasks?.data.find((task) => task.status === 'in_progress');
-  const items = [
-    urgentTask && ['Urgent task', urgentTask.title, 'red'],
-    unmatchedFax && ['Incoming fax', `${unmatchedFax.pages} page${unmatchedFax.pages === 1 ? '' : 's'} need patient matching`, 'amber'],
-    activeTask && ['In progress', activeTask.title, 'green'],
-    unreadThread && ['Portal reply', unreadThread.subject, 'neutral'],
-  ].filter(Boolean) as string[][];
+  const routeLabel = pathname.startsWith('/patients/')
+    ? 'Patient chart'
+    : pathname.startsWith('/patients')
+      ? 'Patient search'
+      : pathname.startsWith('/tasks')
+        ? 'Task queue'
+        : pathname.startsWith('/scheduling')
+          ? 'Schedule'
+          : pathname.startsWith('/faxes')
+            ? 'Fax center'
+            : pathname.startsWith('/messaging')
+              ? 'Messages'
+              : 'Command center';
+
+  const invalidateAssistantData = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES }),
+    ]);
+  };
+
+  const createFollowUpTask = useMutation({
+    mutationFn: () =>
+      api.post<Task>('/tasks', {
+        title: patient ? `Review chart and follow up with ${patient.first_name} ${patient.last_name}` : 'Review assistant flagged follow-up',
+        description: patient
+          ? `Assistant staged this from the ${routeLabel.toLowerCase()}. Confirm chart context before outreach.`
+          : `Assistant staged this from the ${routeLabel.toLowerCase()}.`,
+        priority: patient ? 'high' : 'normal',
+        status: 'open',
+        due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+        patient_id: patient?.id ?? urgentTask?.patient_id ?? null,
+        patient_name: patient ? `${patient.first_name} ${patient.last_name}` : urgentTask?.patient_name ?? null,
+      }),
+    onSuccess: async () => {
+      setCompletedAction('Follow-up task created');
+      await invalidateAssistantData();
+    },
+  });
+
+  const draftPortalReply = useMutation({
+    mutationFn: () =>
+      api.post('/messages', {
+        recipient_id: patient?.id ?? unreadThread?.participants.find((participant) => participant.name !== 'Clinic Admin')?.id ?? 'patient',
+        subject: unreadThread?.subject ?? `Follow-up for ${patient ? `${patient.first_name} ${patient.last_name}` : 'your visit'}`,
+        body: patient
+          ? `Hi ${patient.first_name}, your care team is reviewing your chart and will follow up with next steps.`
+          : 'Hi, your care team is reviewing this and will follow up with next steps.',
+        thread_id: unreadThread?.id,
+      }),
+    onSuccess: async () => {
+      setCompletedAction('Portal reply drafted');
+      await invalidateAssistantData();
+    },
+  });
+
+  const matchFaxToPatient = useMutation({
+    mutationFn: () =>
+      api.patch<Fax>(`/faxes/${unmatchedFax?.id}`, {
+        patient_id: patient?.id ?? urgentTask?.patient_id ?? '00000000-0000-4000-8000-000000000101',
+        patient_name: patient
+          ? `${patient.first_name} ${patient.last_name}`
+          : urgentTask?.patient_name ?? 'Mary Collins',
+        matched_by: 'assistant suggested, user confirmed',
+      }),
+    onSuccess: async () => {
+      setCompletedAction('Fax match staged');
+      await invalidateAssistantData();
+    },
+  });
+
+  const suggestions = [
+    urgentTask && {
+      label: 'Urgent callback',
+      detail: urgentTask.title,
+      tone: 'red',
+      actionLabel: 'Create follow-up',
+      action: () => createFollowUpTask.mutate(),
+      pending: createFollowUpTask.isPending,
+    },
+    unmatchedFax && {
+      label: 'Possible fax match',
+      detail: patient
+        ? `Match ${unmatchedFax.pages} page${unmatchedFax.pages === 1 ? '' : 's'} to ${patient.first_name} ${patient.last_name}`
+        : `${unmatchedFax.pages} page${unmatchedFax.pages === 1 ? '' : 's'} need patient matching`,
+      tone: 'amber',
+      actionLabel: 'Stage match',
+      action: () => matchFaxToPatient.mutate(),
+      pending: matchFaxToPatient.isPending,
+    },
+    activeTask && {
+      label: 'Work in motion',
+      detail: activeTask.title,
+      tone: 'green',
+      actionLabel: 'Draft update',
+      action: () => draftPortalReply.mutate(),
+      pending: draftPortalReply.isPending,
+    },
+    unreadThread && {
+      label: 'Portal reply',
+      detail: unreadThread.subject,
+      tone: 'neutral',
+      actionLabel: 'Draft reply',
+      action: () => draftPortalReply.mutate(),
+      pending: draftPortalReply.isPending,
+    },
+  ].filter(Boolean) as Array<{
+    label: string;
+    detail: string;
+    tone: string;
+    actionLabel: string;
+    action: () => void;
+    pending: boolean;
+  }>;
+
+  const contextChips = [
+    routeLabel,
+    patient && `${patient.first_name} ${patient.last_name}`,
+    urgentTask && 'urgent task',
+    unmatchedFax && 'unmatched fax',
+    unreadThread && 'unread portal',
+  ].filter(Boolean) as string[];
 
   return (
     <aside className="hidden w-72 shrink-0 border-l border-clinic-200 bg-white xl:block">
       <div className="border-b border-clinic-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-clinic-800">Live Work</h2>
-        <p className="text-xs text-clinic-500">Pinned queues for the current shift</p>
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
+            <Bot className="h-4 w-4 text-accent-700" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-800">Clinical Assistant</h2>
+            <p className="text-xs text-clinic-500">Context-aware shift support</p>
+          </div>
+        </div>
       </div>
+
+      <div className="border-b border-clinic-100 px-4 py-3">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase text-clinic-500">
+          <Sparkles className="h-3.5 w-3.5 text-accent-700" />
+          Readable context
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {contextChips.map((chip) => (
+            <span key={chip} className="rounded border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
+              {chip}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {completedAction && (
+        <div className="border-b border-accent-100 bg-accent-50 px-4 py-3 text-sm text-accent-800">
+          <div className="flex items-center gap-2">
+            <Check className="h-4 w-4" />
+            {completedAction}
+          </div>
+        </div>
+      )}
+
       <div className="divide-y divide-clinic-100">
-        {(items.length > 0 ? items : [['All clear', 'No pinned urgent work right now', 'green']]).map(([label, detail, tone]) => (
-          <button key={detail} className="block w-full px-4 py-3 text-left hover:bg-clinic-50">
+        {(suggestions.length > 0
+          ? suggestions
+          : [
+              {
+                label: 'All clear',
+                detail: 'No pinned urgent work right now',
+                tone: 'green',
+                actionLabel: 'Create follow-up',
+                action: () => createFollowUpTask.mutate(),
+                pending: createFollowUpTask.isPending,
+              },
+            ]
+        ).map(({ label, detail, tone, actionLabel, action, pending }) => (
+          <div key={`${label}-${detail}`} className="px-4 py-3">
             <div className="flex items-center gap-2">
               <span
                 className={`h-2 w-2 rounded-full ${
@@ -410,7 +583,14 @@ function AttentionRail() {
               <span className="text-xs font-semibold uppercase text-clinic-500">{label}</span>
             </div>
             <div className="mt-1 text-sm font-medium text-clinic-800">{detail}</div>
-          </button>
+            <button
+              onClick={action}
+              disabled={pending}
+              className="mt-3 inline-flex h-8 items-center rounded-md border border-clinic-300 bg-white px-2.5 text-xs font-semibold text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pending ? 'Working...' : actionLabel}
+            </button>
+          </div>
         ))}
       </div>
     </aside>
@@ -461,7 +641,7 @@ function RootLayout() {
               <Outlet />
             </div>
           </main>
-          <AttentionRail />
+          <ClinicalAssistantPanel pathname={pathname} />
         </div>
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
