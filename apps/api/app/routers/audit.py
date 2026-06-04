@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user
-from app.models.user import User
+from app.deps import require_roles
+from app.models.user import User, UserRole
 from app.schemas.audit import AuditEventListOut, AuditEventOut
 from app.services.audit_service import list_events
 
@@ -18,7 +18,7 @@ async def list_audit_events(
     entity_type: str | None = Query(None),
     entity_id: str | None = Query(None),
     db: AsyncSession = Depends(get_db),  # noqa: B008
-    current_user: User = Depends(get_current_user),  # noqa: B008
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
 ):
     data, total = await list_events(
         db,

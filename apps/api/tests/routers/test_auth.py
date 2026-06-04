@@ -1,5 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User, UserRole
+from app.services.auth_service import create_access_token, hash_password
 
 
 @pytest.mark.asyncio
@@ -62,6 +66,44 @@ async def test_register_new_user(client: AsyncClient, auth_headers):
     assert data["email"] == "provider@clinic.example.com"
     assert data["role"] == "provider"
     assert "hashed_password" not in data
+
+
+@pytest.mark.asyncio
+async def test_register_requires_authentication(client: AsyncClient):
+    res = await client.post("/api/auth/register", json={
+        "email": "noauth@clinic.example.com",
+        "password": "provider123!",
+        "display_name": "No Auth",
+        "role": "provider",
+    })
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_register_requires_admin_or_manager(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = User(
+        email="limited-provider@clinic.example.com",
+        hashed_password=hash_password("provider123!"),
+        display_name="Limited Provider",
+        role=UserRole.provider,
+        is_active=True,
+    )
+    db.add(provider)
+    await db.commit()
+    await db.refresh(provider)
+    token = create_access_token(provider.id, provider.role.value)
+
+    res = await client.post("/api/auth/register", json={
+        "email": "blocked@clinic.example.com",
+        "password": "provider123!",
+        "display_name": "Blocked User",
+        "role": "provider",
+    }, headers={"Authorization": f"Bearer {token}"})
+
+    assert res.status_code == 403
 
 
 @pytest.mark.asyncio
