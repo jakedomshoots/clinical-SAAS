@@ -37,6 +37,8 @@ const requiredSnippets = [
   ['lib/ui-state.tsx', 'LoadingState'],
   ['lib/ui-state.tsx', 'EmptyState'],
   ['lib/ui-state.tsx', 'ErrorState'],
+  ['lib/assistant-tools.ts', 'getAssistantCopilotActionDescriptors'],
+  ['lib/assistant-tools.ts', 'ASSISTANT_TOOL_IDS'],
   ['router/routes/__root.tsx', 'CommandPalette'],
   ['router/routes/__root.tsx', 'SettingsPanel'],
   ['router/routes/__root.tsx', 'MobileNav'],

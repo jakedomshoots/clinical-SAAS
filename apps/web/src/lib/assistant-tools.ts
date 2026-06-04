@@ -57,6 +57,36 @@ export const ASSISTANT_TOOL_DEFINITIONS: Record<AssistantToolId, {
   },
 };
 
+export interface CopilotActionDescriptor {
+  name: AssistantToolId;
+  description: string;
+  available: 'always';
+  confirmationRequired: boolean;
+  parameters: Array<{
+    name: string;
+    type: 'string';
+    required: boolean;
+    description: string;
+  }>;
+}
+
+export function getAssistantCopilotActionDescriptors(): CopilotActionDescriptor[] {
+  return Object.entries(ASSISTANT_TOOL_DEFINITIONS).map(([toolId, definition]) => ({
+    name: toolId as AssistantToolId,
+    description: definition.description,
+    available: 'always',
+    confirmationRequired: definition.requiresConfirmation,
+    parameters: [
+      {
+        name: 'context',
+        type: 'string',
+        required: true,
+        description: 'Human-readable clinical route or queue context used to stage the action.',
+      },
+    ],
+  }));
+}
+
 function routeLabelFor(pathname: string) {
   if (pathname.startsWith('/patients/')) return 'Patient chart';
   if (pathname.startsWith('/patients')) return 'Patient search';
