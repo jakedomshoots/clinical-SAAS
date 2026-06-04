@@ -103,12 +103,14 @@ function TopBar({
   onCommandOpen,
   onSettingsOpen,
   onMenuOpen,
+  onAssistantOpen,
 }: {
   density: 'comfortable' | 'compact';
   onDensityChange: () => void;
   onCommandOpen: () => void;
   onSettingsOpen: () => void;
   onMenuOpen: () => void;
+  onAssistantOpen: () => void;
 }) {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-clinic-200 bg-white px-5">
@@ -124,6 +126,9 @@ function TopBar({
         </span>
       </button>
       <div className="ml-4 flex items-center gap-2">
+        <button onClick={onAssistantOpen} aria-label="Open clinical assistant" className="flex h-9 w-9 items-center justify-center rounded-md border border-clinic-300 bg-white text-clinic-600 hover:bg-clinic-50 xl:hidden">
+          <Bot className="h-4 w-4" />
+        </button>
         <button onClick={onDensityChange} className="hidden items-center gap-1.5 rounded-md border border-clinic-200 bg-clinic-50 px-2.5 py-1.5 text-xs font-medium text-clinic-600 hover:bg-white sm:inline-flex">
           Density
           <span className="rounded bg-white px-1.5 py-0.5 text-clinic-800">{density === 'comfortable' ? 'Comfort' : 'Compact'}</span>
@@ -364,10 +369,25 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   );
 }
 
-function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
+interface AssistantAction {
+  title: string;
+  detail: string;
+  confirmLabel: string;
+  run: () => void;
+  pending: boolean;
+}
+
+function ClinicalAssistantPanel({
+  pathname,
+  className = 'hidden w-72 shrink-0 border-l border-clinic-200 bg-white xl:block',
+}: {
+  pathname: string;
+  className?: string;
+}) {
   const api = useApi();
   const queryClient = useQueryClient();
   const [completedAction, setCompletedAction] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<AssistantAction | null>(null);
   const patientId = pathname.match(/^\/patients\/([^/]+)/)?.[1];
 
   const { data: tasks } = useQuery({
@@ -429,6 +449,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       }),
     onSuccess: async () => {
       setCompletedAction('Follow-up task created');
+      setPendingAction(null);
       await invalidateAssistantData();
     },
   });
@@ -445,6 +466,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       }),
     onSuccess: async () => {
       setCompletedAction('Portal reply drafted');
+      setPendingAction(null);
       await invalidateAssistantData();
     },
   });
@@ -460,6 +482,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       }),
     onSuccess: async () => {
       setCompletedAction('Fax match staged');
+      setPendingAction(null);
       await invalidateAssistantData();
     },
   });
@@ -470,7 +493,15 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       detail: urgentTask.title,
       tone: 'red',
       actionLabel: 'Create follow-up',
-      action: () => createFollowUpTask.mutate(),
+      action: {
+        title: 'Create follow-up task',
+        detail: patient
+          ? `This will create a high-priority task tied to ${patient.first_name} ${patient.last_name}.`
+          : `This will create a follow-up task tied to ${urgentTask.patient_name ?? 'the urgent queue item'}.`,
+        confirmLabel: 'Create task',
+        run: () => createFollowUpTask.mutate(),
+        pending: createFollowUpTask.isPending,
+      },
       pending: createFollowUpTask.isPending,
     },
     unmatchedFax && {
@@ -480,7 +511,15 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
         : `${unmatchedFax.pages} page${unmatchedFax.pages === 1 ? '' : 's'} need patient matching`,
       tone: 'amber',
       actionLabel: 'Stage match',
-      action: () => matchFaxToPatient.mutate(),
+      action: {
+        title: 'Stage fax match',
+        detail: patient
+          ? `This will attach the unmatched inbound fax to ${patient.first_name} ${patient.last_name}.`
+          : 'This will stage the inbound fax against the assistant suggested patient for staff review.',
+        confirmLabel: 'Stage match',
+        run: () => matchFaxToPatient.mutate(),
+        pending: matchFaxToPatient.isPending,
+      },
       pending: matchFaxToPatient.isPending,
     },
     activeTask && {
@@ -488,7 +527,13 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       detail: activeTask.title,
       tone: 'green',
       actionLabel: 'Draft update',
-      action: () => draftPortalReply.mutate(),
+      action: {
+        title: 'Draft portal update',
+        detail: 'This will draft a portal message but will not send it.',
+        confirmLabel: 'Draft update',
+        run: () => draftPortalReply.mutate(),
+        pending: draftPortalReply.isPending,
+      },
       pending: draftPortalReply.isPending,
     },
     unreadThread && {
@@ -496,7 +541,13 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
       detail: unreadThread.subject,
       tone: 'neutral',
       actionLabel: 'Draft reply',
-      action: () => draftPortalReply.mutate(),
+      action: {
+        title: 'Draft portal reply',
+        detail: `This will draft a reply in the "${unreadThread.subject}" thread but will not send it.`,
+        confirmLabel: 'Draft reply',
+        run: () => draftPortalReply.mutate(),
+        pending: draftPortalReply.isPending,
+      },
       pending: draftPortalReply.isPending,
     },
   ].filter(Boolean) as Array<{
@@ -504,7 +555,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
     detail: string;
     tone: string;
     actionLabel: string;
-    action: () => void;
+    action: AssistantAction;
     pending: boolean;
   }>;
 
@@ -517,7 +568,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
   ].filter(Boolean) as string[];
 
   return (
-    <aside className="hidden w-72 shrink-0 border-l border-clinic-200 bg-white xl:block">
+    <aside className={className}>
       <div className="border-b border-clinic-200 px-4 py-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
@@ -553,6 +604,30 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
         </div>
       )}
 
+      {pendingAction && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="text-xs font-semibold uppercase text-amber-800">Confirm action</div>
+          <div className="mt-1 text-sm font-semibold text-clinic-900">{pendingAction.title}</div>
+          <p className="mt-1 text-xs leading-5 text-clinic-600">{pendingAction.detail}</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={pendingAction.run}
+              disabled={pendingAction.pending}
+              className="inline-flex h-8 items-center rounded-md bg-clinic-900 px-2.5 text-xs font-semibold text-white hover:bg-clinic-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {pendingAction.pending ? 'Working...' : pendingAction.confirmLabel}
+            </button>
+            <button
+              onClick={() => setPendingAction(null)}
+              disabled={pendingAction.pending}
+              className="inline-flex h-8 items-center rounded-md border border-clinic-300 bg-white px-2.5 text-xs font-semibold text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="divide-y divide-clinic-100">
         {(suggestions.length > 0
           ? suggestions
@@ -562,7 +637,13 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
                 detail: 'No pinned urgent work right now',
                 tone: 'green',
                 actionLabel: 'Create follow-up',
-                action: () => createFollowUpTask.mutate(),
+                action: {
+                  title: 'Create follow-up task',
+                  detail: `This will create a general follow-up task from the ${routeLabel.toLowerCase()}.`,
+                  confirmLabel: 'Create task',
+                  run: () => createFollowUpTask.mutate(),
+                  pending: createFollowUpTask.isPending,
+                },
                 pending: createFollowUpTask.isPending,
               },
             ]
@@ -584,7 +665,7 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
             </div>
             <div className="mt-1 text-sm font-medium text-clinic-800">{detail}</div>
             <button
-              onClick={action}
+              onClick={() => setPendingAction(action)}
               disabled={pending}
               className="mt-3 inline-flex h-8 items-center rounded-md border border-clinic-300 bg-white px-2.5 text-xs font-semibold text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -597,12 +678,34 @@ function ClinicalAssistantPanel({ pathname }: { pathname: string }) {
   );
 }
 
+function AssistantDrawer({ open, pathname, onClose }: { open: boolean; pathname: string; onClose: () => void }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-clinic-900/20 xl:hidden" role="dialog" aria-modal="true">
+      <div className="ml-auto flex h-full w-80 max-w-[92vw] flex-col border-l border-clinic-200 bg-white shadow-xl">
+        <div className="flex h-12 items-center justify-between border-b border-clinic-200 px-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+            <Bot className="h-4 w-4 text-accent-700" />
+            Clinical Assistant
+          </div>
+          <button onClick={onClose} aria-label="Close clinical assistant" className="flex h-8 w-8 items-center justify-center rounded-md text-clinic-500 hover:bg-clinic-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <ClinicalAssistantPanel pathname={pathname} className="block min-h-0 flex-1 overflow-y-auto bg-white" />
+      </div>
+    </div>
+  );
+}
+
 function RootLayout() {
   const { isAuthenticated } = useAuth();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [commandOpen, setCommandOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
 
   useEffect(() => {
@@ -634,6 +737,7 @@ function RootLayout() {
           onCommandOpen={() => setCommandOpen(true)}
           onSettingsOpen={() => setSettingsOpen(true)}
           onMenuOpen={() => setMobileNavOpen(true)}
+          onAssistantOpen={() => setAssistantOpen(true)}
         />
         <div className="flex min-h-0 flex-1">
           <main className="min-w-0 flex-1 overflow-auto">
@@ -646,6 +750,7 @@ function RootLayout() {
       </div>
       <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
       <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <AssistantDrawer open={assistantOpen} pathname={pathname} onClose={() => setAssistantOpen(false)} />
       <SettingsPanel
         open={settingsOpen}
         density={density}
