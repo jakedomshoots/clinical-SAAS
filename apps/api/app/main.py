@@ -7,8 +7,19 @@ from app.config import settings
 from app.database import Base, async_session_factory, engine
 from app.minio_client import ensure_bucket
 from app.redis_client import redis
-from app.routers import assistant, audit, auth, faxes, messages, patients, scheduling, tasks, websocket
+from app.routers import (
+    assistant,
+    audit,
+    auth,
+    faxes,
+    messages,
+    patients,
+    scheduling,
+    tasks,
+    websocket,
+)
 from app.services.auth_service import seed_admin
+from app.services.readiness_service import check_readiness
 
 
 @asynccontextmanager
@@ -44,6 +55,11 @@ app.add_middleware(
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "version": "0.0.1"}
+
+
+@app.get("/api/ready")
+async def readiness_check():
+    return await check_readiness()
 
 
 app.include_router(audit.router)
