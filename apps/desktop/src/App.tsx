@@ -15,7 +15,25 @@ interface ServiceState {
   sync: ServiceStatus;
 }
 
+interface ReadyCheck {
+  ok: boolean;
+}
+
+interface ReadyResponse {
+  status: 'ok' | 'degraded';
+  checks: {
+    database?: ReadyCheck;
+    redis?: ReadyCheck;
+    object_storage?: ReadyCheck;
+  };
+}
+
 const CHECK_INTERVAL = 5000;
+
+function statusFromCheck(check?: ReadyCheck): ServiceStatus {
+  if (!check) return 'checking';
+  return check.ok ? 'up' : 'degraded';
+}
 
 export function App() {
   const [services, setServices] = useState<ServiceState>({
@@ -28,13 +46,19 @@ export function App() {
 
   const checkHealth = useCallback(async () => {
     try {
-      const res = await fetch('/api/health');
+      const res = await fetch('/api/ready');
       if (res.ok) {
-        setServices((s) => ({ ...s, api: 'up', postgres: 'up', redis: 'up', minio: 'up' }));
+        const ready = await res.json() as ReadyResponse;
+        setServices({
+          api: ready.status === 'ok' ? 'up' : 'degraded',
+          postgres: statusFromCheck(ready.checks.database),
+          redis: statusFromCheck(ready.checks.redis),
+          minio: statusFromCheck(ready.checks.object_storage),
+          sync: 'up',
+        });
       } else {
         setServices((s) => ({ ...s, api: 'degraded' }));
       }
-      setServices((s) => ({ ...s, sync: 'up' }));
     } catch {
       setServices((s) => ({ ...s, api: 'down', sync: 'degraded' }));
     }
