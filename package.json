@@ -7,6 +7,7 @@
     "dev:api": "pnpm --filter @concierge-os/api dev",
     "dev:infra": "docker compose -f docker/docker-compose.yml up -d",
     "dev:infra:down": "docker compose -f docker/docker-compose.yml down",
+    "backup:local": "sh scripts/backup-local.sh",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "prettier --write .",

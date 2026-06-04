@@ -83,6 +83,14 @@ Container config:
 docker compose -f docker/docker-compose.yml --profile app config
 ```
 
+Local backup:
+
+```sh
+pnpm backup:local
+```
+
+Backups are written under `backups/<timestamp>/` with a Postgres dump, MinIO object archive, and a manifest.
+
 ## Daily-Use Readiness
 
 Ready for local product work:
@@ -94,7 +102,6 @@ Ready for local product work:
 Not ready for real daily clinical operations yet:
 
 - CopilotKit still needs a deployed runtime endpoint and model policy before live use.
-- Assistant actions need backend-owned action endpoints so the AI path never relies on frontend-only mutation orchestration.
-- Production auth, account provisioning, tenant isolation, backups, monitoring, and deployment secrets are not finalized.
+- Production auth, account provisioning, tenant isolation, monitoring, and deployment secrets are not finalized.
 - EHR, fax, portal, calendar, and object-storage integrations are still local/demo surfaces.
 - Compliance hardening needs a pass over PHI retention, access logging, audit exports, session policy, and disaster recovery.

@@ -8,5 +8,6 @@
 **/node_modules
 **/dist
 **/build
+backups
 apps/api/.venv
 apps/api/uv.lock
