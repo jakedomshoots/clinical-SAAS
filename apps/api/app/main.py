@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import engine, Base, async_session_factory
-from app.redis_client import redis
+from app.database import Base, async_session_factory, engine
 from app.minio_client import ensure_bucket
+from app.redis_client import redis
+from app.routers import audit, auth, faxes, messages, patients, scheduling, tasks, websocket
 from app.services.auth_service import seed_admin
 
 
@@ -44,8 +46,7 @@ async def health_check():
     return {"status": "ok", "version": "0.0.1"}
 
 
-from app.routers import auth, patients, tasks, scheduling, faxes, messages, websocket
-
+app.include_router(audit.router)
 app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(tasks.router)
