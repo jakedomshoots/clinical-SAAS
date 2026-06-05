@@ -181,3 +181,12 @@ async def test_manager_cannot_register_user_in_other_organization(
     )
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seed_endpoint_can_be_disabled(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.auth.settings.allow_seed_endpoint", False)
+
+    res = await client.post("/api/auth/seed")
+
+    assert res.status_code == 404

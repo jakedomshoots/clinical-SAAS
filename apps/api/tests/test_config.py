@@ -21,6 +21,7 @@ def test_production_rejects_development_defaults():
     assert "CORS_ORIGINS must not include localhost origins" in message
     assert "AUTO_CREATE_SCHEMA must be false in production" in message
     assert "ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production" not in message
+    assert "ALLOW_SEED_ENDPOINT must be false in production" in message
 
 
 def test_production_allows_hardened_settings():
@@ -32,6 +33,7 @@ def test_production_allows_hardened_settings():
         cors_origins="https://concierge.example.com",
         auto_create_schema=False,
         ensure_object_storage_on_startup=True,
+        allow_seed_endpoint=False,
     )
 
     assert settings.is_production is True

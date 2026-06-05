@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_roles
 from app.models.user import User, UserRole
@@ -78,6 +79,8 @@ async def me(current_user: User = Depends(get_current_user)):  # noqa: B008
 
 @router.post("/seed", status_code=status.HTTP_201_CREATED)
 async def seed(db: AsyncSession = Depends(get_db)):  # noqa: B008
+    if not settings.allow_seed_endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     admin = await seed_admin(db)
     if admin is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Users already exist")

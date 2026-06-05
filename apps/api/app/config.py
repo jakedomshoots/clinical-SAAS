@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:1420"
     auto_create_schema: bool = True
     ensure_object_storage_on_startup: bool = True
+    allow_seed_endpoint: bool = True
 
     ehr_api_base_url: str = ""
     fax_provider_api_key: str = ""
@@ -69,6 +70,8 @@ class Settings(BaseSettings):
             )
         if not self.ensure_object_storage_on_startup:
             failures.append("ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production")
+        if self.allow_seed_endpoint:
+            failures.append("ALLOW_SEED_ENDPOINT must be false in production")
 
         if failures:
             raise ValueError("; ".join(failures))
