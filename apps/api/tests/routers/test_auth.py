@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token, hash_password
+from tests.conftest import headers_for, make_user
 
 
 @pytest.mark.asyncio
@@ -126,3 +127,57 @@ async def test_register_requires_strong_password(client: AsyncClient, auth_heade
         "role": "provider",
     }, headers=auth_headers)
     assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_manager_can_register_user_in_own_organization(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(
+        db,
+        UserRole.manager,
+        "manager-register-own-org@clinic.example.com",
+        organization_id="manager-org",
+    )
+
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "new-user-own-org@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Own Org User",
+            "role": "provider",
+        },
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 201
+    assert res.json()["organization_id"] == "manager-org"
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_register_user_in_other_organization(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(
+        db,
+        UserRole.manager,
+        "manager-register-other-org@clinic.example.com",
+        organization_id="manager-org",
+    )
+
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "new-user-other-org@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Other Org User",
+            "role": "provider",
+            "organization_id": "other-org",
+        },
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403

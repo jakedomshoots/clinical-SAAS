@@ -33,6 +33,11 @@ async def register(
         )
 
     organization_id = data.organization_id or current_user.organization_id
+    if current_user.role != UserRole.admin and organization_id != current_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot create users outside your organization",
+        )
     user = await create_user(
         db,
         data.email,
