@@ -15,10 +15,17 @@ import {
   Mail,
   MapPin,
   AlertTriangle,
+  Building2,
+  CalendarClock,
   Heart,
   ClipboardList,
+  Download,
   FileText,
+  FolderOpen,
   MessageSquare,
+  Pill,
+  ShieldCheck,
+  Stethoscope,
   TestTube2,
 } from 'lucide-react';
 
@@ -26,9 +33,13 @@ export const Route = createFileRoute('/patients/$patientId')({
   component: PatientChartPage,
 });
 
-type Tab = 'demographics' | 'encounters' | 'labs' | 'tasks' | 'messages';
+type Tab = 'summary' | 'demographics' | 'documents' | 'medications' | 'care-plan' | 'encounters' | 'labs' | 'tasks' | 'messages';
 const TABS: { key: Tab; label: string }[] = [
+  { key: 'summary', label: 'Summary' },
   { key: 'demographics', label: 'Demographics' },
+  { key: 'documents', label: 'Documents' },
+  { key: 'medications', label: 'Meds' },
+  { key: 'care-plan', label: 'Care Plan' },
   { key: 'encounters', label: 'Encounters' },
   { key: 'labs', label: 'Labs' },
   { key: 'tasks', label: 'Tasks' },
@@ -47,6 +58,53 @@ const labRows = [
   { date: '2026-03-12', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'Filed' },
 ];
 
+const documentRows = [
+  {
+    received: '2026-06-03 10:42 AM',
+    title: 'LabCorp final report',
+    source: 'LabCorp Chicago Central',
+    type: 'Lab result',
+    status: 'Needs provider review',
+    matchedBy: 'MRN detected',
+    pages: 4,
+    summary: 'CMP and A1c received. Potassium is flagged critical and requires same-day review.',
+  },
+  {
+    received: '2026-05-28 3:16 PM',
+    title: 'Cardiology consult note',
+    source: 'North Shore Cardiology',
+    type: 'Consult note',
+    status: 'Filed',
+    matchedBy: 'manual',
+    pages: 7,
+    summary: 'Medication recommendations and follow-up EKG plan after cardiology evaluation.',
+  },
+  {
+    received: '2026-05-22 9:04 AM',
+    title: 'Hospital discharge summary',
+    source: 'Mercy Medical Center',
+    type: 'Discharge',
+    status: 'Reconciled',
+    matchedBy: 'patient DOB + name',
+    pages: 11,
+    summary: 'Observation stay summary, medication changes, and discharge instructions.',
+  },
+];
+
+const medicationRows = [
+  { name: 'Lisinopril', dose: '20 mg', directions: '1 tablet daily', source: 'Active med list', status: 'Continue' },
+  { name: 'Metformin ER', dose: '500 mg', directions: '2 tablets with dinner', source: 'Active med list', status: 'Review A1c' },
+  { name: 'Atorvastatin', dose: '40 mg', directions: '1 tablet nightly', source: 'Cardiology note', status: 'Continue' },
+  { name: 'Potassium chloride', dose: '10 mEq', directions: 'Historical supplement', source: 'Discharge summary', status: 'Hold pending provider review' },
+];
+
+const carePlanItems = [
+  { owner: 'Provider', item: 'Review critical potassium and decide medication changes before checkout.', due: 'Today', state: 'Required' },
+  { owner: 'MA', item: 'Repeat blood pressure and reconcile outside medication list.', due: 'Before provider', state: 'In progress' },
+  { owner: 'Front desk', item: 'Schedule 3 month chronic care follow-up and confirm preferred pharmacy.', due: 'Checkout', state: 'Open' },
+  { owner: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', state: 'Open' },
+];
+
 const patientTasks = [
   { title: 'Call with potassium result', owner: 'Maya Chen, MA', due: 'Today 2:00 PM', priority: 'Urgent' },
   { title: 'Reconcile medication list', owner: 'Dr. Nora Ellis', due: 'Before checkout', priority: 'High' },
@@ -63,7 +121,7 @@ function PatientChartPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const navigate = Route.useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('demographics');
+  const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
 
@@ -144,7 +202,7 @@ function PatientChartPage() {
         )}
       </div>
 
-      <div className="mb-6 flex gap-0 border-b border-clinic-200">
+      <div className="mb-6 flex gap-0 overflow-x-auto border-b border-clinic-200">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
@@ -159,6 +217,62 @@ function PatientChartPage() {
           </button>
         ))}
       </div>
+
+      {activeTab === 'summary' && (
+        <div className="space-y-5">
+          <section className="grid gap-3 lg:grid-cols-4">
+            {[
+              { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
+              { label: 'Documents', value: String(documentRows.length), detail: '1 needs review', icon: FolderOpen, tone: 'text-amber-700' },
+              { label: 'Open tasks', value: String(patientTasks.length), detail: '2 clinical blockers', icon: ClipboardList, tone: 'text-red-700' },
+              { label: 'Care plan', value: '4 items', detail: 'Checkout handoff ready', icon: ShieldCheck, tone: 'text-clinic-700' },
+            ].map(({ label, value, detail, icon: Icon, tone }) => (
+              <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-clinic-500">{label}</span>
+                  <Icon className={`h-4 w-4 ${tone}`} />
+                </div>
+                <div className="mt-3 text-2xl font-semibold text-clinic-900">{value}</div>
+                <div className="mt-1 text-sm text-clinic-500">{detail}</div>
+              </div>
+            ))}
+          </section>
+
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="rounded-md border border-clinic-200 bg-white">
+              <div className="border-b border-clinic-200 px-4 py-3">
+                <h2 className="text-sm font-semibold text-clinic-800">Checkout Handoff</h2>
+                <p className="text-xs text-clinic-500">What the care team needs before this patient leaves</p>
+              </div>
+              <div className="divide-y divide-clinic-100">
+                {carePlanItems.map((item) => (
+                  <div key={item.item} className="grid gap-3 px-4 py-3 md:grid-cols-[7rem_1fr_7rem_7rem]">
+                    <div className="text-sm font-medium text-clinic-700">{item.owner}</div>
+                    <div className="text-sm text-clinic-800">{item.item}</div>
+                    <div className="text-sm text-clinic-500">{item.due}</div>
+                    <div className="text-sm font-medium text-clinic-700">{item.state}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <aside className="rounded-md border border-clinic-200 bg-white p-4">
+              <h2 className="text-sm font-semibold text-clinic-800">Clinical Flags</h2>
+              <div className="mt-3 space-y-3 text-sm">
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
+                  Critical potassium result needs provider review.
+                </div>
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
+                  Outside discharge med list includes potassium supplement.
+                </div>
+                <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3 text-clinic-700">
+                  Cardiology consult note is filed for today's review.
+                </div>
+              </div>
+            </aside>
+          </section>
+        </div>
+      )}
 
       {activeTab === 'demographics' && (
         <div className="rounded-lg border border-clinic-200 bg-white p-6">
@@ -290,6 +404,107 @@ function PatientChartPage() {
                     {encounter.status}
                   </span>
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="rounded-lg border border-clinic-200 bg-white">
+          <div className="border-b border-clinic-200 px-4 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+              <FolderOpen className="h-4 w-4 text-accent-700" />
+              Outside Documents
+            </h2>
+            <p className="mt-1 text-xs text-clinic-500">Faxed, scanned, and imported records from outside offices</p>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {documentRows.map((document) => (
+              <div key={document.title} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_12rem_10rem_6rem]">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-clinic-900">{document.title}</span>
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-xs font-medium text-clinic-600">
+                      {document.type}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-clinic-500">
+                    <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{document.source}</span>
+                    <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" />{document.received}</span>
+                    <span>{document.pages} pages</span>
+                    <span>Matched by {document.matchedBy}</span>
+                  </div>
+                  <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>
+                </div>
+                <div className="text-sm font-medium text-clinic-700">{document.status}</div>
+                <div className="text-sm text-clinic-500">Available in chart</div>
+                <div className="text-right">
+                  <button className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
+                    <Download className="h-3.5 w-3.5" />
+                    View
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'medications' && (
+        <div className="rounded-lg border border-clinic-200 bg-white">
+          <div className="border-b border-clinic-200 px-4 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+              <Pill className="h-4 w-4 text-accent-700" />
+              Medication Reconciliation
+            </h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+                <tr>
+                  <th className="px-4 py-2.5">Medication</th>
+                  <th className="px-4 py-2.5">Dose</th>
+                  <th className="px-4 py-2.5">Directions</th>
+                  <th className="px-4 py-2.5">Source</th>
+                  <th className="px-4 py-2.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {medicationRows.map((medication) => (
+                  <tr key={medication.name} className="border-b border-clinic-100 last:border-b-0">
+                    <td className="px-4 py-3 font-medium text-clinic-900">{medication.name}</td>
+                    <td className="px-4 py-3 text-clinic-700">{medication.dose}</td>
+                    <td className="px-4 py-3 text-clinic-600">{medication.directions}</td>
+                    <td className="px-4 py-3 text-clinic-500">{medication.source}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
+                        {medication.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'care-plan' && (
+        <div className="rounded-lg border border-clinic-200 bg-white">
+          <div className="border-b border-clinic-200 px-4 py-3">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+              <ShieldCheck className="h-4 w-4 text-accent-700" />
+              Care Plan And Checkout Needs
+            </h2>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {carePlanItems.map((item) => (
+              <div key={item.item} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_8rem_8rem]">
+                <div className="text-sm font-medium text-clinic-700">{item.owner}</div>
+                <div className="text-sm text-clinic-800">{item.item}</div>
+                <div className="text-sm text-clinic-500">{item.due}</div>
+                <div className="text-sm font-medium text-clinic-700">{item.state}</div>
               </div>
             ))}
           </div>
