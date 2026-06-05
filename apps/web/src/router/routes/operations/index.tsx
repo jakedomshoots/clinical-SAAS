@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -71,6 +72,7 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
 function OperationsPage() {
   const api = useApi();
   const queryClient = useQueryClient();
+  const [auditExport, setAuditExport] = useState({ event_type: '', entity_type: '', entity_id: '', limit: '10000' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
     queryFn: () => api.get<ReadyResponse>('/ready'),
@@ -110,6 +112,13 @@ function OperationsPage() {
   const integrations = ready ? Object.entries(ready.integrations) : [];
   const deployment = ready?.deployment ? Object.entries(ready.deployment) : [];
   const failedEvents = events?.data.filter((event) => event.status === 'failed') ?? [];
+  const auditExportHref = useMemo(() => {
+    const params = new URLSearchParams();
+    Object.entries(auditExport).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+    return `/api/audit/export?${params.toString()}`;
+  }, [auditExport]);
 
   return (
     <div className="space-y-5">
@@ -160,11 +169,22 @@ function OperationsPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <a href="/api/audit/export" className="rounded-md border border-clinic-200 bg-white p-4 hover:bg-clinic-50">
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
           <Download className="h-4 w-4 text-accent-700" />
           <div className="mt-3 text-sm font-semibold text-clinic-900">Audit export</div>
           <div className="mt-1 text-xs text-clinic-500">Download scoped audit CSV for compliance review</div>
-        </a>
+          <div className="mt-3 grid gap-2">
+            <input placeholder="Event type" value={auditExport.event_type} onChange={(event) => setAuditExport({ ...auditExport, event_type: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
+            <input placeholder="Entity type" value={auditExport.entity_type} onChange={(event) => setAuditExport({ ...auditExport, entity_type: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
+            <input placeholder="Entity ID" value={auditExport.entity_id} onChange={(event) => setAuditExport({ ...auditExport, entity_id: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
+            <select value={auditExport.limit} onChange={(event) => setAuditExport({ ...auditExport, limit: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs">
+              <option value="1000">1,000 rows</option>
+              <option value="10000">10,000 rows</option>
+              <option value="50000">50,000 rows</option>
+            </select>
+            <a href={auditExportHref} className="rounded-md bg-accent-600 px-3 py-2 text-center text-xs font-medium text-white hover:bg-accent-700">Export CSV</a>
+          </div>
+        </div>
         <div className="rounded-md border border-clinic-200 bg-white p-4">
           <ShieldCheck className="h-4 w-4 text-accent-700" />
           <div className="mt-3 text-sm font-semibold text-clinic-900">PHI access controls</div>

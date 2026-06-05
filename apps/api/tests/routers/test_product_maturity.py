@@ -42,6 +42,18 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
     assert transitioned.status_code == 200
     assert transitioned.json()["status"] == "denied"
 
+    submitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    assert submitted.status_code == 200
+    assert submitted.json()["status"] == "submitted"
+
+    denied = await client.post(f"/api/billing/cases/{billing.json()['id']}/deny", json={"notes": "Payer requested documentation"}, headers=auth_headers)
+    assert denied.status_code == 200
+    assert denied.json()["status"] == "denied"
+
+    paid = await client.post(f"/api/billing/cases/{billing.json()['id']}/payment", headers=auth_headers)
+    assert paid.status_code == 200
+    assert paid.json()["status"] == "paid"
+
 
 @pytest.mark.asyncio
 async def test_portal_intake_conversions(client, auth_headers, admin_user):

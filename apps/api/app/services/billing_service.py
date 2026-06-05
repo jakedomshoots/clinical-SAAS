@@ -6,6 +6,7 @@ from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.user import User
 from app.services.audit_service import log_event
+from app.services.integration_event_service import record_event
 
 
 async def list_cases(db: AsyncSession, user: User) -> tuple[list[BillingCase], int]:
@@ -126,4 +127,56 @@ async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) ->
     await db.commit()
     await db.refresh(case)
     await log_event(db, "billing.case_updated", "billing_case", case.id, actor_id=user.id, payload={"updated_fields": list(data.keys())})
+    return case
+
+
+async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase | None:
+    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not case:
+        return None
+    if not case.cpt_codes:
+        raise ValueError("CPT codes are required before claim submission")
+    if not case.payer:
+        raise ValueError("Payer is required before claim submission")
+    case.status = BillingStatus.submitted
+    case.notes = "\n".join(filter(None, [case.notes, "Claim staged for clearinghouse submission."]))
+    await db.commit()
+    await db.refresh(case)
+    await log_event(db, "billing.claim_submitted", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "payer": case.payer})
+    await record_event(
+        db,
+        user,
+        integration="clearinghouse",
+        direction="outbound",
+        action="claim.submit",
+        status="pending",
+        entity_type="billing_case",
+        entity_id=case.id,
+        idempotency_key=f"claim:submit:{case.id}",
+        payload={"patient_id": case.patient_id, "payer": case.payer, "cpt_codes": case.cpt_codes},
+    )
+    return case
+
+
+async def record_payment(db: AsyncSession, user: User, case_id: str) -> BillingCase | None:
+    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not case:
+        return None
+    case.status = BillingStatus.paid
+    case.notes = "\n".join(filter(None, [case.notes, "Payment recorded."]))
+    await db.commit()
+    await db.refresh(case)
+    await log_event(db, "billing.payment_recorded", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id})
+    return case
+
+
+async def deny_case(db: AsyncSession, user: User, case_id: str, reason: str | None = None) -> BillingCase | None:
+    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not case:
+        return None
+    case.status = BillingStatus.denied
+    case.notes = "\n".join(filter(None, [case.notes, reason or "Denial received and queued for follow-up."]))
+    await db.commit()
+    await db.refresh(case)
+    await log_event(db, "billing.claim_denied", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "reason": reason})
     return case

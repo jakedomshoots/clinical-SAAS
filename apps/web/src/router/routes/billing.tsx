@@ -54,6 +54,13 @@ function BillingPage() {
     mutationFn: (patientId: string) => api.post<EligibilityCheck>(ROUTES.ELIGIBILITY_CHECK(patientId), {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
+  const caseActionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'submit' | 'payment' | 'deny' }) => {
+      const route = action === 'submit' ? ROUTES.BILLING_CASE_SUBMIT(id) : action === 'payment' ? ROUTES.BILLING_CASE_PAYMENT(id) : ROUTES.BILLING_CASE_DENY(id);
+      return api.post<BillingCase>(route, action === 'deny' ? { notes: 'Denial received and queued for follow-up.' } : {});
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+  });
   const rows = cases?.data ?? [];
   const reviewRows = chargeReview?.data ?? [];
   const patientOptions = patients?.data ?? [];
@@ -149,6 +156,9 @@ function BillingPage() {
                     Eligibility
                   </button>
                   <button onClick={() => openCase(item)} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Details</button>
+                  {item.status !== 'submitted' && item.status !== 'paid' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'submit' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Submit</button>}
+                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'payment' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Paid</button>}
+                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'deny' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Deny</button>}
                   {item.status === 'denied' && <button onClick={() => updateMutation.mutate({ id: item.id, update: { notes: `${item.notes ?? ''}\nDenial worked and ready to resubmit.`, status: 'ready' } })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
                 </div>
               </div>

@@ -58,3 +58,30 @@ async def update_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, 
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
     return BillingCaseOut.model_validate(case)
+
+
+@router.post("/cases/{case_id}/submit", response_model=BillingCaseOut)
+async def submit_billing_case(case_id: str, db: DbDep, current_user: ClinicalUserDep):
+    try:
+        case = await billing_service.submit_case(db, current_user, case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
+    return BillingCaseOut.model_validate(case)
+
+
+@router.post("/cases/{case_id}/payment", response_model=BillingCaseOut)
+async def record_billing_payment(case_id: str, db: DbDep, current_user: ClinicalUserDep):
+    case = await billing_service.record_payment(db, current_user, case_id)
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
+    return BillingCaseOut.model_validate(case)
+
+
+@router.post("/cases/{case_id}/deny", response_model=BillingCaseOut)
+async def deny_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep):
+    case = await billing_service.deny_case(db, current_user, case_id, data.notes)
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
+    return BillingCaseOut.model_validate(case)

@@ -688,6 +688,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     saveDemoData();
     return billingCases.find((item) => item.id === billingCaseMatch[1]) as T;
   }
+  const billingActionMatch = path.match(/^\/billing\/cases\/([^/]+)\/(submit|payment|deny)$/);
+  if (billingActionMatch && method === 'POST') {
+    const [, caseId, action] = billingActionMatch;
+    const incoming = body as Partial<BillingCase>;
+    billingCases = billingCases.map((item) => {
+      if (item.id !== caseId) return item;
+      if (action === 'submit') return { ...item, status: 'submitted', notes: [item.notes, 'Claim staged for clearinghouse submission.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+      if (action === 'payment') return { ...item, status: 'paid', notes: [item.notes, 'Payment recorded.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+      return { ...item, status: 'denied', notes: [item.notes, incoming.notes ?? 'Denial received and queued for follow-up.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+    });
+    saveDemoData();
+    return billingCases.find((item) => item.id === caseId) as T;
+  }
   const billingFromEncounterMatch = path.match(/^\/billing\/cases\/from-encounter\/([^/]+)$/);
   if (billingFromEncounterMatch && method === 'POST') {
     const encounter = patientEncounters.find((item) => item.id === billingFromEncounterMatch[1]);

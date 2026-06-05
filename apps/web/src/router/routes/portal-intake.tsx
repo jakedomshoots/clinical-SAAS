@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { ClipboardList } from 'lucide-react';
-import { ROUTES, type PatientListResponse, type PortalIntakeListResponse, type PortalIntakeSubmission } from '@concierge-os/shared';
+import { ROUTES, type AppointmentConflictCheck, type PatientListResponse, type PortalIntakeListResponse, type PortalIntakeSubmission } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState } from '@/lib/ui-state';
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/portal-intake')({
 function PortalIntakePage() {
   const api = useApi();
   const queryClient = useQueryClient();
+  const [conflictWarnings, setConflictWarnings] = useState<Record<string, string[]>>({});
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.PORTAL_INTAKE,
     queryFn: () => api.get<PortalIntakeListResponse>(ROUTES.PORTAL_INTAKE),
@@ -44,6 +46,19 @@ function PortalIntakePage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
     },
   });
+  const conflictMutation = useMutation({
+    mutationFn: async (item: PortalIntakeSubmission) => {
+      const payload = item.submitted_payload;
+      const providerId = String(payload.provider_id ?? '');
+      const startTime = String(payload.start_time ?? '');
+      const endTime = String(payload.end_time ?? '');
+      if (!providerId || !startTime || !endTime) return { id: item.id, warnings: ['Provider and requested time are required before conflict checking.'] };
+      const params = new URLSearchParams({ provider_id: providerId, start_time: startTime, end_time: endTime });
+      const result = await api.get<AppointmentConflictCheck>(`${ROUTES.APPOINTMENT_CONFLICT_CHECK}?${params.toString()}`);
+      return { id: item.id, warnings: result.warnings.length > 0 ? result.warnings : ['No conflicts found.'] };
+    },
+    onSuccess: ({ id, warnings }) => setConflictWarnings((current) => ({ ...current, [id]: warnings })),
+  });
   const rows = data?.data ?? [];
   return (
     <div className="space-y-5">
@@ -72,10 +87,16 @@ function PortalIntakePage() {
                 <div>
                   <div className="text-sm font-semibold text-clinic-900">{item.request_type.replace('_', ' ')}</div>
                   <div className="mt-1 text-xs text-clinic-500">{JSON.stringify(item.submitted_payload)}</div>
+                  {conflictWarnings[item.id] && (
+                    <div className="mt-2 space-y-1">
+                      {conflictWarnings[item.id].map((warning) => <div key={warning} className="text-xs font-medium text-amber-700">{warning}</div>)}
+                    </div>
+                  )}
                 </div>
                 <span className="text-sm font-medium text-clinic-700">{item.status}</span>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'apply' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Apply chart</button>
+                  {item.request_type === 'appointment_request' && <button onClick={() => conflictMutation.mutate(item)} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Check slot</button>}
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'appointment' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Schedule</button>
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'document' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Document</button>
                   <button onClick={() => updateMutation.mutate({ id: item.id, status: 'rejected' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Reject</button>
