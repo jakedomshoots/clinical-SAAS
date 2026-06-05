@@ -569,14 +569,29 @@ async def test_checkout_workload_groups_open_items_by_owner(client: AsyncClient,
         "item": "Schedule follow-up.",
         "status": "open",
     }, headers=auth_headers)
+    care_task = await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "owner_role": "Provider",
+        "item": "Create urgent checkout task.",
+        "status": "blocked",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
+        "source_type": "care_plan",
+        "source_id": care_task.json()["id"],
+        "priority": "urgent",
+    }, headers=auth_headers)
 
     res = await client.get("/api/patients/workload/checkout", headers=auth_headers)
 
     assert res.status_code == 200
     data = res.json()
-    assert data["total_open_items"] == 2
-    assert data["unassigned_items"] == 1
-    provider_bucket = next(item for item in data["data"] if item["owner_role"] == "Provider")
+    assert data["total_open_items"] == 3
+    assert data["unassigned_items"] == 2
+    assert data["source_linked_tasks"] == 1
+    assert data["urgent_tasks"] == 1
+    provider_bucket = next(item for item in data["data"] if item["assigned_to_id"] == admin_user.id)
     assert provider_bucket["assigned_to_name"] == admin_user.display_name
     assert provider_bucket["blocked_items"] == 1
     assert provider_bucket["escalated_items"] == 1
+    task_bucket = next(item for item in data["data"] if item["owner_role"] == "Checkout tasks")
+    assert task_bucket["source_linked_tasks"] == 1
+    assert task_bucket["urgent_tasks"] == 1

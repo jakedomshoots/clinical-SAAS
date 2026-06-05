@@ -7,10 +7,14 @@ export interface WorkloadBucket {
   open_items: number;
   blocked_items: number;
   escalated_items: number;
+  source_linked_tasks: number;
+  urgent_tasks: number;
 }
 
 export interface WorkloadSummary {
   data: WorkloadBucket[];
   total_open_items: number;
   unassigned_items: number;
+  source_linked_tasks: number;
+  urgent_tasks: number;
 }

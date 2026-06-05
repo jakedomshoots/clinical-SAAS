@@ -8,9 +8,13 @@ class WorkloadBucketOut(BaseModel):
     open_items: int
     blocked_items: int
     escalated_items: int
+    source_linked_tasks: int
+    urgent_tasks: int
 
 
 class WorkloadSummaryOut(BaseModel):
     data: list[WorkloadBucketOut]
     total_open_items: int
     unassigned_items: int
+    source_linked_tasks: int
+    urgent_tasks: int

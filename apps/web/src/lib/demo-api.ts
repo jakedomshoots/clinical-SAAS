@@ -486,16 +486,37 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         open_items: 0,
         blocked_items: 0,
         escalated_items: 0,
+        source_linked_tasks: 0,
+        urgent_tasks: 0,
       };
       bucket.open_items += 1;
       if (item.status === 'blocked') bucket.blocked_items += 1;
       if (item.escalation) bucket.escalated_items += 1;
       buckets.set(key, bucket);
     }
+    const sourceTasks = tasks.filter((task) => task.source_type?.startsWith('checkout_handoff:') && ['open', 'in_progress'].includes(task.status));
+    for (const task of sourceTasks) {
+      const key = `Checkout tasks:${task.assigned_to_id ?? 'unassigned'}`;
+      const bucket = buckets.get(key) ?? {
+        owner_role: 'Checkout tasks',
+        assigned_to_id: task.assigned_to_id,
+        assigned_to_name: task.assigned_to_name,
+        open_items: 0,
+        blocked_items: 0,
+        escalated_items: 0,
+        source_linked_tasks: 0,
+        urgent_tasks: 0,
+      };
+      bucket.source_linked_tasks += 1;
+      if (task.priority === 'urgent') bucket.urgent_tasks += 1;
+      buckets.set(key, bucket);
+    }
     return {
       data: [...buckets.values()],
       total_open_items: openItems.length,
       unassigned_items: openItems.filter((item) => !item.assigned_to_id).length,
+      source_linked_tasks: sourceTasks.length,
+      urgent_tasks: sourceTasks.filter((task) => task.priority === 'urgent').length,
     } satisfies WorkloadSummary as T;
   }
 

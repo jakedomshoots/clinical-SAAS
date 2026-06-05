@@ -143,13 +143,13 @@ function RoleViewsPage() {
       metrics: [
         ['Unmatched faxes', String(unmatchedFaxes.length)],
         ['Open handoffs', String(workload?.total_open_items ?? 0)],
-        ['Unassigned', String(workload?.unassigned_items ?? 0)],
+        ['Escalated tasks', String(workload?.urgent_tasks ?? 0)],
       ],
       actions: [
         ...(workload?.data.slice(0, 3).map((bucket) => ({
           label: bucket.assigned_to_name ?? `${bucket.owner_role} unassigned`,
-          detail: `${bucket.open_items} open, ${bucket.escalated_items} escalated`,
-          tone: bucket.escalated_items > 0 || bucket.blocked_items > 0 ? 'red' : 'neutral',
+          detail: `${bucket.open_items + bucket.source_linked_tasks} open, ${bucket.escalated_items + bucket.urgent_tasks} escalated`,
+          tone: bucket.escalated_items > 0 || bucket.blocked_items > 0 || bucket.urgent_tasks > 0 ? 'red' : 'neutral',
           to: '/roles',
         })) ?? []),
         ...unmatchedFaxes.slice(0, 2).map((fax) => ({
