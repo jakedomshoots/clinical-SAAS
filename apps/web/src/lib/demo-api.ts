@@ -685,8 +685,14 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   const billingCaseMatch = path.match(/^\/billing\/cases\/([^/]+)$/);
   if (billingCaseMatch && method === 'PATCH') {
     billingCases = billingCases.map((item) => item.id === billingCaseMatch[1] ? { ...item, ...(body as Partial<BillingCase>), updated_at: new Date().toISOString() } : item);
+    logDemoEvent({ event_type: 'billing.case_updated', entity_type: 'billing_case', entity_id: billingCaseMatch[1], payload: { updated_fields: Object.keys((body as Partial<BillingCase>) ?? {}) } });
     saveDemoData();
     return billingCases.find((item) => item.id === billingCaseMatch[1]) as T;
+  }
+  const billingTimelineMatch = path.match(/^\/billing\/cases\/([^/]+)\/timeline$/);
+  if (billingTimelineMatch && method === 'GET') {
+    const data = auditEvents.filter((event) => event.entity_type === 'billing_case' && event.entity_id === billingTimelineMatch[1]);
+    return { data, total: data.length } as T;
   }
   const billingActionMatch = path.match(/^\/billing\/cases\/([^/]+)\/(submit|payment|deny)$/);
   if (billingActionMatch && method === 'POST') {
@@ -698,6 +704,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       if (action === 'payment') return { ...item, status: 'paid', notes: [item.notes, 'Payment recorded.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
       return { ...item, status: 'denied', notes: [item.notes, incoming.notes ?? 'Denial received and queued for follow-up.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
     });
+    const eventType = action === 'submit' ? 'billing.claim_submitted' : action === 'payment' ? 'billing.payment_recorded' : 'billing.claim_denied';
+    logDemoEvent({ event_type: eventType, entity_type: 'billing_case', entity_id: caseId, payload: { action } });
     saveDemoData();
     return billingCases.find((item) => item.id === caseId) as T;
   }
@@ -728,8 +736,14 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const patient = patients.find((item) => item.id === eligibilityMatch[1]);
     const status = patient?.insurance ? 'eligible' : 'missing_insurance';
     billingCases = billingCases.map((item) => item.patient_id === eligibilityMatch[1] && item.status === 'draft' ? { ...item, eligibility_status: status, updated_at: new Date().toISOString() } : item);
+    logDemoEvent({ event_type: 'billing.eligibility_checked', entity_type: 'patient', entity_id: eligibilityMatch[1], payload: { payer: patient?.insurance?.provider ?? null, status } });
     saveDemoData();
     return { patient_id: eligibilityMatch[1], payer: patient?.insurance?.provider ?? null, status, reference_id: `demo-elig-${eligibilityMatch[1].slice(-6)}`, message: patient?.insurance ? 'Demo eligibility staged. Configure a clearinghouse before live use.' : 'Insurance is missing from chart.' } as T;
+  }
+  const eligibilityHistoryMatch = path.match(/^\/billing\/eligibility\/([^/]+)\/history$/);
+  if (eligibilityHistoryMatch && method === 'GET') {
+    const data = auditEvents.filter((event) => event.event_type === 'billing.eligibility_checked' && event.entity_type === 'patient' && event.entity_id === eligibilityHistoryMatch[1]);
+    return { data, total: data.length } as T;
   }
 
   if (path === '/settings' && method === 'GET') return clinicSettings as T;

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-react';
-import { ROUTES, type BillingCase, type BillingCaseListResponse, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
+import { ROUTES, type BillingCase, type BillingCaseListResponse, type BillingTimelineResponse, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState } from '@/lib/ui-state';
@@ -65,6 +65,11 @@ function BillingPage() {
   const reviewRows = chargeReview?.data ?? [];
   const patientOptions = patients?.data ?? [];
   const selectedCase = rows.find((item) => item.id === selectedCaseId) ?? null;
+  const { data: selectedTimeline } = useQuery({
+    queryKey: [...QUERY_KEYS.BILLING_CASES, selectedCaseId, 'timeline'],
+    queryFn: () => api.get<BillingTimelineResponse>(ROUTES.BILLING_CASE_TIMELINE(selectedCaseId ?? '')),
+    enabled: Boolean(selectedCaseId),
+  });
 
   function openCase(item: BillingCase) {
     setSelectedCaseId(item.id);
@@ -183,6 +188,18 @@ function BillingPage() {
             <textarea aria-label="Billing notes" placeholder="Notes" value={caseDraft.notes} onChange={(event) => setCaseDraft({ ...caseDraft, notes: event.target.value })} className="min-h-24 rounded-md border border-clinic-300 px-3 py-2 text-sm" />
           </div>
           <button onClick={saveCase} className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Save case</button>
+          <div className="mt-4 border-t border-clinic-100 pt-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-clinic-500">Case timeline</h3>
+            <div className="mt-2 space-y-2">
+              {(selectedTimeline?.data ?? []).map((event) => (
+                <div key={event.id} className="rounded-md bg-clinic-50 px-3 py-2">
+                  <div className="text-xs font-semibold text-clinic-800">{event.event_type.replaceAll('_', ' ')}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{new Date(event.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+              {(selectedTimeline?.data ?? []).length === 0 && <div className="text-xs text-clinic-400">No billing events have been recorded yet.</div>}
+            </div>
+          </div>
         </section>
       )}
     </div>

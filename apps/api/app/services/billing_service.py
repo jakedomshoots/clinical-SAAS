@@ -2,6 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.billing import BillingCase, BillingStatus
+from app.models.audit import AuditLog
 from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.user import User
@@ -117,6 +118,22 @@ async def check_eligibility(db: AsyncSession, user: User, patient_id: str) -> di
     }
 
 
+async def eligibility_history(db: AsyncSession, user: User, patient_id: str) -> tuple[list[AuditLog], int]:
+    result = await db.execute(
+        select(AuditLog)
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == "billing.eligibility_checked",
+            AuditLog.entity_type == "patient",
+            AuditLog.entity_id == patient_id,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(100)
+    )
+    rows = list(result.scalars().all())
+    return rows, len(rows)
+
+
 async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) -> BillingCase | None:
     case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
     if not case:
@@ -128,6 +145,24 @@ async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) ->
     await db.refresh(case)
     await log_event(db, "billing.case_updated", "billing_case", case.id, actor_id=user.id, payload={"updated_fields": list(data.keys())})
     return case
+
+
+async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[list[AuditLog], int] | None:
+    exists = (await db.execute(select(BillingCase.id).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not exists:
+        return None
+    result = await db.execute(
+        select(AuditLog)
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.entity_type == "billing_case",
+            AuditLog.entity_id == case_id,
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(100)
+    )
+    rows = list(result.scalars().all())
+    return rows, len(rows)
 
 
 async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase | None:

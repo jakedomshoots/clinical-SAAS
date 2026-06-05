@@ -45,3 +45,18 @@ export interface EligibilityCheck {
   reference_id: string;
   message: string;
 }
+
+export interface BillingTimelineEvent {
+  id: UUID;
+  event_type: string;
+  entity_type: string;
+  entity_id: UUID;
+  actor_id: UUID | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface BillingTimelineResponse {
+  data: BillingTimelineEvent[];
+  total: number;
+}

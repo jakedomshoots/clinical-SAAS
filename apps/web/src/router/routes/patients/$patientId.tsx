@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, BillingTimelineResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -122,6 +122,10 @@ function PatientChartPage() {
   const { data: billingCases } = useQuery({
     queryKey: [...QUERY_KEYS.BILLING_CASES, patientId],
     queryFn: () => api.get<BillingCaseListResponse>(ROUTES.BILLING_CASES),
+  });
+  const { data: eligibilityHistory } = useQuery({
+    queryKey: [...QUERY_KEYS.BILLING_CASES, patientId, 'eligibility-history'],
+    queryFn: () => api.get<BillingTimelineResponse>(ROUTES.ELIGIBILITY_HISTORY(patientId)),
   });
 
   const { data: accessHistory } = useQuery({
@@ -909,6 +913,18 @@ function PatientChartPage() {
               </div>
             ))}
             {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).length === 0 && <div className="px-4 py-8 text-center text-sm text-clinic-400">No billing cases for this patient.</div>}
+          </div>
+          <div className="border-t border-clinic-200 px-4 py-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-clinic-500">Eligibility history</h3>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {(eligibilityHistory?.data ?? []).map((event) => (
+                <div key={event.id} className="rounded-md bg-clinic-50 px-3 py-2">
+                  <div className="text-xs font-semibold text-clinic-800">{String(event.payload.status ?? 'checked')}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{String(event.payload.payer ?? 'No payer')} · {new Date(event.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+              {(eligibilityHistory?.data ?? []).length === 0 && <div className="text-sm text-clinic-400">No eligibility checks recorded yet.</div>}
+            </div>
           </div>
         </div>
       )}

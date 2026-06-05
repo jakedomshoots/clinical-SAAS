@@ -65,3 +65,20 @@ class EligibilityCheckOut(BaseModel):
     status: str
     reference_id: str
     message: str
+
+
+class BillingTimelineEventOut(BaseModel):
+    id: str
+    event_type: str
+    entity_type: str
+    entity_id: str
+    actor_id: str | None
+    payload: dict
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BillingTimelineOut(BaseModel):
+    data: list[BillingTimelineEventOut]
+    total: int
