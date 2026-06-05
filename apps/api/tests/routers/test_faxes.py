@@ -60,6 +60,7 @@ async def test_match_inbound_fax_to_patient(
         from_number="+13125550111",
         to_number="+13125550999",
         pages=3,
+        file_url="s3://concierge-os/faxes/inbound-referral.pdf",
         ocr_text="Referral packet awaiting chart match.",
     )
     db.add(inbound)
@@ -80,6 +81,12 @@ async def test_match_inbound_fax_to_patient(
     audit = await client.get("/api/audit?entity_type=fax", headers=auth_headers)
     assert audit.status_code == 200
     assert any(event["event_type"] == "fax.matched" for event in audit.json()["data"])
+
+    documents = await client.get(f"/api/patients/{patient_id}/documents", headers=auth_headers)
+    assert documents.status_code == 200
+    assert documents.json()["total"] == 1
+    assert documents.json()["data"][0]["file_url"] == "s3://concierge-os/faxes/inbound-referral.pdf"
+    assert documents.json()["data"][0]["status"] == "needs_review"
 
 
 @pytest.mark.asyncio

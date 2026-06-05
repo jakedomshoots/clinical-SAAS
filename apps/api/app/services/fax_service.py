@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fax import Fax, FaxDirection, FaxStatus
 from app.models.patient import Patient
+from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.user import User
 from app.services.audit_service import log_event
 
@@ -136,6 +137,32 @@ async def match_fax(db: AsyncSession, user: User, fax_id: str, patient_id: str) 
         return None
     fax.patient_id = patient_id
     fax.matched_by = "manual"
+    if fax.direction == FaxDirection.inbound and fax.file_url:
+        document_exists = (
+            await db.execute(
+                select(PatientDocument.id).where(
+                    PatientDocument.organization_id == user.organization_id,
+                    PatientDocument.patient_id == patient_id,
+                    PatientDocument.file_url == fax.file_url,
+                )
+            )
+        ).scalar_one_or_none()
+        if not document_exists:
+            db.add(
+                PatientDocument(
+                    organization_id=user.organization_id,
+                    patient_id=patient_id,
+                    title="Inbound fax document",
+                    source=fax.from_number,
+                    document_type="Fax",
+                    status=PatientDocumentStatus.needs_review,
+                    matched_by="fax match",
+                    pages=fax.pages,
+                    file_url=fax.file_url,
+                    summary=fax.ocr_text,
+                    received_at=fax.created_at,
+                )
+            )
     await db.commit()
     await db.refresh(fax)
     await log_event(
