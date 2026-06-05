@@ -123,6 +123,13 @@ def upgrade() -> None:
     op.create_table(
         'messages',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('sender_id', sa.String(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('recipient_id', sa.String(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('subject', sa.String(200), nullable=False),

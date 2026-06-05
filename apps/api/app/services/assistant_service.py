@@ -19,7 +19,16 @@ def _default_due_date() -> datetime:
 async def create_follow_up_task(db: AsyncSession, user: User, data: dict) -> dict:
     patient_name = None
     if data.get("patient_id"):
-        patient = await db.get(Patient, data["patient_id"])
+        patient = (
+            await db.execute(
+                select(Patient).where(
+                    Patient.id == data["patient_id"],
+                    Patient.organization_id == user.organization_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if not patient:
+            return {}
         patient_name = f"{patient.first_name} {patient.last_name}" if patient else None
 
     task = Task(
@@ -50,11 +59,19 @@ async def create_follow_up_task(db: AsyncSession, user: User, data: dict) -> dic
 
 
 async def draft_portal_reply(db: AsyncSession, user: User, data: dict) -> dict:
-    recipient = await db.get(User, data["recipient_id"])
+    recipient = (
+        await db.execute(
+            select(User).where(
+                User.id == data["recipient_id"],
+                User.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
     if not recipient:
         return {}
 
     message = Message(
+        organization_id=user.organization_id,
         sender_id=user.id,
         recipient_id=data["recipient_id"],
         subject=data["subject"],
@@ -77,7 +94,7 @@ async def draft_portal_reply(db: AsyncSession, user: User, data: dict) -> dict:
         actor_id=user.id,
         payload={"context": data["context"], "subject": message.subject},
     )
-    return await message_service.get_message(db, message.id)
+    return await message_service.get_message(db, user, message.id)
 
 
 async def stage_fax_match(db: AsyncSession, user: User, data: dict) -> dict | None:
