@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { CreditCard, ShieldCheck } from 'lucide-react';
-import { ROUTES, type BillingCase, type BillingCaseListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
+import { ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-react';
+import { ROUTES, type BillingCase, type BillingCaseListResponse, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState } from '@/lib/ui-state';
@@ -15,9 +15,15 @@ function BillingPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState({ patient_id: '', payer: '', cpt_codes: '99213', diagnosis_codes: '', notes: '' });
+  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
+  const [caseDraft, setCaseDraft] = useState({ payer: '', cpt_codes: '', diagnosis_codes: '', notes: '' });
   const { data: cases, isLoading } = useQuery({
     queryKey: QUERY_KEYS.BILLING_CASES,
     queryFn: () => api.get<BillingCaseListResponse>(ROUTES.BILLING_CASES),
+  });
+  const { data: chargeReview } = useQuery({
+    queryKey: [...QUERY_KEYS.BILLING_CASES, 'charge-review'],
+    queryFn: () => api.get<ChargeReviewListResponse>(ROUTES.BILLING_CHARGE_REVIEW),
   });
   const { data: patients } = useQuery({
     queryKey: [...QUERY_KEYS.PATIENTS, 'billing'],
@@ -40,12 +46,41 @@ function BillingPage() {
     mutationFn: ({ id, update }: { id: string; update: Partial<BillingCase> }) => api.patch<BillingCase>(`${ROUTES.BILLING_CASES}/${id}`, update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
+  const fromEncounterMutation = useMutation({
+    mutationFn: (encounterId: string) => api.post<BillingCase>(ROUTES.BILLING_FROM_ENCOUNTER(encounterId), {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+  });
   const eligibilityMutation = useMutation({
     mutationFn: (patientId: string) => api.post<EligibilityCheck>(ROUTES.ELIGIBILITY_CHECK(patientId), {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
   const rows = cases?.data ?? [];
+  const reviewRows = chargeReview?.data ?? [];
   const patientOptions = patients?.data ?? [];
+  const selectedCase = rows.find((item) => item.id === selectedCaseId) ?? null;
+
+  function openCase(item: BillingCase) {
+    setSelectedCaseId(item.id);
+    setCaseDraft({
+      payer: item.payer ?? '',
+      cpt_codes: item.cpt_codes.join(', '),
+      diagnosis_codes: item.diagnosis_codes.join(', '),
+      notes: item.notes ?? '',
+    });
+  }
+
+  function saveCase() {
+    if (!selectedCase) return;
+    updateMutation.mutate({
+      id: selectedCase.id,
+      update: {
+        payer: caseDraft.payer || null,
+        cpt_codes: caseDraft.cpt_codes.split(',').map((item) => item.trim()).filter(Boolean),
+        diagnosis_codes: caseDraft.diagnosis_codes.split(',').map((item) => item.trim()).filter(Boolean),
+        notes: caseDraft.notes || null,
+      },
+    });
+  }
 
   return (
     <div className="space-y-5">
@@ -69,6 +104,31 @@ function BillingPage() {
           <button className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create</button>
         </form>
       </section>
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+            <ClipboardCheck className="h-4 w-4 text-accent-700" />
+            Charge Review
+          </div>
+          <span className="text-xs font-medium text-clinic-500">{reviewRows.length} signed notes pending charge capture</span>
+        </div>
+        <div className="divide-y divide-clinic-100">
+          {reviewRows.map((item) => (
+            <div key={item.encounter_id} className="grid gap-3 py-3 md:grid-cols-[1fr_9rem_auto]">
+              <div>
+                <div className="text-sm font-semibold text-clinic-900">{item.patient_name}</div>
+                <div className="mt-1 text-xs text-clinic-500">{item.encounter_type} · CPT {item.recommended_cpt_codes.join(', ')}</div>
+                {item.summary && <div className="mt-1 text-xs text-clinic-600">{item.summary}</div>}
+              </div>
+              <span className="text-xs text-clinic-500">{item.signed_at ? new Date(item.signed_at).toLocaleDateString() : 'Signed'}</span>
+              <button onClick={() => fromEncounterMutation.mutate(item.encounter_id)} className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-medium text-accent-700 hover:bg-accent-100">
+                Create case
+              </button>
+            </div>
+          ))}
+          {reviewRows.length === 0 && <EmptyState title="Charge review clear" detail="Signed encounters have billing coverage." />}
+        </div>
+      </section>
       {isLoading ? <LoadingState label="Loading billing cases" /> : (
         <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
           <div className="divide-y divide-clinic-100">
@@ -88,12 +148,31 @@ function BillingPage() {
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Eligibility
                   </button>
+                  <button onClick={() => openCase(item)} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Details</button>
                   {item.status === 'denied' && <button onClick={() => updateMutation.mutate({ id: item.id, update: { notes: `${item.notes ?? ''}\nDenial worked and ready to resubmit.`, status: 'ready' } })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
                 </div>
               </div>
             ))}
             {rows.length === 0 && <EmptyState title="No billing cases" detail="Start a case from charge capture or a signed encounter." />}
           </div>
+        </section>
+      )}
+      {selectedCase && (
+        <section className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Billing Case Detail</h2>
+              <p className="text-xs text-clinic-500">Edit payer, codes, and case notes before submission.</p>
+            </div>
+            <button onClick={() => setSelectedCaseId(null)} className="rounded-md border border-clinic-200 px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50">Close</button>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <input aria-label="Payer" placeholder="Payer" value={caseDraft.payer} onChange={(event) => setCaseDraft({ ...caseDraft, payer: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <input aria-label="CPT codes" placeholder="CPT codes" value={caseDraft.cpt_codes} onChange={(event) => setCaseDraft({ ...caseDraft, cpt_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <input aria-label="Diagnosis codes" placeholder="Diagnosis codes" value={caseDraft.diagnosis_codes} onChange={(event) => setCaseDraft({ ...caseDraft, diagnosis_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <textarea aria-label="Billing notes" placeholder="Notes" value={caseDraft.notes} onChange={(event) => setCaseDraft({ ...caseDraft, notes: event.target.value })} className="min-h-24 rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+          </div>
+          <button onClick={saveCase} className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Save case</button>
         </section>
       )}
     </div>

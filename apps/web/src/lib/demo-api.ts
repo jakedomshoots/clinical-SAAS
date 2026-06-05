@@ -320,7 +320,7 @@ let patientEncounters: PatientEncounter[] = [
   {
     id: uuid(492),
     patient_id: uuid(101),
-    appointment_id: null,
+    appointment_id: uuid(306),
     provider_id: uuid(2),
     provider_name: 'Dr. Nora Ellis',
     encounter_type: 'Follow-up',
@@ -642,6 +642,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   if (path === '/billing/cases' && method === 'GET') return { data: billingCases, total: billingCases.length } as T;
+  if (path === '/billing/charge-review' && method === 'GET') {
+    const billedAppointmentIds = new Set(billingCases.map((item) => item.appointment_id).filter(Boolean));
+    const data = patientEncounters
+      .filter((encounter) => encounter.status === 'signed' && encounter.appointment_id && !billedAppointmentIds.has(encounter.appointment_id))
+      .map((encounter) => {
+        const patient = patients.find((item) => item.id === encounter.patient_id);
+        return {
+          encounter_id: encounter.id,
+          patient_id: encounter.patient_id,
+          patient_name: patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown patient',
+          appointment_id: encounter.appointment_id,
+          encounter_type: encounter.encounter_type,
+          signed_at: encounter.signed_at,
+          summary: encounter.summary,
+          recommended_cpt_codes: ['99213'],
+          recommended_diagnosis_codes: [],
+        };
+      });
+    return { data, total: data.length } as T;
+  }
   if (path === '/billing/cases' && method === 'POST') {
     const incoming = body as Partial<BillingCase>;
     const patient = patients.find((item) => item.id === incoming.patient_id);

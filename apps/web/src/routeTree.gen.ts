@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './router/routes/__root'
 import { Route as StaffRouteImport } from './router/routes/staff'
 import { Route as RolesRouteImport } from './router/routes/roles'
 import { Route as ReportsRouteImport } from './router/routes/reports'
+import { Route as PortalMockRouteImport } from './router/routes/portal-mock'
 import { Route as PortalIntakeRouteImport } from './router/routes/portal-intake'
 import { Route as LoginRouteImport } from './router/routes/login'
 import { Route as IntegrationsRouteImport } from './router/routes/integrations'
@@ -39,6 +40,11 @@ const RolesRoute = RolesRouteImport.update({
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalMockRoute = PortalMockRouteImport.update({
+  id: '/portal-mock',
+  path: '/portal-mock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PortalIntakeRoute = PortalIntakeRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/portal-intake': typeof PortalIntakeRoute
+  '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/portal-intake': typeof PortalIntakeRoute
+  '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/portal-intake': typeof PortalIntakeRoute
+  '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/portal-intake'
+    | '/portal-mock'
     | '/reports'
     | '/roles'
     | '/staff'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/portal-intake'
+    | '/portal-mock'
     | '/reports'
     | '/roles'
     | '/staff'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/integrations'
     | '/login'
     | '/portal-intake'
+    | '/portal-mock'
     | '/reports'
     | '/roles'
     | '/staff'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   PortalIntakeRoute: typeof PortalIntakeRoute
+  PortalMockRoute: typeof PortalMockRoute
   ReportsRoute: typeof ReportsRoute
   RolesRoute: typeof RolesRoute
   StaffRoute: typeof StaffRoute
@@ -259,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal-mock': {
+      id: '/portal-mock'
+      path: '/portal-mock'
+      fullPath: '/portal-mock'
+      preLoaderRoute: typeof PortalMockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/portal-intake': {
@@ -362,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   PortalIntakeRoute: PortalIntakeRoute,
+  PortalMockRoute: PortalMockRoute,
   ReportsRoute: ReportsRoute,
   RolesRoute: RolesRoute,
   StaffRoute: StaffRoute,

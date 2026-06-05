@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
-from app.schemas.billing import BillingCaseCreate, BillingCaseListOut, BillingCaseOut, BillingCaseUpdate, EligibilityCheckOut
+from app.schemas.billing import BillingCaseCreate, BillingCaseListOut, BillingCaseOut, BillingCaseUpdate, ChargeReviewItemOut, ChargeReviewListOut, EligibilityCheckOut
 from app.services import billing_service
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
@@ -20,6 +20,12 @@ ClinicalUserDep = Annotated[User, Depends(clinical_write_required)]
 async def list_billing_cases(db: DbDep, current_user: CurrentUserDep):
     data, total = await billing_service.list_cases(db, current_user)
     return BillingCaseListOut(data=[BillingCaseOut.model_validate(item) for item in data], total=total)
+
+
+@router.get("/charge-review", response_model=ChargeReviewListOut)
+async def list_charge_review(db: DbDep, current_user: CurrentUserDep):
+    data, total = await billing_service.list_charge_review(db, current_user)
+    return ChargeReviewListOut(data=[ChargeReviewItemOut(**item) for item in data], total=total)
 
 
 @router.post("/cases", response_model=BillingCaseOut, status_code=status.HTTP_201_CREATED)

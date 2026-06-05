@@ -42,6 +42,23 @@ class BillingCaseListOut(BaseModel):
     total: int
 
 
+class ChargeReviewItemOut(BaseModel):
+    encounter_id: str
+    patient_id: str
+    patient_name: str
+    appointment_id: str | None
+    encounter_type: str
+    signed_at: datetime | None
+    summary: str | None
+    recommended_cpt_codes: list[str]
+    recommended_diagnosis_codes: list[str]
+
+
+class ChargeReviewListOut(BaseModel):
+    data: list[ChargeReviewItemOut]
+    total: int
+
+
 class EligibilityCheckOut(BaseModel):
     patient_id: str
     payer: str | None

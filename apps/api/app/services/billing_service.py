@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.billing import BillingCase, BillingStatus
 from app.models.patient import Patient
-from app.models.patient_clinical import PatientEncounter
+from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.user import User
 from app.services.audit_service import log_event
 
@@ -14,6 +14,38 @@ async def list_cases(db: AsyncSession, user: User) -> tuple[list[BillingCase], i
     total = (await db.execute(countq)).scalar() or 0
     result = await db.execute(query.order_by(BillingCase.created_at.desc()).limit(100))
     return list(result.scalars().all()), total
+
+
+async def list_charge_review(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    billed_encounters = select(BillingCase.appointment_id).where(
+        BillingCase.organization_id == user.organization_id,
+        BillingCase.appointment_id.is_not(None),
+    )
+    result = await db.execute(
+        select(PatientEncounter, Patient)
+        .join(Patient, Patient.id == PatientEncounter.patient_id)
+        .where(
+            PatientEncounter.organization_id == user.organization_id,
+            PatientEncounter.status == EncounterStatus.signed,
+            PatientEncounter.appointment_id.not_in(billed_encounters),
+        )
+        .order_by(PatientEncounter.signed_at.desc().nulls_last(), PatientEncounter.updated_at.desc())
+        .limit(100)
+    )
+    rows = []
+    for encounter, patient in result.all():
+        rows.append({
+            "encounter_id": encounter.id,
+            "patient_id": encounter.patient_id,
+            "patient_name": f"{patient.first_name} {patient.last_name}",
+            "appointment_id": encounter.appointment_id,
+            "encounter_type": encounter.encounter_type,
+            "signed_at": encounter.signed_at,
+            "summary": encounter.summary,
+            "recommended_cpt_codes": ["99213"],
+            "recommended_diagnosis_codes": [],
+        })
+    return rows, len(rows)
 
 
 async def create_case(db: AsyncSession, user: User, data: dict) -> BillingCase | None:

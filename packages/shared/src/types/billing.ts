@@ -21,6 +21,23 @@ export interface BillingCaseListResponse {
   total: number;
 }
 
+export interface ChargeReviewItem {
+  encounter_id: UUID;
+  patient_id: UUID;
+  patient_name: string;
+  appointment_id: UUID | null;
+  encounter_type: string;
+  signed_at: string | null;
+  summary: string | null;
+  recommended_cpt_codes: string[];
+  recommended_diagnosis_codes: string[];
+}
+
+export interface ChargeReviewListResponse {
+  data: ChargeReviewItem[];
+  total: number;
+}
+
 export interface EligibilityCheck {
   patient_id: UUID;
   payer: string | null;

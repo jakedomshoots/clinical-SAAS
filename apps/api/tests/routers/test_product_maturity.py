@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -88,6 +88,49 @@ async def test_portal_intake_conversions(client, auth_headers, admin_user):
     appointment = await client.post(f"/api/portal-intake/{appt_intake.json()['id']}/convert-appointment", headers=auth_headers)
     assert appointment.status_code == 200
     assert appointment.json()["patient_id"] == patient_id
+
+
+@pytest.mark.asyncio
+async def test_charge_review_queue_clears_after_billing_case_creation(client, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    start_time = datetime(2026, 6, 8, 10, 0)
+    appointment = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start_time.isoformat(),
+            "end_time": (start_time + timedelta(minutes=30)).isoformat(),
+            "type": "Office visit",
+        },
+        headers=auth_headers,
+    )
+    assert appointment.status_code == 201
+
+    encounter = await client.post(
+        f"/api/patients/{patient_id}/encounters",
+        json={
+            "appointment_id": appointment.json()["id"],
+            "provider_id": admin_user.id,
+            "encounter_type": "Office visit",
+            "status": "signed",
+            "summary": "Signed note ready for charge capture.",
+        },
+        headers=auth_headers,
+    )
+    assert encounter.status_code == 201
+
+    review = await client.get("/api/billing/charge-review", headers=auth_headers)
+    assert review.status_code == 200
+    assert review.json()["total"] == 1
+    assert review.json()["data"][0]["encounter_id"] == encounter.json()["id"]
+
+    billing = await client.post(f"/api/billing/cases/from-encounter/{encounter.json()['id']}", headers=auth_headers)
+    assert billing.status_code == 201
+    assert billing.json()["appointment_id"] == appointment.json()["id"]
+
+    cleared = await client.get("/api/billing/charge-review", headers=auth_headers)
+    assert cleared.json()["total"] == 0
 
 
 @pytest.mark.asyncio
