@@ -140,3 +140,9 @@ Not ready for real daily clinical operations yet:
 - Production auth, account provisioning, monitoring, and deployment secrets are not finalized.
 - EHR, fax, portal, calendar, and object-storage integrations are still local/demo surfaces.
 - Compliance hardening needs a pass over PHI retention, access logging, audit exports, session policy, and disaster recovery.
+
+Operational docs:
+
+- [Production launch checklist](docs/operations/production-launch-checklist.md)
+- [Vendor adapter plan](docs/integrations/vendor-adapter-plan.md)
+- [PHI retention and incident response](docs/compliance/phi-retention-and-incident-response.md)

@@ -4,6 +4,11 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import async_session_factory
+from app.integrations.calendar import CalendarClient
+from app.integrations.copilotkit import CopilotRuntimeClient
+from app.integrations.ehr import EHRClient
+from app.integrations.fax_provider import FaxProviderClient
+from app.integrations.portal import PortalClient
 from app.minio_client import minio
 from app.redis_client import redis
 
@@ -16,7 +21,7 @@ async def check_readiness() -> dict:
         "redis": await _check_redis(),
         "object_storage": await _check_object_storage(),
     }
-    integrations = check_external_integrations()
+    integrations = await check_external_integrations()
     operational_checks = [*checks.values(), *integrations.values()]
     return {
         "status": "ok" if all(item["ok"] for item in checks.values()) else "degraded",
@@ -29,25 +34,16 @@ async def check_readiness() -> dict:
     }
 
 
-def check_external_integrations() -> dict:
-    return {
-        "ehr": _configured(settings.ehr_api_base_url, "EHR_API_BASE_URL"),
-        "fax_provider": _configured(settings.fax_provider_api_key, "FAX_PROVIDER_API_KEY"),
-        "portal": _configured(settings.portal_api_base_url, "PORTAL_API_BASE_URL"),
-        "calendar": _configured(settings.calendar_api_base_url, "CALENDAR_API_BASE_URL"),
-        "copilotkit": _configured(settings.copilotkit_runtime_url, "COPILOTKIT_RUNTIME_URL"),
-    }
-
-
-def _configured(value: str, env_var: str) -> dict:
-    if value.strip():
-        return {"ok": True, "configured": True, "env_var": env_var}
-    return {
-        "ok": False,
-        "configured": False,
-        "env_var": env_var,
-        "mode": "demo",
-    }
+async def check_external_integrations() -> dict:
+    integrations = [
+        EHRClient(settings.ehr_api_base_url),
+        FaxProviderClient(settings.fax_provider_api_key),
+        PortalClient(settings.portal_api_base_url),
+        CalendarClient(settings.calendar_api_base_url),
+        CopilotRuntimeClient(settings.copilotkit_runtime_url),
+    ]
+    results = await asyncio.gather(*(client.health() for client in integrations))
+    return {item.name: item.as_dict() for item in results}
 
 
 async def _check_database() -> dict:
