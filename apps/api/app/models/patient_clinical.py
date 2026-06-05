@@ -23,6 +23,13 @@ class CarePlanStatus(str, enum.Enum):
     blocked = "blocked"
 
 
+class LabResultStatus(str, enum.Enum):
+    new = "new"
+    needs_review = "needs_review"
+    reviewed = "reviewed"
+    filed = "filed"
+
+
 def utcnow():
     return datetime.now(UTC).replace(tzinfo=None)
 
@@ -53,6 +60,23 @@ class PatientCarePlanItem(Base):
     item: Mapped[str] = mapped_column(String(500), nullable=False)
     due: Mapped[str | None] = mapped_column(String(100), nullable=True)
     status: Mapped[CarePlanStatus] = mapped_column(SAEnum(CarePlanStatus), default=CarePlanStatus.open, nullable=False, index=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class PatientLabResult(Base):
+    __tablename__ = "patient_lab_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default", index=True)
+    patient_id: Mapped[str] = mapped_column(String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    collected_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    panel: Mapped[str] = mapped_column(String(120), nullable=False)
+    result: Mapped[str] = mapped_column(String(300), nullable=False)
+    flag: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    status: Mapped[LabResultStatus] = mapped_column(SAEnum(LabResultStatus), default=LabResultStatus.new, nullable=False, index=True)
+    source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

@@ -37,6 +37,7 @@ export const QUERY_KEYS = {
   PATIENT_DOCUMENTS: (id: string) => ['patients', id, 'documents'] as const,
   PATIENT_MEDICATIONS: (id: string) => ['patients', id, 'medications'] as const,
   PATIENT_CARE_PLAN: (id: string) => ['patients', id, 'care-plan'] as const,
+  PATIENT_LABS: (id: string) => ['patients', id, 'labs'] as const,
   TASKS: ['tasks'] as const,
   TASK: (id: string) => ['tasks', id] as const,
   APPOINTMENTS: ['appointments'] as const,

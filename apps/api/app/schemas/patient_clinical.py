@@ -82,3 +82,48 @@ class PatientCarePlanItemOut(BaseModel):
 class PatientCarePlanItemListOut(BaseModel):
     data: list[PatientCarePlanItemOut]
     total: int
+
+
+class PatientLabResultCreate(BaseModel):
+    collected_at: datetime | None = None
+    panel: str = Field(min_length=1, max_length=120)
+    result: str = Field(min_length=1, max_length=300)
+    flag: str | None = Field(default=None, max_length=50)
+    status: str = "new"
+    source: str | None = Field(default=None, max_length=200)
+    note: str | None = None
+
+
+class PatientLabResultUpdate(BaseModel):
+    collected_at: datetime | None = None
+    panel: str | None = Field(default=None, min_length=1, max_length=120)
+    result: str | None = Field(default=None, min_length=1, max_length=300)
+    flag: str | None = Field(default=None, max_length=50)
+    status: str | None = None
+    source: str | None = Field(default=None, max_length=200)
+    note: str | None = None
+
+
+class PatientLabResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    patient_id: str
+    collected_at: datetime | None
+    panel: str
+    result: str
+    flag: str | None
+    status: str
+    source: str | None
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("collected_at", "created_at", "updated_at")
+    def serialize_dt(self, dt: datetime | None) -> str | None:
+        return dt.isoformat() if dt else None
+
+
+class PatientLabResultListOut(BaseModel):
+    data: list[PatientLabResultOut]
+    total: int

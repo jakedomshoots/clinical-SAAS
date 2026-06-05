@@ -349,3 +349,37 @@ async def test_patient_medications_and_care_plan_are_persisted(client: AsyncClie
     assert med_update.json()["status"] == "active"
     assert care_update.status_code == 200
     assert care_update.json()["status"] == "completed"
+
+
+@pytest.mark.asyncio
+async def test_patient_labs_are_persisted_and_reviewable(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Lab", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    lab_res = await client.post(f"/api/patients/{patient_id}/labs", json={
+        "collected_at": "2026-06-03T08:00:00",
+        "panel": "CMP",
+        "result": "Potassium 5.9 mmol/L",
+        "flag": "Critical",
+        "status": "needs_review",
+        "source": "Outside Lab",
+    }, headers=auth_headers)
+
+    assert lab_res.status_code == 201
+    lab = lab_res.json()
+    assert lab["status"] == "needs_review"
+
+    listed = await client.get(f"/api/patients/{patient_id}/labs", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 1
+    assert listed.json()["data"][0]["panel"] == "CMP"
+
+    updated = await client.patch(
+        f"/api/patients/{patient_id}/labs/{lab['id']}",
+        json={"status": "reviewed"},
+        headers=auth_headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["status"] == "reviewed"

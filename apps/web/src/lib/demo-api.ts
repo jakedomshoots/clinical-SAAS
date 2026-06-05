@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -19,6 +19,7 @@ interface DemoStore {
   patientDocuments?: PatientDocument[];
   patientMedications?: PatientMedication[];
   patientCarePlan?: PatientCarePlanItem[];
+  patientLabs?: PatientLabResult[];
   messages: Message[];
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
@@ -234,6 +235,12 @@ let patientCarePlan: PatientCarePlanItem[] = [
   { id: uuid(474), patient_id: uuid(101), owner_role: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
 ];
 
+let patientLabs: PatientLabResult[] = [
+  { id: uuid(481), patient_id: uuid(101), collected_at: '2026-06-03T08:00:00-04:00', panel: 'CMP', result: 'Potassium 5.9 mmol/L', flag: 'Critical', status: 'needs_review', source: 'LabCorp', note: null, created_at: iso(-4), updated_at: iso(-4) },
+  { id: uuid(482), patient_id: uuid(101), collected_at: '2026-06-03T08:00:00-04:00', panel: 'A1c', result: '7.4%', flag: 'High', status: 'needs_review', source: 'LabCorp', note: null, created_at: iso(-4), updated_at: iso(-4) },
+  { id: uuid(483), patient_id: uuid(101), collected_at: '2026-03-12T08:00:00-04:00', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'filed', source: 'LabCorp', note: null, created_at: iso(-500), updated_at: iso(-500) },
+];
+
 let messages: Message[] = [
   { id: uuid(501), sender_id: uuid(101), sender_name: 'Mary Collins', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?', thread_id: uuid(601), is_read: false, created_at: iso(-2) },
   { id: uuid(502), sender_id: uuid(1), sender_name: 'Clinic Admin', recipient_id: uuid(101), recipient_name: 'Mary Collins', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.', thread_id: uuid(601), is_read: true, created_at: iso(-1.5) },
@@ -303,7 +310,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, messages, auditEvents, integrationEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, messages, auditEvents, integrationEvents }),
   );
 }
 
@@ -316,6 +323,7 @@ if (storedDemoData) {
   patientDocuments = storedDemoData.patientDocuments ?? patientDocuments;
   patientMedications = storedDemoData.patientMedications ?? patientMedications;
   patientCarePlan = storedDemoData.patientCarePlan ?? patientCarePlan;
+  patientLabs = storedDemoData.patientLabs ?? patientLabs;
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
@@ -698,6 +706,25 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     saveDemoData();
     return patientCarePlan.find((item) => item.id === itemId) as T;
+  }
+
+  const patientLabsMatch = path.match(/^\/patients\/([^/]+)\/labs$/);
+  if (patientLabsMatch && method === 'GET') {
+    const patientId = patientLabsMatch[1];
+    const data = patientLabs.filter((lab) => lab.patient_id === patientId);
+    return { data, total: data.length } as T;
+  }
+
+  const patientLabMatch = path.match(/^\/patients\/([^/]+)\/labs\/([^/]+)$/);
+  if (patientLabMatch && method === 'PATCH') {
+    const [patientId, labId] = [patientLabMatch[1], patientLabMatch[2]];
+    patientLabs = patientLabs.map((lab) =>
+      lab.patient_id === patientId && lab.id === labId
+        ? { ...lab, ...(body as Partial<PatientLabResult>), updated_at: new Date().toISOString() }
+        : lab,
+    );
+    saveDemoData();
+    return patientLabs.find((lab) => lab.id === labId) as T;
   }
 
   if (path === '/tasks') {

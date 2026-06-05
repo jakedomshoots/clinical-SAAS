@@ -11,6 +11,10 @@ from app.schemas.patient_clinical import (
     PatientCarePlanItemListOut,
     PatientCarePlanItemOut,
     PatientCarePlanItemUpdate,
+    PatientLabResultCreate,
+    PatientLabResultListOut,
+    PatientLabResultOut,
+    PatientLabResultUpdate,
     PatientMedicationCreate,
     PatientMedicationListOut,
     PatientMedicationOut,
@@ -266,3 +270,46 @@ async def update_patient_care_plan_item(
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Care plan item not found")
     return PatientCarePlanItemOut(**item)
+
+
+@router.get("/{patient_id}/labs", response_model=PatientLabResultListOut)
+async def list_patient_labs(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await patient_clinical_service.list_labs(db, current_user, patient_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    data, total = result
+    return PatientLabResultListOut(data=[PatientLabResultOut(**item) for item in data], total=total)
+
+
+@router.post("/{patient_id}/labs", response_model=PatientLabResultOut, status_code=status.HTTP_201_CREATED)
+async def create_patient_lab(
+    patient_id: str,
+    data: PatientLabResultCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    lab = await patient_clinical_service.create_lab(db, current_user, patient_id, data.model_dump())
+    if not lab:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientLabResultOut(**lab)
+
+
+@router.patch("/{patient_id}/labs/{lab_id}", response_model=PatientLabResultOut)
+async def update_patient_lab(
+    patient_id: str,
+    lab_id: str,
+    data: PatientLabResultUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    lab = await patient_clinical_service.update_lab(db, current_user, patient_id, lab_id, update_data)
+    if not lab:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lab result not found")
+    return PatientLabResultOut(**lab)

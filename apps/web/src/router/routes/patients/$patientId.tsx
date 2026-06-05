@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -52,12 +52,6 @@ const encounterRows = [
   { date: '2025-12-08', type: 'Telehealth', provider: 'Dr. Omar Singh', status: 'Signed', summary: 'Reviewed home glucose readings and nutrition plan.' },
 ];
 
-const labRows = [
-  { date: '2026-06-03', panel: 'CMP', result: 'Potassium 5.9 mmol/L', flag: 'Critical', status: 'Needs review' },
-  { date: '2026-06-03', panel: 'A1c', result: '7.4%', flag: 'High', status: 'Discuss today' },
-  { date: '2026-03-12', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'Filed' },
-];
-
 const patientMessages = [
   { from: 'Mary Collins', at: '11:18 AM', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?' },
   { from: 'Clinic Admin', at: '11:44 AM', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.' },
@@ -97,9 +91,15 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientCarePlanListResponse>(ROUTES.PATIENT_CARE_PLAN(patientId)),
   });
 
+  const { data: labList } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_LABS(patientId),
+    queryFn: () => api.get<PatientLabResultListResponse>(ROUTES.PATIENT_LABS(patientId)),
+  });
+
   const documentRows = documentList?.data ?? [];
   const medicationRows = medicationList?.data ?? [];
   const carePlanItems = carePlanList?.data ?? [];
+  const labRows = labList?.data ?? [];
   const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
   const openTasks = chartSummary?.open_tasks ?? [];
   const blockers = chartSummary?.blockers ?? [];
@@ -131,6 +131,12 @@ function PatientChartPage() {
     mutationFn: ({ itemId, status }: { itemId: string; status: PatientCarePlanItem['status'] }) =>
       api.patch<PatientCarePlanItem>(ROUTES.PATIENT_CARE_PLAN_ITEM(patientId, itemId), { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId) }),
+  });
+
+  const updateLabMutation = useMutation({
+    mutationFn: ({ labId, status }: { labId: string; status: PatientLabResult['status'] }) =>
+      api.patch<PatientLabResult>(ROUTES.PATIENT_LAB(patientId, labId), { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_LABS(patientId) }),
   });
 
   function startEditing() {
@@ -572,18 +578,31 @@ function PatientChartPage() {
             </thead>
             <tbody>
               {labRows.map((lab) => (
-                <tr key={`${lab.date}-${lab.panel}`} className="border-b border-clinic-100 last:border-b-0">
-                  <td className="px-4 py-3 font-mono text-xs text-clinic-500">{lab.date}</td>
+                <tr key={lab.id} className="border-b border-clinic-100 last:border-b-0">
+                  <td className="px-4 py-3 font-mono text-xs text-clinic-500">{lab.collected_at ? formatDateOnly(lab.collected_at) : '—'}</td>
                   <td className="px-4 py-3 font-medium text-clinic-900">{lab.panel}</td>
                   <td className="px-4 py-3 text-clinic-700">{lab.result}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${lab.flag === 'Critical' ? 'bg-red-100 text-red-700' : lab.flag === 'High' ? 'bg-amber-100 text-amber-700' : 'bg-accent-100 text-accent-700'}`}>
-                      {lab.flag}
+                      {lab.flag ?? 'Normal'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-clinic-600">{lab.status}</td>
+                  <td className="px-4 py-3 text-clinic-600">
+                    {formatClinicalStatus(lab.status)}
+                    {lab.status === 'needs_review' && (
+                      <button
+                        onClick={() => updateLabMutation.mutate({ labId: lab.id, status: 'reviewed' })}
+                        className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                      >
+                        Reviewed
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
+              {labRows.length === 0 && (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-clinic-400">No lab results have been added to this chart.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -649,6 +668,12 @@ function formatDateTime(value: string) {
     hour: 'numeric',
     minute: '2-digit',
   }).format(date);
+}
+
+function formatDateOnly(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toISOString().split('T')[0];
 }
 
 function formatDocumentStatus(status: PatientDocument['status']) {

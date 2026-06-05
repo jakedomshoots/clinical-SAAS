@@ -202,6 +202,22 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        'patient_lab_results',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('collected_at', sa.DateTime(), nullable=True, index=True),
+        sa.Column('panel', sa.String(120), nullable=False),
+        sa.Column('result', sa.String(300), nullable=False),
+        sa.Column('flag', sa.String(50), nullable=True),
+        sa.Column('status', sa.Enum('new', 'needs_review', 'reviewed', 'filed', name='labresultstatus'), nullable=False, server_default='new', index=True),
+        sa.Column('source', sa.String(200), nullable=True),
+        sa.Column('note', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
         'messages',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column(
@@ -248,6 +264,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('integration_events')
     op.drop_table('messages')
+    op.drop_table('patient_lab_results')
     op.drop_table('patient_care_plan_items')
     op.drop_table('patient_medications')
     op.drop_table('patient_documents')

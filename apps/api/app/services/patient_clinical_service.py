@@ -4,12 +4,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.patient import Patient
 from app.models.patient_clinical import (
     CarePlanStatus,
+    LabResultStatus,
     MedicationStatus,
     PatientCarePlanItem,
+    PatientLabResult,
     PatientMedication,
 )
 from app.models.user import User
-from app.schemas.patient_clinical import PatientCarePlanItemOut, PatientMedicationOut
+from app.schemas.patient_clinical import PatientCarePlanItemOut, PatientLabResultOut, PatientMedicationOut
 from app.services.audit_service import log_event
 
 
@@ -127,3 +129,57 @@ async def update_care_plan_item(db: AsyncSession, user: User, patient_id: str, i
     await db.refresh(item)
     await log_event(db, "patient_care_plan.updated", "patient_care_plan", item.id, actor_id=user.id, payload={"patient_id": patient_id, "updated_fields": list(data.keys())})
     return PatientCarePlanItemOut.model_validate(item).model_dump()
+
+
+async def list_labs(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
+    if not await _patient_exists(db, user, patient_id):
+        return None
+    rows = (
+        await db.execute(
+            select(PatientLabResult)
+            .where(PatientLabResult.patient_id == patient_id, PatientLabResult.organization_id == user.organization_id)
+            .order_by(PatientLabResult.collected_at.desc().nulls_last(), PatientLabResult.created_at.desc())
+        )
+    ).scalars().all()
+    return [PatientLabResultOut.model_validate(row).model_dump() for row in rows], len(rows)
+
+
+async def create_lab(db: AsyncSession, user: User, patient_id: str, data: dict) -> dict | None:
+    if not await _patient_exists(db, user, patient_id):
+        return None
+    lab = PatientLabResult(
+        organization_id=user.organization_id,
+        patient_id=patient_id,
+        collected_at=data.get("collected_at"),
+        panel=data["panel"],
+        result=data["result"],
+        flag=data.get("flag"),
+        status=LabResultStatus(data.get("status", "new")),
+        source=data.get("source"),
+        note=data.get("note"),
+    )
+    db.add(lab)
+    await db.commit()
+    await db.refresh(lab)
+    await log_event(db, "patient_lab.created", "patient_lab", lab.id, actor_id=user.id, payload={"patient_id": patient_id, "panel": lab.panel, "flag": lab.flag})
+    return PatientLabResultOut.model_validate(lab).model_dump()
+
+
+async def update_lab(db: AsyncSession, user: User, patient_id: str, lab_id: str, data: dict) -> dict | None:
+    lab = (
+        await db.execute(
+            select(PatientLabResult).where(
+                PatientLabResult.id == lab_id,
+                PatientLabResult.patient_id == patient_id,
+                PatientLabResult.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not lab:
+        return None
+    for field, value in data.items():
+        setattr(lab, field, LabResultStatus(value) if field == "status" and value is not None else value)
+    await db.commit()
+    await db.refresh(lab)
+    await log_event(db, "patient_lab.updated", "patient_lab", lab.id, actor_id=user.id, payload={"patient_id": patient_id, "updated_fields": list(data.keys())})
+    return PatientLabResultOut.model_validate(lab).model_dump()

@@ -15,6 +15,8 @@ export const ROUTES = {
   PATIENT_MEDICATION: (patientId: string, medicationId: string) => `/api/patients/${patientId}/medications/${medicationId}`,
   PATIENT_CARE_PLAN: (id: string) => `/api/patients/${id}/care-plan`,
   PATIENT_CARE_PLAN_ITEM: (patientId: string, itemId: string) => `/api/patients/${patientId}/care-plan/${itemId}`,
+  PATIENT_LABS: (id: string) => `/api/patients/${id}/labs`,
+  PATIENT_LAB: (patientId: string, labId: string) => `/api/patients/${patientId}/labs/${labId}`,
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,
   SCHEDULE: '/api/schedule',
