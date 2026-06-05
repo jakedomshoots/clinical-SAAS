@@ -32,6 +32,19 @@ async def test_filter_audit_events_by_entity_type(client: AsyncClient, auth_head
 
 
 @pytest.mark.asyncio
+async def test_export_audit_events_csv(client: AsyncClient, auth_headers):
+    await client.post("/api/tasks", json={"title": "Exported audit task"}, headers=auth_headers)
+
+    res = await client.get("/api/audit/export?entity_type=task", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/csv")
+    assert "attachment" in res.headers["content-disposition"]
+    assert "event_type,entity_type,entity_id" in res.text
+    assert "task.created,task" in res.text
+
+
+@pytest.mark.asyncio
 async def test_audit_events_require_admin_or_manager(
     client: AsyncClient,
     db: AsyncSession,
@@ -49,5 +62,27 @@ async def test_audit_events_require_admin_or_manager(
     token = create_access_token(provider.id, provider.role.value)
 
     res = await client.get("/api/audit", headers={"Authorization": f"Bearer {token}"})
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_export_audit_events_requires_admin_or_manager(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = User(
+        email="audit-export-provider@clinic.example.com",
+        hashed_password=hash_password("provider123!"),
+        display_name="Audit Export Limited Provider",
+        role=UserRole.provider,
+        is_active=True,
+    )
+    db.add(provider)
+    await db.commit()
+    await db.refresh(provider)
+    token = create_access_token(provider.id, provider.role.value)
+
+    res = await client.get("/api/audit/export", headers={"Authorization": f"Bearer {token}"})
 
     assert res.status_code == 403

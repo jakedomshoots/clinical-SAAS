@@ -67,3 +67,23 @@ async def list_events(
         query.order_by(AuditLog.created_at.desc()).offset(offset).limit(page_size)
     )
     return list(result.scalars().all()), total
+
+
+async def list_events_for_export(
+    db: AsyncSession,
+    event_type: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    limit: int = 10_000,
+) -> list[AuditLog]:
+    query = select(AuditLog)
+
+    if event_type:
+        query = query.where(AuditLog.event_type == event_type)
+    if entity_type:
+        query = query.where(AuditLog.entity_type == entity_type)
+    if entity_id:
+        query = query.where(AuditLog.entity_id == entity_id)
+
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(limit))
+    return list(result.scalars().all())
