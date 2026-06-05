@@ -2,6 +2,10 @@ from datetime import date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import UserRole
+from tests.conftest import headers_for, make_user
 
 
 async def create_patient(client: AsyncClient, auth_headers) -> str:
@@ -79,3 +83,109 @@ async def test_set_and_get_provider_availability(client: AsyncClient, auth_heade
     listed = await client.get(f"/api/schedule/availability/{admin_user.id}", headers=auth_headers)
     assert listed.status_code == 200
     assert listed.json()[0]["start_time"] == "09:00"
+
+
+@pytest.mark.asyncio
+async def test_appointments_are_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-schedule-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_headers = headers_for(other_user)
+    patient_id = await create_patient(client, other_headers)
+    start = datetime(2026, 6, 5, 16, 0)
+    end = start + timedelta(minutes=30)
+    created = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": other_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=other_headers,
+    )
+    appointment_id = created.json()["id"]
+
+    listed = await client.get(
+        f"/api/schedule/appointments?start_date={start.date().isoformat()}&end_date=2026-06-06",
+        headers=auth_headers,
+    )
+    fetched = await client.get(
+        f"/api/schedule/appointments/{appointment_id}",
+        headers=auth_headers,
+    )
+
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 0
+    assert fetched.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_create_appointment_rejects_cross_org_provider(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    patient_id = await create_patient(client, auth_headers)
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-schedule-provider@clinic.example.com",
+        organization_id="other-org",
+    )
+    start = datetime(2026, 6, 5, 17, 0)
+    end = start + timedelta(minutes=30)
+
+    res = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": other_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_availability_is_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-availability-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_headers = headers_for(other_user)
+    created = await client.post(
+        "/api/schedule/availability",
+        json={
+            "provider_id": other_user.id,
+            "day_of_week": 2,
+            "start_time": "10:00",
+            "end_time": "16:00",
+        },
+        headers=other_headers,
+    )
+
+    listed = await client.get(
+        f"/api/schedule/availability/{other_user.id}",
+        headers=auth_headers,
+    )
+
+    assert created.status_code == 201
+    assert listed.status_code == 200
+    assert listed.json() == []

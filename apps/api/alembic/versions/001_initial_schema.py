@@ -85,6 +85,13 @@ def upgrade() -> None:
     op.create_table(
         'appointments',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False),
         sa.Column('provider_id', sa.String(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('start_time', sa.DateTime(), nullable=False, index=True),
@@ -99,6 +106,13 @@ def upgrade() -> None:
     op.create_table(
         'provider_availability',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('provider_id', sa.String(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('day_of_week', sa.Integer(), nullable=False),
         sa.Column('start_time', sa.String(5), nullable=False),
