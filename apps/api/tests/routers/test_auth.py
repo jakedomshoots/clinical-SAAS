@@ -110,8 +110,19 @@ async def test_register_requires_admin_or_manager(
 async def test_register_duplicate_email(client: AsyncClient, admin_user, auth_headers):
     res = await client.post("/api/auth/register", json={
         "email": "admin@clinic.example.com",
-        "password": "another123!",
+        "password": "another123!!",
         "display_name": "Duplicate",
         "role": "provider",
     }, headers=auth_headers)
     assert res.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_register_requires_strong_password(client: AsyncClient, auth_headers):
+    res = await client.post("/api/auth/register", json={
+        "email": "weak@clinic.example.com",
+        "password": "weak",
+        "display_name": "Weak Password",
+        "role": "provider",
+    }, headers=auth_headers)
+    assert res.status_code == 422
