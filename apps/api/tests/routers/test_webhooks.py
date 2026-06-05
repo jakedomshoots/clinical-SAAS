@@ -63,3 +63,46 @@ async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
 
     assert denied.status_code == 401
     assert allowed.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_communications_webhook_updates_task_delivery(client: AsyncClient, auth_headers):
+    patient_res = await client.post("/api/patients", json={
+        "first_name": "Callback",
+        "last_name": "Patient",
+        "dob": "1990-01-01",
+        "gender": "Unknown",
+        "phone": "555-0100",
+    }, headers=auth_headers)
+    task_res = await client.post(
+        "/api/tasks",
+        json={"title": "Call patient", "patient_id": patient_res.json()["id"]},
+        headers=auth_headers,
+    )
+    draft = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach",
+        headers=auth_headers,
+    )
+    delivery = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach/deliver",
+        json={"channel": "sms", "subject": draft.json()["subject"], "body": draft.json()["body"]},
+        headers=auth_headers,
+    )
+
+    callback = await client.post("/api/webhooks/communications", json={
+        "organization_id": "default",
+        "event_id": "delivery-1",
+        "action": "delivery.updated",
+        "entity_type": "task",
+        "entity_id": task_res.json()["id"],
+        "payload": {
+            "provider_message_id": delivery.json()["provider_message_id"],
+            "delivery_status": "delivered",
+        },
+    })
+
+    assert callback.status_code == 202
+    assert callback.json()["applied"] is True
+    listed = await client.get(f"/api/tasks?patient_id={patient_res.json()['id']}", headers=auth_headers)
+    assert listed.json()["data"][0]["delivery_status"] == "delivered"
+    assert listed.json()["data"][0]["delivered_at"] is not None

@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
-from app.schemas.audit import AuditEventListOut, AuditEventOut
-from app.services.audit_service import list_events, list_events_for_export
+from app.schemas.audit import AuditEventListOut, AuditEventOut, PatientAccessHistoryOut
+from app.services.audit_service import list_events, list_events_for_export, patient_access_history
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -87,4 +87,17 @@ async def export_audit_events(
         content=buffer.getvalue(),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="concierge-os-audit.csv"'},
+    )
+
+
+@router.get("/patients/{patient_id}/access-history", response_model=PatientAccessHistoryOut)
+async def get_patient_access_history(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
+):
+    data, total = await patient_access_history(db, current_user, patient_id)
+    return PatientAccessHistoryOut(
+        data=[AuditEventOut.model_validate(event) for event in data],
+        total=total,
     )

@@ -288,6 +288,34 @@ async def stage_patient_outreach_delivery(
     }
 
 
+async def apply_delivery_callback(
+    db: AsyncSession,
+    *,
+    organization_id: str,
+    provider_message_id: str,
+    status: str,
+    error: str | None = None,
+) -> bool:
+    task = (
+        await db.execute(
+            select(Task).where(
+                Task.organization_id == organization_id,
+                Task.delivery_provider_message_id == provider_message_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not task:
+        return False
+    task.delivery_status = status
+    task.delivery_error = error
+    if status == "delivered":
+        from datetime import UTC, datetime
+
+        task.delivered_at = datetime.now(UTC).replace(tzinfo=None)
+    await db.commit()
+    return True
+
+
 async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:
     result = await db.execute(
         select(User.id).where(

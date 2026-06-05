@@ -48,3 +48,11 @@ export interface PatientDocumentProcessResult {
   document: PatientDocument;
   created_task_id: UUID | null;
 }
+
+export interface PatientDocumentUploadPrepareResult {
+  upload_url: string;
+  file_url: string;
+  method: 'PUT';
+  expires_at: string;
+  headers: Record<string, string>;
+}

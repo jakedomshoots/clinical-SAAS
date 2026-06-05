@@ -5,6 +5,7 @@ from app.config import settings
 from app.database import get_db
 from app.models.user import User, UserRole
 from app.schemas.webhook import WebhookIn, WebhookOut
+from app.services import task_service
 from app.services.integration_event_service import find_by_idempotency_key, record_event
 
 router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
@@ -14,6 +15,7 @@ INTEGRATION_BY_SOURCE = {
     "fax": "fax_provider",
     "portal": "portal",
     "calendar": "calendar",
+    "communications": "communications",
 }
 
 
@@ -67,7 +69,19 @@ async def _receive_webhook(
         idempotency_key=idempotency_key,
         payload=data.payload,
     )
-    return WebhookOut(id=event.id, integration=event.integration, status=event.status.value)
+    applied = False
+    if source == "communications":
+        provider_message_id = data.payload.get("provider_message_id")
+        delivery_status = data.payload.get("delivery_status")
+        if provider_message_id and delivery_status:
+            applied = await task_service.apply_delivery_callback(
+                db,
+                organization_id=data.organization_id,
+                provider_message_id=str(provider_message_id),
+                status=str(delivery_status),
+                error=data.payload.get("error"),
+            )
+    return WebhookOut(id=event.id, integration=event.integration, status=event.status.value, applied=applied)
 
 
 @router.post("/fax", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -104,3 +118,12 @@ async def receive_ehr_webhook(
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
 ):
     return await _receive_webhook("ehr", data, db, secret)
+
+
+@router.post("/communications", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
+async def receive_communications_webhook(
+    data: WebhookIn,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
+):
+    return await _receive_webhook("communications", data, db, secret)

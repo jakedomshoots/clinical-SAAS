@@ -13,6 +13,7 @@ export const ROUTES = {
   PATIENT_CHECKOUT_HANDOFF_TASKS: (id: string) => `/api/patients/${id}/checkout-handoff/tasks`,
   CHECKOUT_WORKLOAD: '/api/patients/workload/checkout',
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
+  PATIENT_DOCUMENT_UPLOAD: (id: string) => `/api/patients/${id}/documents/upload`,
   PATIENT_DOCUMENT: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}`,
   PATIENT_DOCUMENT_ACCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/access`,
   PATIENT_DOCUMENT_PROCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/process`,
@@ -40,6 +41,7 @@ export const ROUTES = {
   THREAD: (id: string) => `/api/messages/threads/${id}`,
   WS: '/api/ws',
   HEALTH: '/api/health',
+  PATIENT_ACCESS_HISTORY: (id: string) => `/api/audit/patients/${id}/access-history`,
 } as const;
 
 export const WS_CHANNELS = {

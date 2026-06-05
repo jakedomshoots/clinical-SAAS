@@ -13,6 +13,8 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `SECRET_KEY` is unique, random, and at least 32 characters.
 - `CORS_ORIGINS` contains only production HTTPS origins.
 - `pnpm migrate:api` runs successfully during deployment.
+- `docs/operations/deployment-runbook.md` is reviewed and assigned to an owner.
+- `BASE_URL=<production-host> sh scripts/health-report.sh` succeeds from a trusted workstation.
 - `/api/health` returns `ok`.
 - `/api/ready.status` returns `ok`.
 

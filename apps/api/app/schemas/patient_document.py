@@ -79,3 +79,16 @@ class PatientDocumentAccessOut(BaseModel):
 class PatientDocumentProcessOut(BaseModel):
     document: PatientDocumentOut
     created_task_id: str | None = None
+
+
+class PatientDocumentUploadPrepare(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=1, max_length=100)
+
+
+class PatientDocumentUploadPrepareOut(BaseModel):
+    upload_url: str
+    file_url: str
+    method: str = "PUT"
+    expires_at: str
+    headers: dict[str, str]

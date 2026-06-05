@@ -8,3 +8,7 @@ class CalendarClient(ConfiguredIntegration):
     async def create_event(self, appointment: dict) -> dict:
         self.require_configured()
         raise NotImplementedError("Configure a vendor-specific calendar adapter before live use")
+
+    async def update_event(self, appointment: dict) -> dict:
+        self.require_configured()
+        raise NotImplementedError("Configure a vendor-specific calendar adapter before live use")

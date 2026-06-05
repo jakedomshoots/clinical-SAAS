@@ -7,6 +7,7 @@ from app.models.patient import Patient
 from app.models.schedule import Appointment, AppointmentStatus, ProviderAvailability
 from app.models.user import User
 from app.services.audit_service import log_event
+from app.services.integration_event_service import record_event
 
 
 async def list_appointments(
@@ -189,6 +190,18 @@ async def create_appointment(db: AsyncSession, user: User, data: dict) -> dict |
         actor_id=user.id,
         payload={"patient_id": appt.patient_id, "provider_id": appt.provider_id},
     )
+    await record_event(
+        db,
+        user,
+        integration="calendar",
+        direction="outbound",
+        action="appointment.create",
+        status="pending",
+        entity_type="appointment",
+        entity_id=appt.id,
+        idempotency_key=f"calendar:create:{appt.id}",
+        payload={"patient_id": appt.patient_id, "provider_id": appt.provider_id, "start_time": appt.start_time.isoformat()},
+    )
     return await get_appointment(db, user, appt.id)
 
 
@@ -243,6 +256,23 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
                 "provider_id": appt.provider_id,
                 "status": appt.status.value,
             },
+        },
+    )
+    await record_event(
+        db,
+        user,
+        integration="calendar",
+        direction="outbound",
+        action="appointment.update",
+        status="pending",
+        entity_type="appointment",
+        entity_id=appt.id,
+        idempotency_key=f"calendar:update:{appt.id}:{appt.updated_at.isoformat() if appt.updated_at else 'pending'}",
+        payload={
+            "updated_fields": list(data.keys()),
+            "status": appt.status.value,
+            "start_time": appt.start_time.isoformat(),
+            "end_time": appt.end_time.isoformat(),
         },
     )
     return await get_appointment(db, user, appt.id)

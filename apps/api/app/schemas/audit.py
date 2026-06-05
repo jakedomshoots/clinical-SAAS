@@ -22,3 +22,8 @@ class AuditEventListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PatientAccessHistoryOut(BaseModel):
+    data: list[AuditEventOut]
+    total: int

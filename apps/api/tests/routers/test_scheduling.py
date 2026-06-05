@@ -167,6 +167,35 @@ async def test_completed_visit_requires_resolved_chart_blockers(client: AsyncCli
 
 
 @pytest.mark.asyncio
+async def test_appointment_changes_record_calendar_sync_events(client: AsyncClient, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 11, 0)
+    end = start + timedelta(minutes=30)
+    created = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+    await client.patch(
+        f"/api/schedule/appointments/{created.json()['id']}",
+        json={"start_time": (start + timedelta(minutes=15)).isoformat(), "end_time": (end + timedelta(minutes=15)).isoformat()},
+        headers=auth_headers,
+    )
+
+    events = await client.get("/api/integrations/events?integration=calendar", headers=auth_headers)
+
+    assert events.status_code == 200
+    actions = {event["action"] for event in events.json()["data"]}
+    assert "appointment.create" in actions
+    assert "appointment.update" in actions
+
+
+@pytest.mark.asyncio
 async def test_set_and_get_provider_availability(client: AsyncClient, auth_headers, admin_user):
     res = await client.post(
         "/api/schedule/availability",

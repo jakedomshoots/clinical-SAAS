@@ -255,6 +255,30 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
     assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
 
+    history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
+    assert history.status_code == 200
+    assert any(event["event_type"] == "patient_document.accessed" for event in history.json()["data"])
+
+
+@pytest.mark.asyncio
+async def test_patient_document_upload_prepare_returns_signed_target(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Upload", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    res = await client.post(
+        f"/api/patients/{patient_id}/documents/upload",
+        json={"filename": "outside-lab.pdf", "content_type": "application/pdf"},
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["method"] == "PUT"
+    assert data["file_url"].endswith("outside-lab.pdf")
+    assert data["headers"]["Content-Type"] == "application/pdf"
+
 
 @pytest.mark.asyncio
 async def test_patient_document_processing_classifies_and_creates_review_task(client: AsyncClient, auth_headers):

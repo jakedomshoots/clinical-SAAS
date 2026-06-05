@@ -102,6 +102,39 @@ async def create_patient_document(
     return PatientDocumentOut.model_validate(document).model_dump()
 
 
+async def prepare_document_upload(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    data: dict,
+) -> dict | None:
+    if not await _patient_exists(db, user, patient_id):
+        return None
+    safe_filename = data["filename"].replace("/", "_").replace("\\", "_")
+    object_key = f"patients/{patient_id}/documents/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{safe_filename}"
+    file_url = f"s3://concierge-os/{object_key}"
+    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    await log_event(
+        db,
+        "patient_document.upload_prepared",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "filename": safe_filename,
+            "content_type": data["content_type"],
+            "file_url": file_url,
+        },
+    )
+    return {
+        "upload_url": file_url,
+        "file_url": file_url,
+        "method": "PUT",
+        "expires_at": expires_at.isoformat(),
+        "headers": {"Content-Type": data["content_type"]},
+    }
+
+
 async def process_patient_document(
     db: AsyncSession,
     user: User,

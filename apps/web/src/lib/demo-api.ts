@@ -573,6 +573,13 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;
   }
 
+  const patientAccessHistoryMatch = path.match(/^\/audit\/patients\/([^/]+)\/access-history$/);
+  if (patientAccessHistoryMatch && method === 'GET') {
+    const patientId = patientAccessHistoryMatch[1];
+    const data = auditEvents.filter((event) => String(event.payload?.patient_id ?? '') === patientId);
+    return { data, total: data.length } as T;
+  }
+
   if (method === 'GET' && path === '/users') {
     const role = url.searchParams.get('role');
     const data = role ? demoUsers.filter((user) => user.role === role) : demoUsers;
@@ -770,6 +777,21 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       .filter((document) => document.patient_id === patientId)
       .sort((a, b) => b.received_at.localeCompare(a.received_at));
     return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  const patientDocumentUploadMatch = path.match(/^\/patients\/([^/]+)\/documents\/upload$/);
+  if (patientDocumentUploadMatch && method === 'POST') {
+    const patientId = patientDocumentUploadMatch[1];
+    const incoming = body as { filename: string; content_type: string };
+    const safeFilename = incoming.filename.replaceAll('/', '_').replaceAll('\\', '_');
+    const fileUrl = `s3://concierge-os/patients/${patientId}/documents/${Date.now()}-${safeFilename}`;
+    return {
+      upload_url: fileUrl,
+      file_url: fileUrl,
+      method: 'PUT',
+      expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+      headers: { 'Content-Type': incoming.content_type },
+    } as T;
   }
 
   const patientDocumentMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)$/);

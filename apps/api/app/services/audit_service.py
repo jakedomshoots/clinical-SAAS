@@ -102,3 +102,19 @@ async def list_events_for_export(
 
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(limit))
     return list(result.scalars().all())
+
+
+async def patient_access_history(db: AsyncSession, user, patient_id: str) -> tuple[list[AuditLog], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.payload["patient_id"].as_string() == patient_id,
+        AuditLog.event_type.in_([
+            "patient_document.accessed",
+            "patient_document.processed",
+            "patient_chart.viewed",
+            "patient_outreach.staged",
+        ]),
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    rows = list(result.scalars().all())
+    return rows, len(rows)

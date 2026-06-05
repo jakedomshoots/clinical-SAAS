@@ -17,3 +17,4 @@ class WebhookOut(BaseModel):
     integration: str
     status: str
     duplicate: bool = False
+    applied: bool = False
