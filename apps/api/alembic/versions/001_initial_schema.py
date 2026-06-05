@@ -108,6 +108,13 @@ def upgrade() -> None:
     op.create_table(
         'faxes',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('direction', sa.Enum('inbound', 'outbound', name='faxdirection'), nullable=False),
         sa.Column('status', sa.Enum('pending', 'sending', 'sent', 'received', 'processing', 'failed', name='faxstatus'), server_default='pending'),
         sa.Column('from_number', sa.String(20), nullable=False),

@@ -98,9 +98,24 @@ async def draft_portal_reply(db: AsyncSession, user: User, data: dict) -> dict:
 
 
 async def stage_fax_match(db: AsyncSession, user: User, data: dict) -> dict | None:
-    result = await db.execute(select(Fax).where(Fax.id == data["fax_id"]))
+    result = await db.execute(
+        select(Fax).where(
+            Fax.id == data["fax_id"],
+            Fax.organization_id == user.organization_id,
+        )
+    )
     fax = result.scalar_one_or_none()
     if not fax:
+        return None
+    patient = (
+        await db.execute(
+            select(Patient.id).where(
+                Patient.id == data["patient_id"],
+                Patient.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not patient:
         return None
 
     fax.patient_id = data["patient_id"]
@@ -115,4 +130,4 @@ async def stage_fax_match(db: AsyncSession, user: User, data: dict) -> dict | No
         actor_id=user.id,
         payload={"context": data["context"], "patient_id": data["patient_id"]},
     )
-    return await fax_service.get_fax(db, fax.id)
+    return await fax_service.get_fax(db, user, fax.id)
