@@ -68,17 +68,15 @@ function PortalMockPage() {
     onSuccess: (result) => setUploadPrep(result),
   });
   const completeUploadMutation = useMutation({
-    mutationFn: () => api.post<PatientDocument>(ROUTES.PATIENT_DOCUMENTS(form.patient_id), {
+    mutationFn: () => api.post<PatientDocument>(ROUTES.PATIENT_DOCUMENT_UPLOAD_CONFIRM(form.patient_id), {
       title: form.document_title,
       source: form.document_source,
       document_type: 'Outside record',
-      status: 'needs_review',
-      matched_by: 'portal upload',
+      filename: `${form.document_title.replaceAll(' ', '-').toLowerCase()}.pdf`,
+      content_type: 'application/pdf',
+      checksum: `demo-${Date.now()}`,
       pages: 4,
       file_url: uploadPrep?.file_url,
-      upload_status: 'uploaded',
-      ocr_status: 'queued',
-      summary: 'Portal-uploaded document awaiting processing.',
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(form.patient_id) });

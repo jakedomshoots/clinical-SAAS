@@ -31,6 +31,7 @@ from app.schemas.patient_document import (
     PatientDocumentOut,
     PatientDocumentProcessOut,
     PatientDocumentUploadPrepare,
+    PatientDocumentUploadConfirm,
     PatientDocumentUploadPrepareOut,
     PatientDocumentUpdate,
 )
@@ -235,6 +236,24 @@ async def prepare_patient_document_upload(
     if not upload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientDocumentUploadPrepareOut(**upload)
+
+
+@router.post("/{patient_id}/documents/upload/confirm", response_model=PatientDocumentOut, status_code=status.HTTP_201_CREATED)
+async def confirm_patient_document_upload(
+    patient_id: str,
+    data: PatientDocumentUploadConfirm,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    document = await patient_document_service.confirm_document_upload(
+        db,
+        current_user,
+        patient_id,
+        data.model_dump(),
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientDocumentOut(**document)
 
 
 @router.patch("/{patient_id}/documents/{document_id}", response_model=PatientDocumentOut)

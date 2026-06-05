@@ -14,6 +14,7 @@ export const ROUTES = {
   CHECKOUT_WORKLOAD: '/api/patients/workload/checkout',
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
   PATIENT_DOCUMENT_UPLOAD: (id: string) => `/api/patients/${id}/documents/upload`,
+  PATIENT_DOCUMENT_UPLOAD_CONFIRM: (id: string) => `/api/patients/${id}/documents/upload/confirm`,
   PATIENT_DOCUMENT: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}`,
   PATIENT_DOCUMENT_ACCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/access`,
   PATIENT_DOCUMENT_PROCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/process`,

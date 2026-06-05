@@ -88,3 +88,4 @@ class AppointmentConflictCheckOut(BaseModel):
     has_conflict: bool
     in_availability: bool
     warnings: list[str]
+    suggested_slots: list[dict[str, str]] = []

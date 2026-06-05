@@ -93,6 +93,7 @@ async def check_appointment_slot(
         warnings.append("Provider has a conflicting appointment in this time window")
     if not in_availability:
         warnings.append("Appointment is outside configured provider availability")
+    suggested_slots = await _suggest_alternate_slots(db, user, provider_id, start_time, end_time)
     return {
         "provider_id": provider_id,
         "start_time": start_time.isoformat(),
@@ -100,6 +101,7 @@ async def check_appointment_slot(
         "has_conflict": has_conflict,
         "in_availability": in_availability,
         "warnings": warnings,
+        "suggested_slots": suggested_slots,
     }
 
 
@@ -467,3 +469,23 @@ async def _provider_is_available(
     if not rows:
         return True
     return any(row.start_time <= start_hhmm and row.end_time >= end_hhmm for row in rows)
+
+
+async def _suggest_alternate_slots(
+    db: AsyncSession,
+    user: User,
+    provider_id: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> list[dict[str, str]]:
+    duration = end_time - start_time
+    suggestions: list[dict[str, str]] = []
+    cursor = start_time + timedelta(minutes=30)
+    for _ in range(32):
+        candidate_end = cursor + duration
+        if await _provider_is_available(db, user, provider_id, cursor, candidate_end) and not await _provider_has_conflict(db, user, provider_id, cursor, candidate_end):
+            suggestions.append({"start_time": cursor.isoformat(), "end_time": candidate_end.isoformat()})
+        if len(suggestions) >= 3:
+            break
+        cursor += timedelta(minutes=30)
+    return suggestions

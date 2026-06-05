@@ -50,8 +50,9 @@ function SideNav() {
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
+    { to: '/setup', label: 'Setup', icon: Settings },
   ].filter((item) => {
-    if (['/staff', '/operations', '/integrations', '/assistant-review'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
+    if (['/staff', '/operations', '/integrations', '/assistant-review', '/setup'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
     if (item.to === '/billing') return user?.role !== 'front_desk';
     return true;
   });
@@ -173,8 +174,9 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
+    { to: '/setup', label: 'Setup', icon: Settings },
   ].filter((item) => {
-    if (['/staff', '/operations', '/integrations', '/assistant-review'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
+    if (['/staff', '/operations', '/integrations', '/assistant-review', '/setup'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
     if (item.to === '/billing') return user?.role !== 'front_desk';
     return true;
   });

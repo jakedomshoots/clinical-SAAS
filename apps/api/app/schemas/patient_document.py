@@ -92,3 +92,14 @@ class PatientDocumentUploadPrepareOut(BaseModel):
     method: str = "PUT"
     expires_at: str
     headers: dict[str, str]
+
+
+class PatientDocumentUploadConfirm(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    source: str = Field(min_length=1, max_length=200)
+    document_type: str = Field(min_length=1, max_length=100)
+    file_url: str = Field(min_length=1, max_length=500)
+    filename: str = Field(min_length=1, max_length=255)
+    content_type: str = Field(min_length=1, max_length=100)
+    checksum: str | None = Field(default=None, max_length=128)
+    pages: int = Field(default=1, ge=1)

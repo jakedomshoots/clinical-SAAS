@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './router/routes/__root'
 import { Route as StaffRouteImport } from './router/routes/staff'
+import { Route as SetupRouteImport } from './router/routes/setup'
 import { Route as RolesRouteImport } from './router/routes/roles'
 import { Route as ReportsRouteImport } from './router/routes/reports'
 import { Route as PortalMockRouteImport } from './router/routes/portal-mock'
@@ -30,6 +31,11 @@ import { Route as PatientsPatientIdRouteImport } from './router/routes/patients/
 const StaffRoute = StaffRouteImport.update({
   id: '/staff',
   path: '/staff',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RolesRoute = RolesRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
+  '/setup': typeof SetupRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
+  '/setup': typeof SetupRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes': typeof FaxesIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
+  '/setup': typeof SetupRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/portal-mock'
     | '/reports'
     | '/roles'
+    | '/setup'
     | '/staff'
     | '/patients/$patientId'
     | '/faxes/'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/portal-mock'
     | '/reports'
     | '/roles'
+    | '/setup'
     | '/staff'
     | '/patients/$patientId'
     | '/faxes'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/portal-mock'
     | '/reports'
     | '/roles'
+    | '/setup'
     | '/staff'
     | '/patients/$patientId'
     | '/faxes/'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   PortalMockRoute: typeof PortalMockRoute
   ReportsRoute: typeof ReportsRoute
   RolesRoute: typeof RolesRoute
+  SetupRoute: typeof SetupRoute
   StaffRoute: typeof StaffRoute
   PatientsPatientIdRoute: typeof PatientsPatientIdRoute
   FaxesIndexRoute: typeof FaxesIndexRoute
@@ -258,6 +271,13 @@ declare module '@tanstack/react-router' {
       path: '/staff'
       fullPath: '/staff'
       preLoaderRoute: typeof StaffRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/roles': {
@@ -385,6 +405,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortalMockRoute: PortalMockRoute,
   ReportsRoute: ReportsRoute,
   RolesRoute: RolesRoute,
+  SetupRoute: SetupRoute,
   StaffRoute: StaffRoute,
   PatientsPatientIdRoute: PatientsPatientIdRoute,
   FaxesIndexRoute: FaxesIndexRoute,

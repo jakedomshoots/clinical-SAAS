@@ -215,6 +215,39 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
 
 
 @pytest.mark.asyncio
+async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Upload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    prepared = await client.post(
+        f"/api/patients/{patient_id}/documents/upload",
+        json={"filename": "outside-note.pdf", "content_type": "application/pdf"},
+        headers=auth_headers,
+    )
+    assert prepared.status_code == 200
+
+    confirmed = await client.post(
+        f"/api/patients/{patient_id}/documents/upload/confirm",
+        json={
+            "title": "Outside note",
+            "source": "Outside Office",
+            "document_type": "Consult note",
+            "file_url": prepared.json()["file_url"],
+            "filename": "outside-note.pdf",
+            "content_type": "application/pdf",
+            "checksum": "demo-checksum",
+            "pages": 3,
+        },
+        headers=auth_headers,
+    )
+    assert confirmed.status_code == 201
+    assert confirmed.json()["upload_status"] == "uploaded"
+    assert confirmed.json()["ocr_status"] == "queued"
+    assert confirmed.json()["matched_by"] == "upload confirmation"
+
+
+@pytest.mark.asyncio
 async def test_patient_document_access_reports_availability(client: AsyncClient, auth_headers):
     create_res = await client.post("/api/patients", json={
         "first_name": "Access", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",

@@ -135,6 +135,43 @@ async def prepare_document_upload(
     }
 
 
+async def confirm_document_upload(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    data: dict,
+) -> dict | None:
+    document = await create_patient_document(db, user, patient_id, {
+        "title": data["title"],
+        "source": data["source"],
+        "document_type": data["document_type"],
+        "status": PatientDocumentStatus.needs_review.value,
+        "matched_by": "upload confirmation",
+        "pages": data.get("pages", 1),
+        "file_url": data["file_url"],
+        "upload_status": "uploaded",
+        "ocr_status": "queued",
+        "summary": f"Uploaded {data['filename']} ({data['content_type']}).",
+    })
+    if not document:
+        return None
+    await log_event(
+        db,
+        "patient_document.upload_confirmed",
+        "patient_document",
+        document["id"],
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "file_url": data["file_url"],
+            "filename": data["filename"],
+            "content_type": data["content_type"],
+            "checksum": data.get("checksum"),
+        },
+    )
+    return document
+
+
 async def process_patient_document(
     db: AsyncSession,
     user: User,

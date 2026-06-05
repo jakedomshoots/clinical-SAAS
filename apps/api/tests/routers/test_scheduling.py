@@ -352,6 +352,14 @@ async def test_create_appointment_rejects_provider_conflict(client: AsyncClient,
     assert conflict.status_code == 409
     assert "conflicting appointment" in conflict.json()["detail"]
 
+    check = await client.get(
+        f"/api/schedule/appointments/conflicts/check?provider_id={admin_user.id}&start_time={(start + timedelta(minutes=15)).isoformat()}&end_time={(end + timedelta(minutes=15)).isoformat()}",
+        headers=auth_headers,
+    )
+    assert check.status_code == 200
+    assert check.json()["has_conflict"] is True
+    assert len(check.json()["suggested_slots"]) >= 1
+
 
 @pytest.mark.asyncio
 async def test_appointment_slot_check_reports_availability_warning(client: AsyncClient, auth_headers, admin_user):

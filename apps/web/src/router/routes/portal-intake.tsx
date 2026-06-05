@@ -14,7 +14,7 @@ export const Route = createFileRoute('/portal-intake')({
 function PortalIntakePage() {
   const api = useApi();
   const queryClient = useQueryClient();
-  const [conflictWarnings, setConflictWarnings] = useState<Record<string, string[]>>({});
+  const [conflictChecks, setConflictChecks] = useState<Record<string, { warnings: string[]; suggested_slots: { start_time: string; end_time: string }[] }>>({});
   const { data, isLoading } = useQuery({
     queryKey: QUERY_KEYS.PORTAL_INTAKE,
     queryFn: () => api.get<PortalIntakeListResponse>(ROUTES.PORTAL_INTAKE),
@@ -52,12 +52,12 @@ function PortalIntakePage() {
       const providerId = String(payload.provider_id ?? '');
       const startTime = String(payload.start_time ?? '');
       const endTime = String(payload.end_time ?? '');
-      if (!providerId || !startTime || !endTime) return { id: item.id, warnings: ['Provider and requested time are required before conflict checking.'] };
+      if (!providerId || !startTime || !endTime) return { id: item.id, warnings: ['Provider and requested time are required before conflict checking.'], suggested_slots: [] };
       const params = new URLSearchParams({ provider_id: providerId, start_time: startTime, end_time: endTime });
       const result = await api.get<AppointmentConflictCheck>(`${ROUTES.APPOINTMENT_CONFLICT_CHECK}?${params.toString()}`);
-      return { id: item.id, warnings: result.warnings.length > 0 ? result.warnings : ['No conflicts found.'] };
+      return { id: item.id, warnings: result.warnings.length > 0 ? result.warnings : ['No conflicts found.'], suggested_slots: result.suggested_slots };
     },
-    onSuccess: ({ id, warnings }) => setConflictWarnings((current) => ({ ...current, [id]: warnings })),
+    onSuccess: ({ id, warnings, suggested_slots }) => setConflictChecks((current) => ({ ...current, [id]: { warnings, suggested_slots } })),
   });
   const rows = data?.data ?? [];
   return (
@@ -87,9 +87,10 @@ function PortalIntakePage() {
                 <div>
                   <div className="text-sm font-semibold text-clinic-900">{item.request_type.replace('_', ' ')}</div>
                   <div className="mt-1 text-xs text-clinic-500">{JSON.stringify(item.submitted_payload)}</div>
-                  {conflictWarnings[item.id] && (
+                  {conflictChecks[item.id] && (
                     <div className="mt-2 space-y-1">
-                      {conflictWarnings[item.id].map((warning) => <div key={warning} className="text-xs font-medium text-amber-700">{warning}</div>)}
+                      {conflictChecks[item.id].warnings.map((warning) => <div key={warning} className="text-xs font-medium text-amber-700">{warning}</div>)}
+                      {conflictChecks[item.id].suggested_slots.map((slot) => <div key={slot.start_time} className="text-xs text-clinic-500">Alternate: {new Date(slot.start_time).toLocaleString()}</div>)}
                     </div>
                   )}
                 </div>

@@ -53,4 +53,5 @@ export interface AppointmentConflictCheck {
   has_conflict: boolean;
   in_availability: boolean;
   warnings: string[];
+  suggested_slots: { start_time: string; end_time: string }[];
 }

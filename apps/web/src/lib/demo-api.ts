@@ -1046,6 +1046,34 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     } as T;
   }
 
+  const patientDocumentUploadConfirmMatch = path.match(/^\/patients\/([^/]+)\/documents\/upload\/confirm$/);
+  if (patientDocumentUploadConfirmMatch && method === 'POST') {
+    const patientId = patientDocumentUploadConfirmMatch[1];
+    const incoming = body as { title: string; source: string; document_type: string; file_url: string; filename: string; content_type: string; checksum?: string; pages?: number };
+    const document = normalizeDocument({
+      id: uuid(3200 + patientDocuments.length),
+      patient_id: patientId,
+      title: incoming.title,
+      source: incoming.source,
+      document_type: incoming.document_type,
+      status: 'needs_review',
+      matched_by: 'upload confirmation',
+      pages: incoming.pages ?? 1,
+      file_url: incoming.file_url,
+      upload_status: 'uploaded',
+      ocr_status: 'queued',
+      classification: null,
+      summary: `Uploaded ${incoming.filename} (${incoming.content_type}).`,
+      received_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    } as PatientDocument);
+    patientDocuments = [document, ...patientDocuments];
+    logDemoEvent({ event_type: 'patient_document.upload_confirmed', entity_type: 'patient_document', entity_id: document.id, payload: { patient_id: patientId, file_url: incoming.file_url, filename: incoming.filename, content_type: incoming.content_type, checksum: incoming.checksum ?? null } });
+    saveDemoData();
+    return document as T;
+  }
+
   const patientDocumentMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)$/);
   if (patientDocumentMatch && method === 'PATCH') {
     const [patientId, documentId] = [patientDocumentMatch[1], patientDocumentMatch[2]];
@@ -1507,7 +1535,21 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       ...(hasConflict ? ['Provider has a conflicting appointment in this time window'] : []),
       ...(!inAvailability ? ['Appointment is outside configured provider availability'] : []),
     ];
-    return { provider_id: providerId, start_time: start.toISOString(), end_time: end.toISOString(), has_conflict: hasConflict, in_availability: inAvailability, warnings } as T;
+    const duration = end.getTime() - start.getTime();
+    const suggested_slots: { start_time: string; end_time: string }[] = [];
+    let cursor = new Date(start.getTime() + 30 * 60 * 1000);
+    for (let index = 0; index < 32 && suggested_slots.length < 3; index += 1) {
+      const candidateEnd = new Date(cursor.getTime() + duration);
+      const candidateConflict = appointments.some((appointment) =>
+        appointment.provider_id === providerId &&
+        !['cancelled', 'no_show'].includes(appointment.status) &&
+        new Date(appointment.start_time) < candidateEnd &&
+        new Date(appointment.end_time) > cursor
+      );
+      if (!candidateConflict) suggested_slots.push({ start_time: cursor.toISOString(), end_time: candidateEnd.toISOString() });
+      cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
+    }
+    return { provider_id: providerId, start_time: start.toISOString(), end_time: end.toISOString(), has_conflict: hasConflict, in_availability: inAvailability, warnings, suggested_slots } as T;
   }
 
   const availabilityMatch = path.match(/^\/schedule\/availability\/([^/]+)$/);
