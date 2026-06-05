@@ -7,10 +7,37 @@ export interface AnalyticsSummary {
 
 export interface IntegrationCapabilities {
   [key: string]: {
+    label?: string;
     configured: boolean;
+    healthy?: boolean;
+    mode?: string;
     env_vars?: string[];
     supports: string[];
+    workflows?: string[];
+    action?: string;
+    error?: string | null;
   };
+}
+
+export interface LaunchRequirement {
+  key: string;
+  category: string;
+  label: string;
+  ready: boolean;
+  severity: 'critical' | 'warning';
+  detail: string;
+  action: string;
+  env_vars: string[];
+  docs: string[];
+}
+
+export interface LaunchReadiness {
+  production_ready: boolean;
+  score: number;
+  critical_blockers: number;
+  warnings: number;
+  environment: string;
+  requirements: LaunchRequirement[];
 }
 
 export interface SessionPolicy {

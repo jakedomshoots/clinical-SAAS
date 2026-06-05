@@ -17,6 +17,7 @@ from app.routers import (
     faxes,
     integration_capabilities,
     integrations,
+    launch_readiness,
     messages,
     patients,
     portal_auth,
@@ -85,6 +86,7 @@ app.include_router(settings_router.router)
 app.include_router(faxes.router)
 app.include_router(integration_capabilities.router)
 app.include_router(integrations.router)
+app.include_router(launch_readiness.router)
 app.include_router(messages.router)
 app.include_router(webhooks.router)
 app.include_router(websocket.router)

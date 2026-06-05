@@ -170,6 +170,24 @@ async def test_security_templates_and_integration_capabilities(client, auth_head
     assert policy.json()["access_token_expire_minutes"] > 0
     assert templates.json()["total"] >= 2
     assert "fhir_placeholder" in capabilities.json()["ehr"]["supports"]
+    assert capabilities.json()["ehr"]["action"]
+    assert capabilities.json()["copilotkit"]["configured"] is False
+
+
+@pytest.mark.asyncio
+async def test_launch_readiness_contract(client, auth_headers):
+    readiness = await client.get("/api/launch-readiness", headers=auth_headers)
+
+    assert readiness.status_code == 200
+    data = readiness.json()
+    assert data["production_ready"] is False
+    assert data["critical_blockers"] > 0
+    assert data["score"] >= 0
+    requirement_keys = {item["key"] for item in data["requirements"]}
+    assert "secret_key" in requirement_keys
+    assert "webhook_secret" in requirement_keys
+    assert "integration_ehr" in requirement_keys
+    assert all(item["action"] for item in data["requirements"])
 
 
 @pytest.mark.asyncio

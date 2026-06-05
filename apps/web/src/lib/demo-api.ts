@@ -576,12 +576,36 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/integration-capabilities' && method === 'GET') {
     return {
-      ehr: { configured: false, env_vars: ['EHR_API_BASE_URL'], supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'] },
-      portal: { configured: false, env_vars: ['PORTAL_API_BASE_URL'], supports: ['messages', 'intake', 'appointment_requests'] },
-      fax: { configured: false, env_vars: ['FAX_PROVIDER_API_KEY'], supports: ['inbound', 'outbound', 'document_matching'] },
-      calendar: { configured: false, env_vars: ['CALENDAR_API_BASE_URL'], supports: ['appointment_create', 'appointment_update'] },
-      communications: { configured: false, env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'] },
+      ehr: { label: 'EHR', configured: false, healthy: false, mode: 'demo', env_vars: ['EHR_API_BASE_URL'], supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'], workflows: ['Chart sync', 'Medication reconciliation', 'Lab import'], action: 'Choose an EHR adapter and set EHR_API_BASE_URL.' },
+      portal: { label: 'Patient portal', configured: false, healthy: false, mode: 'demo', env_vars: ['PORTAL_API_BASE_URL'], supports: ['messages', 'intake', 'appointment_requests', 'document_import'], workflows: ['Portal messages', 'Patient intake', 'Outside document routing'], action: 'Connect the external portal endpoint and map inbound webhook payloads.' },
+      fax: { label: 'Fax provider', configured: false, healthy: false, mode: 'demo', env_vars: ['FAX_PROVIDER_API_KEY'], supports: ['inbound', 'outbound', 'document_matching'], workflows: ['Inbound fax matching', 'Outbound referrals', 'Document queue'], action: 'Set FAX_PROVIDER_API_KEY and verify inbound/outbound callback delivery.' },
+      calendar: { label: 'Calendar', configured: false, healthy: false, mode: 'demo', env_vars: ['CALENDAR_API_BASE_URL'], supports: ['appointment_create', 'appointment_update', 'conflict_sync'], workflows: ['Schedule sync', 'Conflict checks', 'Reminder source of truth'], action: 'Set CALENDAR_API_BASE_URL and verify appointment create/update sync.' },
+      communications: { label: 'Communications', configured: false, healthy: false, mode: 'demo', env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'], workflows: ['Patient outreach', 'Appointment reminders', 'Delivery tracking'], action: 'Select the delivery provider and configure callback secrets.' },
+      copilotkit: { label: 'CopilotKit runtime', configured: false, healthy: false, mode: 'demo', env_vars: ['COPILOTKIT_RUNTIME_URL'], supports: ['assistant_runtime', 'tool_policy', 'confirmation_gates'], workflows: ['Clinical assistant', 'Tool execution', 'Review queue'], action: 'Deploy the runtime and approve model/tool policy before live use.' },
     } as T;
+  }
+  if (path === '/launch-readiness' && method === 'GET') {
+    const requirements = [
+      ['Security', 'Unique API signing secret', false, 'critical', 'Generate and store a production SECRET_KEY.', ['SECRET_KEY']],
+      ['Security', 'Seed endpoints disabled', false, 'critical', 'Set ALLOW_SEED_ENDPOINT=false.', ['ALLOW_SEED_ENDPOINT']],
+      ['Security', 'Webhook signing secret', false, 'critical', 'Set WEBHOOK_SHARED_SECRET for vendor callbacks.', ['WEBHOOK_SHARED_SECRET']],
+      ['Integrations', 'EHR sync', false, 'critical', 'Connect demographics, medications, labs, and encounters.', ['EHR_API_BASE_URL']],
+      ['Integrations', 'Fax provider', false, 'critical', 'Connect inbound and outbound fax delivery.', ['FAX_PROVIDER_API_KEY']],
+      ['Integrations', 'External patient portal', false, 'critical', 'Connect messages, intake, appointment requests, and documents.', ['PORTAL_API_BASE_URL']],
+      ['Integrations', 'Calendar system', false, 'critical', 'Connect appointment create/update synchronization.', ['CALENDAR_API_BASE_URL']],
+      ['Integrations', 'SMS/email delivery', false, 'critical', 'Connect patient outreach delivery callbacks.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY']],
+    ].map(([category, label, ready, severity, action, envVars], index) => ({
+      key: `demo-${index}`,
+      category,
+      label,
+      ready,
+      severity,
+      detail: ready ? 'Ready.' : 'Not configured in demo mode.',
+      action,
+      env_vars: envVars,
+      docs: ['docs/operations/production-launch-checklist.md'],
+    }));
+    return { production_ready: false, score: 0, critical_blockers: requirements.length, warnings: 0, environment: 'demo', requirements } as T;
   }
 
   if (path === '/auth/session-policy' && method === 'GET') {
