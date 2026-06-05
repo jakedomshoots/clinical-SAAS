@@ -14,6 +14,7 @@ import { Route as IndexRouteImport } from './router/routes/index'
 import { Route as TasksIndexRouteImport } from './router/routes/tasks/index'
 import { Route as SchedulingIndexRouteImport } from './router/routes/scheduling/index'
 import { Route as PatientsIndexRouteImport } from './router/routes/patients/index'
+import { Route as OperationsIndexRouteImport } from './router/routes/operations/index'
 import { Route as MessagingIndexRouteImport } from './router/routes/messaging/index'
 import { Route as FaxesIndexRouteImport } from './router/routes/faxes/index'
 import { Route as PatientsPatientIdRouteImport } from './router/routes/patients/$patientId'
@@ -43,6 +44,11 @@ const PatientsIndexRoute = PatientsIndexRouteImport.update({
   path: '/patients/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OperationsIndexRoute = OperationsIndexRouteImport.update({
+  id: '/operations/',
+  path: '/operations/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MessagingIndexRoute = MessagingIndexRouteImport.update({
   id: '/messaging/',
   path: '/messaging/',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
   '/messaging/': typeof MessagingIndexRoute
+  '/operations/': typeof OperationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/scheduling/': typeof SchedulingIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes': typeof FaxesIndexRoute
   '/messaging': typeof MessagingIndexRoute
+  '/operations': typeof OperationsIndexRoute
   '/patients': typeof PatientsIndexRoute
   '/scheduling': typeof SchedulingIndexRoute
   '/tasks': typeof TasksIndexRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
   '/messaging/': typeof MessagingIndexRoute
+  '/operations/': typeof OperationsIndexRoute
   '/patients/': typeof PatientsIndexRoute
   '/scheduling/': typeof SchedulingIndexRoute
   '/tasks/': typeof TasksIndexRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/faxes/'
     | '/messaging/'
+    | '/operations/'
     | '/patients/'
     | '/scheduling/'
     | '/tasks/'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/faxes'
     | '/messaging'
+    | '/operations'
     | '/patients'
     | '/scheduling'
     | '/tasks'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/patients/$patientId'
     | '/faxes/'
     | '/messaging/'
+    | '/operations/'
     | '/patients/'
     | '/scheduling/'
     | '/tasks/'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   PatientsPatientIdRoute: typeof PatientsPatientIdRoute
   FaxesIndexRoute: typeof FaxesIndexRoute
   MessagingIndexRoute: typeof MessagingIndexRoute
+  OperationsIndexRoute: typeof OperationsIndexRoute
   PatientsIndexRoute: typeof PatientsIndexRoute
   SchedulingIndexRoute: typeof SchedulingIndexRoute
   TasksIndexRoute: typeof TasksIndexRoute
@@ -171,6 +184,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/operations/': {
+      id: '/operations/'
+      path: '/operations'
+      fullPath: '/operations/'
+      preLoaderRoute: typeof OperationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/messaging/': {
       id: '/messaging/'
       path: '/messaging'
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   PatientsPatientIdRoute: PatientsPatientIdRoute,
   FaxesIndexRoute: FaxesIndexRoute,
   MessagingIndexRoute: MessagingIndexRoute,
+  OperationsIndexRoute: OperationsIndexRoute,
   PatientsIndexRoute: PatientsIndexRoute,
   SchedulingIndexRoute: SchedulingIndexRoute,
   TasksIndexRoute: TasksIndexRoute,

@@ -18,6 +18,7 @@ import {
   Search,
   Sparkles,
   Settings,
+  ShieldCheck,
   X,
   Users,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ function SideNav() {
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
     { to: '/faxes', label: 'Faxes', icon: Printer },
     { to: '/messaging', label: 'Messages', icon: MessageSquare },
+    { to: '/operations', label: 'Operations', icon: ShieldCheck },
   ];
 
   return (
@@ -142,6 +144,7 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
     { to: '/faxes', label: 'Faxes', icon: Printer },
     { to: '/messaging', label: 'Messages', icon: MessageSquare },
+    { to: '/operations', label: 'Operations', icon: ShieldCheck },
   ];
 
   if (!open) return null;

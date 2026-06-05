@@ -18,6 +18,24 @@ interface DemoStore {
   faxes: Fax[];
   messages: Message[];
   auditEvents?: AuditEvent[];
+  integrationEvents?: IntegrationEvent[];
+}
+
+interface IntegrationEvent {
+  id: string;
+  organization_id: string;
+  integration: string;
+  direction: string;
+  action: string;
+  status: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  idempotency_key: string | null;
+  attempts: number;
+  error: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
 }
 
 let patients: Patient[] = [
@@ -155,6 +173,41 @@ let auditEvents: AuditEvent[] = [
   },
 ];
 
+let integrationEvents: IntegrationEvent[] = [
+  {
+    id: uuid(850),
+    organization_id: 'default',
+    integration: 'fax_provider',
+    direction: 'outbound',
+    action: 'send_document',
+    status: 'failed',
+    entity_type: 'fax',
+    entity_id: uuid(404),
+    idempotency_key: 'demo-fax-send-404',
+    attempts: 1,
+    error: 'Demo provider unavailable',
+    payload: { to_number: '+13125550188' },
+    created_at: iso(-3),
+    updated_at: iso(-3),
+  },
+  {
+    id: uuid(851),
+    organization_id: 'default',
+    integration: 'portal',
+    direction: 'inbound',
+    action: 'message.received',
+    status: 'succeeded',
+    entity_type: 'message',
+    entity_id: uuid(501),
+    idempotency_key: 'demo-portal-message-501',
+    attempts: 1,
+    error: null,
+    payload: { subject: 'Lab result question' },
+    created_at: iso(-2),
+    updated_at: iso(-2),
+  },
+];
+
 function readStoredDemoData(): DemoStore | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -170,7 +223,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, messages, auditEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, messages, auditEvents, integrationEvents }),
   );
 }
 
@@ -182,6 +235,7 @@ if (storedDemoData) {
   faxes = storedDemoData.faxes;
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
+  integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -236,6 +290,45 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   const pageSize = Number(url.searchParams.get('page_size') ?? '20');
 
   if (method === 'GET' && path === '/health') return { status: 'ok', version: 'demo' } as T;
+  if (method === 'GET' && path === '/ready') {
+    return {
+      status: 'ok',
+      operational_status: 'degraded',
+      environment: 'demo',
+      checks: {
+        database: { ok: true },
+        redis: { ok: true },
+        object_storage: { ok: true, bucket: 'concierge-os' },
+      },
+      integrations: {
+        ehr: { ok: false, configured: false, env_var: 'EHR_API_BASE_URL', mode: 'demo' },
+        fax_provider: { ok: false, configured: false, env_var: 'FAX_PROVIDER_API_KEY', mode: 'demo' },
+        portal: { ok: false, configured: false, env_var: 'PORTAL_API_BASE_URL', mode: 'demo' },
+        calendar: { ok: false, configured: false, env_var: 'CALENDAR_API_BASE_URL', mode: 'demo' },
+        copilotkit: { ok: false, configured: false, env_var: 'COPILOTKIT_RUNTIME_URL', mode: 'demo' },
+      },
+    } as T;
+  }
+
+  if (method === 'GET' && path === '/integrations/events') {
+    return {
+      data: paginate(integrationEvents, page, pageSize),
+      total: integrationEvents.length,
+      page,
+      page_size: pageSize,
+    } as T;
+  }
+
+  const integrationRetryMatch = path.match(/^\/integrations\/events\/([^/]+)\/retry$/);
+  if (method === 'POST' && integrationRetryMatch) {
+    integrationEvents = integrationEvents.map((event) =>
+      event.id === integrationRetryMatch[1]
+        ? { ...event, status: 'retrying', attempts: event.attempts + 1, updated_at: new Date().toISOString() }
+        : event,
+    );
+    saveDemoData();
+    return integrationEvents.find((event) => event.id === integrationRetryMatch[1]) as T;
+  }
 
   if (method === 'GET' && path === '/audit') {
     return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;

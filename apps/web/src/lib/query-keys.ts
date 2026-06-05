@@ -41,5 +41,7 @@ export const QUERY_KEYS = {
   MESSAGES: ['messages'] as const,
   THREAD: (id: string) => ['messages', 'threads', id] as const,
   AUDIT: ['audit'] as const,
+  READINESS: ['readiness'] as const,
+  INTEGRATION_EVENTS: ['integration-events'] as const,
   USER: ['user'] as const,
 } as const;

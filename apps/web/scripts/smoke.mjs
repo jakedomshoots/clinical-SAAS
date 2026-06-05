@@ -2,7 +2,17 @@ import { spawn } from 'node:child_process';
 
 const port = 4174;
 const baseUrl = `http://127.0.0.1:${port}`;
-const routes = ['/', '/login', '/patients', '/tasks', '/scheduling', '/faxes', '/messaging', '/patients/00000000-0000-4000-8000-000000000101'];
+const routes = [
+  '/',
+  '/login',
+  '/patients',
+  '/tasks',
+  '/scheduling',
+  '/faxes',
+  '/messaging',
+  '/operations',
+  '/patients/00000000-0000-4000-8000-000000000101',
+];
 
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
