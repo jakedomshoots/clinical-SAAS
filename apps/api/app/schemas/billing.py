@@ -40,3 +40,11 @@ class BillingCaseOut(BaseModel):
 class BillingCaseListOut(BaseModel):
     data: list[BillingCaseOut]
     total: int
+
+
+class EligibilityCheckOut(BaseModel):
+    patient_id: str
+    payer: str | None
+    status: str
+    reference_id: str
+    message: str

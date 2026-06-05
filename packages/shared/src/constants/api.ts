@@ -48,6 +48,8 @@ export const ROUTES = {
   PATIENT_ACCESS_HISTORY: (id: string) => `/api/audit/patients/${id}/access-history`,
   ANALYTICS_SUMMARY: '/api/analytics/summary',
   BILLING_CASES: '/api/billing/cases',
+  BILLING_FROM_ENCOUNTER: (encounterId: string) => `/api/billing/cases/from-encounter/${encounterId}`,
+  ELIGIBILITY_CHECK: (patientId: string) => `/api/billing/eligibility/${patientId}`,
   PORTAL_INTAKE: '/api/portal-intake',
   ENCOUNTER_TEMPLATES: '/api/clinical/encounter-templates',
   INTEGRATION_CAPABILITIES: '/api/integration-capabilities',

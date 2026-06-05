@@ -18,5 +18,7 @@ export interface SessionPolicy {
   access_token_expire_minutes: number;
   mfa_required: boolean;
   phi_reauth_required: boolean;
+  phi_reauth_minutes: number;
+  audit_retention_days: number;
   audit_events: string[];
 }

@@ -13,6 +13,8 @@ export * from './types/fax';
 export * from './types/message';
 export * from './types/audit';
 export * from './types/operations';
+export * from './types/billing';
+export * from './types/portal-intake';
 
 export * from './schemas/user';
 export * from './schemas/patient';

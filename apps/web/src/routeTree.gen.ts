@@ -11,7 +11,12 @@
 import { Route as rootRouteImport } from './router/routes/__root'
 import { Route as StaffRouteImport } from './router/routes/staff'
 import { Route as RolesRouteImport } from './router/routes/roles'
+import { Route as ReportsRouteImport } from './router/routes/reports'
+import { Route as PortalIntakeRouteImport } from './router/routes/portal-intake'
 import { Route as LoginRouteImport } from './router/routes/login'
+import { Route as IntegrationsRouteImport } from './router/routes/integrations'
+import { Route as BillingRouteImport } from './router/routes/billing'
+import { Route as AssistantReviewRouteImport } from './router/routes/assistant-review'
 import { Route as IndexRouteImport } from './router/routes/index'
 import { Route as TasksIndexRouteImport } from './router/routes/tasks/index'
 import { Route as SchedulingIndexRouteImport } from './router/routes/scheduling/index'
@@ -31,9 +36,34 @@ const RolesRoute = RolesRouteImport.update({
   path: '/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalIntakeRoute = PortalIntakeRouteImport.update({
+  id: '/portal-intake',
+  path: '/portal-intake',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IntegrationsRoute = IntegrationsRouteImport.update({
+  id: '/integrations',
+  path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingRoute = BillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantReviewRoute = AssistantReviewRouteImport.update({
+  id: '/assistant-review',
+  path: '/assistant-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -79,7 +109,12 @@ const PatientsPatientIdRoute = PatientsPatientIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/assistant-review': typeof AssistantReviewRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/portal-intake': typeof PortalIntakeRoute
+  '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
@@ -92,7 +127,12 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/assistant-review': typeof AssistantReviewRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/portal-intake': typeof PortalIntakeRoute
+  '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
@@ -106,7 +146,12 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/assistant-review': typeof AssistantReviewRoute
+  '/billing': typeof BillingRoute
+  '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/portal-intake': typeof PortalIntakeRoute
+  '/reports': typeof ReportsRoute
   '/roles': typeof RolesRoute
   '/staff': typeof StaffRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
@@ -121,7 +166,12 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/assistant-review'
+    | '/billing'
+    | '/integrations'
     | '/login'
+    | '/portal-intake'
+    | '/reports'
     | '/roles'
     | '/staff'
     | '/patients/$patientId'
@@ -134,7 +184,12 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/assistant-review'
+    | '/billing'
+    | '/integrations'
     | '/login'
+    | '/portal-intake'
+    | '/reports'
     | '/roles'
     | '/staff'
     | '/patients/$patientId'
@@ -147,7 +202,12 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/assistant-review'
+    | '/billing'
+    | '/integrations'
     | '/login'
+    | '/portal-intake'
+    | '/reports'
     | '/roles'
     | '/staff'
     | '/patients/$patientId'
@@ -161,7 +221,12 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AssistantReviewRoute: typeof AssistantReviewRoute
+  BillingRoute: typeof BillingRoute
+  IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
+  PortalIntakeRoute: typeof PortalIntakeRoute
+  ReportsRoute: typeof ReportsRoute
   RolesRoute: typeof RolesRoute
   StaffRoute: typeof StaffRoute
   PatientsPatientIdRoute: typeof PatientsPatientIdRoute
@@ -189,11 +254,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RolesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal-intake': {
+      id: '/portal-intake'
+      path: '/portal-intake'
+      fullPath: '/portal-intake'
+      preLoaderRoute: typeof PortalIntakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/integrations': {
+      id: '/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof IntegrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing': {
+      id: '/billing'
+      path: '/billing'
+      fullPath: '/billing'
+      preLoaderRoute: typeof BillingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant-review': {
+      id: '/assistant-review'
+      path: '/assistant-review'
+      fullPath: '/assistant-review'
+      preLoaderRoute: typeof AssistantReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -257,7 +357,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AssistantReviewRoute: AssistantReviewRoute,
+  BillingRoute: BillingRoute,
+  IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
+  PortalIntakeRoute: PortalIntakeRoute,
+  ReportsRoute: ReportsRoute,
   RolesRoute: RolesRoute,
   StaffRoute: StaffRoute,
   PatientsPatientIdRoute: PatientsPatientIdRoute,

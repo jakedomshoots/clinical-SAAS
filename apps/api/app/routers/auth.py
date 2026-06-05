@@ -13,6 +13,7 @@ from app.services.auth_service import (
     create_user,
     seed_admin,
 )
+from app.services.settings_service import get_or_create_settings
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -78,13 +79,19 @@ async def me(current_user: User = Depends(get_current_user)):  # noqa: B008
 
 
 @router.get("/session-policy")
-async def session_policy(current_user: User = Depends(get_current_user)):  # noqa: B008
+async def session_policy(
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    current_user: User = Depends(get_current_user),  # noqa: B008
+):
+    clinic_settings = await get_or_create_settings(db, current_user)
     return {
         "user_id": current_user.id,
         "role": current_user.role.value,
         "access_token_expire_minutes": settings.access_token_expire_minutes,
         "mfa_required": settings.is_production,
-        "phi_reauth_required": settings.is_production,
+        "phi_reauth_required": True,
+        "phi_reauth_minutes": clinic_settings.phi_reauth_minutes,
+        "audit_retention_days": clinic_settings.audit_retention_days,
         "audit_events": ["auth.login", "patient_document.accessed", "settings.updated"],
     }
 

@@ -302,6 +302,8 @@ def upgrade() -> None:
         sa.Column('reminder_sms_template', sa.Text(), nullable=False),
         sa.Column('reminder_email_template', sa.Text(), nullable=False),
         sa.Column('sender_identity', sa.String(200), nullable=False, server_default='ConciergeOS Clinic'),
+        sa.Column('audit_retention_days', sa.Integer(), server_default='2555'),
+        sa.Column('phi_reauth_minutes', sa.Integer(), server_default='15'),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
     )
@@ -329,6 +331,7 @@ def upgrade() -> None:
         sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='SET NULL'), nullable=True, index=True),
         sa.Column('status', sa.Enum('received', 'needs_review', 'applied', 'rejected', name='portalintakestatus'), nullable=False, server_default='received', index=True),
         sa.Column('source', sa.String(100), nullable=False, server_default='portal'),
+        sa.Column('request_type', sa.String(100), nullable=False, server_default='intake_form', index=True),
         sa.Column('submitted_payload', sa.JSON(), server_default=sa.text("'{}'")),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), index=True),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),

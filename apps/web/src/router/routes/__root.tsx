@@ -9,8 +9,10 @@ import { ErrorState } from '@/lib/ui-state';
 import { ROUTES, type ClinicSettings, type ClinicSettingsUpdate } from '@concierge-os/shared';
 import {
   Activity,
+  BarChart3,
   Bot,
   Calendar,
+  CreditCard,
   Check,
   ClipboardList,
   Command,
@@ -19,6 +21,7 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  PlugZap,
   Printer,
   Search,
   Sparkles,
@@ -38,8 +41,13 @@ function SideNav() {
     { to: '/staff', label: 'Staff', icon: ShieldCheck },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
+    { to: '/portal-intake', label: 'Intake', icon: ClipboardList },
+    { to: '/billing', label: 'Billing', icon: CreditCard },
     { to: '/faxes', label: 'Faxes', icon: Printer },
     { to: '/messaging', label: 'Messages', icon: MessageSquare },
+    { to: '/integrations', label: 'Integrations', icon: PlugZap },
+    { to: '/reports', label: 'Reports', icon: BarChart3 },
+    { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
   ];
 
@@ -151,8 +159,13 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
     { to: '/staff', label: 'Staff', icon: ShieldCheck },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
+    { to: '/portal-intake', label: 'Intake', icon: ClipboardList },
+    { to: '/billing', label: 'Billing', icon: CreditCard },
     { to: '/faxes', label: 'Faxes', icon: Printer },
     { to: '/messaging', label: 'Messages', icon: MessageSquare },
+    { to: '/integrations', label: 'Integrations', icon: PlugZap },
+    { to: '/reports', label: 'Reports', icon: BarChart3 },
+    { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
   ];
 
@@ -294,6 +307,28 @@ function SettingsPanel({
                   className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
                 />
               </label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-clinic-700">
+                  Audit retention days
+                  <input
+                    disabled={!canManageSettings}
+                    type="number"
+                    value={effectiveSettings.audit_retention_days ?? ''}
+                    onChange={(event) => setSettingsForm({ ...settingsForm, audit_retention_days: Number(event.target.value) })}
+                    className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-clinic-700">
+                  PHI re-auth minutes
+                  <input
+                    disabled={!canManageSettings}
+                    type="number"
+                    value={effectiveSettings.phi_reauth_minutes ?? ''}
+                    onChange={(event) => setSettingsForm({ ...settingsForm, phi_reauth_minutes: Number(event.target.value) })}
+                    className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                  />
+                </label>
+              </div>
               <button
                 disabled={!canManageSettings || Object.keys(settingsForm).length === 0 || settingsMutation.isPending}
                 onClick={() => settingsMutation.mutate(settingsForm)}

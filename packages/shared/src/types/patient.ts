@@ -48,3 +48,10 @@ export interface Patient {
 
 export type PatientCreate = PatientCreateInput;
 export type PatientUpdate = PatientUpdateInput;
+
+export interface PatientListResponse {
+  data: Patient[];
+  total: number;
+  page?: number;
+  page_size?: number;
+}

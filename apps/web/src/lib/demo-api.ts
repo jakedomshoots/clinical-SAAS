@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, ClinicSettings, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, EncounterTemplate, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -48,6 +48,8 @@ interface DemoStore {
   integrationEvents?: IntegrationEvent[];
   providerAvailability?: ProviderAvailability[];
   clinicSettings?: ClinicSettings;
+  billingCases?: BillingCase[];
+  portalIntake?: PortalIntakeSubmission[];
 }
 
 interface IntegrationEvent {
@@ -87,7 +89,16 @@ let clinicSettings: ClinicSettings = {
   reminder_sms_template: 'Reminder: you have an appointment with {clinic_name} on {appointment_time}. Reply STOP to opt out.',
   reminder_email_template: 'You have an appointment with {clinic_name} on {appointment_time}. Please arrive 10 minutes early.',
   sender_identity: 'ConciergeOS Clinic',
+  audit_retention_days: 2555,
+  phi_reauth_minutes: 15,
 };
+
+let billingCases: BillingCase[] = [];
+let portalIntake: PortalIntakeSubmission[] = [];
+const encounterTemplates: EncounterTemplate[] = [
+  { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
+  { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
+];
 
 let patients: Patient[] = [
   {
@@ -394,7 +405,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake }),
   );
 }
 
@@ -446,6 +457,8 @@ if (storedDemoData) {
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
   providerAvailability = storedDemoData.providerAvailability ?? providerAvailability;
   clinicSettings = storedDemoData.clinicSettings ?? clinicSettings;
+  billingCases = storedDemoData.billingCases ?? billingCases;
+  portalIntake = storedDemoData.portalIntake ?? portalIntake;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -532,8 +545,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return {
       schedule: { scheduled: appointments.filter((item) => item.status === 'scheduled').length, active: appointments.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout'].includes(item.status)).length, no_show: appointments.filter((item) => item.status === 'no_show').length },
       work: { open_tasks: tasks.filter((item) => ['open', 'in_progress'].includes(item.status)).length, documents_needing_review: patientDocuments.filter((item) => item.status === 'needs_review').length, unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length },
-      front_office: { unmatched_faxes: faxes.filter((item) => !item.patient_id).length, intake_needing_review: 0 },
-      billing: { draft_cases: 0, denied_cases: 0 },
+      front_office: { unmatched_faxes: faxes.filter((item) => !item.patient_id).length, intake_needing_review: portalIntake.filter((item) => ['received', 'needs_review'].includes(item.status)).length },
+      billing: { draft_cases: billingCases.filter((item) => item.status === 'draft').length, denied_cases: billingCases.filter((item) => item.status === 'denied').length },
     } as T;
   }
 
@@ -548,7 +561,84 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   if (path === '/auth/session-policy' && method === 'GET') {
-    return { user_id: uuid(1), role: 'admin', access_token_expire_minutes: 480, mfa_required: false, phi_reauth_required: false, audit_events: ['auth.login', 'patient_document.accessed', 'settings.updated'] } as T;
+    return { user_id: uuid(1), role: 'admin', access_token_expire_minutes: 480, mfa_required: false, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'patient_document.accessed', 'settings.updated'] } as T;
+  }
+
+  if (path === '/clinical/encounter-templates' && method === 'GET') {
+    return { data: encounterTemplates, total: encounterTemplates.length } as T;
+  }
+
+  if (path === '/portal-intake' && method === 'GET') return { data: portalIntake, total: portalIntake.length } as T;
+  if (path === '/portal-intake' && method === 'POST') {
+    const incoming = body as Partial<PortalIntakeSubmission>;
+    const item: PortalIntakeSubmission = {
+      id: uuid(2800 + portalIntake.length),
+      patient_id: incoming.patient_id ?? null,
+      status: 'received',
+      source: incoming.source ?? 'portal',
+      request_type: incoming.request_type ?? 'intake_form',
+      submitted_payload: incoming.submitted_payload ?? {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    portalIntake = [item, ...portalIntake];
+    saveDemoData();
+    return item as T;
+  }
+  const portalIntakeMatch = path.match(/^\/portal-intake\/([^/]+)$/);
+  if (portalIntakeMatch && method === 'PATCH') {
+    portalIntake = portalIntake.map((item) => item.id === portalIntakeMatch[1] ? { ...item, ...(body as Partial<PortalIntakeSubmission>), updated_at: new Date().toISOString() } : item);
+    saveDemoData();
+    return portalIntake.find((item) => item.id === portalIntakeMatch[1]) as T;
+  }
+
+  if (path === '/billing/cases' && method === 'GET') return { data: billingCases, total: billingCases.length } as T;
+  if (path === '/billing/cases' && method === 'POST') {
+    const incoming = body as Partial<BillingCase>;
+    const patient = patients.find((item) => item.id === incoming.patient_id);
+    const item: BillingCase = {
+      id: uuid(2900 + billingCases.length),
+      patient_id: incoming.patient_id ?? uuid(101),
+      appointment_id: incoming.appointment_id ?? null,
+      status: 'draft',
+      payer: incoming.payer ?? patient?.insurance?.provider ?? null,
+      eligibility_status: 'not_checked',
+      cpt_codes: incoming.cpt_codes ?? [],
+      diagnosis_codes: incoming.diagnosis_codes ?? [],
+      notes: incoming.notes ?? null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    billingCases = [item, ...billingCases];
+    saveDemoData();
+    return item as T;
+  }
+  const billingFromEncounterMatch = path.match(/^\/billing\/cases\/from-encounter\/([^/]+)$/);
+  if (billingFromEncounterMatch && method === 'POST') {
+    const encounter = patientEncounters.find((item) => item.id === billingFromEncounterMatch[1]);
+    if (!encounter) throw new Error('Encounter not found');
+    const patient = patients.find((item) => item.id === encounter.patient_id);
+    const item: BillingCase = {
+      id: uuid(2900 + billingCases.length),
+      patient_id: encounter.patient_id,
+      appointment_id: encounter.appointment_id,
+      status: 'draft',
+      payer: patient?.insurance?.provider ?? null,
+      eligibility_status: 'not_checked',
+      cpt_codes: ['99213'],
+      diagnosis_codes: [],
+      notes: `Charge capture from ${encounter.encounter_type} encounter.`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    billingCases = [item, ...billingCases];
+    saveDemoData();
+    return item as T;
+  }
+  const eligibilityMatch = path.match(/^\/billing\/eligibility\/([^/]+)$/);
+  if (eligibilityMatch && method === 'POST') {
+    const patient = patients.find((item) => item.id === eligibilityMatch[1]);
+    return { patient_id: eligibilityMatch[1], payer: patient?.insurance?.provider ?? null, status: patient?.insurance ? 'eligible' : 'missing_insurance', reference_id: `demo-elig-${eligibilityMatch[1].slice(-6)}`, message: patient?.insurance ? 'Demo eligibility staged. Configure a clearinghouse before live use.' : 'Insurance is missing from chart.' } as T;
   }
 
   if (path === '/settings' && method === 'GET') return clinicSettings as T;
@@ -1031,6 +1121,31 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const patientId = patientEncountersMatch[1];
     const data = patientEncounters.filter((encounter) => encounter.patient_id === patientId);
     return { data, total: data.length } as T;
+  }
+  if (patientEncountersMatch && method === 'POST') {
+    const patientId = patientEncountersMatch[1];
+    const incoming = body as Partial<PatientEncounter>;
+    const provider = demoUsers.find((user) => user.id === incoming.provider_id);
+    const encounter: PatientEncounter = {
+      id: uuid(3000 + patientEncounters.length),
+      patient_id: patientId,
+      appointment_id: incoming.appointment_id ?? null,
+      provider_id: incoming.provider_id ?? null,
+      provider_name: provider?.display_name ?? null,
+      encounter_type: incoming.encounter_type ?? 'office_visit',
+      status: incoming.status ?? 'draft',
+      summary: incoming.summary ?? null,
+      subjective: incoming.subjective ?? null,
+      objective: incoming.objective ?? null,
+      assessment: incoming.assessment ?? null,
+      plan: incoming.plan ?? null,
+      signed_at: incoming.status === 'signed' ? new Date().toISOString() : null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    patientEncounters = [encounter, ...patientEncounters];
+    saveDemoData();
+    return encounter as T;
   }
 
   const patientEncounterMatch = path.match(/^\/patients\/([^/]+)\/encounters\/([^/]+)$/);

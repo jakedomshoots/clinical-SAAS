@@ -26,5 +26,7 @@ class ClinicSettings(Base):
         default="You have an appointment with {clinic_name} on {appointment_time}. Please arrive 10 minutes early.",
     )
     sender_identity: Mapped[str] = mapped_column(String(200), default="ConciergeOS Clinic")
+    audit_retention_days: Mapped[int] = mapped_column(default=2555)
+    phi_reauth_minutes: Mapped[int] = mapped_column(default=15)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

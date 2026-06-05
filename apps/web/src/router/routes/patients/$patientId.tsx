@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, AuditEvent, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -114,6 +114,10 @@ function PatientChartPage() {
     queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId),
     queryFn: () => api.get<PatientEncounterListResponse>(ROUTES.PATIENT_ENCOUNTERS(patientId)),
   });
+  const { data: encounterTemplates } = useQuery({
+    queryKey: [...QUERY_KEYS.PATIENT_ENCOUNTERS(patientId), 'templates'],
+    queryFn: () => api.get<EncounterTemplateListResponse>(ROUTES.ENCOUNTER_TEMPLATES),
+  });
 
   const { data: accessHistory } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'patient-access-history', patientId],
@@ -213,6 +217,31 @@ function PatientChartPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
     },
+  });
+
+  const createEncounterMutation = useMutation({
+    mutationFn: (templateId: string) => {
+      const template = encounterTemplates?.data.find((item) => item.id === templateId);
+      return api.post<PatientEncounter>(ROUTES.PATIENT_ENCOUNTERS(patientId), {
+        provider_id: staffRows.find((user) => user.role === 'provider')?.id ?? staffRows[0]?.id ?? null,
+        encounter_type: template?.encounter_type ?? 'office_visit',
+        status: 'provider_review',
+        summary: template?.name ?? 'Templated encounter',
+        subjective: template?.subjective ?? null,
+        objective: template?.objective ?? null,
+        assessment: template?.assessment ?? null,
+        plan: template?.plan ?? null,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+    },
+  });
+
+  const chargeCaptureMutation = useMutation({
+    mutationFn: (encounterId: string) => api.post<BillingCase>(ROUTES.BILLING_FROM_ENCOUNTER(encounterId), {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
 
   const createHandoffTaskMutation = useMutation({
@@ -508,10 +537,19 @@ function PatientChartPage() {
       {activeTab === 'encounters' && (
         <div className="rounded-lg border border-clinic-200 bg-white">
           <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <FileText className="h-4 w-4 text-accent-700" />
-              Encounter Timeline
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+                <FileText className="h-4 w-4 text-accent-700" />
+                Encounter Timeline
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {(encounterTemplates?.data ?? []).map((template) => (
+                  <button key={template.id} onClick={() => createEncounterMutation.mutate(template.id)} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-white">
+                    {template.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <div className="divide-y divide-clinic-100">
             {encounterRows.map((encounter) => (
@@ -538,6 +576,14 @@ function PatientChartPage() {
                       className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                     >
                       Sign
+                    </button>
+                  )}
+                  {encounter.status === 'signed' && (
+                    <button
+                      onClick={() => chargeCaptureMutation.mutate(encounter.id)}
+                      className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                    >
+                      Charge
                     </button>
                   )}
                 </div>
