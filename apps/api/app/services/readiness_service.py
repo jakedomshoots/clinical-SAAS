@@ -1,9 +1,13 @@
+import asyncio
+
 from sqlalchemy import text
 
 from app.config import settings
 from app.database import async_session_factory
 from app.minio_client import minio
 from app.redis_client import redis
+
+READINESS_TIMEOUT_SECONDS = 1.5
 
 
 async def check_readiness() -> dict:
@@ -48,24 +52,36 @@ def _configured(value: str, env_var: str) -> dict:
 
 async def _check_database() -> dict:
     try:
-        async with async_session_factory() as db:
-            await db.execute(text("select 1"))
+        async def ping_database() -> None:
+            async with async_session_factory() as db:
+                await db.execute(text("select 1"))
+
+        await asyncio.wait_for(ping_database(), timeout=READINESS_TIMEOUT_SECONDS)
         return {"ok": True}
+    except TimeoutError:
+        return {"ok": False, "error": "TimeoutError"}
     except Exception as exc:  # pragma: no cover - defensive for deployment diagnostics
         return {"ok": False, "error": exc.__class__.__name__}
 
 
 async def _check_redis() -> dict:
     try:
-        await redis.ping()
+        await asyncio.wait_for(redis.ping(), timeout=READINESS_TIMEOUT_SECONDS)
         return {"ok": True}
+    except TimeoutError:
+        return {"ok": False, "error": "TimeoutError"}
     except Exception as exc:  # pragma: no cover - defensive for deployment diagnostics
         return {"ok": False, "error": exc.__class__.__name__}
 
 
 async def _check_object_storage() -> dict:
     try:
-        exists = minio.bucket_exists(settings.minio_bucket)
+        exists = await asyncio.wait_for(
+            asyncio.to_thread(minio.bucket_exists, settings.minio_bucket),
+            timeout=READINESS_TIMEOUT_SECONDS,
+        )
         return {"ok": exists, "bucket": settings.minio_bucket}
+    except TimeoutError:
+        return {"ok": False, "bucket": settings.minio_bucket, "error": "TimeoutError"}
     except Exception as exc:  # pragma: no cover - defensive for deployment diagnostics
         return {"ok": False, "bucket": settings.minio_bucket, "error": exc.__class__.__name__}

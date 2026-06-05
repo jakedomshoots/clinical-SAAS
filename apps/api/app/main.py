@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
     async with async_session_factory() as db:
         await seed_admin(db)
 
-    ensure_bucket()
+    if settings.ensure_object_storage_on_startup:
+        ensure_bucket()
     yield
     await engine.dispose()
     await redis.close()

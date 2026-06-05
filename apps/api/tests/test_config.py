@@ -20,6 +20,7 @@ def test_production_rejects_development_defaults():
     assert "MINIO_ACCESS_KEY must not use the development default" in message
     assert "CORS_ORIGINS must not include localhost origins" in message
     assert "AUTO_CREATE_SCHEMA must be false in production" in message
+    assert "ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production" not in message
 
 
 def test_production_allows_hardened_settings():
@@ -30,7 +31,23 @@ def test_production_allows_hardened_settings():
         minio_secret_key="prod-secret-key",
         cors_origins="https://concierge.example.com",
         auto_create_schema=False,
+        ensure_object_storage_on_startup=True,
     )
 
     assert settings.is_production is True
     assert settings.cors_origin_list == ["https://concierge.example.com"]
+
+
+def test_production_requires_object_storage_startup_check():
+    with pytest.raises(ValidationError) as exc:
+        Settings(
+            app_env="production",
+            secret_key="prod-secret-with-more-than-thirty-two-characters",
+            minio_access_key="prod-access-key",
+            minio_secret_key="prod-secret-key",
+            cors_origins="https://concierge.example.com",
+            auto_create_schema=False,
+            ensure_object_storage_on_startup=False,
+        )
+
+    assert "ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production" in str(exc.value)

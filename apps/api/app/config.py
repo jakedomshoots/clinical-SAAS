@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:1420"
     auto_create_schema: bool = True
+    ensure_object_storage_on_startup: bool = True
 
     ehr_api_base_url: str = ""
     fax_provider_api_key: str = ""
@@ -65,6 +66,8 @@ class Settings(BaseSettings):
             failures.append(
                 "AUTO_CREATE_SCHEMA must be false in production; run Alembic migrations explicitly"
             )
+        if not self.ensure_object_storage_on_startup:
+            failures.append("ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production")
 
         if failures:
             raise ValueError("; ".join(failures))
