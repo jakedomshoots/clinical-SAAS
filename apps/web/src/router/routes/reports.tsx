@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState } from 'react';
 import { BarChart3 } from 'lucide-react';
 import { ROUTES, type AnalyticsSummary } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
@@ -12,10 +13,18 @@ export const Route = createFileRoute('/reports')({
 
 function ReportsPage() {
   const api = useApi();
+  const [range, setRange] = useState('7');
   const { data, isLoading } = useQuery({
-    queryKey: [...QUERY_KEYS.READINESS, 'reports'],
+    queryKey: [...QUERY_KEYS.READINESS, 'reports', range],
     queryFn: () => api.get<AnalyticsSummary>(ROUTES.ANALYTICS_SUMMARY),
   });
+  const csv = useMemo(() => {
+    const rows = [['group', 'metric', 'value']];
+    for (const [group, metrics] of Object.entries(data ?? {})) {
+      for (const [metric, value] of Object.entries(metrics)) rows.push([group, metric, String(value)]);
+    }
+    return rows.map((row) => row.join(',')).join('\n');
+  }, [data]);
 
   return (
     <div className="space-y-5">
@@ -23,6 +32,16 @@ function ReportsPage() {
         <p className="text-sm font-medium text-clinic-500">Operational intelligence</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Reports</h1>
       </header>
+      <section className="flex flex-wrap items-center gap-2 rounded-md border border-clinic-200 bg-white p-3">
+        <select value={range} onChange={(event) => setRange(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="90">Last 90 days</option>
+        </select>
+        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`} download={`concierge-os-report-${range}d.csv`} className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">
+          Export CSV
+        </a>
+      </section>
       {isLoading ? <LoadingState label="Loading reports" /> : (
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {Object.entries(data ?? {}).map(([group, metrics]) => (

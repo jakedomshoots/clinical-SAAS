@@ -33,6 +33,17 @@ function PortalIntakePage() {
     mutationFn: ({ id, status }: { id: string; status: PortalIntakeSubmission['status'] }) => api.patch<PortalIntakeSubmission>(`${ROUTES.PORTAL_INTAKE}/${id}`, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PORTAL_INTAKE }),
   });
+  const actionMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'apply' | 'appointment' | 'document' }) => {
+      const route = action === 'apply' ? ROUTES.PORTAL_INTAKE_APPLY(id) : action === 'appointment' ? ROUTES.PORTAL_INTAKE_APPOINTMENT(id) : ROUTES.PORTAL_INTAKE_DOCUMENT(id);
+      return api.post(route, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PORTAL_INTAKE });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+    },
+  });
   const rows = data?.data ?? [];
   return (
     <div className="space-y-5">
@@ -57,15 +68,18 @@ function PortalIntakePage() {
         <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
           <div className="divide-y divide-clinic-100">
             {rows.map((item) => (
-              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_12rem]">
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_8rem_22rem]">
                 <div>
                   <div className="text-sm font-semibold text-clinic-900">{item.request_type.replace('_', ' ')}</div>
                   <div className="mt-1 text-xs text-clinic-500">{JSON.stringify(item.submitted_payload)}</div>
                 </div>
                 <span className="text-sm font-medium text-clinic-700">{item.status}</span>
-                <button onClick={() => updateMutation.mutate({ id: item.id, status: 'applied' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
-                  Mark applied
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'apply' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Apply chart</button>
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'appointment' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Schedule</button>
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'document' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Document</button>
+                  <button onClick={() => updateMutation.mutate({ id: item.id, status: 'rejected' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Reject</button>
+                </div>
               </div>
             ))}
             {rows.length === 0 && <EmptyState title="No portal requests" detail="Stage intake, appointment, or document upload requests for review." />}

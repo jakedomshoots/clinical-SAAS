@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Bot } from 'lucide-react';
 import type { AuditEvent } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
@@ -17,11 +18,16 @@ export const Route = createFileRoute('/assistant-review')({
 
 function AssistantReviewPage() {
   const api = useApi();
+  const [actionFilter, setActionFilter] = useState('all');
+  const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'assistant-review'],
     queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=50'),
   });
-  const rows = (data?.data ?? []).filter((event) => event.event_type.startsWith('assistant.'));
+  const rows = (data?.data ?? [])
+    .filter((event) => event.event_type.startsWith('assistant.'))
+    .filter((event) => actionFilter === 'all' || event.event_type === actionFilter)
+    .filter((event) => `${event.event_type} ${JSON.stringify(event.payload)}`.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-5">
@@ -29,6 +35,15 @@ function AssistantReviewPage() {
         <p className="text-sm font-medium text-clinic-500">AI governance</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Assistant Review</h1>
       </header>
+      <section className="flex flex-wrap gap-2 rounded-md border border-clinic-200 bg-white p-3">
+        <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+          <option value="all">All actions</option>
+          <option value="assistant.task_created">Tasks</option>
+          <option value="assistant.message_drafted">Portal drafts</option>
+          <option value="assistant.fax_match_staged">Fax matches</option>
+        </select>
+        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Patient, action, payload" className="min-w-64 rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+      </section>
       {isLoading ? <LoadingState label="Loading assistant actions" /> : (
         <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
           <div className="divide-y divide-clinic-100">

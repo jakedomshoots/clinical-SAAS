@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -33,7 +33,7 @@ export const Route = createFileRoute('/patients/$patientId')({
   component: PatientChartPage,
 });
 
-type Tab = 'summary' | 'demographics' | 'documents' | 'medications' | 'care-plan' | 'encounters' | 'labs' | 'tasks' | 'messages';
+type Tab = 'summary' | 'demographics' | 'documents' | 'medications' | 'care-plan' | 'encounters' | 'labs' | 'billing' | 'tasks' | 'messages';
 const TABS: { key: Tab; label: string }[] = [
   { key: 'summary', label: 'Summary' },
   { key: 'demographics', label: 'Demographics' },
@@ -42,6 +42,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'care-plan', label: 'Care Plan' },
   { key: 'encounters', label: 'Encounters' },
   { key: 'labs', label: 'Labs' },
+  { key: 'billing', label: 'Billing' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'messages', label: 'Messages' },
 ];
@@ -117,6 +118,10 @@ function PatientChartPage() {
   const { data: encounterTemplates } = useQuery({
     queryKey: [...QUERY_KEYS.PATIENT_ENCOUNTERS(patientId), 'templates'],
     queryFn: () => api.get<EncounterTemplateListResponse>(ROUTES.ENCOUNTER_TEMPLATES),
+  });
+  const { data: billingCases } = useQuery({
+    queryKey: [...QUERY_KEYS.BILLING_CASES, patientId],
+    queryFn: () => api.get<BillingCaseListResponse>(ROUTES.BILLING_CASES),
   });
 
   const { data: accessHistory } = useQuery({
@@ -241,6 +246,10 @@ function PatientChartPage() {
 
   const chargeCaptureMutation = useMutation({
     mutationFn: (encounterId: string) => api.post<BillingCase>(ROUTES.BILLING_FROM_ENCOUNTER(encounterId), {}),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+  });
+  const eligibilityMutation = useMutation({
+    mutationFn: () => api.post<EligibilityCheck>(ROUTES.ELIGIBILITY_CHECK(patientId), {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
 
@@ -878,6 +887,29 @@ function PatientChartPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {activeTab === 'billing' && (
+        <div className="rounded-lg border border-clinic-200 bg-white">
+          <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+            <h2 className="text-sm font-semibold text-clinic-800">Billing and Eligibility</h2>
+            <button onClick={() => eligibilityMutation.mutate()} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Check eligibility</button>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).map((item) => (
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_10rem]">
+                <div>
+                  <div className="text-sm font-semibold text-clinic-900">{item.payer ?? 'No payer'}</div>
+                  <div className="mt-1 text-xs text-clinic-500">CPT {item.cpt_codes.join(', ') || 'not coded'} - DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
+                  {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
+                </div>
+                <span className="text-sm font-medium text-clinic-700">{item.status}</span>
+                <span className="text-sm text-clinic-500">{item.eligibility_status}</span>
+              </div>
+            ))}
+            {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).length === 0 && <div className="px-4 py-8 text-center text-sm text-clinic-400">No billing cases for this patient.</div>}
+          </div>
         </div>
       )}
 

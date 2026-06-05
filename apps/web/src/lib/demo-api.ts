@@ -552,11 +552,11 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/integration-capabilities' && method === 'GET') {
     return {
-      ehr: { configured: false, supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'] },
-      portal: { configured: false, supports: ['messages', 'intake', 'appointment_requests'] },
-      fax: { configured: false, supports: ['inbound', 'outbound', 'document_matching'] },
-      calendar: { configured: false, supports: ['appointment_create', 'appointment_update'] },
-      communications: { configured: false, supports: ['sms', 'email', 'delivery_callbacks'] },
+      ehr: { configured: false, env_vars: ['EHR_API_BASE_URL'], supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'] },
+      portal: { configured: false, env_vars: ['PORTAL_API_BASE_URL'], supports: ['messages', 'intake', 'appointment_requests'] },
+      fax: { configured: false, env_vars: ['FAX_PROVIDER_API_KEY'], supports: ['inbound', 'outbound', 'document_matching'] },
+      calendar: { configured: false, env_vars: ['CALENDAR_API_BASE_URL'], supports: ['appointment_create', 'appointment_update'] },
+      communications: { configured: false, env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'] },
     } as T;
   }
 
@@ -591,6 +591,55 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     saveDemoData();
     return portalIntake.find((item) => item.id === portalIntakeMatch[1]) as T;
   }
+  const portalActionMatch = path.match(/^\/portal-intake\/([^/]+)\/(apply-to-patient|convert-appointment|convert-document)$/);
+  if (portalActionMatch && method === 'POST') {
+    const [submissionId, action] = [portalActionMatch[1], portalActionMatch[2]];
+    const submission = portalIntake.find((item) => item.id === submissionId);
+    if (!submission) throw new Error('Portal intake submission not found');
+    if (action === 'apply-to-patient' && submission.patient_id) {
+      patients = patients.map((patient) => patient.id === submission.patient_id ? { ...patient, ...(submission.submitted_payload as Partial<Patient>), updated_at: new Date().toISOString() } : patient);
+    }
+    if (action === 'convert-appointment' && submission.patient_id) {
+      const provider = demoUsers.find((user) => user.role === 'provider');
+      appointments = [{
+        id: uuid(2850 + appointments.length),
+        patient_id: submission.patient_id,
+        patient_name: patients.find((patient) => patient.id === submission.patient_id)?.last_name ?? 'Portal Patient',
+        provider_id: provider?.id ?? uuid(2),
+        provider_name: provider?.display_name ?? 'Provider',
+        start_time: String(submission.submitted_payload.start_time ?? iso(24)),
+        end_time: String(submission.submitted_payload.end_time ?? iso(24.5)),
+        type: String(submission.submitted_payload.type ?? 'Portal request'),
+        status: 'scheduled',
+        notes: String(submission.submitted_payload.notes ?? 'Converted from portal intake.'),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, ...appointments];
+    }
+    if (action === 'convert-document' && submission.patient_id) {
+      patientDocuments = [{
+        id: uuid(2860 + patientDocuments.length),
+        patient_id: submission.patient_id,
+        title: String(submission.submitted_payload.title ?? 'Portal uploaded document'),
+        source: 'Patient portal',
+        document_type: String(submission.submitted_payload.document_type ?? 'Patient upload'),
+        status: 'needs_review',
+        matched_by: 'portal intake',
+        pages: Number(submission.submitted_payload.pages ?? 1),
+        file_url: typeof submission.submitted_payload.file_url === 'string' ? submission.submitted_payload.file_url : null,
+        upload_status: 'metadata_only',
+        ocr_status: 'not_started',
+        classification: null,
+        summary: String(submission.submitted_payload.summary ?? 'Patient submitted document from portal intake.'),
+        received_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, ...patientDocuments];
+    }
+    portalIntake = portalIntake.map((item) => item.id === submissionId ? { ...item, status: 'applied', updated_at: new Date().toISOString() } : item);
+    saveDemoData();
+    return portalIntake.find((item) => item.id === submissionId) as T;
+  }
 
   if (path === '/billing/cases' && method === 'GET') return { data: billingCases, total: billingCases.length } as T;
   if (path === '/billing/cases' && method === 'POST') {
@@ -612,6 +661,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     billingCases = [item, ...billingCases];
     saveDemoData();
     return item as T;
+  }
+  const billingCaseMatch = path.match(/^\/billing\/cases\/([^/]+)$/);
+  if (billingCaseMatch && method === 'PATCH') {
+    billingCases = billingCases.map((item) => item.id === billingCaseMatch[1] ? { ...item, ...(body as Partial<BillingCase>), updated_at: new Date().toISOString() } : item);
+    saveDemoData();
+    return billingCases.find((item) => item.id === billingCaseMatch[1]) as T;
   }
   const billingFromEncounterMatch = path.match(/^\/billing\/cases\/from-encounter\/([^/]+)$/);
   if (billingFromEncounterMatch && method === 'POST') {
@@ -638,7 +693,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   const eligibilityMatch = path.match(/^\/billing\/eligibility\/([^/]+)$/);
   if (eligibilityMatch && method === 'POST') {
     const patient = patients.find((item) => item.id === eligibilityMatch[1]);
-    return { patient_id: eligibilityMatch[1], payer: patient?.insurance?.provider ?? null, status: patient?.insurance ? 'eligible' : 'missing_insurance', reference_id: `demo-elig-${eligibilityMatch[1].slice(-6)}`, message: patient?.insurance ? 'Demo eligibility staged. Configure a clearinghouse before live use.' : 'Insurance is missing from chart.' } as T;
+    const status = patient?.insurance ? 'eligible' : 'missing_insurance';
+    billingCases = billingCases.map((item) => item.patient_id === eligibilityMatch[1] && item.status === 'draft' ? { ...item, eligibility_status: status, updated_at: new Date().toISOString() } : item);
+    saveDemoData();
+    return { patient_id: eligibilityMatch[1], payer: patient?.insurance?.provider ?? null, status, reference_id: `demo-elig-${eligibilityMatch[1].slice(-6)}`, message: patient?.insurance ? 'Demo eligibility staged. Configure a clearinghouse before live use.' : 'Insurance is missing from chart.' } as T;
   }
 
   if (path === '/settings' && method === 'GET') return clinicSettings as T;

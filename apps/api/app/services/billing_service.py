@@ -64,6 +64,16 @@ async def check_eligibility(db: AsyncSession, user: User, patient_id: str) -> di
         return None
     payer = (patient.insurance or {}).get("provider")
     status = "eligible" if payer else "missing_insurance"
+    result = await db.execute(
+        select(BillingCase).where(
+            BillingCase.organization_id == user.organization_id,
+            BillingCase.patient_id == patient.id,
+            BillingCase.status == BillingStatus.draft,
+        )
+    )
+    for case in result.scalars().all():
+        case.eligibility_status = status
+    await db.commit()
     await log_event(db, "billing.eligibility_checked", "patient", patient.id, actor_id=user.id, payload={"payer": payer, "status": status})
     return {
         "patient_id": patient.id,

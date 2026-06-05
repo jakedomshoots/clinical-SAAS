@@ -39,6 +39,9 @@ function IntegrationsPage() {
               <div className="mt-3 flex flex-wrap gap-2">
                 {capability.supports.map((item) => <span key={item} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs text-clinic-600">{item.replace('_', ' ')}</span>)}
               </div>
+              <div className="mt-3 rounded-md bg-clinic-50 px-3 py-2 font-mono text-xs text-clinic-500">
+                {(capability.env_vars ?? []).join(' · ') || 'No env var required'}
+              </div>
             </div>
           ))}
         </section>

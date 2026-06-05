@@ -49,7 +49,11 @@ function SideNav() {
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
-  ];
+  ].filter((item) => {
+    if (['/staff', '/operations', '/integrations', '/assistant-review'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
+    if (item.to === '/billing') return user?.role !== 'front_desk';
+    return true;
+  });
 
   return (
     <aside className="hidden h-screen w-60 shrink-0 flex-col border-r border-clinic-200 bg-white md:flex">
@@ -167,7 +171,11 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
     { to: '/reports', label: 'Reports', icon: BarChart3 },
     { to: '/assistant-review', label: 'AI Review', icon: Bot },
     { to: '/operations', label: 'Operations', icon: ShieldCheck },
-  ];
+  ].filter((item) => {
+    if (['/staff', '/operations', '/integrations', '/assistant-review'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
+    if (item.to === '/billing') return user?.role !== 'front_desk';
+    return true;
+  });
 
   if (!open) return null;
 

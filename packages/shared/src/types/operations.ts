@@ -8,6 +8,7 @@ export interface AnalyticsSummary {
 export interface IntegrationCapabilities {
   [key: string]: {
     configured: boolean;
+    env_vars?: string[];
     supports: string[];
   };
 }

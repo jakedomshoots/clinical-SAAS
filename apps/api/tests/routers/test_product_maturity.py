@@ -34,6 +34,61 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
     assert summary.json()["front_office"]["intake_needing_review"] == 1
     assert summary.json()["billing"]["draft_cases"] == 1
 
+    transitioned = await client.patch(
+        f"/api/billing/cases/{billing.json()['id']}",
+        json={"status": "denied", "notes": "Missing modifier"},
+        headers=auth_headers,
+    )
+    assert transitioned.status_code == 200
+    assert transitioned.json()["status"] == "denied"
+
+
+@pytest.mark.asyncio
+async def test_portal_intake_conversions(client, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    intake = await client.post(
+        "/api/portal-intake",
+        json={
+            "patient_id": patient_id,
+            "request_type": "intake_form",
+            "submitted_payload": {
+                "phone": "555-2020",
+                "insurance": {"provider": "Cigna", "plan": "Open Access", "member_id": "C-1"},
+            },
+        },
+        headers=auth_headers,
+    )
+    applied = await client.post(f"/api/portal-intake/{intake.json()['id']}/apply-to-patient", headers=auth_headers)
+    patient = await client.get(f"/api/patients/{patient_id}", headers=auth_headers)
+    assert applied.status_code == 200
+    assert patient.json()["phone"] == "555-2020"
+
+    document_intake = await client.post(
+        "/api/portal-intake",
+        json={"patient_id": patient_id, "request_type": "document_upload", "submitted_payload": {"title": "Insurance card", "document_type": "Insurance"}},
+        headers=auth_headers,
+    )
+    document = await client.post(f"/api/portal-intake/{document_intake.json()['id']}/convert-document", headers=auth_headers)
+    assert document.status_code == 200
+    assert document.json()["title"] == "Insurance card"
+
+    appt_intake = await client.post(
+        "/api/portal-intake",
+        json={
+            "patient_id": patient_id,
+            "request_type": "appointment_request",
+            "submitted_payload": {
+                "provider_id": admin_user.id,
+                "start_time": "2026-06-05T09:00:00",
+                "end_time": "2026-06-05T09:30:00",
+            },
+        },
+        headers=auth_headers,
+    )
+    appointment = await client.post(f"/api/portal-intake/{appt_intake.json()['id']}/convert-appointment", headers=auth_headers)
+    assert appointment.status_code == 200
+    assert appointment.json()["patient_id"] == patient_id
+
 
 @pytest.mark.asyncio
 async def test_security_templates_and_integration_capabilities(client, auth_headers):

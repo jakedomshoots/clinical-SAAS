@@ -36,3 +36,32 @@ async def update_intake(submission_id: str, data: PortalIntakeUpdate, db: DbDep,
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portal intake submission not found")
     return PortalIntakeOut.model_validate(submission)
+
+
+@router.post("/{submission_id}/apply-to-patient", response_model=PortalIntakeOut)
+async def apply_to_patient(submission_id: str, db: DbDep, current_user: ClinicalUserDep):
+    submission = await portal_intake_service.apply_to_patient(db, current_user, submission_id)
+    if not submission:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portal intake submission not found")
+    return PortalIntakeOut.model_validate(submission)
+
+
+@router.post("/{submission_id}/convert-appointment")
+async def convert_to_appointment(submission_id: str, db: DbDep, current_user: ClinicalUserDep):
+    try:
+        appointment = await portal_intake_service.convert_to_appointment(db, current_user, submission_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Missing appointment field: {exc.args[0]}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portal intake submission not found")
+    return appointment
+
+
+@router.post("/{submission_id}/convert-document")
+async def convert_to_document(submission_id: str, db: DbDep, current_user: ClinicalUserDep):
+    document = await portal_intake_service.convert_to_document(db, current_user, submission_id)
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portal intake submission not found")
+    return document

@@ -1,7 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { CreditCard, ShieldCheck } from 'lucide-react';
-import { ROUTES, type BillingCase, type BillingCaseListResponse, type EligibilityCheck, type Patient, type PatientListResponse } from '@concierge-os/shared';
+import { ROUTES, type BillingCase, type BillingCaseListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState } from '@/lib/ui-state';
@@ -13,6 +14,7 @@ export const Route = createFileRoute('/billing')({
 function BillingPage() {
   const api = useApi();
   const queryClient = useQueryClient();
+  const [draft, setDraft] = useState({ patient_id: '', payer: '', cpt_codes: '99213', diagnosis_codes: '', notes: '' });
   const { data: cases, isLoading } = useQuery({
     queryKey: QUERY_KEYS.BILLING_CASES,
     queryFn: () => api.get<BillingCaseListResponse>(ROUTES.BILLING_CASES),
@@ -22,7 +24,20 @@ function BillingPage() {
     queryFn: () => api.get<PatientListResponse>(`${ROUTES.PATIENTS}?page=1&page_size=100`),
   });
   const createMutation = useMutation({
-    mutationFn: (patient: Patient) => api.post<BillingCase>(ROUTES.BILLING_CASES, { patient_id: patient.id, cpt_codes: ['99213'], diagnosis_codes: [] }),
+    mutationFn: () => api.post<BillingCase>(ROUTES.BILLING_CASES, {
+      patient_id: draft.patient_id,
+      payer: draft.payer || null,
+      cpt_codes: draft.cpt_codes.split(',').map((item) => item.trim()).filter(Boolean),
+      diagnosis_codes: draft.diagnosis_codes.split(',').map((item) => item.trim()).filter(Boolean),
+      notes: draft.notes || null,
+    }),
+    onSuccess: () => {
+      setDraft({ patient_id: '', payer: '', cpt_codes: '99213', diagnosis_codes: '', notes: '' });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+    },
+  });
+  const updateMutation = useMutation({
+    mutationFn: ({ id, update }: { id: string; update: Partial<BillingCase> }) => api.patch<BillingCase>(`${ROUTES.BILLING_CASES}/${id}`, update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
   });
   const eligibilityMutation = useMutation({
@@ -43,30 +58,38 @@ function BillingPage() {
           <CreditCard className="h-4 w-4 text-accent-700" />
           Charge Capture
         </div>
-        <div className="flex flex-wrap gap-2">
-          {patientOptions.slice(0, 5).map((patient) => (
-            <button key={patient.id} onClick={() => createMutation.mutate(patient)} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
-              Start case: {patient.last_name}, {patient.first_name}
-            </button>
-          ))}
-        </div>
+        <form onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }} className="grid gap-3 md:grid-cols-[1fr_10rem_10rem_10rem_auto]">
+          <select required value={draft.patient_id} onChange={(event) => setDraft({ ...draft, patient_id: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+            <option value="">Select patient</option>
+            {patientOptions.map((patient) => <option key={patient.id} value={patient.id}>{patient.last_name}, {patient.first_name}</option>)}
+          </select>
+          <input placeholder="Payer" value={draft.payer} onChange={(event) => setDraft({ ...draft, payer: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+          <input placeholder="CPT" value={draft.cpt_codes} onChange={(event) => setDraft({ ...draft, cpt_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+          <input placeholder="DX" value={draft.diagnosis_codes} onChange={(event) => setDraft({ ...draft, diagnosis_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+          <button className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create</button>
+        </form>
       </section>
       {isLoading ? <LoadingState label="Loading billing cases" /> : (
         <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
           <div className="divide-y divide-clinic-100">
             {rows.map((item) => (
-              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_10rem_9rem]">
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_9rem_9rem_18rem]">
                 <div>
                   <div className="text-sm font-semibold text-clinic-900">{item.payer ?? 'No payer'}</div>
                   <div className="mt-1 text-xs text-clinic-500">CPT {item.cpt_codes.join(', ') || 'not coded'} · DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
                   {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
                 </div>
-                <span className="text-sm font-medium text-clinic-700">{item.status}</span>
+                <select value={item.status} onChange={(event) => updateMutation.mutate({ id: item.id, update: { status: event.target.value as BillingCase['status'] } })} className="rounded-md border border-clinic-200 px-2 py-1 text-sm text-clinic-700">
+                  {['draft', 'ready', 'submitted', 'denied', 'paid'].map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
                 <span className="text-sm text-clinic-500">{item.eligibility_status}</span>
-                <button onClick={() => eligibilityMutation.mutate(item.patient_id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  Eligibility
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => eligibilityMutation.mutate(item.patient_id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Eligibility
+                  </button>
+                  {item.status === 'denied' && <button onClick={() => updateMutation.mutate({ id: item.id, update: { notes: `${item.notes ?? ''}\nDenial worked and ready to resubmit.`, status: 'ready' } })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
+                </div>
               </div>
             ))}
             {rows.length === 0 && <EmptyState title="No billing cases" detail="Start a case from charge capture or a signed encounter." />}
