@@ -9,6 +9,7 @@ export const ROUTES = {
   PATIENTS: '/api/patients',
   PATIENT: (id: string) => `/api/patients/${id}`,
   PATIENT_CHART_SUMMARY: (id: string) => `/api/patients/${id}/chart-summary`,
+  PATIENT_CHECKOUT_HANDOFF: (id: string) => `/api/patients/${id}/checkout-handoff`,
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
   PATIENT_DOCUMENT: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}`,
   PATIENT_DOCUMENT_ACCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/access`,

@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -60,6 +60,8 @@ function PatientChartPage() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [documentAccessMessage, setDocumentAccessMessage] = useState<string | null>(null);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const { data: patient, isLoading, isError, error } = useQuery({
     queryKey: QUERY_KEYS.PATIENT(patientId),
@@ -74,6 +76,11 @@ function PatientChartPage() {
   const { data: chartSummary } = useQuery({
     queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId),
     queryFn: () => api.get<PatientChartSummary>(ROUTES.PATIENT_CHART_SUMMARY(patientId)),
+  });
+
+  const { data: checkoutHandoff } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId),
+    queryFn: () => api.get<PatientCheckoutHandoff>(ROUTES.PATIENT_CHECKOUT_HANDOFF(patientId)),
   });
 
   const { data: medicationList } = useQuery({
@@ -119,6 +126,7 @@ function PatientChartPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
     },
   });
 
@@ -138,19 +146,28 @@ function PatientChartPage() {
   const updateMedicationMutation = useMutation({
     mutationFn: ({ medicationId, status }: { medicationId: string; status: PatientMedication['status'] }) =>
       api.patch<PatientMedication>(ROUTES.PATIENT_MEDICATION(patientId, medicationId), { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_MEDICATIONS(patientId) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_MEDICATIONS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+    },
   });
 
   const updateCarePlanMutation = useMutation({
     mutationFn: ({ itemId, status }: { itemId: string; status: PatientCarePlanItem['status'] }) =>
       api.patch<PatientCarePlanItem>(ROUTES.PATIENT_CARE_PLAN_ITEM(patientId, itemId), { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+    },
   });
 
   const updateLabMutation = useMutation({
     mutationFn: ({ labId, status }: { labId: string; status: PatientLabResult['status'] }) =>
       api.patch<PatientLabResult>(ROUTES.PATIENT_LAB(patientId, labId), { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_LABS(patientId) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_LABS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+    },
   });
 
   const updateEncounterMutation = useMutation({
@@ -159,6 +176,22 @@ function PatientChartPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+    },
+  });
+
+  const completeCheckoutMutation = useMutation({
+    mutationFn: (appointmentId: string) =>
+      api.patch<Appointment>(`/schedule/appointments/${appointmentId}`, { status: 'completed' satisfies AppointmentStatus }),
+    onSuccess: () => {
+      setCheckoutError(null);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TODAY_QUEUE });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+    },
+    onError: (mutationError) => {
+      setCheckoutError(mutationError instanceof Error ? mutationError.message : 'Checkout could not be completed.');
     },
   });
 
@@ -215,6 +248,13 @@ function PatientChartPage() {
             <span>{patient.gender}</span>
           </p>
         </div>
+        <button
+          onClick={() => setHandoffOpen(true)}
+          className="flex items-center gap-2 rounded-md bg-clinic-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-clinic-700"
+        >
+          <ShieldCheck className="h-4 w-4" />
+          Checkout Handoff
+        </button>
         {activeTab === 'demographics' && !editing && (
           <button
             onClick={startEditing}
@@ -700,7 +740,164 @@ function PatientChartPage() {
           </div>
         </div>
       )}
+
+      {handoffOpen && checkoutHandoff && (
+        <CheckoutHandoffPanel
+          handoff={checkoutHandoff}
+          checkoutError={checkoutError}
+          completing={completeCheckoutMutation.isPending}
+          onClose={() => setHandoffOpen(false)}
+          onFileDocument={(documentId) => updateDocumentMutation.mutate({ documentId, status: 'filed' })}
+          onConfirmMedication={(medicationId) => updateMedicationMutation.mutate({ medicationId, status: 'active' })}
+          onReviewLab={(labId) => updateLabMutation.mutate({ labId, status: 'reviewed' })}
+          onCompleteCarePlan={(itemId) => updateCarePlanMutation.mutate({ itemId, status: 'completed' })}
+          onSignEncounter={(encounterId) => updateEncounterMutation.mutate({ encounterId, status: 'signed' })}
+          onCompleteCheckout={() => {
+            const appointment = checkoutHandoff.chart_summary.upcoming_appointments.find((item) =>
+              ['checkout', 'provider_review', 'roomed', 'checked_in', 'in_progress'].includes(item.status),
+            ) ?? checkoutHandoff.chart_summary.upcoming_appointments[0];
+            if (appointment) completeCheckoutMutation.mutate(appointment.id);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+function CheckoutHandoffPanel({
+  handoff,
+  checkoutError,
+  completing,
+  onClose,
+  onFileDocument,
+  onConfirmMedication,
+  onReviewLab,
+  onCompleteCarePlan,
+  onSignEncounter,
+  onCompleteCheckout,
+}: {
+  handoff: PatientCheckoutHandoff;
+  checkoutError: string | null;
+  completing: boolean;
+  onClose: () => void;
+  onFileDocument: (documentId: string) => void;
+  onConfirmMedication: (medicationId: string) => void;
+  onReviewLab: (labId: string) => void;
+  onCompleteCarePlan: (itemId: string) => void;
+  onSignEncounter: (encounterId: string) => void;
+  onCompleteCheckout: () => void;
+}) {
+  const blocked = handoff.chart_summary.checkout_readiness === 'blocked';
+
+  return (
+    <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4" role="dialog" aria-modal="true">
+      <div className="ml-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-md border border-clinic-300 bg-white shadow-xl">
+        <div className="flex items-start justify-between gap-4 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Checkout Handoff</h2>
+            <p className="mt-1 text-xs text-clinic-500">
+              {handoff.patient.last_name}, {handoff.patient.first_name} - {handoff.patient.mrn}
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Close checkout handoff" className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className={`border-b px-4 py-3 text-sm ${blocked ? 'border-red-100 bg-red-50 text-red-800' : 'border-accent-100 bg-accent-50 text-accent-800'}`}>
+            {blocked ? handoff.chart_summary.blockers.join('; ') : 'No chart blockers are currently reported.'}
+          </div>
+
+          <HandoffSection title="Documents Needing Review" rows={handoff.documents_needing_review.map((item) => ({
+            id: item.id,
+            title: item.title,
+            detail: `${item.source} - ${item.pages} pages`,
+            actionLabel: 'File',
+            onAction: () => onFileDocument(item.id),
+          }))} />
+
+          <HandoffSection title="Medication Reconciliation" rows={handoff.medications_needing_review.map((item) => ({
+            id: item.id,
+            title: item.name,
+            detail: `${item.dose ?? 'No dose'} - ${formatClinicalStatus(item.status)}`,
+            actionLabel: 'Confirm',
+            onAction: () => onConfirmMedication(item.id),
+          }))} />
+
+          <HandoffSection title="Labs Needing Review" rows={handoff.labs_needing_review.map((item) => ({
+            id: item.id,
+            title: `${item.panel}: ${item.result}`,
+            detail: `${item.flag ?? 'No flag'} - ${formatClinicalStatus(item.status)}`,
+            actionLabel: 'Reviewed',
+            onAction: () => onReviewLab(item.id),
+          }))} />
+
+          <HandoffSection title="Care Plan Open Items" rows={handoff.care_plan_open_items.map((item) => ({
+            id: item.id,
+            title: item.item,
+            detail: `${item.owner_role} - ${item.due ?? 'No due date'}`,
+            actionLabel: 'Done',
+            onAction: () => onCompleteCarePlan(item.id),
+          }))} />
+
+          <HandoffSection title="Unsigned Encounters" rows={handoff.unsigned_encounters.map((item) => ({
+            id: item.id,
+            title: item.encounter_type,
+            detail: item.provider_name ?? 'No provider assigned',
+            actionLabel: 'Sign',
+            onAction: () => onSignEncounter(item.id),
+          }))} />
+        </div>
+
+        <div className="border-t border-clinic-200 px-4 py-3">
+          {checkoutError && <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{checkoutError}</div>}
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">
+              Close
+            </button>
+            <button
+              onClick={onCompleteCheckout}
+              disabled={blocked || completing || handoff.chart_summary.upcoming_appointments.length === 0}
+              className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {completing ? 'Completing...' : 'Complete Checkout'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HandoffSection({
+  title,
+  rows,
+}: {
+  title: string;
+  rows: Array<{ id: string; title: string; detail: string; actionLabel: string; onAction: () => void }>;
+}) {
+  return (
+    <section className="border-b border-clinic-100">
+      <div className="flex items-center justify-between bg-clinic-50 px-4 py-2">
+        <h3 className="text-xs font-semibold uppercase text-clinic-500">{title}</h3>
+        <span className="text-xs font-medium text-clinic-500">{rows.length}</span>
+      </div>
+      <div className="divide-y divide-clinic-100">
+        {rows.map((row) => (
+          <div key={row.id} className="flex items-center gap-3 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-clinic-900">{row.title}</div>
+              <div className="mt-0.5 truncate text-xs text-clinic-500">{row.detail}</div>
+            </div>
+            <button onClick={row.onAction} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
+              {row.actionLabel}
+            </button>
+          </div>
+        ))}
+        {rows.length === 0 && <div className="px-4 py-4 text-sm text-clinic-400">Clear</div>}
+      </div>
+    </section>
   );
 }
 

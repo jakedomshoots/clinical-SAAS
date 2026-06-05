@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -724,6 +724,25 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       upcoming_appointments: upcomingAppointments,
     };
     return summary as T;
+  }
+
+  const patientCheckoutHandoffMatch = path.match(/^\/patients\/([^/]+)\/checkout-handoff$/);
+  if (patientCheckoutHandoffMatch && method === 'GET') {
+    const patientId = patientCheckoutHandoffMatch[1];
+    const patient = patients.find((item) => item.id === patientId);
+    if (!patient) throw new Error('Patient not found');
+    const chartSummary = await demoRequest<PatientChartSummary>('GET', `/patients/${patientId}/chart-summary`);
+    if (!chartSummary) throw new Error('Chart summary not found');
+    const handoff: PatientCheckoutHandoff = {
+      patient,
+      chart_summary: chartSummary,
+      documents_needing_review: patientDocuments.filter((document) => document.patient_id === patientId && document.status === 'needs_review'),
+      medications_needing_review: patientMedications.filter((medication) => medication.patient_id === patientId && ['review', 'held'].includes(medication.status)),
+      labs_needing_review: patientLabs.filter((lab) => lab.patient_id === patientId && ['new', 'needs_review'].includes(lab.status)),
+      care_plan_open_items: patientCarePlan.filter((item) => item.patient_id === patientId && ['open', 'in_progress', 'blocked'].includes(item.status)),
+      unsigned_encounters: patientEncounters.filter((encounter) => encounter.patient_id === patientId && ['draft', 'provider_review'].includes(encounter.status)),
+    };
+    return handoff as T;
   }
 
   const patientEncountersMatch = path.match(/^\/patients\/([^/]+)\/encounters$/);
