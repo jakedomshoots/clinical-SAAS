@@ -11,6 +11,7 @@ export interface PatientChartSummaryCounts {
   urgent_tasks: number;
   recent_faxes: number;
   upcoming_appointments: number;
+  unsigned_encounters: number;
 }
 
 export interface PatientChartSummary {

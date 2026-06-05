@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fax import Fax
 from app.models.patient import Patient
+from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.schedule import Appointment, AppointmentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
@@ -132,16 +133,27 @@ async def get_patient_chart_summary(
             )
         )
     ).scalar() or 0
+    unsigned_encounters = (
+        await db.execute(
+            select(func.count(PatientEncounter.id)).where(
+                PatientEncounter.patient_id == patient_id,
+                PatientEncounter.organization_id == user.organization_id,
+                PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+            )
+        )
+    ).scalar() or 0
 
     blockers: list[str] = []
     if documents_needing_review:
         blockers.append(f"{documents_needing_review} outside document needs review")
     if urgent_tasks:
         blockers.append(f"{urgent_tasks} urgent task is still open")
+    if unsigned_encounters:
+        blockers.append(f"{unsigned_encounters} encounter note needs sign-off")
     if not blockers and open_tasks:
         blockers.append(f"{open_tasks} open task remains for checkout")
 
-    checkout_readiness = "blocked" if documents_needing_review or urgent_tasks else "ready"
+    checkout_readiness = "blocked" if documents_needing_review or urgent_tasks or unsigned_encounters else "ready"
 
     return PatientChartSummaryOut(
         patient_id=patient_id,
@@ -154,6 +166,7 @@ async def get_patient_chart_summary(
             urgent_tasks=urgent_tasks,
             recent_faxes=len(fax_rows),
             upcoming_appointments=len(appointment_rows),
+            unsigned_encounters=unsigned_encounters,
         ),
         documents=[PatientDocumentOut.model_validate(document) for document in document_rows],
         open_tasks=[_make_task_dict(task) for task in open_task_rows],

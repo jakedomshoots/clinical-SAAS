@@ -127,3 +127,56 @@ class PatientLabResultOut(BaseModel):
 class PatientLabResultListOut(BaseModel):
     data: list[PatientLabResultOut]
     total: int
+
+
+class PatientEncounterCreate(BaseModel):
+    appointment_id: str | None = None
+    provider_id: str | None = None
+    encounter_type: str = Field(default="office_visit", min_length=1, max_length=100)
+    status: str = "draft"
+    summary: str | None = None
+    subjective: str | None = None
+    objective: str | None = None
+    assessment: str | None = None
+    plan: str | None = None
+
+
+class PatientEncounterUpdate(BaseModel):
+    appointment_id: str | None = None
+    provider_id: str | None = None
+    encounter_type: str | None = Field(default=None, min_length=1, max_length=100)
+    status: str | None = None
+    summary: str | None = None
+    subjective: str | None = None
+    objective: str | None = None
+    assessment: str | None = None
+    plan: str | None = None
+
+
+class PatientEncounterOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    patient_id: str
+    appointment_id: str | None
+    provider_id: str | None
+    provider_name: str | None = None
+    encounter_type: str
+    status: str
+    summary: str | None
+    subjective: str | None
+    objective: str | None
+    assessment: str | None
+    plan: str | None
+    signed_at: datetime | None
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("signed_at", "created_at", "updated_at")
+    def serialize_dt(self, dt: datetime | None) -> str | None:
+        return dt.isoformat() if dt else None
+
+
+class PatientEncounterListOut(BaseModel):
+    data: list[PatientEncounterOut]
+    total: int

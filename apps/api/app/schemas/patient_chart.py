@@ -13,6 +13,7 @@ class PatientChartSummaryCounts(BaseModel):
     urgent_tasks: int
     recent_faxes: int
     upcoming_appointments: int
+    unsigned_encounters: int
 
 
 class PatientChartSummaryOut(BaseModel):

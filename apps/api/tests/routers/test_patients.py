@@ -383,3 +383,47 @@ async def test_patient_labs_are_persisted_and_reviewable(client: AsyncClient, au
     )
     assert updated.status_code == 200
     assert updated.json()["status"] == "reviewed"
+
+
+@pytest.mark.asyncio
+async def test_patient_encounters_can_be_created_and_signed(client: AsyncClient, auth_headers, admin_user):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Encounter", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    encounter_res = await client.post(f"/api/patients/{patient_id}/encounters", json={
+        "provider_id": admin_user.id,
+        "encounter_type": "annual_wellness",
+        "status": "provider_review",
+        "summary": "Preventive visit with medication reconciliation.",
+        "assessment": "Stable chronic conditions.",
+        "plan": "Follow up in 3 months.",
+    }, headers=auth_headers)
+
+    assert encounter_res.status_code == 201
+    encounter = encounter_res.json()
+    assert encounter["status"] == "provider_review"
+    assert encounter["provider_name"] == admin_user.display_name
+
+    summary = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
+    assert summary.status_code == 200
+    assert summary.json()["checkout_readiness"] == "blocked"
+    assert summary.json()["counts"]["unsigned_encounters"] == 1
+
+    sign_res = await client.patch(
+        f"/api/patients/{patient_id}/encounters/{encounter['id']}",
+        json={"status": "signed"},
+        headers=auth_headers,
+    )
+    assert sign_res.status_code == 200
+    assert sign_res.json()["status"] == "signed"
+    assert sign_res.json()["signed_at"] is not None
+
+    listed = await client.get(f"/api/patients/{patient_id}/encounters", headers=auth_headers)
+    assert listed.status_code == 200
+    assert listed.json()["total"] == 1
+
+    ready = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
+    assert ready.json()["counts"]["unsigned_encounters"] == 0
+    assert ready.json()["checkout_readiness"] == "ready"

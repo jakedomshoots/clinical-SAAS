@@ -11,6 +11,10 @@ from app.schemas.patient_clinical import (
     PatientCarePlanItemListOut,
     PatientCarePlanItemOut,
     PatientCarePlanItemUpdate,
+    PatientEncounterCreate,
+    PatientEncounterListOut,
+    PatientEncounterOut,
+    PatientEncounterUpdate,
     PatientLabResultCreate,
     PatientLabResultListOut,
     PatientLabResultOut,
@@ -313,3 +317,46 @@ async def update_patient_lab(
     if not lab:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lab result not found")
     return PatientLabResultOut(**lab)
+
+
+@router.get("/{patient_id}/encounters", response_model=PatientEncounterListOut)
+async def list_patient_encounters(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await patient_clinical_service.list_encounters(db, current_user, patient_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    data, total = result
+    return PatientEncounterListOut(data=[PatientEncounterOut(**item) for item in data], total=total)
+
+
+@router.post("/{patient_id}/encounters", response_model=PatientEncounterOut, status_code=status.HTTP_201_CREATED)
+async def create_patient_encounter(
+    patient_id: str,
+    data: PatientEncounterCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    encounter = await patient_clinical_service.create_encounter(db, current_user, patient_id, data.model_dump())
+    if not encounter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient, appointment, or provider not found")
+    return PatientEncounterOut(**encounter)
+
+
+@router.patch("/{patient_id}/encounters/{encounter_id}", response_model=PatientEncounterOut)
+async def update_patient_encounter(
+    patient_id: str,
+    encounter_id: str,
+    data: PatientEncounterUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    encounter = await patient_clinical_service.update_encounter(db, current_user, patient_id, encounter_id, update_data)
+    if not encounter:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encounter not found")
+    return PatientEncounterOut(**encounter)

@@ -30,6 +30,13 @@ class LabResultStatus(str, enum.Enum):
     filed = "filed"
 
 
+class EncounterStatus(str, enum.Enum):
+    draft = "draft"
+    provider_review = "provider_review"
+    signed = "signed"
+    amended = "amended"
+
+
 def utcnow():
     return datetime.now(UTC).replace(tzinfo=None)
 
@@ -78,5 +85,25 @@ class PatientLabResult(Base):
     status: Mapped[LabResultStatus] = mapped_column(SAEnum(LabResultStatus), default=LabResultStatus.new, nullable=False, index=True)
     source: Mapped[str | None] = mapped_column(String(200), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class PatientEncounter(Base):
+    __tablename__ = "patient_encounters"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default", index=True)
+    patient_id: Mapped[str] = mapped_column(String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
+    appointment_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("appointments.id", ondelete="SET NULL"), nullable=True, index=True)
+    provider_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    encounter_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[EncounterStatus] = mapped_column(SAEnum(EncounterStatus), default=EncounterStatus.draft, nullable=False, index=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    subjective: Mapped[str | None] = mapped_column(Text, nullable=True)
+    objective: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assessment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    plan: Mapped[str | None] = mapped_column(Text, nullable=True)
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

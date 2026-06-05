@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -44,12 +44,6 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'labs', label: 'Labs' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'messages', label: 'Messages' },
-];
-
-const encounterRows = [
-  { date: '2026-06-03', type: 'Annual wellness', provider: 'Dr. Nora Ellis', status: 'Open note', summary: 'Preventive visit, medication reconciliation, chronic condition review.' },
-  { date: '2026-03-14', type: 'Follow-up', provider: 'Dr. Nora Ellis', status: 'Signed', summary: 'Blood pressure improved after dose adjustment.' },
-  { date: '2025-12-08', type: 'Telehealth', provider: 'Dr. Omar Singh', status: 'Signed', summary: 'Reviewed home glucose readings and nutrition plan.' },
 ];
 
 const patientMessages = [
@@ -96,10 +90,16 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientLabResultListResponse>(ROUTES.PATIENT_LABS(patientId)),
   });
 
+  const { data: encounterList } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId),
+    queryFn: () => api.get<PatientEncounterListResponse>(ROUTES.PATIENT_ENCOUNTERS(patientId)),
+  });
+
   const documentRows = documentList?.data ?? [];
   const medicationRows = medicationList?.data ?? [];
   const carePlanItems = carePlanList?.data ?? [];
   const labRows = labList?.data ?? [];
+  const encounterRows = encounterList?.data ?? [];
   const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
   const openTasks = chartSummary?.open_tasks ?? [];
   const blockers = chartSummary?.blockers ?? [];
@@ -137,6 +137,15 @@ function PatientChartPage() {
     mutationFn: ({ labId, status }: { labId: string; status: PatientLabResult['status'] }) =>
       api.patch<PatientLabResult>(ROUTES.PATIENT_LAB(patientId, labId), { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_LABS(patientId) }),
+  });
+
+  const updateEncounterMutation = useMutation({
+    mutationFn: ({ encounterId, status }: { encounterId: string; status: PatientEncounter['status'] }) =>
+      api.patch<PatientEncounter>(ROUTES.PATIENT_ENCOUNTER(patientId, encounterId), { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_ENCOUNTERS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+    },
   });
 
   function startEditing() {
@@ -226,7 +235,7 @@ function PatientChartPage() {
               { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
               { label: 'Documents', value: String(chartSummary?.counts.documents_total ?? documentRows.length), detail: `${chartSummary?.counts.documents_needing_review ?? documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
               { label: 'Open tasks', value: String(chartSummary?.counts.open_tasks ?? openTasks.length), detail: `${chartSummary?.counts.urgent_tasks ?? 0} urgent`, icon: ClipboardList, tone: 'text-red-700' },
-              { label: 'Care plan', value: '4 items', detail: 'Checkout handoff ready', icon: ShieldCheck, tone: 'text-clinic-700' },
+              { label: 'Care plan', value: String(carePlanItems.length), detail: `${chartSummary?.counts.unsigned_encounters ?? 0} unsigned notes`, icon: ShieldCheck, tone: 'text-clinic-700' },
             ].map(({ label, value, detail, icon: Icon, tone }) => (
               <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
                 <div className="flex items-center justify-between">
@@ -393,20 +402,37 @@ function PatientChartPage() {
           </div>
           <div className="divide-y divide-clinic-100">
             {encounterRows.map((encounter) => (
-              <div key={`${encounter.date}-${encounter.type}`} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_10rem]">
-                <div className="font-mono text-xs text-clinic-500">{encounter.date}</div>
+              <div key={encounter.id} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_14rem]">
+                <div className="font-mono text-xs text-clinic-500">{formatDateOnly(encounter.created_at)}</div>
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{encounter.type}</div>
-                  <div className="mt-1 text-sm text-clinic-600">{encounter.summary}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{encounter.provider}</div>
+                  <div className="text-sm font-semibold text-clinic-900">{encounter.encounter_type}</div>
+                  <div className="mt-1 text-sm text-clinic-600">{encounter.summary ?? 'No summary entered.'}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{encounter.provider_name ?? 'No provider assigned'}</div>
+                  {(encounter.assessment || encounter.plan) && (
+                    <div className="mt-2 grid gap-2 text-xs text-clinic-600 md:grid-cols-2">
+                      {encounter.assessment && <div><span className="font-semibold text-clinic-700">Assessment:</span> {encounter.assessment}</div>}
+                      {encounter.plan && <div><span className="font-semibold text-clinic-700">Plan:</span> {encounter.plan}</div>}
+                    </div>
+                  )}
                 </div>
-                <div>
+                <div className="flex flex-wrap items-start justify-end gap-2">
                   <span className="inline-flex rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
-                    {encounter.status}
+                    {formatClinicalStatus(encounter.status)}
                   </span>
+                  {encounter.status === 'provider_review' && (
+                    <button
+                      onClick={() => updateEncounterMutation.mutate({ encounterId: encounter.id, status: 'signed' })}
+                      className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                    >
+                      Sign
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
+            {encounterRows.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-clinic-400">No encounters have been added to this chart.</div>
+            )}
           </div>
         </div>
       )}

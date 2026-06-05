@@ -218,6 +218,25 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        'patient_encounters',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('appointment_id', sa.String(36), sa.ForeignKey('appointments.id', ondelete='SET NULL'), nullable=True, index=True),
+        sa.Column('provider_id', sa.String(36), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True),
+        sa.Column('encounter_type', sa.String(100), nullable=False),
+        sa.Column('status', sa.Enum('draft', 'provider_review', 'signed', 'amended', name='encounterstatus'), nullable=False, server_default='draft', index=True),
+        sa.Column('summary', sa.Text(), nullable=True),
+        sa.Column('subjective', sa.Text(), nullable=True),
+        sa.Column('objective', sa.Text(), nullable=True),
+        sa.Column('assessment', sa.Text(), nullable=True),
+        sa.Column('plan', sa.Text(), nullable=True),
+        sa.Column('signed_at', sa.DateTime(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
         'messages',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column(
@@ -264,6 +283,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('integration_events')
     op.drop_table('messages')
+    op.drop_table('patient_encounters')
     op.drop_table('patient_lab_results')
     op.drop_table('patient_care_plan_items')
     op.drop_table('patient_medications')

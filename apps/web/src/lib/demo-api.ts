@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -20,6 +20,7 @@ interface DemoStore {
   patientMedications?: PatientMedication[];
   patientCarePlan?: PatientCarePlanItem[];
   patientLabs?: PatientLabResult[];
+  patientEncounters?: PatientEncounter[];
   messages: Message[];
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
@@ -241,6 +242,43 @@ let patientLabs: PatientLabResult[] = [
   { id: uuid(483), patient_id: uuid(101), collected_at: '2026-03-12T08:00:00-04:00', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'filed', source: 'LabCorp', note: null, created_at: iso(-500), updated_at: iso(-500) },
 ];
 
+let patientEncounters: PatientEncounter[] = [
+  {
+    id: uuid(491),
+    patient_id: uuid(101),
+    appointment_id: uuid(301),
+    provider_id: uuid(2),
+    provider_name: 'Dr. Nora Ellis',
+    encounter_type: 'Annual wellness',
+    status: 'provider_review',
+    summary: 'Preventive visit, medication reconciliation, and chronic condition review.',
+    subjective: 'Patient reports feeling well overall with questions about recent lab alert.',
+    objective: 'Vitals reviewed. Outside CMP and A1c available in chart.',
+    assessment: 'Hypertension, diabetes, hyperlipidemia with potassium requiring review.',
+    plan: 'Review potassium supplement, call patient with medication plan, follow up in 3 months.',
+    signed_at: null,
+    created_at: iso(-3),
+    updated_at: iso(-1),
+  },
+  {
+    id: uuid(492),
+    patient_id: uuid(101),
+    appointment_id: null,
+    provider_id: uuid(2),
+    provider_name: 'Dr. Nora Ellis',
+    encounter_type: 'Follow-up',
+    status: 'signed',
+    summary: 'Blood pressure improved after dose adjustment.',
+    subjective: null,
+    objective: null,
+    assessment: null,
+    plan: 'Continue medication and home BP monitoring.',
+    signed_at: iso(-190),
+    created_at: iso(-200),
+    updated_at: iso(-190),
+  },
+];
+
 let messages: Message[] = [
   { id: uuid(501), sender_id: uuid(101), sender_name: 'Mary Collins', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?', thread_id: uuid(601), is_read: false, created_at: iso(-2) },
   { id: uuid(502), sender_id: uuid(1), sender_name: 'Clinic Admin', recipient_id: uuid(101), recipient_name: 'Mary Collins', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.', thread_id: uuid(601), is_read: true, created_at: iso(-1.5) },
@@ -310,7 +348,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, messages, auditEvents, integrationEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents }),
   );
 }
 
@@ -324,6 +362,7 @@ if (storedDemoData) {
   patientMedications = storedDemoData.patientMedications ?? patientMedications;
   patientCarePlan = storedDemoData.patientCarePlan ?? patientCarePlan;
   patientLabs = storedDemoData.patientLabs ?? patientLabs;
+  patientEncounters = storedDemoData.patientEncounters ?? patientEncounters;
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
@@ -647,12 +686,14 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       .slice(0, 5);
     const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === patientId && document.status === 'needs_review').length;
     const urgentTasks = tasks.filter((task) => task.patient_id === patientId && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
+    const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === patientId && ['draft', 'provider_review'].includes(encounter.status)).length;
     const summary: PatientChartSummary = {
       patient_id: patientId,
-      checkout_readiness: documentsNeedingReview || urgentTasks ? 'blocked' : 'ready',
+      checkout_readiness: documentsNeedingReview || urgentTasks || unsignedEncounters ? 'blocked' : 'ready',
       blockers: [
         ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
         ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
+        ...(unsignedEncounters ? [`${unsignedEncounters} encounter note needs sign-off`] : []),
       ],
       counts: {
         documents_total: patientDocuments.filter((document) => document.patient_id === patientId).length,
@@ -661,6 +702,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         urgent_tasks: urgentTasks,
         recent_faxes: recentFaxes.length,
         upcoming_appointments: upcomingAppointments.length,
+        unsigned_encounters: unsignedEncounters,
       },
       documents,
       open_tasks: openTasks,
@@ -668,6 +710,30 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       upcoming_appointments: upcomingAppointments,
     };
     return summary as T;
+  }
+
+  const patientEncountersMatch = path.match(/^\/patients\/([^/]+)\/encounters$/);
+  if (patientEncountersMatch && method === 'GET') {
+    const patientId = patientEncountersMatch[1];
+    const data = patientEncounters.filter((encounter) => encounter.patient_id === patientId);
+    return { data, total: data.length } as T;
+  }
+
+  const patientEncounterMatch = path.match(/^\/patients\/([^/]+)\/encounters\/([^/]+)$/);
+  if (patientEncounterMatch && method === 'PATCH') {
+    const [patientId, encounterId] = [patientEncounterMatch[1], patientEncounterMatch[2]];
+    patientEncounters = patientEncounters.map((encounter) =>
+      encounter.patient_id === patientId && encounter.id === encounterId
+        ? {
+            ...encounter,
+            ...(body as Partial<PatientEncounter>),
+            signed_at: (body as Partial<PatientEncounter>).status === 'signed' ? new Date().toISOString() : encounter.signed_at,
+            updated_at: new Date().toISOString(),
+          }
+        : encounter,
+    );
+    saveDemoData();
+    return patientEncounters.find((encounter) => encounter.id === encounterId) as T;
   }
 
   const patientMedicationsMatch = path.match(/^\/patients\/([^/]+)\/medications$/);
