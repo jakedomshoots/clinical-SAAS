@@ -8,6 +8,7 @@ export const ROUTES = {
   },
   PATIENTS: '/api/patients',
   PATIENT: (id: string) => `/api/patients/${id}`,
+  PATIENT_CHART_SUMMARY: (id: string) => `/api/patients/${id}/chart-summary`,
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,

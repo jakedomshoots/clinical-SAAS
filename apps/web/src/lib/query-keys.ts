@@ -33,6 +33,7 @@ export const WS_CHANNELS = {
 export const QUERY_KEYS = {
   PATIENTS: ['patients'] as const,
   PATIENT: (id: string) => ['patients', id] as const,
+  PATIENT_CHART_SUMMARY: (id: string) => ['patients', id, 'chart-summary'] as const,
   PATIENT_DOCUMENTS: (id: string) => ['patients', id, 'documents'] as const,
   TASKS: ['tasks'] as const,
   TASK: (id: string) => ['tasks', id] as const,

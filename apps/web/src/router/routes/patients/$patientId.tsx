@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientDocument, PatientDocumentListResponse, PatientUpdate } from '@concierge-os/shared';
+import type { Patient, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -72,12 +72,6 @@ const carePlanItems = [
   { owner: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', state: 'Open' },
 ];
 
-const patientTasks = [
-  { title: 'Call with potassium result', owner: 'Maya Chen, MA', due: 'Today 2:00 PM', priority: 'Urgent' },
-  { title: 'Reconcile medication list', owner: 'Dr. Nora Ellis', due: 'Before checkout', priority: 'High' },
-  { title: 'Schedule 3 month follow-up', owner: 'Front desk', due: 'Today', priority: 'Normal' },
-];
-
 const patientMessages = [
   { from: 'Mary Collins', at: '11:18 AM', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?' },
   { from: 'Clinic Admin', at: '11:44 AM', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.' },
@@ -102,8 +96,15 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientDocumentListResponse>(ROUTES.PATIENT_DOCUMENTS(patientId)),
   });
 
+  const { data: chartSummary } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId),
+    queryFn: () => api.get<PatientChartSummary>(ROUTES.PATIENT_CHART_SUMMARY(patientId)),
+  });
+
   const documentRows = documentList?.data ?? [];
   const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
+  const openTasks = chartSummary?.open_tasks ?? [];
+  const blockers = chartSummary?.blockers ?? [];
 
   const updateMutation = useMutation({
     mutationFn: (data: PatientUpdate) => api.patch<Patient>(ROUTES.PATIENT(patientId), data),
@@ -198,8 +199,8 @@ function PatientChartPage() {
           <section className="grid gap-3 lg:grid-cols-4">
             {[
               { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
-              { label: 'Documents', value: String(documentRows.length), detail: `${documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
-              { label: 'Open tasks', value: String(patientTasks.length), detail: '2 clinical blockers', icon: ClipboardList, tone: 'text-red-700' },
+              { label: 'Documents', value: String(chartSummary?.counts.documents_total ?? documentRows.length), detail: `${chartSummary?.counts.documents_needing_review ?? documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
+              { label: 'Open tasks', value: String(chartSummary?.counts.open_tasks ?? openTasks.length), detail: `${chartSummary?.counts.urgent_tasks ?? 0} urgent`, icon: ClipboardList, tone: 'text-red-700' },
               { label: 'Care plan', value: '4 items', detail: 'Checkout handoff ready', icon: ShieldCheck, tone: 'text-clinic-700' },
             ].map(({ label, value, detail, icon: Icon, tone }) => (
               <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
@@ -234,15 +235,15 @@ function PatientChartPage() {
             <aside className="rounded-md border border-clinic-200 bg-white p-4">
               <h2 className="text-sm font-semibold text-clinic-800">Clinical Flags</h2>
               <div className="mt-3 space-y-3 text-sm">
-                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
-                  Critical potassium result needs provider review.
-                </div>
-                <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-800">
-                  Outside discharge med list includes potassium supplement.
-                </div>
-                <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3 text-clinic-700">
-                  Cardiology consult note is filed for today's review.
-                </div>
+                {blockers.length > 0 ? blockers.map((blocker) => (
+                  <div key={blocker} className="rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
+                    {blocker}
+                  </div>
+                )) : (
+                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3 text-clinic-700">
+                    No chart blockers are currently reported.
+                  </div>
+                )}
               </div>
             </aside>
           </section>
@@ -544,12 +545,15 @@ function PatientChartPage() {
             </h2>
           </div>
           <div className="divide-y divide-clinic-100">
-            {patientTasks.map((task) => (
-              <div key={task.title} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_8rem_7rem]">
+            {openTasks.length === 0 && (
+              <div className="px-4 py-6 text-sm text-clinic-500">No open tasks are linked to this patient.</div>
+            )}
+            {openTasks.map((task) => (
+              <div key={task.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_8rem_7rem]">
                 <div className="text-sm font-medium text-clinic-900">{task.title}</div>
-                <div className="text-sm text-clinic-600">{task.owner}</div>
-                <div className="text-sm text-clinic-600">{task.due}</div>
-                <div className="text-sm font-medium text-clinic-700">{task.priority}</div>
+                <div className="text-sm text-clinic-600">{task.assigned_to_name ?? 'Unassigned'}</div>
+                <div className="text-sm text-clinic-600">{formatTaskDueDate(task)}</div>
+                <div className="text-sm font-medium text-clinic-700">{formatTaskPriority(task.priority)}</div>
               </div>
             ))}
           </div>
@@ -599,4 +603,12 @@ function formatDocumentStatus(status: PatientDocument['status']) {
     .split('_')
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function formatTaskDueDate(task: Task) {
+  return task.due_date ? formatDateTime(task.due_date) : 'No due date';
+}
+
+function formatTaskPriority(priority: Task['priority']) {
+  return priority[0].toUpperCase() + priority.slice(1);
 }

@@ -5,13 +5,14 @@ from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.patient import PatientCreate, PatientListOut, PatientOut, PatientUpdate
+from app.schemas.patient_chart import PatientChartSummaryOut
 from app.schemas.patient_document import (
     PatientDocumentCreate,
     PatientDocumentListOut,
     PatientDocumentOut,
     PatientDocumentUpdate,
 )
-from app.services import patient_document_service, patient_service
+from app.services import patient_chart_service, patient_document_service, patient_service
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -46,6 +47,18 @@ async def get_patient(
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientOut(**patient)
+
+
+@router.get("/{patient_id}/chart-summary", response_model=PatientChartSummaryOut)
+async def get_patient_chart_summary(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    summary = await patient_chart_service.get_patient_chart_summary(db, current_user, patient_id)
+    if not summary:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return summary
 
 
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)

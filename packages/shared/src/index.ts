@@ -1,6 +1,7 @@
 export * from './types/common';
 export * from './types/user';
 export * from './types/patient';
+export * from './types/patient-chart';
 export * from './types/patient-document';
 export * from './types/task';
 export * from './types/schedule';

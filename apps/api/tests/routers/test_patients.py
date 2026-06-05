@@ -247,3 +247,56 @@ async def test_patient_documents_are_scoped_to_user_organization(
 
     assert list_res.status_code == 404
     assert update_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patient_chart_summary_reports_checkout_blockers(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Checkout", "last_name": "Ready", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Critical outside lab",
+        "source": "Outside Lab",
+        "document_type": "Lab result",
+        "status": "needs_review",
+        "pages": 2,
+    }, headers=auth_headers)
+    await client.post("/api/tasks", json={
+        "title": "Call patient before checkout",
+        "priority": "urgent",
+        "patient_id": patient_id,
+    }, headers=auth_headers)
+
+    res = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["patient_id"] == patient_id
+    assert data["checkout_readiness"] == "blocked"
+    assert data["counts"]["documents_needing_review"] == 1
+    assert data["counts"]["urgent_tasks"] == 1
+    assert data["documents"][0]["title"] == "Critical outside lab"
+    assert data["open_tasks"][0]["title"] == "Call patient before checkout"
+
+
+@pytest.mark.asyncio
+async def test_patient_chart_summary_is_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Private", "last_name": "Summary", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-summary-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+
+    res = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=headers_for(other_user))
+
+    assert res.status_code == 404

@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientDocument, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientChartSummary, PatientDocument, PatientUpdate, Task } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -575,6 +575,50 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       .filter((document) => document.patient_id === patientId)
       .sort((a, b) => b.received_at.localeCompare(a.received_at));
     return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  const patientChartSummaryMatch = path.match(/^\/patients\/([^/]+)\/chart-summary$/);
+  if (patientChartSummaryMatch && method === 'GET') {
+    const patientId = patientChartSummaryMatch[1];
+    if (!patients.some((patient) => patient.id === patientId)) throw new Error('Patient not found');
+    const documents = patientDocuments
+      .filter((document) => document.patient_id === patientId)
+      .sort((a, b) => b.received_at.localeCompare(a.received_at))
+      .slice(0, 5);
+    const openTasks = tasks
+      .filter((task) => task.patient_id === patientId && ['open', 'in_progress'].includes(task.status))
+      .slice(0, 5);
+    const recentFaxes = faxes
+      .filter((fax) => fax.patient_id === patientId)
+      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+      .slice(0, 5);
+    const upcomingAppointments = appointments
+      .filter((appointment) => patientId === appointment.patient_id && ['scheduled', 'checked_in', 'in_progress'].includes(appointment.status))
+      .sort((a, b) => a.start_time.localeCompare(b.start_time))
+      .slice(0, 5);
+    const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === patientId && document.status === 'needs_review').length;
+    const urgentTasks = tasks.filter((task) => task.patient_id === patientId && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
+    const summary: PatientChartSummary = {
+      patient_id: patientId,
+      checkout_readiness: documentsNeedingReview || urgentTasks ? 'blocked' : 'ready',
+      blockers: [
+        ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
+        ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
+      ],
+      counts: {
+        documents_total: patientDocuments.filter((document) => document.patient_id === patientId).length,
+        documents_needing_review: documentsNeedingReview,
+        open_tasks: openTasks.length,
+        urgent_tasks: urgentTasks,
+        recent_faxes: recentFaxes.length,
+        upcoming_appointments: upcomingAppointments.length,
+      },
+      documents,
+      open_tasks: openTasks,
+      recent_faxes: recentFaxes,
+      upcoming_appointments: upcomingAppointments,
+    };
+    return summary as T;
   }
 
   if (path === '/tasks') {
