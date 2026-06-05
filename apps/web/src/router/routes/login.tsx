@@ -24,6 +24,7 @@ function LoginPage() {
       email: 'admin@clinic.example.com',
       display_name: 'Clinic Admin',
       role: 'admin',
+      organization_id: 'default',
       is_active: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

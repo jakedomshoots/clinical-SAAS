@@ -5,6 +5,7 @@ export interface User {
   email: string;
   display_name: string;
   role: Role;
+  organization_id: UUID;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -20,6 +21,7 @@ export interface RegisterRequest {
   password: string;
   display_name: string;
   role: Role;
+  organization_id?: UUID;
 }
 
 export interface TokenResponse {

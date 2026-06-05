@@ -1,14 +1,15 @@
 import uuid
 from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.main import app
 from app.database import Base, get_db
+from app.main import app
 from app.models.user import User, UserRole
-from app.services.auth_service import hash_password, create_access_token
+from app.services.auth_service import create_access_token, hash_password
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -58,6 +59,7 @@ async def admin_user(db: AsyncSession) -> User:
         hashed_password=hash_password("admin123!"),
         display_name="Admin User",
         role=UserRole.admin,
+        organization_id="default",
         is_active=True,
     )
     db.add(user)
@@ -72,13 +74,19 @@ def auth_headers(admin_user: User):
     return {"Authorization": f"Bearer {token}"}
 
 
-async def make_user(db: AsyncSession, role: UserRole, email: str) -> User:
+async def make_user(
+    db: AsyncSession,
+    role: UserRole,
+    email: str,
+    organization_id: str = "default",
+) -> User:
     user = User(
         id=str(uuid.uuid4()),
         email=email,
         hashed_password=hash_password("password123!"),
         display_name=f"{role.value} User",
         role=role,
+        organization_id=organization_id,
         is_active=True,
     )
     db.add(user)

@@ -10,6 +10,7 @@ class UserOut(BaseModel):
     email: str
     display_name: str
     role: str
+    organization_id: str
     is_active: bool
     created_at: datetime
     updated_at: datetime
@@ -21,6 +22,7 @@ class UserCreate(BaseModel):
     password: str = Field(min_length=12)
     display_name: str
     role: str
+    organization_id: str | None = None
 
     @field_validator("password")
     @classmethod

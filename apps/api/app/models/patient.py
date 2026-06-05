@@ -1,18 +1,26 @@
 import uuid
-from datetime import datetime, date, timezone
-from sqlalchemy import String, Date, Boolean, DateTime, JSON
+from datetime import UTC, date, datetime
+
+from sqlalchemy import JSON, Boolean, Date, DateTime, String
 from sqlalchemy.orm import Mapped, mapped_column
+
 from app.database import Base
 
 
 def utcnow():
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class Patient(Base):
     __tablename__ = "patients"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id: Mapped[str] = mapped_column(
+        String(36),
+        nullable=False,
+        default="default",
+        index=True,
+    )
     mrn: Mapped[str] = mapped_column(String(20), unique=True, nullable=False, index=True)
     first_name: Mapped[str] = mapped_column(String(100), nullable=False)
     last_name: Mapped[str] = mapped_column(String(100), nullable=False)

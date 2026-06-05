@@ -1,28 +1,31 @@
-from datetime import datetime, timezone
-from sqlalchemy import select, func
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models.patient import Patient
 from app.models.user import User
+from app.schemas.patient import PatientOut
 from app.services.audit_service import log_event
-import uuid
 
 
 def _generate_mrn() -> str:
-    return f"MRN-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6].upper()}"
-
-
-from app.schemas.patient import PatientOut
+    return f"MRN-{datetime.now(UTC):%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6].upper()}"
 
 
 async def list_patients(
     db: AsyncSession,
+    user: User,
     page: int = 1,
     page_size: int = 20,
     search: str | None = None,
     is_active: bool | None = True,
 ) -> tuple[list[dict], int]:
-    query = select(Patient)
-    count_query = select(func.count(Patient.id))
+    query = select(Patient).where(Patient.organization_id == user.organization_id)
+    count_query = select(func.count(Patient.id)).where(
+        Patient.organization_id == user.organization_id
+    )
 
     if is_active is not None:
         query = query.where(Patient.is_active == is_active)
@@ -52,8 +55,13 @@ async def list_patients(
     return [PatientOut.model_validate(p).model_dump() for p in patients], total
 
 
-async def get_patient(db: AsyncSession, patient_id: str) -> dict | None:
-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
+async def get_patient(db: AsyncSession, user: User, patient_id: str) -> dict | None:
+    result = await db.execute(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.organization_id == user.organization_id,
+        )
+    )
     patient = result.scalar_one_or_none()
     return PatientOut.model_validate(patient).model_dump() if patient else None
 
@@ -64,6 +72,7 @@ async def create_patient(
     data: dict,
 ) -> dict:
     patient = Patient(
+        organization_id=user.organization_id,
         mrn=_generate_mrn(),
         first_name=data["first_name"],
         last_name=data["last_name"],
@@ -87,7 +96,11 @@ async def create_patient(
         entity_type="patient",
         entity_id=patient.id,
         actor_id=user.id,
-        payload={"mrn": patient.mrn, "name": f"{patient.first_name} {patient.last_name}"},
+        payload={
+            "mrn": patient.mrn,
+            "name": f"{patient.first_name} {patient.last_name}",
+            "organization_id": user.organization_id,
+        },
     )
 
     return PatientOut.model_validate(patient).model_dump()
@@ -99,7 +112,12 @@ async def update_patient(
     patient_id: str,
     data: dict,
 ) -> dict | None:
-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    result = await db.execute(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.organization_id == user.organization_id,
+        )
+    )
     patient = result.scalar_one_or_none()
     if not patient:
         return None
@@ -128,7 +146,12 @@ async def deactivate_patient(
     user: User,
     patient_id: str,
 ) -> dict | None:
-    result = await db.execute(select(Patient).where(Patient.id == patient_id))
+    result = await db.execute(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.organization_id == user.organization_id,
+        )
+    )
     patient = result.scalar_one_or_none()
     if not patient:
         return None

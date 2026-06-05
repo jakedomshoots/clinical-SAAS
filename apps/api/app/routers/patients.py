@@ -19,7 +19,14 @@ async def list_patients(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    data, total = await patient_service.list_patients(db, page=page, page_size=page_size, search=search, is_active=is_active)
+    data, total = await patient_service.list_patients(
+        db,
+        current_user,
+        page=page,
+        page_size=page_size,
+        search=search,
+        is_active=is_active,
+    )
     return PatientListOut(data=[PatientOut(**p) for p in data], total=total, page=page, page_size=page_size)
 
 
@@ -29,7 +36,7 @@ async def get_patient(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    patient = await patient_service.get_patient(db, patient_id)
+    patient = await patient_service.get_patient(db, current_user, patient_id)
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientOut(**patient)

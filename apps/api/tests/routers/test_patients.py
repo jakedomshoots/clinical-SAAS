@@ -1,5 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import UserRole
+from tests.conftest import headers_for, make_user
 
 
 @pytest.mark.asyncio
@@ -98,7 +102,10 @@ async def test_search_patients(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_patient_not_found(client: AsyncClient, auth_headers):
-    res = await client.get("/api/patients/00000000-0000-0000-0000-000000000000", headers=auth_headers)
+    res = await client.get(
+        "/api/patients/00000000-0000-0000-0000-000000000000",
+        headers=auth_headers,
+    )
     assert res.status_code == 404
 
 
@@ -124,3 +131,47 @@ async def test_patient_with_allergies(client: AsyncClient, auth_headers):
     data = res.json()
     assert len(data["allergies"]) == 2
     assert data["allergies"][0]["substance"] == "Penicillin"
+
+
+@pytest.mark.asyncio
+async def test_patient_list_is_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await client.post("/api/patients", json={
+        "first_name": "Scoped", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+
+    res = await client.get("/api/patients", headers=headers_for(other_user))
+
+    assert res.status_code == 200
+    assert res.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_patient_get_is_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Hidden", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-get-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+
+    res = await client.get(f"/api/patients/{patient_id}", headers=headers_for(other_user))
+
+    assert res.status_code == 404

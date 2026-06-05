@@ -32,14 +32,22 @@ async def register(
             detail="Patient accounts not supported via this endpoint",
         )
 
-    user = await create_user(db, data.email, data.password, data.display_name, data.role)
+    organization_id = data.organization_id or current_user.organization_id
+    user = await create_user(
+        db,
+        data.email,
+        data.password,
+        data.display_name,
+        data.role,
+        organization_id=organization_id,
+    )
     await log_event(
         db,
         "user.created",
         "user",
         user.id,
         actor_id=current_user.id,
-        payload={"role": data.role},
+        payload={"role": data.role, "organization_id": organization_id},
     )
     return user
 

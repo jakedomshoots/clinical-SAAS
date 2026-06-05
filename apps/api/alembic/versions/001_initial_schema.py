@@ -22,6 +22,7 @@ def upgrade() -> None:
         sa.Column('hashed_password', sa.String(255), nullable=False),
         sa.Column('display_name', sa.String(100), nullable=False),
         sa.Column('role', sa.Enum('admin', 'provider', 'ma', 'front_desk', 'manager', name='userrole'), nullable=False),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default'),
         sa.Column('is_active', sa.Boolean(), default=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
@@ -30,6 +31,7 @@ def upgrade() -> None:
     op.create_table(
         'patients',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
         sa.Column('mrn', sa.String(20), nullable=False, unique=True, index=True),
         sa.Column('first_name', sa.String(100), nullable=False),
         sa.Column('last_name', sa.String(100), nullable=False),
