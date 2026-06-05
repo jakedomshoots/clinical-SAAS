@@ -311,7 +311,10 @@ function PatientChartPage() {
               <div className="divide-y divide-clinic-100">
                 {carePlanItems.map((item) => (
                   <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[7rem_1fr_7rem_7rem]">
-                    <div className="text-sm font-medium text-clinic-700">{item.owner_role}</div>
+                    <div className="text-sm font-medium text-clinic-700">
+                      {item.assigned_to_name ?? item.owner_role}
+                      {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
+                    </div>
                     <div className="text-sm text-clinic-800">{item.item}</div>
                     <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
                     <div className="text-sm font-medium text-clinic-700">{formatClinicalStatus(item.status)}</div>
@@ -621,7 +624,10 @@ function PatientChartPage() {
           <div className="divide-y divide-clinic-100">
             {carePlanItems.map((item) => (
               <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_8rem_8rem]">
-                <div className="text-sm font-medium text-clinic-700">{item.owner_role}</div>
+                <div className="text-sm font-medium text-clinic-700">
+                  {item.assigned_to_name ?? item.owner_role}
+                  {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
+                </div>
                 <div className="text-sm text-clinic-800">{item.item}</div>
                 <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
                 <div className="text-sm font-medium text-clinic-700">
@@ -836,7 +842,7 @@ function CheckoutHandoffPanel({
           <HandoffSection title="Care Plan Open Items" rows={handoff.care_plan_open_items.map((item) => ({
             id: item.id,
             title: item.item,
-            detail: `${item.owner_role} - ${item.due ?? 'No due date'}`,
+            detail: `${item.assigned_to_name ?? item.owner_role} - ${item.due ?? 'No due date'}${item.escalation ? ` - ${formatClinicalStatus(item.escalation)}` : ''}`,
             actionLabel: 'Done',
             onAction: () => onCompleteCarePlan(item.id),
           }))} />

@@ -89,6 +89,16 @@ async def get_checkout_handoff(
             .order_by(PatientCarePlanItem.created_at.asc())
         )
     ).scalars().all()
+    assignee_ids = {item.assigned_to_id for item in care_plan if item.assigned_to_id}
+    assignee_map = {}
+    if assignee_ids:
+        assignees = await db.execute(
+            select(User.id, User.display_name).where(
+                User.id.in_(assignee_ids),
+                User.organization_id == user.organization_id,
+            )
+        )
+        assignee_map = {item.id: item.display_name for item in assignees}
     encounters = (
         await db.execute(
             select(PatientEncounter)
@@ -107,6 +117,15 @@ async def get_checkout_handoff(
         documents_needing_review=[PatientDocumentOut.model_validate(item) for item in documents],
         medications_needing_review=[PatientMedicationOut.model_validate(item) for item in medications],
         labs_needing_review=[PatientLabResultOut.model_validate(item) for item in labs],
-        care_plan_open_items=[PatientCarePlanItemOut.model_validate(item) for item in care_plan],
+        care_plan_open_items=[
+            _care_plan_out(item, assignee_map.get(item.assigned_to_id))
+            for item in care_plan
+        ],
         unsigned_encounters=[PatientEncounterOut.model_validate(item) for item in encounters],
     )
+
+
+def _care_plan_out(item: PatientCarePlanItem, assigned_to_name: str | None) -> PatientCarePlanItemOut:
+    data = PatientCarePlanItemOut.model_validate(item).model_dump()
+    data["assigned_to_name"] = assigned_to_name
+    return PatientCarePlanItemOut(**data)

@@ -26,10 +26,13 @@ export interface PatientMedicationListResponse {
 export interface PatientCarePlanItem {
   id: UUID;
   patient_id: UUID;
+  assigned_to_id: UUID | null;
+  assigned_to_name: string | null;
   owner_role: string;
   item: string;
   due: string | null;
   status: PatientCarePlanStatus;
+  escalation: string | null;
   note: string | null;
   created_at: string;
   updated_at: string;

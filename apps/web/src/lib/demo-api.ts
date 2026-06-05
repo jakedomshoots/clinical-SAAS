@@ -230,10 +230,10 @@ let patientMedications: PatientMedication[] = [
 ];
 
 let patientCarePlan: PatientCarePlanItem[] = [
-  { id: uuid(471), patient_id: uuid(101), owner_role: 'Provider', item: 'Review critical potassium and decide medication changes before checkout.', due: 'Today', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
-  { id: uuid(472), patient_id: uuid(101), owner_role: 'MA', item: 'Repeat blood pressure and reconcile outside medication list.', due: 'Before provider', status: 'in_progress', note: null, created_at: iso(-2), updated_at: iso(-1) },
-  { id: uuid(473), patient_id: uuid(101), owner_role: 'Front desk', item: 'Schedule 3 month chronic care follow-up and confirm preferred pharmacy.', due: 'Checkout', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
-  { id: uuid(474), patient_id: uuid(101), owner_role: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: uuid(471), patient_id: uuid(101), assigned_to_id: uuid(2), assigned_to_name: 'Dr. Nora Ellis', owner_role: 'Provider', item: 'Review critical potassium and decide medication changes before checkout.', due: 'Today', status: 'open', escalation: 'same_day', note: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: uuid(472), patient_id: uuid(101), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', owner_role: 'MA', item: 'Repeat blood pressure and reconcile outside medication list.', due: 'Before provider', status: 'in_progress', escalation: null, note: null, created_at: iso(-2), updated_at: iso(-1) },
+  { id: uuid(473), patient_id: uuid(101), assigned_to_id: null, assigned_to_name: null, owner_role: 'Front desk', item: 'Schedule 3 month chronic care follow-up and confirm preferred pharmacy.', due: 'Checkout', status: 'open', escalation: null, note: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: uuid(474), patient_id: uuid(101), assigned_to_id: null, assigned_to_name: null, owner_role: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', status: 'open', escalation: null, note: null, created_at: iso(-2), updated_at: iso(-2) },
 ];
 
 let patientLabs: PatientLabResult[] = [

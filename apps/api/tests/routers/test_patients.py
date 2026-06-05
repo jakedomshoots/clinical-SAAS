@@ -487,9 +487,11 @@ async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncCl
         "status": "needs_review",
     }, headers=auth_headers)
     await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "assigned_to_id": admin_user.id,
         "owner_role": "Provider",
         "item": "Review potassium before checkout.",
         "status": "open",
+        "escalation": "same_day",
     }, headers=auth_headers)
     await client.post(f"/api/patients/{patient_id}/encounters", json={
         "provider_id": admin_user.id,
@@ -507,4 +509,6 @@ async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncCl
     assert len(data["medications_needing_review"]) == 1
     assert len(data["labs_needing_review"]) == 1
     assert len(data["care_plan_open_items"]) == 1
+    assert data["care_plan_open_items"][0]["assigned_to_name"] == admin_user.display_name
+    assert data["care_plan_open_items"][0]["escalation"] == "same_day"
     assert len(data["unsigned_encounters"]) == 1

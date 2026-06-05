@@ -46,18 +46,22 @@ class PatientMedicationListOut(BaseModel):
 
 
 class PatientCarePlanItemCreate(BaseModel):
+    assigned_to_id: str | None = None
     owner_role: str = Field(min_length=1, max_length=100)
     item: str = Field(min_length=1, max_length=500)
     due: str | None = Field(default=None, max_length=100)
     status: str = "open"
+    escalation: str | None = Field(default=None, max_length=100)
     note: str | None = None
 
 
 class PatientCarePlanItemUpdate(BaseModel):
+    assigned_to_id: str | None = None
     owner_role: str | None = Field(default=None, min_length=1, max_length=100)
     item: str | None = Field(default=None, min_length=1, max_length=500)
     due: str | None = Field(default=None, max_length=100)
     status: str | None = None
+    escalation: str | None = Field(default=None, max_length=100)
     note: str | None = None
 
 
@@ -66,10 +70,13 @@ class PatientCarePlanItemOut(BaseModel):
 
     id: str
     patient_id: str
+    assigned_to_id: str | None
+    assigned_to_name: str | None = None
     owner_role: str
     item: str
     due: str | None
     status: str
+    escalation: str | None
     note: str | None
     created_at: datetime
     updated_at: datetime

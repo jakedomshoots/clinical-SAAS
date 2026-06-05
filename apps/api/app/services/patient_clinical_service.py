@@ -93,19 +93,33 @@ async def list_care_plan(db: AsyncSession, user: User, patient_id: str) -> tuple
             .order_by(PatientCarePlanItem.created_at.asc())
         )
     ).scalars().all()
-    return [PatientCarePlanItemOut.model_validate(row).model_dump() for row in rows], len(rows)
+    user_ids = {row.assigned_to_id for row in rows if row.assigned_to_id}
+    user_map = {}
+    if user_ids:
+        users = await db.execute(select(User.id, User.display_name).where(User.id.in_(user_ids), User.organization_id == user.organization_id))
+        user_map = {row.id: row.display_name for row in users}
+    out = []
+    for row in rows:
+        data = PatientCarePlanItemOut.model_validate(row).model_dump()
+        data["assigned_to_name"] = user_map.get(row.assigned_to_id)
+        out.append(data)
+    return out, len(rows)
 
 
 async def create_care_plan_item(db: AsyncSession, user: User, patient_id: str, data: dict) -> dict | None:
     if not await _patient_exists(db, user, patient_id):
         return None
+    if data.get("assigned_to_id") and not await _user_exists(db, user, data["assigned_to_id"]):
+        return None
     item = PatientCarePlanItem(
         organization_id=user.organization_id,
         patient_id=patient_id,
+        assigned_to_id=data.get("assigned_to_id"),
         owner_role=data["owner_role"],
         item=data["item"],
         due=data.get("due"),
         status=CarePlanStatus(data.get("status", "open")),
+        escalation=data.get("escalation"),
         note=data.get("note"),
     )
     db.add(item)
@@ -127,12 +141,26 @@ async def update_care_plan_item(db: AsyncSession, user: User, patient_id: str, i
     ).scalar_one_or_none()
     if not item:
         return None
+    if data.get("assigned_to_id") and not await _user_exists(db, user, data["assigned_to_id"]):
+        return None
     for field, value in data.items():
         setattr(item, field, CarePlanStatus(value) if field == "status" and value is not None else value)
     await db.commit()
     await db.refresh(item)
     await log_event(db, "patient_care_plan.updated", "patient_care_plan", item.id, actor_id=user.id, payload={"patient_id": patient_id, "updated_fields": list(data.keys())})
-    return PatientCarePlanItemOut.model_validate(item).model_dump()
+    listed = await list_care_plan(db, user, patient_id)
+    return next((row for row in listed[0] if row["id"] == item_id), None) if listed else None
+
+
+async def _user_exists(db: AsyncSession, user: User, user_id: str) -> bool:
+    return (
+        await db.execute(
+            select(User.id).where(
+                User.id == user_id,
+                User.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none() is not None
 
 
 async def list_labs(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
