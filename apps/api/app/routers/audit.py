@@ -27,6 +27,7 @@ async def list_audit_events(
 ):
     data, total = await list_events(
         db,
+        current_user,
         page=page,
         page_size=page_size,
         event_type=event_type,
@@ -52,6 +53,7 @@ async def export_audit_events(
 ):
     events = await list_events_for_export(
         db,
+        current_user,
         event_type=event_type,
         entity_type=entity_type,
         entity_id=entity_id,
@@ -61,6 +63,7 @@ async def export_audit_events(
     writer = csv.writer(buffer)
     writer.writerow([
         "id",
+        "organization_id",
         "created_at",
         "actor_id",
         "event_type",
@@ -71,6 +74,7 @@ async def export_audit_events(
     for event in events:
         writer.writerow([
             event.id,
+            event.organization_id,
             event.created_at.isoformat(),
             event.actor_id or "",
             event.event_type,

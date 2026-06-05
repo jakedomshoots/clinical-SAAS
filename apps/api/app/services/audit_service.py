@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
+from app.models.user import User
 from app.redis_client import redis
 
 
@@ -15,7 +16,14 @@ async def log_event(
     actor_id: str | None = None,
     payload: dict | None = None,
 ) -> AuditLog:
+    organization_id = "default"
+    if actor_id:
+        actor = await db.get(User, actor_id)
+        if actor:
+            organization_id = actor.organization_id
+
     log_entry = AuditLog(
+        organization_id=organization_id,
         actor_id=actor_id,
         event_type=event_type,
         entity_type=entity_type,
@@ -26,15 +34,18 @@ async def log_event(
     await db.commit()
     await db.refresh(log_entry)
 
-    event_message = json.dumps({
-        "id": log_entry.id,
-        "actor_id": log_entry.actor_id,
-        "event_type": log_entry.event_type,
-        "entity_type": log_entry.entity_type,
-        "entity_id": log_entry.entity_id,
-        "payload": log_entry.payload,
-        "created_at": log_entry.created_at.isoformat(),
-    })
+    event_message = json.dumps(
+        {
+            "id": log_entry.id,
+            "organization_id": log_entry.organization_id,
+            "actor_id": log_entry.actor_id,
+            "event_type": log_entry.event_type,
+            "entity_type": log_entry.entity_type,
+            "entity_id": log_entry.entity_id,
+            "payload": log_entry.payload,
+            "created_at": log_entry.created_at.isoformat(),
+        }
+    )
     await redis.publish("events:audit", event_message)
 
     return log_entry
@@ -42,14 +53,17 @@ async def log_event(
 
 async def list_events(
     db: AsyncSession,
+    user: User,
     page: int = 1,
     page_size: int = 20,
     event_type: str | None = None,
     entity_type: str | None = None,
     entity_id: str | None = None,
 ) -> tuple[list[AuditLog], int]:
-    query = select(AuditLog)
-    count_query = select(func.count(AuditLog.id))
+    query = select(AuditLog).where(AuditLog.organization_id == user.organization_id)
+    count_query = select(func.count(AuditLog.id)).where(
+        AuditLog.organization_id == user.organization_id
+    )
 
     if event_type:
         query = query.where(AuditLog.event_type == event_type)
@@ -71,12 +85,13 @@ async def list_events(
 
 async def list_events_for_export(
     db: AsyncSession,
+    user: User,
     event_type: str | None = None,
     entity_type: str | None = None,
     entity_id: str | None = None,
     limit: int = 10_000,
 ) -> list[AuditLog]:
-    query = select(AuditLog)
+    query = select(AuditLog).where(AuditLog.organization_id == user.organization_id)
 
     if event_type:
         query = query.where(AuditLog.event_type == event_type)

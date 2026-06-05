@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token, hash_password
+from tests.conftest import headers_for, make_user
 
 
 @pytest.mark.asyncio
@@ -40,7 +41,7 @@ async def test_export_audit_events_csv(client: AsyncClient, auth_headers):
     assert res.status_code == 200
     assert res.headers["content-type"].startswith("text/csv")
     assert "attachment" in res.headers["content-disposition"]
-    assert "event_type,entity_type,entity_id" in res.text
+    assert "organization_id,created_at,actor_id,event_type,entity_type,entity_id" in res.text
     assert "task.created,task" in res.text
 
 
@@ -86,3 +87,62 @@ async def test_export_audit_events_requires_admin_or_manager(
     res = await client.get("/api/audit/export", headers={"Authorization": f"Bearer {token}"})
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_audit_events_are_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await client.post("/api/tasks", json={"title": "Default audit task"}, headers=auth_headers)
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-audit-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    await client.post(
+        "/api/tasks",
+        json={"title": "Other audit task"},
+        headers=headers_for(other_user),
+    )
+
+    default_res = await client.get("/api/audit?entity_type=task", headers=auth_headers)
+    other_res = await client.get(
+        "/api/audit?entity_type=task",
+        headers=headers_for(other_user),
+    )
+
+    assert default_res.status_code == 200
+    assert default_res.json()["total"] == 1
+    assert default_res.json()["data"][0]["organization_id"] == "default"
+    assert other_res.status_code == 200
+    assert other_res.json()["total"] == 1
+    assert other_res.json()["data"][0]["organization_id"] == "other-org"
+
+
+@pytest.mark.asyncio
+async def test_audit_export_is_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await client.post("/api/tasks", json={"title": "Default export task"}, headers=auth_headers)
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-audit-export-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    await client.post(
+        "/api/tasks",
+        json={"title": "Other export task"},
+        headers=headers_for(other_user),
+    )
+
+    res = await client.get("/api/audit/export?entity_type=task", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert ",default," in res.text
+    assert ",other-org," not in res.text

@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 class AuditEventOut(BaseModel):
     id: str
+    organization_id: str
     actor_id: str | None
     event_type: str
     entity_type: str

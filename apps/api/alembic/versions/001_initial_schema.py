@@ -52,6 +52,13 @@ def upgrade() -> None:
     op.create_table(
         'audit_log',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('actor_id', sa.String(36), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('event_type', sa.String(100), nullable=False, index=True),
         sa.Column('entity_type', sa.String(50), nullable=False),
