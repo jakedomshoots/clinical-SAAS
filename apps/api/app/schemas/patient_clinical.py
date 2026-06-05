@@ -1,0 +1,84 @@
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+
+class PatientMedicationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    dose: str | None = Field(default=None, max_length=100)
+    directions: str | None = Field(default=None, max_length=300)
+    source: str | None = Field(default=None, max_length=200)
+    status: str = "active"
+    note: str | None = None
+
+
+class PatientMedicationUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    dose: str | None = Field(default=None, max_length=100)
+    directions: str | None = Field(default=None, max_length=300)
+    source: str | None = Field(default=None, max_length=200)
+    status: str | None = None
+    note: str | None = None
+
+
+class PatientMedicationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    patient_id: str
+    name: str
+    dose: str | None
+    directions: str | None
+    source: str | None
+    status: str
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else ""
+
+
+class PatientMedicationListOut(BaseModel):
+    data: list[PatientMedicationOut]
+    total: int
+
+
+class PatientCarePlanItemCreate(BaseModel):
+    owner_role: str = Field(min_length=1, max_length=100)
+    item: str = Field(min_length=1, max_length=500)
+    due: str | None = Field(default=None, max_length=100)
+    status: str = "open"
+    note: str | None = None
+
+
+class PatientCarePlanItemUpdate(BaseModel):
+    owner_role: str | None = Field(default=None, min_length=1, max_length=100)
+    item: str | None = Field(default=None, min_length=1, max_length=500)
+    due: str | None = Field(default=None, max_length=100)
+    status: str | None = None
+    note: str | None = None
+
+
+class PatientCarePlanItemOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    patient_id: str
+    owner_role: str
+    item: str
+    due: str | None
+    status: str
+    note: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    @field_serializer("created_at", "updated_at")
+    def serialize_dt(self, dt: datetime) -> str:
+        return dt.isoformat() if dt else ""
+
+
+class PatientCarePlanItemListOut(BaseModel):
+    data: list[PatientCarePlanItemOut]
+    total: int

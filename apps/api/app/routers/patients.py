@@ -6,13 +6,23 @@ from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.patient import PatientCreate, PatientListOut, PatientOut, PatientUpdate
 from app.schemas.patient_chart import PatientChartSummaryOut
+from app.schemas.patient_clinical import (
+    PatientCarePlanItemCreate,
+    PatientCarePlanItemListOut,
+    PatientCarePlanItemOut,
+    PatientCarePlanItemUpdate,
+    PatientMedicationCreate,
+    PatientMedicationListOut,
+    PatientMedicationOut,
+    PatientMedicationUpdate,
+)
 from app.schemas.patient_document import (
     PatientDocumentCreate,
     PatientDocumentListOut,
     PatientDocumentOut,
     PatientDocumentUpdate,
 )
-from app.services import patient_chart_service, patient_document_service, patient_service
+from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_service
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -170,3 +180,89 @@ async def update_patient_document(
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return PatientDocumentOut(**document)
+
+
+@router.get("/{patient_id}/medications", response_model=PatientMedicationListOut)
+async def list_patient_medications(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await patient_clinical_service.list_medications(db, current_user, patient_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    data, total = result
+    return PatientMedicationListOut(data=[PatientMedicationOut(**item) for item in data], total=total)
+
+
+@router.post("/{patient_id}/medications", response_model=PatientMedicationOut, status_code=status.HTTP_201_CREATED)
+async def create_patient_medication(
+    patient_id: str,
+    data: PatientMedicationCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    med = await patient_clinical_service.create_medication(db, current_user, patient_id, data.model_dump())
+    if not med:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientMedicationOut(**med)
+
+
+@router.patch("/{patient_id}/medications/{medication_id}", response_model=PatientMedicationOut)
+async def update_patient_medication(
+    patient_id: str,
+    medication_id: str,
+    data: PatientMedicationUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    med = await patient_clinical_service.update_medication(db, current_user, patient_id, medication_id, update_data)
+    if not med:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
+    return PatientMedicationOut(**med)
+
+
+@router.get("/{patient_id}/care-plan", response_model=PatientCarePlanItemListOut)
+async def list_patient_care_plan(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await patient_clinical_service.list_care_plan(db, current_user, patient_id)
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    data, total = result
+    return PatientCarePlanItemListOut(data=[PatientCarePlanItemOut(**item) for item in data], total=total)
+
+
+@router.post("/{patient_id}/care-plan", response_model=PatientCarePlanItemOut, status_code=status.HTTP_201_CREATED)
+async def create_patient_care_plan_item(
+    patient_id: str,
+    data: PatientCarePlanItemCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    item = await patient_clinical_service.create_care_plan_item(db, current_user, patient_id, data.model_dump())
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientCarePlanItemOut(**item)
+
+
+@router.patch("/{patient_id}/care-plan/{item_id}", response_model=PatientCarePlanItemOut)
+async def update_patient_care_plan_item(
+    patient_id: str,
+    item_id: str,
+    data: PatientCarePlanItemUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    item = await patient_clinical_service.update_care_plan_item(db, current_user, patient_id, item_id, update_data)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Care plan item not found")
+    return PatientCarePlanItemOut(**item)

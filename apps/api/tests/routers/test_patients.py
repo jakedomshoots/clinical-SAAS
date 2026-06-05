@@ -300,3 +300,52 @@ async def test_patient_chart_summary_is_scoped_to_user_organization(
     res = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=headers_for(other_user))
 
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patient_medications_and_care_plan_are_persisted(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Clinical", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    med_res = await client.post(f"/api/patients/{patient_id}/medications", json={
+        "name": "Metformin ER",
+        "dose": "500 mg",
+        "directions": "2 tablets with dinner",
+        "source": "Active med list",
+        "status": "review",
+    }, headers=auth_headers)
+    care_res = await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "owner_role": "Provider",
+        "item": "Review medication list before checkout.",
+        "due": "Today",
+        "status": "open",
+    }, headers=auth_headers)
+
+    assert med_res.status_code == 201
+    assert care_res.status_code == 201
+    med_id = med_res.json()["id"]
+    care_id = care_res.json()["id"]
+
+    meds = await client.get(f"/api/patients/{patient_id}/medications", headers=auth_headers)
+    care_plan = await client.get(f"/api/patients/{patient_id}/care-plan", headers=auth_headers)
+    assert meds.status_code == 200
+    assert meds.json()["data"][0]["name"] == "Metformin ER"
+    assert care_plan.status_code == 200
+    assert care_plan.json()["data"][0]["owner_role"] == "Provider"
+
+    med_update = await client.patch(
+        f"/api/patients/{patient_id}/medications/{med_id}",
+        json={"status": "active"},
+        headers=auth_headers,
+    )
+    care_update = await client.patch(
+        f"/api/patients/{patient_id}/care-plan/{care_id}",
+        json={"status": "completed"},
+        headers=auth_headers,
+    )
+    assert med_update.status_code == 200
+    assert med_update.json()["status"] == "active"
+    assert care_update.status_code == 200
+    assert care_update.json()["status"] == "completed"

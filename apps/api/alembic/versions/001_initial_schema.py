@@ -173,6 +173,35 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        'patient_medications',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('name', sa.String(200), nullable=False),
+        sa.Column('dose', sa.String(100), nullable=True),
+        sa.Column('directions', sa.String(300), nullable=True),
+        sa.Column('source', sa.String(200), nullable=True),
+        sa.Column('status', sa.Enum('active', 'review', 'held', 'discontinued', name='medicationstatus'), nullable=False, server_default='active', index=True),
+        sa.Column('note', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
+        'patient_care_plan_items',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('owner_role', sa.String(100), nullable=False),
+        sa.Column('item', sa.String(500), nullable=False),
+        sa.Column('due', sa.String(100), nullable=True),
+        sa.Column('status', sa.Enum('open', 'in_progress', 'completed', 'blocked', name='careplanstatus'), nullable=False, server_default='open', index=True),
+        sa.Column('note', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
         'messages',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column(
@@ -219,6 +248,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('integration_events')
     op.drop_table('messages')
+    op.drop_table('patient_care_plan_items')
+    op.drop_table('patient_medications')
     op.drop_table('patient_documents')
     op.drop_table('faxes')
     op.drop_table('provider_availability')

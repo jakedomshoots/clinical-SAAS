@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientChartSummary, PatientDocument, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientChartSummary, PatientDocument, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -17,6 +17,8 @@ interface DemoStore {
   appointments: Appointment[];
   faxes: Fax[];
   patientDocuments?: PatientDocument[];
+  patientMedications?: PatientMedication[];
+  patientCarePlan?: PatientCarePlanItem[];
   messages: Message[];
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
@@ -218,6 +220,20 @@ let patientDocuments: PatientDocument[] = [
   },
 ];
 
+let patientMedications: PatientMedication[] = [
+  { id: uuid(461), patient_id: uuid(101), name: 'Lisinopril', dose: '20 mg', directions: '1 tablet daily', source: 'Active med list', status: 'active', note: null, created_at: iso(-20), updated_at: iso(-2) },
+  { id: uuid(462), patient_id: uuid(101), name: 'Metformin ER', dose: '500 mg', directions: '2 tablets with dinner', source: 'Active med list', status: 'review', note: 'Review A1c during visit.', created_at: iso(-20), updated_at: iso(-2) },
+  { id: uuid(463), patient_id: uuid(101), name: 'Atorvastatin', dose: '40 mg', directions: '1 tablet nightly', source: 'Cardiology note', status: 'active', note: null, created_at: iso(-120), updated_at: iso(-120) },
+  { id: uuid(464), patient_id: uuid(101), name: 'Potassium chloride', dose: '10 mEq', directions: 'Historical supplement', source: 'Discharge summary', status: 'held', note: 'Hold pending provider review.', created_at: iso(-240), updated_at: iso(-1) },
+];
+
+let patientCarePlan: PatientCarePlanItem[] = [
+  { id: uuid(471), patient_id: uuid(101), owner_role: 'Provider', item: 'Review critical potassium and decide medication changes before checkout.', due: 'Today', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: uuid(472), patient_id: uuid(101), owner_role: 'MA', item: 'Repeat blood pressure and reconcile outside medication list.', due: 'Before provider', status: 'in_progress', note: null, created_at: iso(-2), updated_at: iso(-1) },
+  { id: uuid(473), patient_id: uuid(101), owner_role: 'Front desk', item: 'Schedule 3 month chronic care follow-up and confirm preferred pharmacy.', due: 'Checkout', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: uuid(474), patient_id: uuid(101), owner_role: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', status: 'open', note: null, created_at: iso(-2), updated_at: iso(-2) },
+];
+
 let messages: Message[] = [
   { id: uuid(501), sender_id: uuid(101), sender_name: 'Mary Collins', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?', thread_id: uuid(601), is_read: false, created_at: iso(-2) },
   { id: uuid(502), sender_id: uuid(1), sender_name: 'Clinic Admin', recipient_id: uuid(101), recipient_name: 'Mary Collins', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.', thread_id: uuid(601), is_read: true, created_at: iso(-1.5) },
@@ -287,7 +303,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, messages, auditEvents, integrationEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, messages, auditEvents, integrationEvents }),
   );
 }
 
@@ -298,6 +314,8 @@ if (storedDemoData) {
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
   patientDocuments = storedDemoData.patientDocuments ?? patientDocuments;
+  patientMedications = storedDemoData.patientMedications ?? patientMedications;
+  patientCarePlan = storedDemoData.patientCarePlan ?? patientCarePlan;
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
@@ -642,6 +660,44 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       upcoming_appointments: upcomingAppointments,
     };
     return summary as T;
+  }
+
+  const patientMedicationsMatch = path.match(/^\/patients\/([^/]+)\/medications$/);
+  if (patientMedicationsMatch && method === 'GET') {
+    const patientId = patientMedicationsMatch[1];
+    const data = patientMedications.filter((medication) => medication.patient_id === patientId);
+    return { data, total: data.length } as T;
+  }
+
+  const patientMedicationMatch = path.match(/^\/patients\/([^/]+)\/medications\/([^/]+)$/);
+  if (patientMedicationMatch && method === 'PATCH') {
+    const [patientId, medicationId] = [patientMedicationMatch[1], patientMedicationMatch[2]];
+    patientMedications = patientMedications.map((medication) =>
+      medication.patient_id === patientId && medication.id === medicationId
+        ? { ...medication, ...(body as Partial<PatientMedication>), updated_at: new Date().toISOString() }
+        : medication,
+    );
+    saveDemoData();
+    return patientMedications.find((medication) => medication.id === medicationId) as T;
+  }
+
+  const patientCarePlanMatch = path.match(/^\/patients\/([^/]+)\/care-plan$/);
+  if (patientCarePlanMatch && method === 'GET') {
+    const patientId = patientCarePlanMatch[1];
+    const data = patientCarePlan.filter((item) => item.patient_id === patientId);
+    return { data, total: data.length } as T;
+  }
+
+  const patientCarePlanItemMatch = path.match(/^\/patients\/([^/]+)\/care-plan\/([^/]+)$/);
+  if (patientCarePlanItemMatch && method === 'PATCH') {
+    const [patientId, itemId] = [patientCarePlanItemMatch[1], patientCarePlanItemMatch[2]];
+    patientCarePlan = patientCarePlan.map((item) =>
+      item.patient_id === patientId && item.id === itemId
+        ? { ...item, ...(body as Partial<PatientCarePlanItem>), updated_at: new Date().toISOString() }
+        : item,
+    );
+    saveDemoData();
+    return patientCarePlan.find((item) => item.id === itemId) as T;
   }
 
   if (path === '/tasks') {

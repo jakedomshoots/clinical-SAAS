@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -58,20 +58,6 @@ const labRows = [
   { date: '2026-03-12', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'Filed' },
 ];
 
-const medicationRows = [
-  { name: 'Lisinopril', dose: '20 mg', directions: '1 tablet daily', source: 'Active med list', status: 'Continue' },
-  { name: 'Metformin ER', dose: '500 mg', directions: '2 tablets with dinner', source: 'Active med list', status: 'Review A1c' },
-  { name: 'Atorvastatin', dose: '40 mg', directions: '1 tablet nightly', source: 'Cardiology note', status: 'Continue' },
-  { name: 'Potassium chloride', dose: '10 mEq', directions: 'Historical supplement', source: 'Discharge summary', status: 'Hold pending provider review' },
-];
-
-const carePlanItems = [
-  { owner: 'Provider', item: 'Review critical potassium and decide medication changes before checkout.', due: 'Today', state: 'Required' },
-  { owner: 'MA', item: 'Repeat blood pressure and reconcile outside medication list.', due: 'Before provider', state: 'In progress' },
-  { owner: 'Front desk', item: 'Schedule 3 month chronic care follow-up and confirm preferred pharmacy.', due: 'Checkout', state: 'Open' },
-  { owner: 'Care coordinator', item: 'Confirm cardiology follow-up was completed and request missing EKG if needed.', due: 'This week', state: 'Open' },
-];
-
 const patientMessages = [
   { from: 'Mary Collins', at: '11:18 AM', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?' },
   { from: 'Clinic Admin', at: '11:44 AM', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.' },
@@ -101,7 +87,19 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientChartSummary>(ROUTES.PATIENT_CHART_SUMMARY(patientId)),
   });
 
+  const { data: medicationList } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_MEDICATIONS(patientId),
+    queryFn: () => api.get<PatientMedicationListResponse>(ROUTES.PATIENT_MEDICATIONS(patientId)),
+  });
+
+  const { data: carePlanList } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId),
+    queryFn: () => api.get<PatientCarePlanListResponse>(ROUTES.PATIENT_CARE_PLAN(patientId)),
+  });
+
   const documentRows = documentList?.data ?? [];
+  const medicationRows = medicationList?.data ?? [];
+  const carePlanItems = carePlanList?.data ?? [];
   const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
   const openTasks = chartSummary?.open_tasks ?? [];
   const blockers = chartSummary?.blockers ?? [];
@@ -121,6 +119,18 @@ function PatientChartPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
     },
+  });
+
+  const updateMedicationMutation = useMutation({
+    mutationFn: ({ medicationId, status }: { medicationId: string; status: PatientMedication['status'] }) =>
+      api.patch<PatientMedication>(ROUTES.PATIENT_MEDICATION(patientId, medicationId), { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_MEDICATIONS(patientId) }),
+  });
+
+  const updateCarePlanMutation = useMutation({
+    mutationFn: ({ itemId, status }: { itemId: string; status: PatientCarePlanItem['status'] }) =>
+      api.patch<PatientCarePlanItem>(ROUTES.PATIENT_CARE_PLAN_ITEM(patientId, itemId), { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId) }),
   });
 
   function startEditing() {
@@ -231,11 +241,11 @@ function PatientChartPage() {
               </div>
               <div className="divide-y divide-clinic-100">
                 {carePlanItems.map((item) => (
-                  <div key={item.item} className="grid gap-3 px-4 py-3 md:grid-cols-[7rem_1fr_7rem_7rem]">
-                    <div className="text-sm font-medium text-clinic-700">{item.owner}</div>
+                  <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[7rem_1fr_7rem_7rem]">
+                    <div className="text-sm font-medium text-clinic-700">{item.owner_role}</div>
                     <div className="text-sm text-clinic-800">{item.item}</div>
-                    <div className="text-sm text-clinic-500">{item.due}</div>
-                    <div className="text-sm font-medium text-clinic-700">{item.state}</div>
+                    <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
+                    <div className="text-sm font-medium text-clinic-700">{formatClinicalStatus(item.status)}</div>
                   </div>
                 ))}
               </div>
@@ -481,16 +491,27 @@ function PatientChartPage() {
                 {medicationRows.map((medication) => (
                   <tr key={medication.name} className="border-b border-clinic-100 last:border-b-0">
                     <td className="px-4 py-3 font-medium text-clinic-900">{medication.name}</td>
-                    <td className="px-4 py-3 text-clinic-700">{medication.dose}</td>
-                    <td className="px-4 py-3 text-clinic-600">{medication.directions}</td>
-                    <td className="px-4 py-3 text-clinic-500">{medication.source}</td>
+                    <td className="px-4 py-3 text-clinic-700">{medication.dose ?? '—'}</td>
+                    <td className="px-4 py-3 text-clinic-600">{medication.directions ?? '—'}</td>
+                    <td className="px-4 py-3 text-clinic-500">{medication.source ?? '—'}</td>
                     <td className="px-4 py-3">
                       <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
-                        {medication.status}
+                        {formatClinicalStatus(medication.status)}
                       </span>
+                      {medication.status === 'review' && (
+                        <button
+                          onClick={() => updateMedicationMutation.mutate({ medicationId: medication.id, status: 'active' })}
+                          className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                        >
+                          Confirm
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
+                {medicationRows.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-clinic-400">No medications have been added to this chart.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -507,13 +528,26 @@ function PatientChartPage() {
           </div>
           <div className="divide-y divide-clinic-100">
             {carePlanItems.map((item) => (
-              <div key={item.item} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_8rem_8rem]">
-                <div className="text-sm font-medium text-clinic-700">{item.owner}</div>
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_8rem_8rem]">
+                <div className="text-sm font-medium text-clinic-700">{item.owner_role}</div>
                 <div className="text-sm text-clinic-800">{item.item}</div>
-                <div className="text-sm text-clinic-500">{item.due}</div>
-                <div className="text-sm font-medium text-clinic-700">{item.state}</div>
+                <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
+                <div className="text-sm font-medium text-clinic-700">
+                  {formatClinicalStatus(item.status)}
+                  {item.status !== 'completed' && (
+                    <button
+                      onClick={() => updateCarePlanMutation.mutate({ itemId: item.id, status: 'completed' })}
+                      className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                    >
+                      Done
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
+            {carePlanItems.length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-clinic-400">No care-plan items have been added to this chart.</div>
+            )}
           </div>
         </div>
       )}
@@ -630,4 +664,11 @@ function formatTaskDueDate(task: Task) {
 
 function formatTaskPriority(priority: Task['priority']) {
   return priority[0].toUpperCase() + priority.slice(1);
+}
+
+function formatClinicalStatus(status: string) {
+  return status
+    .split('_')
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
 }
