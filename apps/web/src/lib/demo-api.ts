@@ -568,6 +568,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     ];
     return { product_demo_score: 100, internal_pilot_score: 100, product_demo_ready: true, internal_pilot_ready: true, demo_items, pilot_items, generated_at: new Date().toISOString() } as T;
   }
+  if (path === '/analytics/pilot-readiness/seed' && method === 'POST') {
+    return { created: [], created_count: 0 } as T;
+  }
 
   if (path === '/integration-capabilities' && method === 'GET') {
     return {

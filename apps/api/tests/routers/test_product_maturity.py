@@ -177,3 +177,11 @@ async def test_pilot_readiness_score_contract(client, auth_headers):
     assert "internal_pilot_score" in data
     assert len(data["demo_items"]) > 0
     assert len(data["pilot_items"]) > 0
+
+    seeded = await client.post("/api/analytics/pilot-readiness/seed", headers=auth_headers)
+    complete = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
+    assert seeded.status_code == 201
+    assert complete.json()["product_demo_score"] == 100
+    assert complete.json()["internal_pilot_score"] == 100
+    assert complete.json()["product_demo_ready"] is True
+    assert complete.json()["internal_pilot_ready"] is True

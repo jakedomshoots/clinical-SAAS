@@ -53,6 +53,13 @@ function SetupPage() {
     }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS }),
   });
+  const seedPilotMutation = useMutation({
+    mutationFn: () => api.post(ROUTES.PILOT_READINESS_SEED, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS });
+    },
+  });
 
   const checklist = [
     { label: 'Core services online', ready: Object.values(ready?.checks ?? {}).every((check) => check.ok) },
@@ -107,6 +114,12 @@ function SetupPage() {
       <section className="rounded-md border border-clinic-200 bg-white p-4">
         <div className="text-sm font-semibold text-clinic-800">Seed Missing Roles</div>
         <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => seedPilotMutation.mutate()}
+            className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700"
+          >
+            Seed pilot workspace
+          </button>
           <button
             disabled={(users?.data ?? []).some((user) => user.role === 'provider' && user.is_active)}
             onClick={() => createUserMutation.mutate('provider')}
