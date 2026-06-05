@@ -72,6 +72,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 An internal clinic pilot is ready when:
 
 - `/setup` reports Product Demo and Internal Pilot at 100%.
+- If either score is below 100%, use `/setup` → Seed pilot workspace or call `POST /api/analytics/pilot-readiness/seed` as an admin/manager to create the missing local pilot data.
 - `pnpm verify:local` passes, including all API tests, web type checks, lint, frontend audit, and smoke checks.
 - Staff can complete a dry-run day from Command Center through checkout, documents, messaging, faxes, billing, operations, and reports.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.

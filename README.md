@@ -140,6 +140,7 @@ Ready for complete local product demos and internal clinic pilot dry runs:
 - Backup and restore commands for local Postgres and MinIO data.
 - Assistant actions are confirmation-gated and audit-visible in demo/API flows.
 - `/api/analytics/pilot-readiness` and `/setup` report product demo and internal pilot readiness scores.
+- `/setup` can seed the missing local pilot workspace data required to reach 100% demo/pilot readiness.
 
 Not ready for real daily clinical operations with live patients yet:
 
