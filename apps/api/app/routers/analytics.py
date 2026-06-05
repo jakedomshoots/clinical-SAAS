@@ -1,24 +1,25 @@
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, require_roles
 from app.models.billing import BillingCase, BillingStatus
 from app.models.fax import Fax
+from app.models.integration_event import IntegrationEvent
 from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.portal_intake import PortalIntakeStatus, PortalIntakeSubmission
 from app.models.schedule import Appointment, AppointmentStatus
 from app.models.task import Task, TaskStatus
-from app.models.user import User
-from app.models.integration_event import IntegrationEvent
-from app.services.readiness_service import check_readiness
+from app.models.user import User, UserRole
 from app.services.pilot_seed_service import seed_pilot_workspace
+from app.services.readiness_service import check_readiness
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -110,5 +111,10 @@ async def pilot_readiness(db: DbDep, current_user: CurrentUserDep):
 
 
 @router.post("/pilot-readiness/seed", status_code=status.HTTP_201_CREATED)
-async def seed_pilot_readiness(db: DbDep, current_user: CurrentUserDep):
+async def seed_pilot_readiness(
+    db: DbDep,
+    current_user: User = Depends(require_roles(UserRole.admin)),
+):
+    if not settings.allow_seed_endpoint or settings.is_production:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return await seed_pilot_workspace(db, current_user)

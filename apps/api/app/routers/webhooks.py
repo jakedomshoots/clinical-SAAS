@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,8 +24,11 @@ INTEGRATION_BY_SOURCE = {
 def _verify_webhook_secret(secret: str | None) -> None:
     expected = settings.webhook_shared_secret.strip()
     if not expected:
-        return
-    if secret != expected:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Webhook authentication is not configured",
+        )
+    if not secret or not secrets.compare_digest(secret, expected):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret",

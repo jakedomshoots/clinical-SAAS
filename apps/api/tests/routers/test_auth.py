@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
-from app.services.auth_service import create_access_token, hash_password
+from app.services.auth_service import authenticate_user, create_access_token, hash_password, seed_admin
 from tests.conftest import headers_for, make_user
 
 
@@ -34,11 +34,21 @@ async def test_patient_portal_login_returns_patient_scoped_token(client: AsyncCl
         },
         headers=auth_headers,
     )
+    assert patient.status_code == 201
+    issued = await client.post(
+        f"/api/patients/{patient.json()['id']}/portal-access-code",
+        headers=auth_headers,
+    )
+    assert issued.status_code == 200
+
     login = await client.post(
         "/api/portal/auth/login",
-        json={"email": "portal.patient@example.com", "dob": "1991-02-03"},
+        json={
+            "email": "portal.patient@example.com",
+            "dob": "1991-02-03",
+            "access_code": issued.json()["access_code"],
+        },
     )
-    assert patient.status_code == 201
     assert login.status_code == 200
     assert login.json()["patient"]["id"] == patient.json()["id"]
 
@@ -72,12 +82,48 @@ async def test_patient_portal_login_returns_patient_scoped_token(client: AsyncCl
             "filename": "portal-note.pdf",
             "content_type": "application/pdf",
             "checksum": "portal-test-checksum",
+            "upload_token": prepared.json()["upload_token"],
         },
         headers={"Authorization": f"Bearer {login.json()['access_token']}"},
     )
     assert prepared.status_code == 200
     assert confirmed.status_code == 201
     assert confirmed.json()["patient_id"] == patient.json()["id"]
+
+
+@pytest.mark.asyncio
+async def test_patient_portal_login_rejects_email_and_dob_without_valid_code(
+    client: AsyncClient,
+    auth_headers,
+):
+    patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Portal",
+            "last_name": "Protected",
+            "dob": "1991-02-03",
+            "gender": "Unknown",
+            "email": "portal.protected@example.com",
+        },
+        headers=auth_headers,
+    )
+    assert patient.status_code == 201
+
+    missing_code = await client.post(
+        "/api/portal/auth/login",
+        json={"email": "portal.protected@example.com", "dob": "1991-02-03"},
+    )
+    wrong_code = await client.post(
+        "/api/portal/auth/login",
+        json={
+            "email": "portal.protected@example.com",
+            "dob": "1991-02-03",
+            "access_code": "wrong-code-123",
+        },
+    )
+
+    assert missing_code.status_code == 422
+    assert wrong_code.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -240,6 +286,65 @@ async def test_manager_cannot_register_user_in_other_organization(
     )
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_register_admin(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(
+        db,
+        UserRole.manager,
+        "manager-register-admin@clinic.example.com",
+    )
+
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "new-admin@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "New Admin",
+            "role": "admin",
+        },
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_seed_admin_generates_temporary_password(db: AsyncSession):
+    seeded = await seed_admin(db)
+
+    assert seeded is not None
+    admin, temporary_password = seeded
+    assert temporary_password != "admin123!"
+    assert await authenticate_user(db, admin.email, "admin123!") is None
+    authenticated = await authenticate_user(db, admin.email, temporary_password)
+    assert authenticated is not None
+    assert authenticated.id == admin.id
+
+
+@pytest.mark.asyncio
+async def test_seed_endpoint_returns_temporary_password(client: AsyncClient):
+    seeded = await client.post("/api/auth/seed")
+    assert seeded.status_code == 201
+    temporary_password = seeded.json()["temporary_password"]
+    assert temporary_password
+    assert temporary_password != "admin123!"
+
+    default_login = await client.post(
+        "/api/auth/login",
+        json={"email": "admin@clinic.example.com", "password": "admin123!"},
+    )
+    temp_login = await client.post(
+        "/api/auth/login",
+        json={"email": "admin@clinic.example.com", "password": temporary_password},
+    )
+
+    assert default_login.status_code == 401
+    assert temp_login.status_code == 200
 
 
 @pytest.mark.asyncio

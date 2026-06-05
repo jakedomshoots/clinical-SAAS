@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     communications_provider: str = "demo"
     communications_provider_api_key: str = ""
     webhook_shared_secret: str = ""
+    patient_portal_access_code_expire_minutes: int = 60 * 24 * 7
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -74,6 +75,10 @@ class Settings(BaseSettings):
             failures.append("ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production")
         if self.allow_seed_endpoint:
             failures.append("ALLOW_SEED_ENDPOINT must be false in production")
+        if not self.webhook_shared_secret or len(self.webhook_shared_secret) < 16:
+            failures.append(
+                "WEBHOOK_SHARED_SECRET must be configured with at least 16 characters in production"
+            )
 
         if failures:
             raise ValueError("; ".join(failures))

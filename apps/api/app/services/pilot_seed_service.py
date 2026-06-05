@@ -12,7 +12,7 @@ from app.models.portal_intake import PortalIntakeSubmission
 from app.models.schedule import Appointment, AppointmentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User, UserRole
-from app.services.auth_service import create_user
+from app.services.auth_service import create_user, generate_temporary_password
 
 
 async def seed_pilot_workspace(db: AsyncSession, user: User) -> dict:
@@ -33,7 +33,14 @@ async def seed_pilot_workspace(db: AsyncSession, user: User) -> dict:
             ("pilot.manager@clinic.example.com", "Pilot Manager", "manager"),
         ]:
             if email not in existing_emails:
-                await create_user(db, email, "Pilot123!Password", display_name, role, organization_id=org)
+                await create_user(
+                    db,
+                    email,
+                    generate_temporary_password(),
+                    display_name,
+                    role,
+                    organization_id=org,
+                )
                 created.append(f"user:{role}")
 
     provider = (

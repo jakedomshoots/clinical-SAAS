@@ -238,6 +238,7 @@ async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, aut
             "content_type": "application/pdf",
             "checksum": "demo-checksum",
             "pages": 3,
+            "upload_token": prepared.json()["upload_token"],
         },
         headers=auth_headers,
     )
@@ -257,6 +258,7 @@ async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, aut
             "content_type": "application/pdf",
             "checksum": "demo-checksum",
             "pages": 3,
+            "upload_token": prepared.json()["upload_token"],
         },
         headers=auth_headers,
     )
@@ -327,7 +329,43 @@ async def test_patient_document_upload_prepare_returns_signed_target(client: Asy
     data = res.json()
     assert data["method"] == "PUT"
     assert data["file_url"].endswith("outside-lab.pdf")
+    assert data["upload_token"]
     assert data["headers"]["Content-Type"] == "application/pdf"
+
+
+@pytest.mark.asyncio
+async def test_patient_document_upload_confirm_rejects_unprepared_target(
+    client: AsyncClient,
+    auth_headers,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Upload", "last_name": "Guard", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    prepared = await client.post(
+        f"/api/patients/{patient_id}/documents/upload",
+        json={"filename": "outside-note.pdf", "content_type": "application/pdf"},
+        headers=auth_headers,
+    )
+    assert prepared.status_code == 200
+
+    confirmed = await client.post(
+        f"/api/patients/{patient_id}/documents/upload/confirm",
+        json={
+            "title": "Outside note",
+            "source": "Outside Office",
+            "document_type": "Consult note",
+            "file_url": f"{prepared.json()['file_url']}.tampered",
+            "filename": "outside-note.pdf",
+            "content_type": "application/pdf",
+            "checksum": "demo-checksum",
+            "pages": 3,
+            "upload_token": prepared.json()["upload_token"],
+        },
+        headers=auth_headers,
+    )
+
+    assert confirmed.status_code == 400
 
 
 @pytest.mark.asyncio

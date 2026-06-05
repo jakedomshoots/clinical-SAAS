@@ -1,17 +1,26 @@
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.patient import Patient
 from app.models.user import User
 from app.schemas.patient import PatientOut
 from app.services.audit_service import log_event
+from app.services.auth_service import generate_temporary_password, hash_password
 
 
 def _generate_mrn() -> str:
     return f"MRN-{datetime.now(UTC):%Y%m%d%H%M%S}-{uuid.uuid4().hex[:6].upper()}"
+
+
+def _portal_code_expires_at() -> datetime:
+    return (
+        datetime.now(UTC)
+        + timedelta(minutes=settings.patient_portal_access_code_expire_minutes)
+    ).replace(tzinfo=None)
 
 
 async def list_patients(
@@ -86,6 +95,9 @@ async def create_patient(
         allergies=data.get("allergies", []),
         problem_list=data.get("problem_list", []),
     )
+    if data.get("portal_access_code"):
+        patient.portal_access_code_hash = hash_password(data["portal_access_code"])
+        patient.portal_access_code_expires_at = _portal_code_expires_at()
     db.add(patient)
     await db.commit()
     await db.refresh(patient)
@@ -122,7 +134,13 @@ async def update_patient(
     if not patient:
         return None
 
+    if data.get("portal_access_code"):
+        patient.portal_access_code_hash = hash_password(data["portal_access_code"])
+        patient.portal_access_code_expires_at = _portal_code_expires_at()
+
     for field, value in data.items():
+        if field == "portal_access_code":
+            continue
         if hasattr(patient, field):
             setattr(patient, field, value)
 
@@ -139,6 +157,45 @@ async def update_patient(
     )
 
     return PatientOut.model_validate(patient).model_dump()
+
+
+async def issue_portal_access_code(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+) -> dict | None:
+    result = await db.execute(
+        select(Patient).where(
+            Patient.id == patient_id,
+            Patient.organization_id == user.organization_id,
+            Patient.is_active.is_(True),
+        )
+    )
+    patient = result.scalar_one_or_none()
+    if not patient:
+        return None
+
+    access_code = generate_temporary_password()
+    expires_at = _portal_code_expires_at()
+    patient.portal_access_code_hash = hash_password(access_code)
+    patient.portal_access_code_expires_at = expires_at
+    await db.commit()
+    await db.refresh(patient)
+
+    await log_event(
+        db,
+        event_type="patient.portal_access_code_issued",
+        entity_type="patient",
+        entity_id=patient.id,
+        actor_id=user.id,
+        payload={"expires_at": expires_at.isoformat()},
+    )
+
+    return {
+        "patient_id": patient.id,
+        "access_code": access_code,
+        "expires_at": expires_at,
+    }
 
 
 async def deactivate_patient(

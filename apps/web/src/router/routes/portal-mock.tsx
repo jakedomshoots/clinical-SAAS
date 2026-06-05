@@ -77,6 +77,7 @@ function PortalMockPage() {
       checksum: `demo-${Date.now()}`,
       pages: 4,
       file_url: uploadPrep?.file_url,
+      upload_token: uploadPrep?.upload_token,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(form.patient_id) });

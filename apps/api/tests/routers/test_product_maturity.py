@@ -1,6 +1,10 @@
 from datetime import date, datetime, timedelta
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import UserRole
+from tests.conftest import headers_for, make_user
 
 
 async def create_patient(client, auth_headers) -> str:
@@ -185,3 +189,15 @@ async def test_pilot_readiness_score_contract(client, auth_headers):
     assert complete.json()["internal_pilot_score"] == 100
     assert complete.json()["product_demo_ready"] is True
     assert complete.json()["internal_pilot_ready"] is True
+
+
+@pytest.mark.asyncio
+async def test_pilot_readiness_seed_requires_admin(client, db: AsyncSession):
+    manager = await make_user(db, UserRole.manager, "manager-pilot-seed@clinic.example.com")
+
+    seeded = await client.post(
+        "/api/analytics/pilot-readiness/seed",
+        headers=headers_for(manager),
+    )
+
+    assert seeded.status_code == 403

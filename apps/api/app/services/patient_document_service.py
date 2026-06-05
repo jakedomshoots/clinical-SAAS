@@ -1,8 +1,14 @@
+import base64
+import binascii
+import hashlib
+import hmac
+import json
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.patient import Patient
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
@@ -112,8 +118,9 @@ async def prepare_document_upload(
         return None
     safe_filename = data["filename"].replace("/", "_").replace("\\", "_")
     object_key = f"patients/{patient_id}/documents/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{safe_filename}"
-    file_url = f"s3://concierge-os/{object_key}"
+    file_url = f"s3://{settings.minio_bucket}/{object_key}"
     expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    upload_token = _make_upload_token(patient_id, file_url, data["content_type"], expires_at)
     await log_event(
         db,
         "patient_document.upload_prepared",
@@ -129,6 +136,7 @@ async def prepare_document_upload(
     return {
         "upload_url": file_url,
         "file_url": file_url,
+        "upload_token": upload_token,
         "method": "PUT",
         "expires_at": expires_at.isoformat(),
         "headers": {"Content-Type": data["content_type"]},
@@ -141,6 +149,14 @@ async def confirm_document_upload(
     patient_id: str,
     data: dict,
 ) -> dict | None:
+    if not _verify_upload_token(
+        data.get("upload_token", ""),
+        patient_id,
+        data["file_url"],
+        data["content_type"],
+    ):
+        raise ValueError("Upload confirmation does not match a prepared upload")
+
     checksum = data.get("checksum")
     duplicate = None
     if checksum:
@@ -389,6 +405,81 @@ def _infer_content_type(file_url: str) -> str:
     if lower.endswith(".txt"):
         return "text/plain"
     return "application/octet-stream"
+
+
+def _upload_token_message(
+    patient_id: str,
+    file_url: str,
+    content_type: str,
+    expires_at: int,
+) -> str:
+    return json.dumps(
+        {
+            "patient_id": patient_id,
+            "file_url": file_url,
+            "content_type": content_type,
+            "expires_at": expires_at,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _sign_upload_token(message: str) -> str:
+    return hmac.new(
+        settings.secret_key.encode("utf-8"),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _make_upload_token(
+    patient_id: str,
+    file_url: str,
+    content_type: str,
+    expires_at: datetime,
+) -> str:
+    expires_ts = int(expires_at.replace(tzinfo=UTC).timestamp())
+    message = _upload_token_message(patient_id, file_url, content_type, expires_ts)
+    payload = {
+        "patient_id": patient_id,
+        "file_url": file_url,
+        "content_type": content_type,
+        "expires_at": expires_ts,
+        "sig": _sign_upload_token(message),
+    }
+    return base64.urlsafe_b64encode(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+
+
+def _verify_upload_token(
+    token: str,
+    patient_id: str,
+    file_url: str,
+    content_type: str,
+) -> bool:
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8"))
+        expires_at = int(payload["expires_at"])
+        token_patient_id = str(payload["patient_id"])
+        token_file_url = str(payload["file_url"])
+        token_content_type = str(payload["content_type"])
+        signature = str(payload["sig"])
+    except (binascii.Error, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+
+    if expires_at < int(datetime.now(UTC).timestamp()):
+        return False
+    if (
+        token_patient_id != patient_id
+        or token_file_url != file_url
+        or token_content_type != content_type
+    ):
+        return False
+
+    message = _upload_token_message(patient_id, file_url, content_type, expires_at)
+    return hmac.compare_digest(signature, _sign_upload_token(message))
 
 
 def _classify_document(document: PatientDocument) -> str:

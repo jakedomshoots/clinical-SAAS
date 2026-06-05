@@ -43,6 +43,7 @@ class UserLogin(BaseModel):
 class PatientPortalLogin(BaseModel):
     email: EmailStr
     dob: str
+    access_code: str = Field(min_length=8, max_length=128)
 
 
 class PatientPortalPatientOut(BaseModel):
@@ -65,3 +66,8 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class SeedAdminOut(BaseModel):
+    user: UserOut
+    temporary_password: str

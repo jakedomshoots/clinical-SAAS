@@ -3,7 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Activity, CalendarClock, FileUp, Send } from 'lucide-react';
 import { ROUTES, type PatientDocument, type PatientDocumentUploadPrepareResult, type PortalIntakeSubmission } from '@concierge-os/shared';
-import { createApiClient } from '@/lib/api-client';
+import { DEMO_MODE_ENABLED, createApiClient } from '@/lib/api-client';
 
 export const Route = createFileRoute('/patient-portal')({
   component: PatientPortalPage,
@@ -26,7 +26,11 @@ interface PortalLoginResponse {
 function PatientPortalPage() {
   const [token, setToken] = useState('');
   const [patient, setPatient] = useState<PortalPatient | null>(null);
-  const [loginForm, setLoginForm] = useState({ email: 'mary.collins@example.test', dob: '1961-04-18' });
+  const [loginForm, setLoginForm] = useState({
+    email: DEMO_MODE_ENABLED ? 'mary.collins@example.test' : '',
+    dob: DEMO_MODE_ENABLED ? '1961-04-18' : '',
+    access_code: DEMO_MODE_ENABLED ? 'demo-portal-code' : '',
+  });
   const [request, setRequest] = useState({
     reason: 'I need help reviewing an outside note.',
     appointment_date: '2026-06-05',
@@ -79,6 +83,7 @@ function PatientPortalPage() {
         content_type: 'application/pdf',
         checksum: `portal-${Date.now()}`,
         pages: 4,
+        upload_token: prepared.upload_token,
       });
     },
     onSuccess: () => setLastAction('Document uploaded for review.'),
@@ -99,9 +104,10 @@ function PatientPortalPage() {
 
         {!patient ? (
           <form onSubmit={(event) => { event.preventDefault(); loginMutation.mutate(); }} className="rounded-md border border-clinic-200 bg-white p-4">
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-3">
               <input type="email" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
               <input type="date" value={loginForm.dob} onChange={(event) => setLoginForm({ ...loginForm, dob: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+              <input type="password" value={loginForm.access_code} onChange={(event) => setLoginForm({ ...loginForm, access_code: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" placeholder="Access code" />
             </div>
             <button className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Sign in</button>
           </form>

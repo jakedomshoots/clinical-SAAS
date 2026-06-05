@@ -4,7 +4,7 @@ Concierge OS is a clinic operations workspace for patient search, tasking, sched
 
 ## Current Product Surface
 
-- React/Vite web app with demo fallback data for local exploration.
+- React/Vite web app with local development demo data gated behind demo mode.
 - FastAPI backend with auth, role-gated operational mutations, audit logging, and test coverage for the core routers.
 - Clinical assistant rail that can stage follow-up tasks, draft portal replies, and stage fax matches after staff confirmation.
 - Optional CopilotKit v2 bridge that is off by default, lazy-loaded when configured, and exposes the same clinical tools as confirmation-required actions.
@@ -35,7 +35,7 @@ Start the web app:
 pnpm dev:web
 ```
 
-Open the web app at `http://localhost:5173`. If the API is unavailable, the frontend falls back to local demo data after login or API request failure.
+Open the web app at `http://localhost:5173`. In local development, demo mode can use `demo-dev-token` for local demo data; real API login failures do not fall back to demo data.
 
 Run the containerized app stack:
 

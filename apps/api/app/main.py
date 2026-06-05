@@ -4,12 +4,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.database import Base, async_session_factory, engine
+from app.database import Base, engine
 from app.minio_client import ensure_bucket
 from app.redis_client import redis
 from app.routers import (
-    assistant,
     analytics,
+    assistant,
     audit,
     auth,
     billing,
@@ -28,7 +28,6 @@ from app.routers import (
     webhooks,
     websocket,
 )
-from app.services.auth_service import seed_admin
 from app.services.readiness_service import check_readiness
 
 
@@ -37,10 +36,6 @@ async def lifespan(app: FastAPI):
     if settings.auto_create_schema:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-
-    # Seed admin user on first boot
-    async with async_session_factory() as db:
-        await seed_admin(db)
 
     if settings.ensure_object_storage_on_startup:
         ensure_bucket()

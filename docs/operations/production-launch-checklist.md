@@ -10,6 +10,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `AUTO_CREATE_SCHEMA=false`.
 - `ENSURE_OBJECT_STORAGE_ON_STARTUP=true`.
 - `ALLOW_SEED_ENDPOINT=false`.
+- `WEBHOOK_SHARED_SECRET` is unique, random, and shared only with trusted webhook senders.
 - `SECRET_KEY` is unique, random, and at least 32 characters.
 - `CORS_ORIGINS` contains only production HTTPS origins.
 - `pnpm migrate:api` runs successfully during deployment.
@@ -31,9 +32,10 @@ Concierge OS should not be used for live clinical operations until each item is 
 
 ## Security
 
-- Default seeded admin password is changed and `ALLOW_SEED_ENDPOINT=false`.
+- Startup admin seeding is disabled, one-time seed endpoints are disabled, and production admin accounts are provisioned through the approved identity workflow.
 - User provisioning is limited to admins/managers and reviewed.
 - Manager-created users are limited to the manager's organization.
+- Manager-created users cannot be assigned admin access.
 - Role matrix is reviewed with the clinic owner.
 - Audit export access is limited to admin/manager roles.
 - Patient document viewer access is audited and expiring access metadata is reviewed.

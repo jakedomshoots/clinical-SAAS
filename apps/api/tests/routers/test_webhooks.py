@@ -1,9 +1,14 @@
 import pytest
 from httpx import AsyncClient
 
+WEBHOOK_SECRET = "test-webhook-secret"
+WEBHOOK_HEADERS = {"X-Concierge-Webhook-Secret": WEBHOOK_SECRET}
+
 
 @pytest.mark.asyncio
-async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_headers):
+async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_headers, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+
     res = await client.post(
         "/api/webhooks/fax",
         json={
@@ -14,6 +19,7 @@ async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_h
             "entity_id": "fax-123",
             "payload": {"status": "received"},
         },
+        headers=WEBHOOK_HEADERS,
     )
 
     assert res.status_code == 202
@@ -28,7 +34,8 @@ async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_h
 
 
 @pytest.mark.asyncio
-async def test_webhook_idempotency_returns_duplicate(client: AsyncClient):
+async def test_webhook_idempotency_returns_duplicate(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
     payload = {
         "organization_id": "default",
         "event_id": "portal-event-1",
@@ -38,8 +45,8 @@ async def test_webhook_idempotency_returns_duplicate(client: AsyncClient):
         "payload": {"subject": "Hello"},
     }
 
-    first = await client.post("/api/webhooks/portal", json=payload)
-    second = await client.post("/api/webhooks/portal", json=payload)
+    first = await client.post("/api/webhooks/portal", json=payload, headers=WEBHOOK_HEADERS)
+    second = await client.post("/api/webhooks/portal", json=payload, headers=WEBHOOK_HEADERS)
 
     assert first.status_code == 202
     assert second.status_code == 202
@@ -49,7 +56,7 @@ async def test_webhook_idempotency_returns_duplicate(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
-    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", "secret")
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
 
     denied = await client.post(
         "/api/webhooks/calendar",
@@ -58,7 +65,7 @@ async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
     allowed = await client.post(
         "/api/webhooks/calendar",
         json={"action": "event.updated", "event_id": "calendar-event-1"},
-        headers={"X-Concierge-Webhook-Secret": "secret"},
+        headers=WEBHOOK_HEADERS,
     )
 
     assert denied.status_code == 401
@@ -66,7 +73,25 @@ async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_communications_webhook_updates_task_delivery(client: AsyncClient, auth_headers):
+async def test_webhook_requires_configured_secret(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", "")
+
+    res = await client.post(
+        "/api/webhooks/calendar",
+        json={"action": "event.updated", "event_id": "calendar-event-2"},
+    )
+
+    assert res.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_communications_webhook_updates_task_delivery(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch,
+):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+
     patient_res = await client.post("/api/patients", json={
         "first_name": "Callback",
         "last_name": "Patient",
@@ -89,17 +114,21 @@ async def test_communications_webhook_updates_task_delivery(client: AsyncClient,
         headers=auth_headers,
     )
 
-    callback = await client.post("/api/webhooks/communications", json={
-        "organization_id": "default",
-        "event_id": "delivery-1",
-        "action": "delivery.updated",
-        "entity_type": "task",
-        "entity_id": task_res.json()["id"],
-        "payload": {
-            "provider_message_id": delivery.json()["provider_message_id"],
-            "delivery_status": "delivered",
+    callback = await client.post(
+        "/api/webhooks/communications",
+        json={
+            "organization_id": "default",
+            "event_id": "delivery-1",
+            "action": "delivery.updated",
+            "entity_type": "task",
+            "entity_id": task_res.json()["id"],
+            "payload": {
+                "provider_message_id": delivery.json()["provider_message_id"],
+                "delivery_status": "delivered",
+            },
         },
-    })
+        headers=WEBHOOK_HEADERS,
+    )
 
     assert callback.status_code == 202
     assert callback.json()["applied"] is True

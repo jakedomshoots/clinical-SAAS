@@ -2,9 +2,15 @@ import { useAuth } from './auth';
 import { demoRequest } from './demo-api';
 
 const BASE = '/api';
+export const DEMO_MODE_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_MODE === 'true';
 
 function normalizePath(path: string) {
   return path.startsWith('/api/') ? path.slice(4) : path;
+}
+
+function canUseDemoApi(token?: string | null) {
+  return DEMO_MODE_ENABLED && token === 'demo-dev-token';
 }
 
 async function request<T>(
@@ -17,7 +23,7 @@ async function request<T>(
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const normalizedPath = normalizePath(path);
 
-  if (token === 'demo-dev-token') {
+  if (canUseDemoApi(token)) {
     const demo = await demoRequest<T>(method, normalizedPath, body);
     if (demo !== undefined) return demo;
   }
@@ -36,8 +42,10 @@ async function request<T>(
 
     return res.json();
   } catch (error) {
-    const demo = await demoRequest<T>(method, normalizedPath, body);
-    if (demo !== undefined) return demo;
+    if (canUseDemoApi(token)) {
+      const demo = await demoRequest<T>(method, normalizedPath, body);
+      if (demo !== undefined) return demo;
+    }
     throw error;
   }
 }

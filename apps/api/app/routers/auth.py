@@ -5,7 +5,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_roles
 from app.models.user import User, UserRole
-from app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut
+from app.schemas.auth import SeedAdminOut, TokenResponse, UserCreate, UserLogin, UserOut
 from app.services.audit_service import log_event
 from app.services.auth_service import (
     authenticate_user,
@@ -32,6 +32,11 @@ async def register(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Patient accounts not supported via this endpoint",
+        )
+    if current_user.role != UserRole.admin and data.role == UserRole.admin.value:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers cannot grant admin access",
         )
 
     organization_id = data.organization_id or current_user.organization_id
@@ -96,13 +101,14 @@ async def session_policy(
     }
 
 
-@router.post("/seed", status_code=status.HTTP_201_CREATED)
+@router.post("/seed", response_model=SeedAdminOut, status_code=status.HTTP_201_CREATED)
 async def seed(db: AsyncSession = Depends(get_db)):  # noqa: B008
-    if not settings.allow_seed_endpoint:
+    if not settings.allow_seed_endpoint or settings.is_production:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    admin = await seed_admin(db)
-    if admin is None:
+    seeded = await seed_admin(db)
+    if seeded is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Users already exist")
+    admin, temporary_password = seeded
     await log_event(
         db,
         "user.seeded",
@@ -111,4 +117,7 @@ async def seed(db: AsyncSession = Depends(get_db)):  # noqa: B008
         actor_id=admin.id,
         payload={"role": "admin"},
     )
-    return UserOut.model_validate(admin)
+    return SeedAdminOut(
+        user=UserOut.model_validate(admin),
+        temporary_password=temporary_password,
+    )

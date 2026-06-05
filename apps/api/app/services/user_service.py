@@ -43,6 +43,12 @@ async def update_user(
     ).scalar_one_or_none()
     if not user:
         return None
+    if current_user.role != UserRole.admin:
+        requested_role = data.get("role")
+        if user.role == UserRole.admin or requested_role == UserRole.admin.value:
+            raise PermissionError("Managers cannot grant or modify admin access")
+        if user.id == current_user.id and ("role" in data or "is_active" in data):
+            raise PermissionError("Managers cannot change their own role or active status")
     before = {
         "display_name": user.display_name,
         "role": user.role.value,

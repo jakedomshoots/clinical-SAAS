@@ -1,6 +1,7 @@
 import type { Appointment, AuditEvent, BillingCase, ClinicSettings, EncounterTemplate, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
+const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
 const now = new Date('2026-06-03T13:30:00-04:00');
 
 function iso(offsetHours = 0) {
@@ -95,6 +96,7 @@ let clinicSettings: ClinicSettings = {
 
 let billingCases: BillingCase[] = [];
 let portalIntake: PortalIntakeSubmission[] = [];
+const preparedUploadTokens = new Map<string, { patientId: string; fileUrl: string; contentType: string }>();
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -602,8 +604,14 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return user as T;
   }
   if (path === '/portal/auth/login' && method === 'POST') {
-    const incoming = body as { email: string; dob: string };
-    const patient = patients.find((item) => item.email === incoming.email && item.dob === incoming.dob && item.is_active);
+    const incoming = body as { email: string; dob: string; access_code?: string };
+    const patient = patients.find(
+      (item) =>
+        item.email === incoming.email &&
+        item.dob === incoming.dob &&
+        item.is_active &&
+        incoming.access_code === DEMO_PORTAL_ACCESS_CODE,
+    );
     if (!patient) throw new Error('Invalid portal credentials');
     return { access_token: `demo-patient-token-${patient.id}`, token_type: 'bearer', patient } as T;
   }
@@ -630,7 +638,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const incoming = body as { filename: string; content_type: string };
     const safeFilename = incoming.filename.replaceAll('/', '_').replaceAll('\\', '_');
     const fileUrl = `s3://concierge-os/patients/${patients[0].id}/documents/${Date.now()}-${safeFilename}`;
-    return { upload_url: fileUrl, file_url: fileUrl, method: 'PUT', expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), headers: { 'Content-Type': incoming.content_type } } as T;
+    const uploadToken = `demo-upload-token:${patients[0].id}:${Date.now()}`;
+    preparedUploadTokens.set(uploadToken, { patientId: patients[0].id, fileUrl, contentType: incoming.content_type });
+    return { upload_url: fileUrl, file_url: fileUrl, upload_token: uploadToken, method: 'PUT', expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), headers: { 'Content-Type': incoming.content_type } } as T;
   }
   if (path === '/portal/auth/documents/upload/confirm' && method === 'POST') {
     return demoRequest<T>('POST', `/patients/${patients[0].id}/documents/upload/confirm`, body);
@@ -1131,9 +1141,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const incoming = body as { filename: string; content_type: string };
     const safeFilename = incoming.filename.replaceAll('/', '_').replaceAll('\\', '_');
     const fileUrl = `s3://concierge-os/patients/${patientId}/documents/${Date.now()}-${safeFilename}`;
+    const uploadToken = `demo-upload-token:${patientId}:${Date.now()}`;
+    preparedUploadTokens.set(uploadToken, { patientId, fileUrl, contentType: incoming.content_type });
     return {
       upload_url: fileUrl,
       file_url: fileUrl,
+      upload_token: uploadToken,
       method: 'PUT',
       expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
       headers: { 'Content-Type': incoming.content_type },
@@ -1143,7 +1156,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   const patientDocumentUploadConfirmMatch = path.match(/^\/patients\/([^/]+)\/documents\/upload\/confirm$/);
   if (patientDocumentUploadConfirmMatch && method === 'POST') {
     const patientId = patientDocumentUploadConfirmMatch[1];
-    const incoming = body as { title: string; source: string; document_type: string; file_url: string; filename: string; content_type: string; checksum?: string; pages?: number };
+    const incoming = body as { title: string; source: string; document_type: string; file_url: string; filename: string; content_type: string; checksum?: string; pages?: number; upload_token?: string };
+    const preparedUpload = incoming.upload_token ? preparedUploadTokens.get(incoming.upload_token) : null;
+    if (
+      !preparedUpload ||
+      preparedUpload.patientId !== patientId ||
+      preparedUpload.fileUrl !== incoming.file_url ||
+      preparedUpload.contentType !== incoming.content_type
+    ) {
+      throw new Error('Upload confirmation does not match a prepared upload');
+    }
+    preparedUploadTokens.delete(incoming.upload_token ?? '');
     const duplicate = patientDocuments.find((item) => item.patient_id === patientId && (item.file_url === incoming.file_url || (incoming.checksum && item.summary?.includes(incoming.checksum))));
     if (duplicate) {
       logDemoEvent({ event_type: 'patient_document.upload_duplicate_detected', entity_type: 'patient_document', entity_id: duplicate.id, payload: { patient_id: patientId, file_url: incoming.file_url, filename: incoming.filename, checksum: incoming.checksum ?? null } });

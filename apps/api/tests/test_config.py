@@ -22,6 +22,7 @@ def test_production_rejects_development_defaults():
     assert "AUTO_CREATE_SCHEMA must be false in production" in message
     assert "ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production" not in message
     assert "ALLOW_SEED_ENDPOINT must be false in production" in message
+    assert "WEBHOOK_SHARED_SECRET must be configured" in message
 
 
 def test_production_allows_hardened_settings():
@@ -34,6 +35,7 @@ def test_production_allows_hardened_settings():
         auto_create_schema=False,
         ensure_object_storage_on_startup=True,
         allow_seed_endpoint=False,
+        webhook_shared_secret="prod-webhook-secret",
     )
 
     assert settings.is_production is True
@@ -50,6 +52,8 @@ def test_production_requires_object_storage_startup_check():
             cors_origins="https://concierge.example.com",
             auto_create_schema=False,
             ensure_object_storage_on_startup=False,
+            allow_seed_endpoint=False,
+            webhook_shared_secret="prod-webhook-secret",
         )
 
     assert "ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production" in str(exc.value)

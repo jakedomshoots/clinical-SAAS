@@ -71,3 +71,53 @@ async def test_manager_can_update_staff_status_and_role(
     assert data["display_name"] == "Front Desk Lead"
     assert data["role"] == "front_desk"
     assert data["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_grant_admin_role(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-grant-admin@clinic.example.com")
+    staff = await make_user(db, UserRole.ma, "staff-grant-admin@clinic.example.com")
+
+    res = await client.patch(
+        f"/api/users/{staff.id}",
+        json={"role": "admin"},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_modify_admin_user(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-edit-admin@clinic.example.com")
+    admin = await make_user(db, UserRole.admin, "admin-protected-user@clinic.example.com")
+
+    res = await client.patch(
+        f"/api/users/{admin.id}",
+        json={"display_name": "Downgraded Admin", "role": "provider"},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_change_own_role_or_active_status(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-self-edit@clinic.example.com")
+
+    res = await client.patch(
+        f"/api/users/{manager.id}",
+        json={"role": "front_desk", "is_active": False},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403

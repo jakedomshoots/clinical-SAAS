@@ -45,7 +45,10 @@ async def update_user(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    user = await user_service.update_user(db, current_user, user_id, update_data)
+    try:
+        user = await user_service.update_user(db, current_user, user_id, update_data)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
     return UserDirectoryOut.model_validate(user)

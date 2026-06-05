@@ -44,6 +44,8 @@ def upgrade() -> None:
         sa.Column('insurance', sa.JSON(), nullable=True),
         sa.Column('allergies', sa.JSON(), server_default=sa.text("'[]'")),
         sa.Column('problem_list', sa.JSON(), server_default=sa.text("'[]'")),
+        sa.Column('portal_access_code_hash', sa.String(255), nullable=True),
+        sa.Column('portal_access_code_expires_at', sa.DateTime(), nullable=True),
         sa.Column('is_active', sa.Boolean(), default=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),

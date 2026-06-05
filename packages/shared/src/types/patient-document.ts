@@ -52,6 +52,7 @@ export interface PatientDocumentProcessResult {
 export interface PatientDocumentUploadPrepareResult {
   upload_url: string;
   file_url: string;
+  upload_token: string;
   method: 'PUT';
   expires_at: string;
   headers: Record<string, string>;

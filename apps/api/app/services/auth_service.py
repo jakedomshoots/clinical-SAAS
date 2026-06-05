@@ -1,3 +1,4 @@
+import secrets
 from datetime import UTC, datetime, timedelta
 
 from jose import jwt
@@ -17,6 +18,10 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+def generate_temporary_password() -> str:
+    return f"{secrets.token_urlsafe(18)}Aa1!"
 
 
 def create_access_token(user_id: str, role: str) -> str:
@@ -78,17 +83,18 @@ async def authenticate_user(db: AsyncSession, email: str, password: str) -> User
     return user
 
 
-async def seed_admin(db: AsyncSession) -> User | None:
+async def seed_admin(db: AsyncSession) -> tuple[User, str] | None:
     existing = await db.execute(select(User).limit(1))
     if existing.scalar_one_or_none() is not None:
         return None
 
+    temporary_password = generate_temporary_password()
     user = await create_user(
         db,
         email="admin@clinic.example.com",
-        password="admin123!",
+        password=temporary_password,
         display_name="Clinic Admin",
         role="admin",
         organization_id="default",
     )
-    return user
+    return user, temporary_password

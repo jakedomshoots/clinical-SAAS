@@ -4,7 +4,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
-from app.schemas.patient import PatientCreate, PatientListOut, PatientOut, PatientUpdate
+from app.schemas.patient import (
+    PatientCreate,
+    PatientListOut,
+    PatientOut,
+    PatientPortalAccessCodeOut,
+    PatientUpdate,
+)
 from app.schemas.patient_chart import PatientChartSummaryOut
 from app.schemas.patient_clinical import (
     PatientCarePlanItemCreate,
@@ -30,15 +36,22 @@ from app.schemas.patient_document import (
     PatientDocumentListOut,
     PatientDocumentOut,
     PatientDocumentProcessOut,
-    PatientDocumentUploadPrepare,
-    PatientDocumentUploadConfirm,
-    PatientDocumentUploadPrepareOut,
     PatientDocumentUpdate,
+    PatientDocumentUploadConfirm,
+    PatientDocumentUploadPrepare,
+    PatientDocumentUploadPrepareOut,
 )
 from app.schemas.patient_handoff import PatientCheckoutHandoffOut, PatientCheckoutTaskCreate
 from app.schemas.task import TaskOut
 from app.schemas.workload import WorkloadSummaryOut
-from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_handoff_service, patient_service, workload_service
+from app.services import (
+    patient_chart_service,
+    patient_clinical_service,
+    patient_document_service,
+    patient_handoff_service,
+    patient_service,
+    workload_service,
+)
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -158,6 +171,18 @@ async def update_patient(
     return PatientOut(**patient)
 
 
+@router.post("/{patient_id}/portal-access-code", response_model=PatientPortalAccessCodeOut)
+async def issue_patient_portal_access_code(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    issued = await patient_service.issue_portal_access_code(db, current_user, patient_id)
+    if not issued:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientPortalAccessCodeOut(**issued)
+
+
 @router.delete("/{patient_id}", response_model=PatientOut)
 async def deactivate_patient(
     patient_id: str,
@@ -245,12 +270,15 @@ async def confirm_patient_document_upload(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(clinical_write_required),
 ):
-    document = await patient_document_service.confirm_document_upload(
-        db,
-        current_user,
-        patient_id,
-        data.model_dump(),
-    )
+    try:
+        document = await patient_document_service.confirm_document_upload(
+            db,
+            current_user,
+            patient_id,
+            data.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientDocumentOut(**document)

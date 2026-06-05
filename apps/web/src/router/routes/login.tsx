@@ -1,7 +1,7 @@
 import { Link, createFileRoute, useRouter } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { createApiClient } from '@/lib/api-client';
+import { DEMO_MODE_ENABLED, createApiClient } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import type { TokenResponse } from '@concierge-os/shared';
 import { Activity, Loader2 } from 'lucide-react';
@@ -13,12 +13,13 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@clinic.example.com');
-  const [password, setPassword] = useState('admin123!');
+  const [email, setEmail] = useState(DEMO_MODE_ENABLED ? 'admin@clinic.example.com' : '');
+  const [password, setPassword] = useState(DEMO_MODE_ENABLED ? 'admin123!' : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   function loginDemo() {
+    if (!DEMO_MODE_ENABLED) return;
     login('demo-dev-token', {
       id: '00000000-0000-4000-8000-000000000001',
       email: 'admin@clinic.example.com',
@@ -43,11 +44,11 @@ function LoginPage() {
       login(res.access_token, res.user);
       router.navigate({ to: '/' });
     } catch (err) {
-      if (email === 'admin@clinic.example.com' && password === 'admin123!') {
+      if (DEMO_MODE_ENABLED && email === 'admin@clinic.example.com' && password === 'admin123!') {
         loginDemo();
         return;
       }
-      setError(err instanceof Error ? `${err.message}. Try the demo credentials or start the API.` : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -104,13 +105,15 @@ function LoginPage() {
             Sign in
           </button>
 
-          <button
-            type="button"
-            onClick={loginDemo}
-            className="mt-3 flex w-full items-center justify-center rounded-md border border-clinic-300 px-4 py-2 text-sm font-medium text-clinic-700 transition-colors hover:bg-clinic-50"
-          >
-            Continue in demo mode
-          </button>
+          {DEMO_MODE_ENABLED && (
+            <button
+              type="button"
+              onClick={loginDemo}
+              className="mt-3 flex w-full items-center justify-center rounded-md border border-clinic-300 px-4 py-2 text-sm font-medium text-clinic-700 transition-colors hover:bg-clinic-50"
+            >
+              Continue in demo mode
+            </button>
+          )}
           <Link to="/patient-portal" className="mt-3 flex w-full items-center justify-center rounded-md border border-clinic-200 bg-clinic-50 px-4 py-2 text-sm font-medium text-clinic-700 transition-colors hover:bg-white">
             Open patient portal
           </Link>

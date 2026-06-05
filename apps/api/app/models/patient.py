@@ -33,6 +33,8 @@ class Patient(Base):
     insurance: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     allergies: Mapped[list | None] = mapped_column(JSON, default=list)
     problem_list: Mapped[list | None] = mapped_column(JSON, default=list)
+    portal_access_code_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    portal_access_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)

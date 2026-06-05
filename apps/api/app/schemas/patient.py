@@ -1,5 +1,6 @@
 from datetime import date, datetime
-from pydantic import BaseModel, Field, field_serializer, ConfigDict
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class AddressSchema(BaseModel):
@@ -40,6 +41,7 @@ class PatientCreate(BaseModel):
     insurance: InsuranceSchema | None = None
     allergies: list[AllergySchema] = []
     problem_list: list[str] = []
+    portal_access_code: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class PatientUpdate(BaseModel):
@@ -54,6 +56,7 @@ class PatientUpdate(BaseModel):
     insurance: InsuranceSchema | None = None
     allergies: list[AllergySchema] | None = None
     problem_list: list[str] | None = None
+    portal_access_code: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class PatientOut(BaseModel):
@@ -90,3 +93,9 @@ class PatientListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PatientPortalAccessCodeOut(BaseModel):
+    patient_id: str
+    access_code: str
+    expires_at: datetime
