@@ -5,7 +5,13 @@ from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
 from app.schemas.patient import PatientCreate, PatientListOut, PatientOut, PatientUpdate
-from app.services import patient_service
+from app.schemas.patient_document import (
+    PatientDocumentCreate,
+    PatientDocumentListOut,
+    PatientDocumentOut,
+    PatientDocumentUpdate,
+)
+from app.services import patient_document_service, patient_service
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -78,3 +84,76 @@ async def deactivate_patient(
     if not patient:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientOut(**patient)
+
+
+@router.get("/{patient_id}/documents", response_model=PatientDocumentListOut)
+async def list_patient_documents(
+    patient_id: str,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    document_status: str | None = Query(None, alias="status"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await patient_document_service.list_patient_documents(
+        db,
+        current_user,
+        patient_id,
+        page=page,
+        page_size=page_size,
+        status=document_status,
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    data, total = result
+    return PatientDocumentListOut(
+        data=[PatientDocumentOut(**document) for document in data],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post(
+    "/{patient_id}/documents",
+    response_model=PatientDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_patient_document(
+    patient_id: str,
+    data: PatientDocumentCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    document = await patient_document_service.create_patient_document(
+        db,
+        current_user,
+        patient_id,
+        data.model_dump(),
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return PatientDocumentOut(**document)
+
+
+@router.patch("/{patient_id}/documents/{document_id}", response_model=PatientDocumentOut)
+async def update_patient_document(
+    patient_id: str,
+    document_id: str,
+    data: PatientDocumentUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+    document = await patient_document_service.update_patient_document(
+        db,
+        current_user,
+        patient_id,
+        document_id,
+        update_data,
+    )
+    if not document:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return PatientDocumentOut(**document)

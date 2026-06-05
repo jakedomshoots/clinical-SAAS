@@ -175,3 +175,75 @@ async def test_patient_get_is_scoped_to_user_organization(
     res = await client.get(f"/api/patients/{patient_id}", headers=headers_for(other_user))
 
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patient_documents_can_be_created_listed_and_updated(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Document", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Outside cardiology note",
+        "source": "North Shore Cardiology",
+        "document_type": "Consult note",
+        "status": "needs_review",
+        "matched_by": "manual",
+        "pages": 6,
+        "summary": "Medication recommendations and follow-up plan.",
+    }, headers=auth_headers)
+
+    assert document_res.status_code == 201
+    document = document_res.json()
+    assert document["patient_id"] == patient_id
+    assert document["status"] == "needs_review"
+
+    list_res = await client.get(f"/api/patients/{patient_id}/documents", headers=auth_headers)
+    assert list_res.status_code == 200
+    listed = list_res.json()
+    assert listed["total"] == 1
+    assert listed["data"][0]["title"] == "Outside cardiology note"
+
+    update_res = await client.patch(
+        f"/api/patients/{patient_id}/documents/{document['id']}",
+        json={"status": "filed"},
+        headers=auth_headers,
+    )
+    assert update_res.status_code == 200
+    assert update_res.json()["status"] == "filed"
+
+
+@pytest.mark.asyncio
+async def test_patient_documents_are_scoped_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Hidden", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Protected outside record",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+    }, headers=auth_headers)
+    document_id = document_res.json()["id"]
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-document-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_headers = headers_for(other_user)
+
+    list_res = await client.get(f"/api/patients/{patient_id}/documents", headers=other_headers)
+    update_res = await client.patch(
+        f"/api/patients/{patient_id}/documents/{document_id}",
+        json={"status": "filed"},
+        headers=other_headers,
+    )
+
+    assert list_res.status_code == 404
+    assert update_res.status_code == 404

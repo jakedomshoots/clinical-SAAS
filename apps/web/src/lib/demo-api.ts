@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientDocument, PatientUpdate, Task } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -16,6 +16,7 @@ interface DemoStore {
   tasks: Task[];
   appointments: Appointment[];
   faxes: Fax[];
+  patientDocuments?: PatientDocument[];
   messages: Message[];
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
@@ -154,6 +155,69 @@ let faxes: Fax[] = [
   { id: uuid(404), direction: 'outbound', status: 'failed', from_number: '+13125550999', to_number: '+13125550188', pages: 3, file_url: null, patient_id: uuid(103), patient_name: 'Sofia Nguyen', matched_by: 'manual', ocr_text: 'Insurance appeal documentation.', created_at: iso(-5) },
 ];
 
+let patientDocuments: PatientDocument[] = [
+  {
+    id: uuid(451),
+    patient_id: uuid(101),
+    title: 'LabCorp final report',
+    source: 'LabCorp Chicago Central',
+    document_type: 'Lab result',
+    status: 'needs_review',
+    matched_by: 'MRN detected',
+    pages: 4,
+    file_url: null,
+    summary: 'CMP and A1c received. Potassium is flagged critical and requires same-day review.',
+    received_at: '2026-06-03T10:42:00-04:00',
+    created_at: iso(-1.4),
+    updated_at: iso(-1.4),
+  },
+  {
+    id: uuid(452),
+    patient_id: uuid(101),
+    title: 'Cardiology consult note',
+    source: 'North Shore Cardiology',
+    document_type: 'Consult note',
+    status: 'filed',
+    matched_by: 'manual',
+    pages: 7,
+    file_url: null,
+    summary: 'Medication recommendations and follow-up EKG plan after cardiology evaluation.',
+    received_at: '2026-05-28T15:16:00-04:00',
+    created_at: iso(-140),
+    updated_at: iso(-140),
+  },
+  {
+    id: uuid(453),
+    patient_id: uuid(101),
+    title: 'Hospital discharge summary',
+    source: 'Mercy Medical Center',
+    document_type: 'Discharge',
+    status: 'reconciled',
+    matched_by: 'patient DOB + name',
+    pages: 11,
+    file_url: null,
+    summary: 'Observation stay summary, medication changes, and discharge instructions.',
+    received_at: '2026-05-22T09:04:00-04:00',
+    created_at: iso(-280),
+    updated_at: iso(-280),
+  },
+  {
+    id: uuid(454),
+    patient_id: uuid(105),
+    title: 'Cardiology referral response',
+    source: 'Lakeview Heart Group',
+    document_type: 'Referral',
+    status: 'received',
+    matched_by: 'manual',
+    pages: 3,
+    file_url: null,
+    summary: 'Referral accepted with suggested anticoagulation follow-up window.',
+    received_at: '2026-06-02T14:20:00-04:00',
+    created_at: iso(-23),
+    updated_at: iso(-23),
+  },
+];
+
 let messages: Message[] = [
   { id: uuid(501), sender_id: uuid(101), sender_name: 'Mary Collins', recipient_id: uuid(1), recipient_name: 'Clinic Admin', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?', thread_id: uuid(601), is_read: false, created_at: iso(-2) },
   { id: uuid(502), sender_id: uuid(1), sender_name: 'Clinic Admin', recipient_id: uuid(101), recipient_name: 'Mary Collins', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.', thread_id: uuid(601), is_read: true, created_at: iso(-1.5) },
@@ -223,7 +287,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, messages, auditEvents, integrationEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, messages, auditEvents, integrationEvents }),
   );
 }
 
@@ -233,6 +297,7 @@ if (storedDemoData) {
   tasks = storedDemoData.tasks;
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
+  patientDocuments = storedDemoData.patientDocuments ?? patientDocuments;
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
@@ -473,6 +538,43 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       return patients.find((item) => item.id === patient.id) as T;
     }
     return patient as T;
+  }
+
+  const patientDocumentsMatch = path.match(/^\/patients\/([^/]+)\/documents$/);
+  if (patientDocumentsMatch) {
+    const patientId = patientDocumentsMatch[1];
+    if (!patients.some((patient) => patient.id === patientId)) throw new Error('Patient not found');
+    if (method === 'POST') {
+      const incoming = body as Partial<PatientDocument>;
+      const document: PatientDocument = {
+        id: uuid(980 + patientDocuments.length),
+        patient_id: patientId,
+        title: incoming.title ?? 'Outside document',
+        source: incoming.source ?? 'Outside office',
+        document_type: incoming.document_type ?? 'Clinical record',
+        status: incoming.status ?? 'received',
+        matched_by: incoming.matched_by ?? 'manual',
+        pages: incoming.pages ?? 1,
+        file_url: incoming.file_url ?? null,
+        summary: incoming.summary ?? null,
+        received_at: incoming.received_at ?? new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      patientDocuments = [document, ...patientDocuments];
+      logDemoEvent({
+        event_type: 'patient_document.created',
+        entity_type: 'patient_document',
+        entity_id: document.id,
+        payload: { patient_id: patientId, title: document.title, source: document.source, source_mode: 'demo-ui' },
+      });
+      saveDemoData();
+      return document as T;
+    }
+    const filtered = patientDocuments
+      .filter((document) => document.patient_id === patientId)
+      .sort((a, b) => b.received_at.localeCompare(a.received_at));
+    return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
   }
 
   if (path === '/tasks') {

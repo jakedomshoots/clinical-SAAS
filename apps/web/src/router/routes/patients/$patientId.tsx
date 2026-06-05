@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientUpdate } from '@concierge-os/shared';
+import type { Patient, PatientDocument, PatientDocumentListResponse, PatientUpdate } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -58,39 +58,6 @@ const labRows = [
   { date: '2026-03-12', panel: 'Lipid panel', result: 'LDL 92 mg/dL', flag: 'Normal', status: 'Filed' },
 ];
 
-const documentRows = [
-  {
-    received: '2026-06-03 10:42 AM',
-    title: 'LabCorp final report',
-    source: 'LabCorp Chicago Central',
-    type: 'Lab result',
-    status: 'Needs provider review',
-    matchedBy: 'MRN detected',
-    pages: 4,
-    summary: 'CMP and A1c received. Potassium is flagged critical and requires same-day review.',
-  },
-  {
-    received: '2026-05-28 3:16 PM',
-    title: 'Cardiology consult note',
-    source: 'North Shore Cardiology',
-    type: 'Consult note',
-    status: 'Filed',
-    matchedBy: 'manual',
-    pages: 7,
-    summary: 'Medication recommendations and follow-up EKG plan after cardiology evaluation.',
-  },
-  {
-    received: '2026-05-22 9:04 AM',
-    title: 'Hospital discharge summary',
-    source: 'Mercy Medical Center',
-    type: 'Discharge',
-    status: 'Reconciled',
-    matchedBy: 'patient DOB + name',
-    pages: 11,
-    summary: 'Observation stay summary, medication changes, and discharge instructions.',
-  },
-];
-
 const medicationRows = [
   { name: 'Lisinopril', dose: '20 mg', directions: '1 tablet daily', source: 'Active med list', status: 'Continue' },
   { name: 'Metformin ER', dose: '500 mg', directions: '2 tablets with dinner', source: 'Active med list', status: 'Review A1c' },
@@ -129,6 +96,14 @@ function PatientChartPage() {
     queryKey: QUERY_KEYS.PATIENT(patientId),
     queryFn: () => api.get<Patient>(ROUTES.PATIENT(patientId)),
   });
+
+  const { data: documentList, isLoading: documentsLoading, isError: documentsError } = useQuery({
+    queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId),
+    queryFn: () => api.get<PatientDocumentListResponse>(ROUTES.PATIENT_DOCUMENTS(patientId)),
+  });
+
+  const documentRows = documentList?.data ?? [];
+  const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
 
   const updateMutation = useMutation({
     mutationFn: (data: PatientUpdate) => api.patch<Patient>(ROUTES.PATIENT(patientId), data),
@@ -223,7 +198,7 @@ function PatientChartPage() {
           <section className="grid gap-3 lg:grid-cols-4">
             {[
               { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
-              { label: 'Documents', value: String(documentRows.length), detail: '1 needs review', icon: FolderOpen, tone: 'text-amber-700' },
+              { label: 'Documents', value: String(documentRows.length), detail: `${documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
               { label: 'Open tasks', value: String(patientTasks.length), detail: '2 clinical blockers', icon: ClipboardList, tone: 'text-red-700' },
               { label: 'Care plan', value: '4 items', detail: 'Checkout handoff ready', icon: ShieldCheck, tone: 'text-clinic-700' },
             ].map(({ label, value, detail, icon: Icon, tone }) => (
@@ -420,27 +395,39 @@ function PatientChartPage() {
             <p className="mt-1 text-xs text-clinic-500">Faxed, scanned, and imported records from outside offices</p>
           </div>
           <div className="divide-y divide-clinic-100">
-            {documentRows.map((document) => (
-              <div key={document.title} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_12rem_10rem_6rem]">
+            {documentsLoading && (
+              <div className="px-4 py-6 text-sm text-clinic-500">Loading outside documents...</div>
+            )}
+            {documentsError && (
+              <div className="px-4 py-6 text-sm text-red-700">Unable to load outside documents.</div>
+            )}
+            {!documentsLoading && !documentsError && documentRows.length === 0 && (
+              <div className="px-4 py-6 text-sm text-clinic-500">No outside documents have been attached to this chart yet.</div>
+            )}
+            {!documentsLoading && !documentsError && documentRows.map((document) => (
+              <div key={document.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_12rem_10rem_6rem]">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-clinic-900">{document.title}</span>
                     <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-xs font-medium text-clinic-600">
-                      {document.type}
+                      {document.document_type}
                     </span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-clinic-500">
                     <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{document.source}</span>
-                    <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" />{document.received}</span>
+                    <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" />{formatDateTime(document.received_at)}</span>
                     <span>{document.pages} pages</span>
-                    <span>Matched by {document.matchedBy}</span>
+                    {document.matched_by && <span>Matched by {document.matched_by}</span>}
                   </div>
-                  <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>
+                  {document.summary && <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>}
                 </div>
-                <div className="text-sm font-medium text-clinic-700">{document.status}</div>
+                <div className="text-sm font-medium text-clinic-700">{formatDocumentStatus(document.status)}</div>
                 <div className="text-sm text-clinic-500">Available in chart</div>
                 <div className="text-right">
-                  <button className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
+                  <button
+                    disabled={!document.file_url}
+                    className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
                     <Download className="h-3.5 w-3.5" />
                     View
                   </button>
@@ -593,4 +580,23 @@ function PatientChartPage() {
       )}
     </div>
   );
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+}
+
+function formatDocumentStatus(status: PatientDocument['status']) {
+  return status
+    .split('_')
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
 }

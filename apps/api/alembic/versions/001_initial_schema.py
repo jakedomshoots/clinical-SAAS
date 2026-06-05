@@ -149,6 +149,30 @@ def upgrade() -> None:
     )
 
     op.create_table(
+        'patient_documents',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('title', sa.String(200), nullable=False),
+        sa.Column('source', sa.String(200), nullable=False),
+        sa.Column('document_type', sa.String(100), nullable=False),
+        sa.Column(
+            'status',
+            sa.Enum('received', 'needs_review', 'filed', 'reconciled', 'rejected', name='patientdocumentstatus'),
+            nullable=False,
+            server_default='received',
+            index=True,
+        ),
+        sa.Column('matched_by', sa.String(100), nullable=True),
+        sa.Column('pages', sa.Integer(), server_default='1'),
+        sa.Column('file_url', sa.String(500), nullable=True),
+        sa.Column('summary', sa.Text(), nullable=True),
+        sa.Column('received_at', sa.DateTime(), server_default=sa.text('now()'), index=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
         'messages',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column(
@@ -195,6 +219,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_table('integration_events')
     op.drop_table('messages')
+    op.drop_table('patient_documents')
     op.drop_table('faxes')
     op.drop_table('provider_availability')
     op.drop_table('appointments')
