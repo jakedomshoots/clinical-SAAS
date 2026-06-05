@@ -33,3 +33,11 @@ async def test_external_integrations_report_configured_values(monkeypatch):
 
     assert all(item["ok"] for item in integrations.values())
     assert integrations["copilotkit"]["configured"] is True
+
+
+def test_deployment_assets_report_operational_files():
+    deployment = readiness_service._check_deployment_assets()
+
+    assert deployment["deployment_runbook"]["ok"] is True
+    assert deployment["health_report_script"]["path"] == "scripts/health-report.sh"
+    assert "local_backup_script" in deployment

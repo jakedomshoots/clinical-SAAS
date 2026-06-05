@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -56,6 +56,11 @@ interface UserListResponse {
   total: number;
 }
 
+interface AuditListResponse {
+  data: AuditEvent[];
+  total: number;
+}
+
 function PatientChartPage() {
   const { patientId } = Route.useParams();
   const api = useApi();
@@ -65,6 +70,8 @@ function PatientChartPage() {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [documentAccessMessage, setDocumentAccessMessage] = useState<string | null>(null);
+  const [documentAccessRequest, setDocumentAccessRequest] = useState<PatientDocument | null>(null);
+  const [documentAccessReason, setDocumentAccessReason] = useState('Clinical chart review');
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -108,6 +115,11 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientEncounterListResponse>(ROUTES.PATIENT_ENCOUNTERS(patientId)),
   });
 
+  const { data: accessHistory } = useQuery({
+    queryKey: [...QUERY_KEYS.AUDIT, 'patient-access-history', patientId],
+    queryFn: () => api.get<AuditListResponse>(ROUTES.PATIENT_ACCESS_HISTORY(patientId)),
+  });
+
   const { data: staff } = useQuery({
     queryKey: QUERY_KEYS.USERS,
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
@@ -142,9 +154,11 @@ function PatientChartPage() {
   });
 
   const documentAccessMutation = useMutation({
-    mutationFn: (documentId: string) =>
-      api.get<PatientDocumentAccess>(`${ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)}?reason=Clinical%20chart%20review`),
+    mutationFn: ({ documentId, reason }: { documentId: string; reason: string }) =>
+      api.get<PatientDocumentAccess>(`${ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)}?reason=${encodeURIComponent(reason)}`),
     onSuccess: (access) => {
+      setDocumentAccessRequest(null);
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.AUDIT, 'patient-access-history', patientId] });
       if (access.available && access.url) {
         window.open(access.url, '_blank', 'noopener,noreferrer');
         setDocumentAccessMessage(`${access.viewer_mode === 'inline' ? 'Preview' : 'Download'} access expires at ${access.expires_at ?? 'the configured expiry time'}${access.content_type ? ` (${access.content_type})` : ''}.`);
@@ -596,7 +610,10 @@ function PatientChartPage() {
                     </button>
                   )}
                   <button
-                    onClick={() => documentAccessMutation.mutate(document.id)}
+                    onClick={() => {
+                      setDocumentAccessRequest(document);
+                      setDocumentAccessReason('Clinical chart review');
+                    }}
                     disabled={documentAccessMutation.isPending}
                     className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
@@ -614,6 +631,63 @@ function PatientChartPage() {
               </div>
             ))}
           </div>
+          <div className="border-t border-clinic-100 bg-clinic-50 px-4 py-3">
+            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-clinic-500">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Recent PHI Access
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              {(accessHistory?.data ?? []).slice(0, 4).map((event) => (
+                <div key={event.id} className="rounded-md border border-clinic-200 bg-white px-3 py-2 text-xs">
+                  <div className="font-medium text-clinic-700">{event.event_type.replaceAll('_', ' ')}</div>
+                  <div className="mt-1 text-clinic-500">{formatDateTime(event.created_at)}</div>
+                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-clinic-600">{event.payload.reason}</div>}
+                </div>
+              ))}
+              {(accessHistory?.data ?? []).length === 0 && <div className="text-xs text-clinic-400">No document access events recorded yet.</div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {documentAccessRequest && (
+        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              documentAccessMutation.mutate({ documentId: documentAccessRequest.id, reason: documentAccessReason });
+            }}
+            className="mx-auto mt-28 max-w-md rounded-md border border-clinic-300 bg-white shadow-xl"
+          >
+            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-clinic-900">Document Access Reason</h2>
+              <button type="button" onClick={() => setDocumentAccessRequest(null)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 p-4">
+              <div className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-800">
+                {documentAccessRequest.title}
+              </div>
+              <label className="block text-sm font-medium text-clinic-700">
+                Reason
+                <textarea
+                  required
+                  minLength={3}
+                  rows={3}
+                  value={documentAccessReason}
+                  onChange={(event) => setDocumentAccessReason(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
+              <button type="button" onClick={() => setDocumentAccessRequest(null)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
+              <button disabled={documentAccessMutation.isPending || documentAccessReason.trim().length < 3} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+                {documentAccessMutation.isPending ? 'Opening...' : 'Open document'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

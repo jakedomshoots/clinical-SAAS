@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 
 from sqlalchemy import text
 
@@ -32,6 +33,7 @@ async def check_readiness() -> dict:
         "environment": settings.app_env,
         "checks": checks,
         "integrations": integrations,
+        "deployment": _check_deployment_assets(),
     }
 
 
@@ -83,3 +85,17 @@ async def _check_object_storage() -> dict:
         return {"ok": False, "bucket": settings.minio_bucket, "error": "TimeoutError"}
     except Exception as exc:  # pragma: no cover - defensive for deployment diagnostics
         return {"ok": False, "bucket": settings.minio_bucket, "error": exc.__class__.__name__}
+
+
+def _check_deployment_assets() -> dict:
+    repo_root = Path(__file__).resolve().parents[4]
+    assets = {
+        "production_env_template": repo_root / ".env.production.example",
+        "deployment_runbook": repo_root / "docs" / "operations" / "deployment-runbook.md",
+        "health_report_script": repo_root / "scripts" / "health-report.sh",
+        "local_backup_script": repo_root / "scripts" / "backup-local.sh",
+    }
+    return {
+        key: {"ok": path.exists(), "path": str(path.relative_to(repo_root))}
+        for key, path in assets.items()
+    }

@@ -4,8 +4,8 @@ import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import { ROUTES, type Appointment, type AppointmentStatus, type Patient, type UserListResponse } from '@concierge-os/shared';
-import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
+import { ROUTES, type Appointment, type AppointmentReminderQueue, type AppointmentStatus, type Patient, type ProviderAvailability, type UserListResponse } from '@concierge-os/shared';
+import { Bell, CalendarClock, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface AppointmentListResponse {
   data: Appointment[];
@@ -57,6 +57,12 @@ function SchedulePage() {
     type: 'Office visit',
     notes: '',
   });
+  const [selectedProviderId, setSelectedProviderId] = useState('');
+  const [availabilityForm, setAvailabilityForm] = useState({
+    day_of_week: '1',
+    start_time: '09:00',
+    end_time: '17:00',
+  });
 
   const startStr = formatDate(weekStart);
   const endDate = new Date(weekStart);
@@ -78,6 +84,12 @@ function SchedulePage() {
   });
   const patientOptions = patients?.data ?? [];
   const providerOptions = staff?.data ?? [];
+  const activeProviderId = selectedProviderId || providerOptions[0]?.id || '';
+  const { data: availability } = useQuery({
+    queryKey: [...QUERY_KEYS.APPOINTMENTS, 'availability', activeProviderId],
+    enabled: Boolean(activeProviderId),
+    queryFn: () => api.get<ProviderAvailability[]>(ROUTES.PROVIDER_AVAILABILITY(activeProviderId)),
+  });
 
   const weekDays = useMemo(() => {
     const days: Date[] = [];
@@ -135,6 +147,26 @@ function SchedulePage() {
     },
   });
 
+  const availabilityMutation = useMutation({
+    mutationFn: () =>
+      api.post<ProviderAvailability>(`${ROUTES.SCHEDULE}/availability`, {
+        provider_id: activeProviderId,
+        day_of_week: Number(availabilityForm.day_of_week),
+        start_time: availabilityForm.start_time,
+        end_time: availabilityForm.end_time,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.APPOINTMENTS, 'availability', activeProviderId] });
+    },
+  });
+
+  const reminderMutation = useMutation({
+    mutationFn: (appointmentId: string) => api.post<AppointmentReminderQueue>(ROUTES.APPOINTMENT_REMINDERS(appointmentId), {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATION_EVENTS });
+    },
+  });
+
   function appointmentsForDay(day: Date): Appointment[] {
     if (!data?.data) return [];
     const dayStr = formatDate(day);
@@ -186,6 +218,44 @@ function SchedulePage() {
         </button>
       </div>
 
+      <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_22rem]">
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
+            <CalendarClock className="h-4 w-4 text-accent-700" />
+            Provider Availability
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
+            <select value={activeProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+              {providerOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.display_name}</option>)}
+            </select>
+            <select value={availabilityForm.day_of_week} onChange={(event) => setAvailabilityForm({ ...availabilityForm, day_of_week: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => <option key={day} value={index}>{day}</option>)}
+            </select>
+            <input type="time" value={availabilityForm.start_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, start_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <input type="time" value={availabilityForm.end_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, end_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <button disabled={!activeProviderId || availabilityMutation.isPending} onClick={() => availabilityMutation.mutate()} className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-50">
+              Add
+            </button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(availability ?? []).map((item) => (
+              <span key={item.id} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][item.day_of_week]} {item.start_time}-{item.end_time}
+              </span>
+            ))}
+            {activeProviderId && (availability ?? []).length === 0 && <span className="text-xs text-clinic-400">No availability set for this provider.</span>}
+          </div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+            <Bell className="h-4 w-4 text-accent-700" />
+            Reminder Queue
+          </div>
+          <p className="mt-2 text-xs text-clinic-500">Use the bell on any appointment to stage SMS and email reminders for delivery.</p>
+          {reminderMutation.isSuccess && <p className="mt-3 rounded-md bg-accent-50 px-3 py-2 text-xs font-medium text-accent-800">Reminder events queued.</p>}
+        </div>
+      </section>
+
       {isLoading ? (
         <LoadingState label="Loading schedule" />
       ) : isError ? (
@@ -227,12 +297,21 @@ function SchedulePage() {
                           </button>
                         )}
                         {!['completed', 'cancelled', 'no_show'].includes(appt.status) && (
-                          <button
-                            onClick={() => rescheduleMutation.mutate({ appointment: appt, minutes: 15 })}
-                            className="ml-1 mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
-                          >
-                            +15m
-                          </button>
+                          <>
+                            <button
+                              onClick={() => rescheduleMutation.mutate({ appointment: appt, minutes: 15 })}
+                              className="ml-1 mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                            >
+                              +15m
+                            </button>
+                            <button
+                              onClick={() => reminderMutation.mutate(appt.id)}
+                              title="Queue appointment reminders"
+                              className="ml-1 mt-1 inline-flex items-center rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                            >
+                              <Bell className="h-3 w-3" />
+                            </button>
+                          </>
                         )}
                       </div>
                     ))}

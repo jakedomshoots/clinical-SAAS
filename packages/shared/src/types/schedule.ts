@@ -31,3 +31,17 @@ export interface TodayQueue {
   checked_in: number;
   blocked: number;
 }
+
+export interface ProviderAvailability {
+  id: UUID;
+  provider_id: UUID;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
+export interface AppointmentReminderQueue {
+  appointment_id: UUID;
+  queued: number;
+  event_ids: UUID[];
+}

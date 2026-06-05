@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -46,6 +46,7 @@ interface DemoStore {
   messages: Message[];
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
+  providerAvailability?: ProviderAvailability[];
 }
 
 interface IntegrationEvent {
@@ -72,6 +73,12 @@ let demoUsers: User[] = [
   { id: uuid(4), email: 'riley.morgan@clinic.example.com', display_name: 'Riley Morgan', role: 'manager', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
   { id: uuid(5), email: 'sam.rivera@clinic.example.com', display_name: 'Sam Rivera', role: 'front_desk', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
   { id: uuid(6), email: 'omar.singh@clinic.example.com', display_name: 'Dr. Omar Singh', role: 'provider', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+];
+
+let providerAvailability: ProviderAvailability[] = [
+  { id: uuid(2501), provider_id: uuid(2), day_of_week: 1, start_time: '09:00', end_time: '17:00' },
+  { id: uuid(2502), provider_id: uuid(2), day_of_week: 3, start_time: '09:00', end_time: '15:00' },
+  { id: uuid(2503), provider_id: uuid(6), day_of_week: 2, start_time: '08:00', end_time: '16:00' },
 ];
 
 let patients: Patient[] = [
@@ -379,7 +386,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability }),
   );
 }
 
@@ -429,6 +436,7 @@ if (storedDemoData) {
   messages = storedDemoData.messages;
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
+  providerAvailability = storedDemoData.providerAvailability ?? providerAvailability;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -500,6 +508,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         calendar: { ok: false, configured: false, env_var: 'CALENDAR_API_BASE_URL', mode: 'demo' },
         copilotkit: { ok: false, configured: false, env_var: 'COPILOTKIT_RUNTIME_URL', mode: 'demo' },
       },
+      deployment: {
+        production_env_template: { ok: true, path: '.env.production.example' },
+        deployment_runbook: { ok: true, path: 'docs/operations/deployment-runbook.md' },
+        health_report_script: { ok: true, path: 'scripts/health-report.sh' },
+        local_backup_script: { ok: true, path: 'scripts/backup-local.sh' },
+      },
     } as T;
   }
 
@@ -570,7 +584,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   if (method === 'GET' && path === '/audit') {
-    return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;
+    const eventType = url.searchParams.get('event_type');
+    const filtered = eventType ? auditEvents.filter((event) => event.event_type === eventType) : auditEvents;
+    return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
   }
 
   const patientAccessHistoryMatch = path.match(/^\/audit\/patients\/([^/]+)\/access-history$/);
@@ -1211,6 +1227,20 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     } satisfies TodayQueue as T;
   }
 
+  const availabilityMatch = path.match(/^\/schedule\/availability\/([^/]+)$/);
+  if (availabilityMatch && method === 'GET') {
+    const data = providerAvailability.filter((item) => item.provider_id === availabilityMatch[1]);
+    return data as T;
+  }
+
+  if (path === '/schedule/availability' && method === 'POST') {
+    const incoming = body as Omit<ProviderAvailability, 'id'>;
+    const availability = { ...incoming, id: uuid(2600 + providerAvailability.length) } satisfies ProviderAvailability;
+    providerAvailability = [...providerAvailability, availability];
+    saveDemoData();
+    return availability as T;
+  }
+
   if ((path === '/schedule' || path === '/schedule/appointments') && method === 'POST') {
     const appointment = {
       id: uuid(940),
@@ -1257,6 +1287,37 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     saveDemoData();
     return appointments.find((appointment) => appointment.id === appointmentMatch[1]) as T;
+  }
+
+  const appointmentReminderMatch = path.match(/^\/schedule\/appointments\/([^/]+)\/reminders$/);
+  if (appointmentReminderMatch && method === 'POST') {
+    const appointment = appointments.find((item) => item.id === appointmentReminderMatch[1]);
+    if (!appointment) throw new Error('Appointment not found');
+    const eventIds = ['sms', 'email'].map((channel, index) => {
+      const eventId = uuid(2700 + integrationEvents.length + index);
+      integrationEvents = [
+        {
+          id: eventId,
+          organization_id: uuid(900),
+          integration: 'communications',
+          direction: 'outbound',
+          action: `appointment.reminder.${channel}`,
+          status: 'pending',
+          entity_type: 'appointment',
+          entity_id: appointment.id,
+          idempotency_key: `demo:appointment:reminder:${channel}:${appointment.id}`,
+          attempts: 1,
+          error: null,
+          payload: { patient_id: appointment.patient_id, appointment_start: appointment.start_time, channel },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        ...integrationEvents,
+      ];
+      return eventId;
+    });
+    saveDemoData();
+    return { appointment_id: appointment.id, queued: eventIds.length, event_ids: eventIds } as T;
   }
 
   if (path === '/faxes') {

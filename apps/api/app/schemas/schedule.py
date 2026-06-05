@@ -73,3 +73,9 @@ class AvailabilityOut(BaseModel):
     end_time: str
 
     model_config = {"from_attributes": True}
+
+
+class AppointmentReminderOut(BaseModel):
+    appointment_id: str
+    queued: int
+    event_ids: list[str]

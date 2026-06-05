@@ -218,6 +218,36 @@ async def test_set_and_get_provider_availability(client: AsyncClient, auth_heade
 
 
 @pytest.mark.asyncio
+async def test_queue_appointment_reminders_records_communication_events(client: AsyncClient, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 15, 0)
+    end = start + timedelta(minutes=30)
+    created = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+
+    reminders = await client.post(
+        f"/api/schedule/appointments/{created.json()['id']}/reminders",
+        headers=auth_headers,
+    )
+
+    assert reminders.status_code == 200
+    assert reminders.json()["queued"] == 2
+
+    events = await client.get("/api/integrations/events?integration=communications", headers=auth_headers)
+    actions = {event["action"] for event in events.json()["data"]}
+    assert "appointment.reminder.sms" in actions
+    assert "appointment.reminder.email" in actions
+
+
+@pytest.mark.asyncio
 async def test_appointments_are_scoped_to_user_organization(
     client: AsyncClient,
     auth_headers,

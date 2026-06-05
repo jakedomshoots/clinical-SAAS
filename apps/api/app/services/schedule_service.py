@@ -278,6 +278,43 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
     return await get_appointment(db, user, appt.id)
 
 
+async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str) -> dict | None:
+    appointment = await get_appointment(db, user, appt_id)
+    if not appointment:
+        return None
+
+    event_ids: list[str] = []
+    for channel in ("sms", "email"):
+        event = await record_event(
+            db,
+            user,
+            integration="communications",
+            direction="outbound",
+            action=f"appointment.reminder.{channel}",
+            status="pending",
+            entity_type="appointment",
+            entity_id=appt_id,
+            idempotency_key=f"appointment:reminder:{channel}:{appt_id}:{appointment['start_time']}",
+            payload={
+                "patient_id": appointment["patient_id"],
+                "provider_id": appointment["provider_id"],
+                "appointment_start": appointment["start_time"],
+                "channel": channel,
+            },
+        )
+        event_ids.append(event.id)
+
+    await log_event(
+        db,
+        "appointment.reminders_queued",
+        "appointment",
+        appt_id,
+        actor_id=user.id,
+        payload={"event_ids": event_ids, "channels": ["sms", "email"]},
+    )
+    return {"appointment_id": appt_id, "queued": len(event_ids), "event_ids": event_ids}
+
+
 async def set_availability(db: AsyncSession, user: User, data: dict) -> dict | None:
     if not await _provider_exists(db, user, data["provider_id"]):
         return None

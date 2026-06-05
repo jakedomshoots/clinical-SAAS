@@ -14,6 +14,7 @@ from app.schemas.schedule import (
     AppointmentUpdate,
     AvailabilityCreate,
     AvailabilityOut,
+    AppointmentReminderOut,
     TodayQueueOut,
 )
 from app.services import schedule_service
@@ -109,6 +110,18 @@ async def update_appointment(
     if not appt:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
     return AppointmentOut(**appt)
+
+
+@router.post("/appointments/{appointment_id}/reminders", response_model=AppointmentReminderOut)
+async def queue_appointment_reminders(
+    appointment_id: str,
+    db: DbDep,
+    current_user: FrontOfficeUserDep,
+):
+    result = await schedule_service.queue_appointment_reminders(db, current_user, appointment_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+    return AppointmentReminderOut(**result)
 
 
 @router.post("/availability", response_model=AvailabilityOut, status_code=status.HTTP_201_CREATED)

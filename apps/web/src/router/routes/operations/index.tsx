@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import type { AuditEvent } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -33,6 +34,7 @@ interface ReadyResponse {
   environment: string;
   checks: Record<string, ReadyCheck>;
   integrations: Record<string, ReadyCheck>;
+  deployment?: Record<string, ReadyCheck & { path?: string }>;
 }
 
 interface IntegrationEvent {
@@ -77,6 +79,10 @@ function OperationsPage() {
     queryKey: QUERY_KEYS.INTEGRATION_EVENTS,
     queryFn: () => api.get<ListResponse<IntegrationEvent>>('/integrations/events?page=1&page_size=12'),
   });
+  const { data: auditEvents } = useQuery({
+    queryKey: [...QUERY_KEYS.AUDIT, 'phi-access'],
+    queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=8&event_type=patient_document.accessed'),
+  });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
     onSuccess: async () => {
@@ -86,6 +92,7 @@ function OperationsPage() {
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
+  const deployment = ready?.deployment ? Object.entries(ready.deployment) : [];
   const failedEvents = events?.data.filter((event) => event.status === 'failed') ?? [];
 
   return (
@@ -151,6 +158,48 @@ function OperationsPage() {
           <ClipboardList className="h-4 w-4 text-accent-700" />
           <div className="mt-3 text-sm font-semibold text-clinic-900">Launch checklist</div>
           <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-[1fr_1.2fr]">
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
+            <ClipboardList className="h-4 w-4 text-accent-700" />
+            Deployment Readiness
+          </div>
+          <div className="mt-4 space-y-2">
+            {deployment.map(([key, check]) => (
+              <div key={key} className="flex items-center justify-between gap-3 rounded-md bg-clinic-50 px-3 py-2 text-sm">
+                <div>
+                  <div className="capitalize text-clinic-700">{key.replaceAll('_', ' ')}</div>
+                  {check.path && <div className="font-mono text-[11px] text-clinic-400">{check.path}</div>}
+                </div>
+                <StatusBadge ok={check.ok} label={check.ok ? 'Found' : 'Missing'} />
+              </div>
+            ))}
+            {deployment.length === 0 && <div className="text-sm text-clinic-400">Deployment checks are not available.</div>}
+          </div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-800">Recent PHI Access</h2>
+              <p className="text-xs text-clinic-500">Document viewer access reasons and timestamps</p>
+            </div>
+            <ShieldCheck className="h-4 w-4 text-clinic-400" />
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {(auditEvents?.data ?? []).map((event) => (
+              <div key={event.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1fr_12rem]">
+                <div>
+                  <div className="font-medium text-clinic-900">{String(event.payload?.document_title ?? event.entity_id)}</div>
+                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-xs text-clinic-600">{event.payload.reason}</div>}
+                </div>
+                <div className="text-xs text-clinic-500 md:text-right">{new Date(event.created_at).toLocaleString()}</div>
+              </div>
+            ))}
+            {(auditEvents?.data ?? []).length === 0 && <div className="px-4 py-8 text-center text-sm text-clinic-400">No PHI access events recorded yet.</div>}
+          </div>
         </div>
       </section>
 
