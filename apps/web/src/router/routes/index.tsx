@@ -65,12 +65,13 @@ function CommandCenterPage() {
     .filter((item) => dateOnly(new Date(item.appointment.start_time)) === dateOnly(today))
     .sort((a, b) => a.appointment.start_time.localeCompare(b.appointment.start_time));
   const checkedIn = todayQueue?.checked_in ?? 0;
+  const unsignedNotes = todayItems.reduce((sum, item) => sum + item.unsigned_encounters, 0);
 
   const queueMetrics = [
     { label: 'Patients scheduled', value: String(todayQueue?.total ?? todayItems.length), note: `${checkedIn} active, ${todayQueue?.blocked ?? 0} blocked`, icon: Users, tone: 'text-clinic-700' },
     { label: 'Open tasks', value: String(openTasks.length), note: `${dueToday} due today`, icon: CheckCircle2, tone: 'text-amber-700' },
     { label: 'Unread messages', value: String(unreadMessages), note: `${threads?.total ?? 0} active threads`, icon: MessageSquare, tone: 'text-accent-700' },
-    { label: 'Fax inbox', value: String(inboundFaxes?.total ?? 0), note: `${unmatchedFaxes} unmatched`, icon: FileText, tone: 'text-red-700' },
+    { label: 'Unsigned notes', value: String(unsignedNotes), note: `${todayQueue?.blocked ?? 0} patients blocked`, icon: FileText, tone: 'text-red-700' },
   ];
 
   const riskItems = [
@@ -166,9 +167,12 @@ function CommandCenterPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="font-medium text-clinic-900">{item.appointment.patient_name}</div>
-                      {item.blockers.length > 0 && (
-                        <div className="mt-0.5 text-xs text-red-700">{item.blockers.join(', ')}</div>
-                      )}
+                      <div className={`mt-0.5 text-xs ${item.blockers.length > 0 ? 'text-red-700' : 'text-clinic-500'}`}>
+                        {item.blockers.length > 0 ? item.blockers.join(', ') : 'Ready for next step'}
+                      </div>
+                      <Link to="/patients/$patientId" params={{ patientId: item.appointment.patient_id }} className="mt-1 inline-flex text-xs font-medium text-accent-700 hover:text-accent-800">
+                        Open handoff
+                      </Link>
                     </td>
                     <td className="px-4 py-3 text-clinic-600">{item.appointment.type}</td>
                     <td className="px-4 py-3">

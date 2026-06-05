@@ -48,6 +48,7 @@ class TodayQueueItemOut(BaseModel):
     documents_needing_review: int
     open_tasks: int
     urgent_tasks: int
+    unsigned_encounters: int
 
 
 class TodayQueueOut(BaseModel):

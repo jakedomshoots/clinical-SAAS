@@ -111,6 +111,7 @@ async def today_queue(
                 "documents_needing_review": counts.documents_needing_review if counts else 0,
                 "open_tasks": counts.open_tasks if counts else 0,
                 "urgent_tasks": counts.urgent_tasks if counts else 0,
+                "unsigned_encounters": counts.unsigned_encounters if counts else 0,
             }
         )
     return {

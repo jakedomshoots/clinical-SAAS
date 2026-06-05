@@ -106,6 +106,7 @@ async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_hea
     assert data["blocked"] == 1
     assert data["data"][0]["checkout_readiness"] == "blocked"
     assert data["data"][0]["documents_needing_review"] == 1
+    assert data["data"][0]["unsigned_encounters"] == 0
 
     appointment_id = data["data"][0]["appointment"]["id"]
     await client.patch(

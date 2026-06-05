@@ -22,6 +22,7 @@ export interface TodayQueueItem {
   documents_needing_review: number;
   open_tasks: number;
   urgent_tasks: number;
+  unsigned_encounters: number;
 }
 
 export interface TodayQueue {

@@ -892,16 +892,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === appointment.patient_id && document.status === 'needs_review').length;
       const openTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && ['open', 'in_progress'].includes(task.status));
       const urgentTasks = openTasks.filter((task) => task.priority === 'urgent').length;
+      const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === appointment.patient_id && ['draft', 'provider_review'].includes(encounter.status)).length;
       return {
         appointment,
-        checkout_readiness: (documentsNeedingReview || urgentTasks ? 'blocked' : 'ready') as TodayQueue['data'][number]['checkout_readiness'],
+        checkout_readiness: (documentsNeedingReview || urgentTasks || unsignedEncounters ? 'blocked' : 'ready') as TodayQueue['data'][number]['checkout_readiness'],
         blockers: [
           ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
           ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
+          ...(unsignedEncounters ? [`${unsignedEncounters} encounter note needs sign-off`] : []),
         ],
         documents_needing_review: documentsNeedingReview,
         open_tasks: openTasks.length,
         urgent_tasks: urgentTasks,
+        unsigned_encounters: unsignedEncounters,
       };
     });
     return {
