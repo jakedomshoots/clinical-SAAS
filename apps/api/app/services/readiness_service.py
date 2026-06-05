@@ -12,10 +12,37 @@ async def check_readiness() -> dict:
         "redis": await _check_redis(),
         "object_storage": await _check_object_storage(),
     }
+    integrations = check_external_integrations()
+    operational_checks = [*checks.values(), *integrations.values()]
     return {
         "status": "ok" if all(item["ok"] for item in checks.values()) else "degraded",
+        "operational_status": (
+            "ok" if all(item["ok"] for item in operational_checks) else "degraded"
+        ),
         "environment": settings.app_env,
         "checks": checks,
+        "integrations": integrations,
+    }
+
+
+def check_external_integrations() -> dict:
+    return {
+        "ehr": _configured(settings.ehr_api_base_url, "EHR_API_BASE_URL"),
+        "fax_provider": _configured(settings.fax_provider_api_key, "FAX_PROVIDER_API_KEY"),
+        "portal": _configured(settings.portal_api_base_url, "PORTAL_API_BASE_URL"),
+        "calendar": _configured(settings.calendar_api_base_url, "CALENDAR_API_BASE_URL"),
+        "copilotkit": _configured(settings.copilotkit_runtime_url, "COPILOTKIT_RUNTIME_URL"),
+    }
+
+
+def _configured(value: str, env_var: str) -> dict:
+    if value.strip():
+        return {"ok": True, "configured": True, "env_var": env_var}
+    return {
+        "ok": False,
+        "configured": False,
+        "env_var": env_var,
+        "mode": "demo",
     }
 
 

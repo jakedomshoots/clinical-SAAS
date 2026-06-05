@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://localhost:1420"
     auto_create_schema: bool = True
 
+    ehr_api_base_url: str = ""
+    fax_provider_api_key: str = ""
+    portal_api_base_url: str = ""
+    calendar_api_base_url: str = ""
+    copilotkit_runtime_url: str = ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

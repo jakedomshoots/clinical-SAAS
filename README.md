@@ -58,6 +58,19 @@ VITE_COPILOTKIT_PUBLIC_API_KEY=
 
 Use a runtime URL for a self-managed CopilotKit runtime, or a public API key for CopilotKit Cloud. The frontend forwards the logged-in bearer token to the CopilotKit provider when enabled.
 
+The API readiness endpoint reports external integration configuration under `integrations`.
+Populate these when moving beyond demo/local operation:
+
+```sh
+EHR_API_BASE_URL=
+FAX_PROVIDER_API_KEY=
+PORTAL_API_BASE_URL=
+CALENDAR_API_BASE_URL=
+COPILOTKIT_RUNTIME_URL=
+```
+
+`/api/ready.status` reflects core infrastructure. `/api/ready.operational_status` includes these external integration checks.
+
 ## Verification
 
 Frontend:

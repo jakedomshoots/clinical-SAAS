@@ -21,11 +21,13 @@ interface ReadyCheck {
 
 interface ReadyResponse {
   status: 'ok' | 'degraded';
+  operational_status?: 'ok' | 'degraded';
   checks: {
     database?: ReadyCheck;
     redis?: ReadyCheck;
     object_storage?: ReadyCheck;
   };
+  integrations?: Record<string, ReadyCheck>;
 }
 
 const CHECK_INTERVAL = 5000;
