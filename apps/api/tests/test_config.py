@@ -19,6 +19,7 @@ def test_production_rejects_development_defaults():
     assert "SECRET_KEY must be a unique production secret" in message
     assert "MINIO_ACCESS_KEY must not use the development default" in message
     assert "CORS_ORIGINS must not include localhost origins" in message
+    assert "AUTO_CREATE_SCHEMA must be false in production" in message
 
 
 def test_production_allows_hardened_settings():
@@ -28,6 +29,7 @@ def test_production_allows_hardened_settings():
         minio_access_key="prod-access-key",
         minio_secret_key="prod-secret-key",
         cors_origins="https://concierge.example.com",
+        auto_create_schema=False,
     )
 
     assert settings.is_production is True

@@ -9,6 +9,8 @@ RUN addgroup --system concierge && adduser --system --ingroup concierge concierg
 
 COPY apps/api/pyproject.toml ./pyproject.toml
 COPY apps/api/app ./app
+COPY apps/api/alembic ./alembic
+COPY apps/api/alembic.ini ./alembic.ini
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .

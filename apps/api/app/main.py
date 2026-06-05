@@ -24,8 +24,9 @@ from app.services.readiness_service import check_readiness
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.auto_create_schema:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
 
     # Seed admin user on first boot
     async with async_session_factory() as db:

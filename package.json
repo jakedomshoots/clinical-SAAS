@@ -8,6 +8,8 @@
     "dev:infra": "docker compose -f docker/docker-compose.yml up -d",
     "dev:infra:down": "docker compose -f docker/docker-compose.yml down",
     "backup:local": "sh scripts/backup-local.sh",
+    "restore:local": "sh scripts/restore-local.sh",
+    "migrate:api": "sh scripts/migrate-api.sh",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "format": "prettier --write .",

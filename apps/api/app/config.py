@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
     cors_origins: str = "http://localhost:5173,http://localhost:1420"
+    auto_create_schema: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -54,6 +55,10 @@ class Settings(BaseSettings):
             failures.append("CORS_ORIGINS must not include wildcard origins in production")
         if any(origin.startswith("http://localhost") for origin in self.cors_origin_list):
             failures.append("CORS_ORIGINS must not include localhost origins in production")
+        if self.auto_create_schema:
+            failures.append(
+                "AUTO_CREATE_SCHEMA must be false in production; run Alembic migrations explicitly"
+            )
 
         if failures:
             raise ValueError("; ".join(failures))

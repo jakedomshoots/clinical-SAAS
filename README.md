@@ -91,17 +91,33 @@ pnpm backup:local
 
 Backups are written under `backups/<timestamp>/` with a Postgres dump, MinIO object archive, and a manifest.
 
+Local restore:
+
+```sh
+pnpm restore:local backups/<timestamp>
+```
+
+Run API migrations explicitly before production-style startup:
+
+```sh
+pnpm migrate:api
+```
+
+For production-like environments, set `AUTO_CREATE_SCHEMA=false` and run migrations as a deploy step. Development keeps `AUTO_CREATE_SCHEMA=true` so local/test databases can still bootstrap quickly.
+
 ## Daily-Use Readiness
 
 Ready for local product work:
 
 - Demo-mode walkthroughs across the main operational routes.
 - API test suite coverage for auth, patients, tasks, scheduling, faxes, messages, audit, and role permissions.
+- Organization-level isolation across patients, tasks, messages, faxes, scheduling, and audit logs.
+- Backup and restore commands for local Postgres and MinIO data.
 - Assistant actions are confirmation-gated and audit-visible in demo/API flows.
 
 Not ready for real daily clinical operations yet:
 
 - CopilotKit still needs a deployed runtime endpoint and model policy before live use.
-- Production auth, account provisioning, tenant isolation, monitoring, and deployment secrets are not finalized.
+- Production auth, account provisioning, monitoring, and deployment secrets are not finalized.
 - EHR, fax, portal, calendar, and object-storage integrations are still local/demo surfaces.
 - Compliance hardening needs a pass over PHI retention, access logging, audit exports, session policy, and disaster recovery.
