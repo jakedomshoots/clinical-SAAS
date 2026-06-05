@@ -217,3 +217,16 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
     assert draft["patient_id"] == patient_id
     assert draft["patient_email"] == "outreach.patient@example.com"
     assert "Discuss lab follow-up" in draft["subject"]
+
+    delivery = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach/deliver",
+        json={"channel": "email", "subject": draft["subject"], "body": draft["body"]},
+        headers=auth_headers,
+    )
+
+    assert delivery.status_code == 200
+    assert delivery.json()["delivery_status"] == "queued"
+    assert delivery.json()["recipient"] == "outreach.patient@example.com"
+
+    audit = await client.get("/api/audit?entity_type=task", headers=auth_headers)
+    assert any(event["event_type"] == "patient_outreach.staged" for event in audit.json()["data"])

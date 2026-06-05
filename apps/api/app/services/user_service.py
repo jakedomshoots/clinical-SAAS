@@ -2,6 +2,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
+from app.services.audit_service import log_event
 
 
 async def list_users(
@@ -24,3 +25,50 @@ async def list_users(
         await db.execute(query.order_by(User.role.asc(), User.display_name.asc()))
     ).scalars().all()
     return list(rows), total
+
+
+async def update_user(
+    db: AsyncSession,
+    current_user: User,
+    user_id: str,
+    data: dict,
+) -> User | None:
+    user = (
+        await db.execute(
+            select(User).where(
+                User.id == user_id,
+                User.organization_id == current_user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not user:
+        return None
+    before = {
+        "display_name": user.display_name,
+        "role": user.role.value,
+        "is_active": user.is_active,
+    }
+    for field, value in data.items():
+        if field == "role" and value is not None:
+            user.role = UserRole(value)
+        elif hasattr(user, field):
+            setattr(user, field, value)
+    await db.commit()
+    await db.refresh(user)
+    await log_event(
+        db,
+        "user.updated",
+        "user",
+        user.id,
+        actor_id=current_user.id,
+        payload={
+            "updated_fields": list(data.keys()),
+            "before": before,
+            "after": {
+                "display_name": user.display_name,
+                "role": user.role.value,
+                "is_active": user.is_active,
+            },
+        },
+    )
+    return user

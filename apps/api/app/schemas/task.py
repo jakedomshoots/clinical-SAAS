@@ -59,3 +59,18 @@ class TaskPatientOutreachDraftOut(BaseModel):
     patient_phone: str | None
     subject: str
     body: str
+
+
+class TaskPatientOutreachSend(BaseModel):
+    channel: str = "sms"
+    subject: str
+    body: str
+
+
+class TaskPatientOutreachDeliveryOut(BaseModel):
+    task_id: str
+    patient_id: str
+    channel: str
+    delivery_status: str
+    recipient: str | None
+    subject: str

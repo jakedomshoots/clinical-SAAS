@@ -18,3 +18,9 @@ class UserDirectoryOut(BaseModel):
 class UserDirectoryListOut(BaseModel):
     data: list[UserDirectoryOut]
     total: int
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None

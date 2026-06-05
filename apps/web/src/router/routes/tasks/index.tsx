@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Task, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
+import type { Task, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
 import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
 interface TaskListResponse {
@@ -47,6 +47,7 @@ function TaskListPage() {
   const [page, setPage] = useState(1);
   const [showNewTask, setShowNewTask] = useState(false);
   const [outreachDraft, setOutreachDraft] = useState<TaskPatientOutreachDraft | null>(null);
+  const [deliveryResult, setDeliveryResult] = useState<TaskPatientOutreachDelivery | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
@@ -96,7 +97,20 @@ function TaskListPage() {
 
   const outreachMutation = useMutation({
     mutationFn: (taskId: string) => api.post<TaskPatientOutreachDraft>(ROUTES.TASK_PATIENT_OUTREACH(taskId), {}),
-    onSuccess: (draft) => setOutreachDraft(draft),
+    onSuccess: (draft) => {
+      setDeliveryResult(null);
+      setOutreachDraft(draft);
+    },
+  });
+
+  const deliverMutation = useMutation({
+    mutationFn: ({ draft, channel }: { draft: TaskPatientOutreachDraft; channel: 'sms' | 'email' }) =>
+      api.post<TaskPatientOutreachDelivery>(ROUTES.TASK_PATIENT_OUTREACH_DELIVER(draft.task_id), {
+        channel,
+        subject: draft.subject,
+        body: draft.body,
+      }),
+    onSuccess: (result) => setDeliveryResult(result),
   });
 
   function updateTask(id: string, update: Partial<Task>) {
@@ -351,6 +365,11 @@ function TaskListPage() {
               </button>
             </div>
             <div className="space-y-3 p-4">
+              {deliveryResult && (
+                <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-800">
+                  Queued {deliveryResult.channel} delivery to {deliveryResult.recipient ?? 'the available patient contact'}.
+                </div>
+              )}
               <div>
                 <div className="text-xs font-medium uppercase text-clinic-500">Subject</div>
                 <div className="mt-1 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm text-clinic-800">{outreachDraft.subject}</div>
@@ -361,7 +380,25 @@ function TaskListPage() {
               </div>
             </div>
             <div className="flex justify-end border-t border-clinic-200 px-4 py-3">
-              <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Done</button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'sms' })}
+                  disabled={deliverMutation.isPending}
+                  className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
+                >
+                  Queue SMS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'email' })}
+                  disabled={deliverMutation.isPending}
+                  className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
+                >
+                  Queue Email
+                </button>
+                <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Done</button>
+              </div>
             </div>
           </div>
         </div>

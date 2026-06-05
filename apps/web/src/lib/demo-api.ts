@@ -43,7 +43,7 @@ interface IntegrationEvent {
   updated_at: string;
 }
 
-const demoUsers: User[] = [
+let demoUsers: User[] = [
   { id: uuid(1), email: 'admin@clinic.example.com', display_name: 'Clinic Admin', role: 'admin', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
   { id: uuid(2), email: 'nora.ellis@clinic.example.com', display_name: 'Dr. Nora Ellis', role: 'provider', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
   { id: uuid(3), email: 'maya.chen@clinic.example.com', display_name: 'Maya Chen, MA', role: 'ma', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
@@ -550,6 +550,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return { data, total: data.length } as T;
   }
 
+  const userMatch = path.match(/^\/users\/([^/]+)$/);
+  if (userMatch && method === 'PATCH') {
+    demoUsers = demoUsers.map((user) =>
+      user.id === userMatch[1]
+        ? { ...user, ...(body as Partial<User>), updated_at: new Date().toISOString() }
+        : user,
+    );
+    return demoUsers.find((user) => user.id === userMatch[1]) as T;
+  }
+
   if (path === '/assistant/actions/follow-up-task' && method === 'POST') {
     const incoming = body as { context: string; title?: string; priority?: Task['priority']; patient_id?: string | null; due_date?: string | null };
     const patient = patients.find((item) => item.id === incoming.patient_id);
@@ -1013,6 +1023,30 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       patient_phone: patient.phone,
       subject: `Follow-up from your care team: ${task.title}`,
       body: `Hi ${patient.first_name},\n\nYour care team is following up on an item from your visit. We are reviewing: ${task.title}.\n\nPlease contact the office if you have new symptoms, medication changes, or questions before we reach you.\n\nThank you,\nYour care team`,
+    } as T;
+  }
+
+  const taskOutreachDeliverMatch = path.match(/^\/tasks\/([^/]+)\/patient-outreach\/deliver$/);
+  if (taskOutreachDeliverMatch && method === 'POST') {
+    const task = tasks.find((item) => item.id === taskOutreachDeliverMatch[1]);
+    const patient = patients.find((item) => item.id === task?.patient_id);
+    if (!task || !patient) throw new Error('Patient task not found');
+    const incoming = body as { channel: 'sms' | 'email'; subject: string; body: string };
+    const recipient = incoming.channel === 'sms' ? patient.phone : patient.email;
+    logDemoEvent({
+      event_type: 'patient_outreach.staged',
+      entity_type: 'task',
+      entity_id: task.id,
+      payload: { patient_id: patient.id, channel: incoming.channel, recipient, subject: incoming.subject },
+    });
+    saveDemoData();
+    return {
+      task_id: task.id,
+      patient_id: patient.id,
+      channel: incoming.channel,
+      delivery_status: 'queued',
+      recipient,
+      subject: incoming.subject,
     } as T;
   }
 

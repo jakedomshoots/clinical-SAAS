@@ -50,3 +50,24 @@ async def test_list_users_is_scoped_to_requesting_user_org(
     emails = {item["email"] for item in res.json()["data"]}
     assert "other-org-users-manager@clinic.example.com" in emails
     assert "default-org-hidden-user@clinic.example.com" not in emails
+
+
+@pytest.mark.asyncio
+async def test_manager_can_update_staff_status_and_role(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-update-user@clinic.example.com")
+    staff = await make_user(db, UserRole.ma, "staff-update-user@clinic.example.com")
+
+    res = await client.patch(
+        f"/api/users/{staff.id}",
+        json={"display_name": "Front Desk Lead", "role": "front_desk", "is_active": False},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["display_name"] == "Front Desk Lead"
+    assert data["role"] == "front_desk"
+    assert data["is_active"] is False

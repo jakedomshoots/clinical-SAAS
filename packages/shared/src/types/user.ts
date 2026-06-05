@@ -29,3 +29,14 @@ export interface TokenResponse {
   token_type: string;
   user: User;
 }
+
+export interface UserListResponse {
+  data: User[];
+  total: number;
+}
+
+export interface UserUpdate {
+  display_name?: string;
+  role?: Role;
+  is_active?: boolean;
+}

@@ -6,7 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
-from app.schemas.task import TaskCreate, TaskListOut, TaskOut, TaskPatientOutreachDraftOut, TaskUpdate
+from app.schemas.task import (
+    TaskCreate,
+    TaskListOut,
+    TaskOut,
+    TaskPatientOutreachDeliveryOut,
+    TaskPatientOutreachDraftOut,
+    TaskPatientOutreachSend,
+    TaskUpdate,
+)
 from app.services import task_service
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -103,3 +111,21 @@ async def draft_patient_outreach(
     if not draft:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient task not found")
     return TaskPatientOutreachDraftOut(**draft)
+
+
+@router.post("/{task_id}/patient-outreach/deliver", response_model=TaskPatientOutreachDeliveryOut)
+async def deliver_patient_outreach(
+    task_id: str,
+    data: TaskPatientOutreachSend,
+    db: DbDep,
+    current_user: ClinicalUserDep,
+):
+    delivery = await task_service.stage_patient_outreach_delivery(
+        db,
+        current_user,
+        task_id,
+        data.model_dump(),
+    )
+    if not delivery:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient task not found")
+    return TaskPatientOutreachDeliveryOut(**delivery)

@@ -27,3 +27,12 @@ export interface TaskPatientOutreachDraft {
   subject: string;
   body: string;
 }
+
+export interface TaskPatientOutreachDelivery {
+  task_id: UUID;
+  patient_id: UUID;
+  channel: 'sms' | 'email';
+  delivery_status: string;
+  recipient: string | null;
+  subject: string;
+}

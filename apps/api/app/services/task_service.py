@@ -230,6 +230,40 @@ async def draft_patient_outreach(db: AsyncSession, user: User, task_id: str) -> 
     }
 
 
+async def stage_patient_outreach_delivery(
+    db: AsyncSession,
+    user: User,
+    task_id: str,
+    data: dict,
+) -> dict | None:
+    draft = await draft_patient_outreach(db, user, task_id)
+    if not draft:
+        return None
+    channel = data.get("channel", "sms")
+    recipient = draft["patient_phone"] if channel == "sms" else draft["patient_email"]
+    await log_event(
+        db,
+        "patient_outreach.staged",
+        "task",
+        task_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": draft["patient_id"],
+            "channel": channel,
+            "recipient": recipient,
+            "subject": data["subject"],
+        },
+    )
+    return {
+        "task_id": task_id,
+        "patient_id": draft["patient_id"],
+        "channel": channel,
+        "delivery_status": "queued",
+        "recipient": recipient,
+        "subject": data["subject"],
+    }
+
+
 async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:
     result = await db.execute(
         select(User.id).where(
