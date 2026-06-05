@@ -246,6 +246,23 @@ async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, aut
     assert confirmed.json()["ocr_status"] == "queued"
     assert confirmed.json()["matched_by"] == "upload confirmation"
 
+    duplicate = await client.post(
+        f"/api/patients/{patient_id}/documents/upload/confirm",
+        json={
+            "title": "Outside note duplicate",
+            "source": "Outside Office",
+            "document_type": "Consult note",
+            "file_url": prepared.json()["file_url"],
+            "filename": "outside-note.pdf",
+            "content_type": "application/pdf",
+            "checksum": "demo-checksum",
+            "pages": 3,
+        },
+        headers=auth_headers,
+    )
+    assert duplicate.status_code == 201
+    assert duplicate.json()["id"] == confirmed.json()["id"]
+
 
 @pytest.mark.asyncio
 async def test_patient_document_access_reports_availability(client: AsyncClient, auth_headers):

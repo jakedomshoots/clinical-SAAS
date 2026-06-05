@@ -30,6 +30,19 @@ def create_access_token(user_id: str, role: str) -> str:
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
+def create_patient_portal_token(patient_id: str, organization_id: str) -> str:
+    expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
+    payload = {
+        "sub": patient_id,
+        "role": "patient",
+        "portal": True,
+        "organization_id": organization_id,
+        "exp": expire,
+        "iat": datetime.now(UTC),
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+
+
 async def get_user_by_email(db: AsyncSession, email: str) -> User | None:
     result = await db.execute(select(User).where(User.email == email))
     return result.scalar_one_or_none()

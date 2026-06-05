@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Circle, ShieldCheck } from 'lucide-react';
 import { ROUTES, type IntegrationCapabilities, type SessionPolicy, type UserListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
@@ -23,6 +23,7 @@ interface ReadyResponse {
 
 function SetupPage() {
   const api = useApi();
+  const queryClient = useQueryClient();
   const { data: ready } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'setup'],
     queryFn: () => api.get<ReadyResponse>('/ready'),
@@ -38,6 +39,15 @@ function SetupPage() {
   const { data: users } = useQuery({
     queryKey: [...QUERY_KEYS.USERS, 'setup'],
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
+  });
+  const createUserMutation = useMutation({
+    mutationFn: (role: 'provider' | 'front_desk') => api.post(ROUTES.AUTH.REGISTER, {
+      email: role === 'provider' ? 'provider@clinic.example.com' : 'frontdesk@clinic.example.com',
+      password: 'Setup123!Password',
+      display_name: role === 'provider' ? 'Setup Provider' : 'Setup Front Desk',
+      role,
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS }),
   });
 
   const checklist = [
@@ -78,6 +88,25 @@ function SetupPage() {
               <div className="mt-1 font-mono text-xs text-clinic-500">{(capability.env_vars ?? []).join(', ') || 'No env vars required'}</div>
             </div>
           ))}
+        </div>
+      </section>
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="text-sm font-semibold text-clinic-800">Seed Missing Roles</div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            disabled={(users?.data ?? []).some((user) => user.role === 'provider' && user.is_active)}
+            onClick={() => createUserMutation.mutate('provider')}
+            className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Create provider
+          </button>
+          <button
+            disabled={(users?.data ?? []).some((user) => user.role === 'front_desk' && user.is_active)}
+            onClick={() => createUserMutation.mutate('front_desk')}
+            className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Create front desk
+          </button>
         </div>
       </section>
     </div>

@@ -32,7 +32,7 @@ function PortalIntakePage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PORTAL_INTAKE }),
   });
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: PortalIntakeSubmission['status'] }) => api.patch<PortalIntakeSubmission>(`${ROUTES.PORTAL_INTAKE}/${id}`, { status }),
+    mutationFn: ({ id, update }: { id: string; update: Partial<PortalIntakeSubmission> }) => api.patch<PortalIntakeSubmission>(`${ROUTES.PORTAL_INTAKE}/${id}`, update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PORTAL_INTAKE }),
   });
   const actionMutation = useMutation({
@@ -90,7 +90,15 @@ function PortalIntakePage() {
                   {conflictChecks[item.id] && (
                     <div className="mt-2 space-y-1">
                       {conflictChecks[item.id].warnings.map((warning) => <div key={warning} className="text-xs font-medium text-amber-700">{warning}</div>)}
-                      {conflictChecks[item.id].suggested_slots.map((slot) => <div key={slot.start_time} className="text-xs text-clinic-500">Alternate: {new Date(slot.start_time).toLocaleString()}</div>)}
+                      {conflictChecks[item.id].suggested_slots.map((slot) => (
+                        <button
+                          key={slot.start_time}
+                          onClick={() => updateMutation.mutate({ id: item.id, update: { submitted_payload: { ...item.submitted_payload, start_time: slot.start_time, end_time: slot.end_time, notes: 'Updated to alternate slot after conflict check.' } } })}
+                          className="block text-left text-xs font-medium text-accent-700 hover:text-accent-900"
+                        >
+                          Use alternate: {new Date(slot.start_time).toLocaleString()}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -100,7 +108,7 @@ function PortalIntakePage() {
                   {item.request_type === 'appointment_request' && <button onClick={() => conflictMutation.mutate(item)} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Check slot</button>}
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'appointment' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Schedule</button>
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'document' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Document</button>
-                  <button onClick={() => updateMutation.mutate({ id: item.id, status: 'rejected' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Reject</button>
+                  <button onClick={() => updateMutation.mutate({ id: item.id, update: { status: 'rejected' } })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Reject</button>
                 </div>
               </div>
             ))}

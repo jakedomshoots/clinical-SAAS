@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.billing import BillingCase, BillingStatus
 from app.models.audit import AuditLog
+from app.models.integration_event import IntegrationEvent
 from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.user import User
@@ -147,11 +148,11 @@ async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) ->
     return case
 
 
-async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[list[AuditLog], int] | None:
+async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[list[dict], int] | None:
     exists = (await db.execute(select(BillingCase.id).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
     if not exists:
         return None
-    result = await db.execute(
+    audit_result = await db.execute(
         select(AuditLog)
         .where(
             AuditLog.organization_id == user.organization_id,
@@ -161,7 +162,45 @@ async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[lis
         .order_by(AuditLog.created_at.desc())
         .limit(100)
     )
-    rows = list(result.scalars().all())
+    integration_result = await db.execute(
+        select(IntegrationEvent)
+        .where(
+            IntegrationEvent.organization_id == user.organization_id,
+            IntegrationEvent.entity_type == "billing_case",
+            IntegrationEvent.entity_id == case_id,
+        )
+        .order_by(IntegrationEvent.created_at.desc())
+        .limit(100)
+    )
+    rows = [
+        {
+            "id": item.id,
+            "source": "audit",
+            "event_type": item.event_type,
+            "entity_type": item.entity_type,
+            "entity_id": item.entity_id,
+            "actor_id": item.actor_id,
+            "payload": item.payload,
+            "created_at": item.created_at,
+            "status": None,
+        }
+        for item in audit_result.scalars().all()
+    ]
+    rows.extend(
+        {
+            "id": item.id,
+            "source": "integration",
+            "event_type": f"{item.integration}.{item.action}",
+            "entity_type": item.entity_type or "integration_event",
+            "entity_id": item.entity_id or item.id,
+            "actor_id": None,
+            "payload": item.payload,
+            "created_at": item.created_at,
+            "status": item.status.value,
+        }
+        for item in integration_result.scalars().all()
+    )
+    rows.sort(key=lambda item: item["created_at"], reverse=True)
     return rows, len(rows)
 
 

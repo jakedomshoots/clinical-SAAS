@@ -563,6 +563,31 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/auth/session-policy' && method === 'GET') {
     return { user_id: uuid(1), role: 'admin', access_token_expire_minutes: 480, mfa_required: false, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'patient_document.accessed', 'settings.updated'] } as T;
   }
+  if (path === '/auth/register' && method === 'POST') {
+    const incoming = body as Partial<User> & { password?: string };
+    const user: User = {
+      id: uuid(3300 + demoUsers.length),
+      email: incoming.email ?? `user-${demoUsers.length}@clinic.example.com`,
+      display_name: incoming.display_name ?? 'Setup User',
+      role: incoming.role ?? 'front_desk',
+      organization_id: uuid(900),
+      is_active: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    demoUsers = [user, ...demoUsers];
+    saveDemoData();
+    return user as T;
+  }
+  if (path === '/portal/auth/login' && method === 'POST') {
+    const incoming = body as { email: string; dob: string };
+    const patient = patients.find((item) => item.email === incoming.email && item.dob === incoming.dob && item.is_active);
+    if (!patient) throw new Error('Invalid portal credentials');
+    return { access_token: `demo-patient-token-${patient.id}`, token_type: 'bearer', patient } as T;
+  }
+  if (path === '/portal/auth/me' && method === 'GET') {
+    return patients[0] as T;
+  }
 
   if (path === '/clinical/encounter-templates' && method === 'GET') {
     return { data: encounterTemplates, total: encounterTemplates.length } as T;
@@ -691,7 +716,11 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   const billingTimelineMatch = path.match(/^\/billing\/cases\/([^/]+)\/timeline$/);
   if (billingTimelineMatch && method === 'GET') {
-    const data = auditEvents.filter((event) => event.entity_type === 'billing_case' && event.entity_id === billingTimelineMatch[1]);
+    const auditRows = auditEvents.filter((event) => event.entity_type === 'billing_case' && event.entity_id === billingTimelineMatch[1]).map((event) => ({ ...event, source: 'audit', status: null }));
+    const integrationRows = integrationEvents
+      .filter((event) => event.entity_type === 'billing_case' && event.entity_id === billingTimelineMatch[1])
+      .map((event) => ({ id: event.id, source: 'integration', event_type: `${event.integration}.${event.action}`, entity_type: event.entity_type ?? 'integration_event', entity_id: event.entity_id ?? event.id, actor_id: null, payload: event.payload, created_at: event.created_at, status: event.status }));
+    const data = [...auditRows, ...integrationRows].sort((a, b) => b.created_at.localeCompare(a.created_at));
     return { data, total: data.length } as T;
   }
   const billingActionMatch = path.match(/^\/billing\/cases\/([^/]+)\/(submit|payment|deny)$/);
@@ -706,6 +735,24 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     });
     const eventType = action === 'submit' ? 'billing.claim_submitted' : action === 'payment' ? 'billing.payment_recorded' : 'billing.claim_denied';
     logDemoEvent({ event_type: eventType, entity_type: 'billing_case', entity_id: caseId, payload: { action } });
+    if (action === 'submit') {
+      integrationEvents = [{
+        id: uuid(3400 + integrationEvents.length),
+        organization_id: uuid(900),
+        integration: 'clearinghouse',
+        direction: 'outbound',
+        action: 'claim.submit',
+        status: 'pending',
+        entity_type: 'billing_case',
+        entity_id: caseId,
+        idempotency_key: `claim:submit:${caseId}`,
+        attempts: 1,
+        error: null,
+        payload: { case_id: caseId },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, ...integrationEvents];
+    }
     saveDemoData();
     return billingCases.find((item) => item.id === caseId) as T;
   }
@@ -1050,6 +1097,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (patientDocumentUploadConfirmMatch && method === 'POST') {
     const patientId = patientDocumentUploadConfirmMatch[1];
     const incoming = body as { title: string; source: string; document_type: string; file_url: string; filename: string; content_type: string; checksum?: string; pages?: number };
+    const duplicate = patientDocuments.find((item) => item.patient_id === patientId && (item.file_url === incoming.file_url || (incoming.checksum && item.summary?.includes(incoming.checksum))));
+    if (duplicate) {
+      logDemoEvent({ event_type: 'patient_document.upload_duplicate_detected', entity_type: 'patient_document', entity_id: duplicate.id, payload: { patient_id: patientId, file_url: incoming.file_url, filename: incoming.filename, checksum: incoming.checksum ?? null } });
+      saveDemoData();
+      return duplicate as T;
+    }
     const document = normalizeDocument({
       id: uuid(3200 + patientDocuments.length),
       patient_id: patientId,
@@ -1063,7 +1116,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       upload_status: 'uploaded',
       ocr_status: 'queued',
       classification: null,
-      summary: `Uploaded ${incoming.filename} (${incoming.content_type}).`,
+      summary: `Uploaded ${incoming.filename} (${incoming.content_type}). Checksum: ${incoming.checksum ?? 'not provided'}.`,
       received_at: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

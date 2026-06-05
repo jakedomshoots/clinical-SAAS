@@ -22,6 +22,35 @@ async def test_login_success(client: AsyncClient, admin_user):
 
 
 @pytest.mark.asyncio
+async def test_patient_portal_login_returns_patient_scoped_token(client: AsyncClient, auth_headers):
+    patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Portal",
+            "last_name": "Patient",
+            "dob": "1991-02-03",
+            "gender": "Unknown",
+            "email": "portal.patient@example.com",
+        },
+        headers=auth_headers,
+    )
+    login = await client.post(
+        "/api/portal/auth/login",
+        json={"email": "portal.patient@example.com", "dob": "1991-02-03"},
+    )
+    assert patient.status_code == 201
+    assert login.status_code == 200
+    assert login.json()["patient"]["id"] == patient.json()["id"]
+
+    me = await client.get(
+        "/api/portal/auth/me",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["id"] == patient.json()["id"]
+
+
+@pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, admin_user):
     res = await client.post("/api/auth/login", json={
         "email": "admin@clinic.example.com",

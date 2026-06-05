@@ -19,6 +19,7 @@ from app.routers import (
     integrations,
     messages,
     patients,
+    portal_auth,
     portal_intake,
     scheduling,
     settings as settings_router,
@@ -80,6 +81,7 @@ app.include_router(auth.router)
 app.include_router(billing.router)
 app.include_router(clinical_templates.router)
 app.include_router(patients.router)
+app.include_router(portal_auth.router)
 app.include_router(portal_intake.router)
 app.include_router(tasks.router)
 app.include_router(users.router)

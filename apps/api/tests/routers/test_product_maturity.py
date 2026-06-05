@@ -57,6 +57,7 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
     case_timeline = await client.get(f"/api/billing/cases/{billing.json()['id']}/timeline", headers=auth_headers)
     assert case_timeline.status_code == 200
     assert case_timeline.json()["total"] >= 3
+    assert any(event["source"] == "integration" and event["status"] == "pending" for event in case_timeline.json()["data"])
 
     eligibility = await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
     history = await client.get(f"/api/billing/eligibility/{patient_id}/history", headers=auth_headers)

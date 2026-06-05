@@ -48,12 +48,14 @@ export interface EligibilityCheck {
 
 export interface BillingTimelineEvent {
   id: UUID;
+  source?: 'audit' | 'integration';
   event_type: string;
   entity_type: string;
   entity_id: UUID;
   actor_id: UUID | null;
   payload: Record<string, unknown>;
   created_at: string;
+  status?: string | null;
 }
 
 export interface BillingTimelineResponse {

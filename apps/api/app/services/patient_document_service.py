@@ -141,6 +141,43 @@ async def confirm_document_upload(
     patient_id: str,
     data: dict,
 ) -> dict | None:
+    checksum = data.get("checksum")
+    duplicate = None
+    if checksum:
+        duplicate = (
+            await db.execute(
+                select(PatientDocument).where(
+                    PatientDocument.organization_id == user.organization_id,
+                    PatientDocument.patient_id == patient_id,
+                    PatientDocument.summary.contains(checksum),
+                )
+            )
+        ).scalar_one_or_none()
+    if not duplicate:
+        duplicate = (
+            await db.execute(
+                select(PatientDocument).where(
+                    PatientDocument.organization_id == user.organization_id,
+                    PatientDocument.patient_id == patient_id,
+                    PatientDocument.file_url == data["file_url"],
+                )
+            )
+        ).scalar_one_or_none()
+    if duplicate:
+        await log_event(
+            db,
+            "patient_document.upload_duplicate_detected",
+            "patient_document",
+            duplicate.id,
+            actor_id=user.id,
+            payload={
+                "patient_id": patient_id,
+                "file_url": data["file_url"],
+                "filename": data["filename"],
+                "checksum": checksum,
+            },
+        )
+        return PatientDocumentOut.model_validate(duplicate).model_dump()
     document = await create_patient_document(db, user, patient_id, {
         "title": data["title"],
         "source": data["source"],
@@ -151,7 +188,7 @@ async def confirm_document_upload(
         "file_url": data["file_url"],
         "upload_status": "uploaded",
         "ocr_status": "queued",
-        "summary": f"Uploaded {data['filename']} ({data['content_type']}).",
+        "summary": f"Uploaded {data['filename']} ({data['content_type']}). Checksum: {checksum or 'not provided'}.",
     })
     if not document:
         return None

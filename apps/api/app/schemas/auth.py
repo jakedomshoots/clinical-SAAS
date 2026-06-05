@@ -40,6 +40,27 @@ class UserLogin(BaseModel):
     password: str
 
 
+class PatientPortalLogin(BaseModel):
+    email: EmailStr
+    dob: str
+
+
+class PatientPortalPatientOut(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    email: str | None
+    organization_id: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PatientPortalTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    patient: PatientPortalPatientOut
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"

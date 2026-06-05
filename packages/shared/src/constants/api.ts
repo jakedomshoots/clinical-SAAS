@@ -61,6 +61,8 @@ export const ROUTES = {
   PORTAL_INTAKE_APPLY: (id: string) => `/api/portal-intake/${id}/apply-to-patient`,
   PORTAL_INTAKE_APPOINTMENT: (id: string) => `/api/portal-intake/${id}/convert-appointment`,
   PORTAL_INTAKE_DOCUMENT: (id: string) => `/api/portal-intake/${id}/convert-document`,
+  PORTAL_AUTH_LOGIN: '/api/portal/auth/login',
+  PORTAL_AUTH_ME: '/api/portal/auth/me',
   ENCOUNTER_TEMPLATES: '/api/clinical/encounter-templates',
   INTEGRATION_CAPABILITIES: '/api/integration-capabilities',
   SESSION_POLICY: '/api/auth/session-policy',

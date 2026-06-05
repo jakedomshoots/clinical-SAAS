@@ -69,12 +69,14 @@ class EligibilityCheckOut(BaseModel):
 
 class BillingTimelineEventOut(BaseModel):
     id: str
+    source: str = "audit"
     event_type: str
     entity_type: str
     entity_id: str
     actor_id: str | None
     payload: dict
     created_at: datetime
+    status: str | None = None
 
     model_config = {"from_attributes": True}
 

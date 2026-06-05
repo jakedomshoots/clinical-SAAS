@@ -193,7 +193,10 @@ function BillingPage() {
             <div className="mt-2 space-y-2">
               {(selectedTimeline?.data ?? []).map((event) => (
                 <div key={event.id} className="rounded-md bg-clinic-50 px-3 py-2">
-                  <div className="text-xs font-semibold text-clinic-800">{event.event_type.replaceAll('_', ' ')}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs font-semibold text-clinic-800">{event.event_type.replaceAll('_', ' ')}</div>
+                    <span className="rounded border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{event.status ?? event.source ?? 'audit'}</span>
+                  </div>
                   <div className="mt-1 text-xs text-clinic-500">{new Date(event.created_at).toLocaleString()}</div>
                 </div>
               ))}
