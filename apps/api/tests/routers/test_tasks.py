@@ -166,3 +166,54 @@ async def test_task_update_is_scoped_to_user_organization(
     )
 
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_task_assignee_must_belong_to_user_organization(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    other_user = await make_user(
+        db,
+        UserRole.ma,
+        "other-org-task-assignee@clinic.example.com",
+        organization_id="other-org",
+    )
+
+    create_res = await client.post(
+        "/api/tasks",
+        json={"title": "Invalid assignee", "assigned_to_id": other_user.id},
+        headers=auth_headers,
+    )
+
+    assert create_res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth_headers):
+    patient_res = await client.post("/api/patients", json={
+        "first_name": "Outreach",
+        "last_name": "Patient",
+        "dob": "1990-01-01",
+        "gender": "Unknown",
+        "phone": "555-0100",
+        "email": "outreach.patient@example.com",
+    }, headers=auth_headers)
+    patient_id = patient_res.json()["id"]
+    task_res = await client.post(
+        "/api/tasks",
+        json={"title": "Discuss lab follow-up", "patient_id": patient_id},
+        headers=auth_headers,
+    )
+
+    res = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach",
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    draft = res.json()
+    assert draft["patient_id"] == patient_id
+    assert draft["patient_email"] == "outreach.patient@example.com"
+    assert "Discuss lab follow-up" in draft["subject"]

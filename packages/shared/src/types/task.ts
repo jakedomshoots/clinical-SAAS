@@ -17,3 +17,13 @@ export interface Task {
   created_at: string;
   updated_at: string;
 }
+
+export interface TaskPatientOutreachDraft {
+  task_id: UUID;
+  patient_id: UUID;
+  patient_name: string;
+  patient_email: string | null;
+  patient_phone: string | null;
+  subject: string;
+  body: string;
+}

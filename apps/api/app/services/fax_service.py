@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.fax import Fax, FaxDirection, FaxStatus
 from app.models.patient import Patient
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
+from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.services.audit_service import log_event
 
@@ -137,6 +138,7 @@ async def match_fax(db: AsyncSession, user: User, fax_id: str, patient_id: str) 
         return None
     fax.patient_id = patient_id
     fax.matched_by = "manual"
+    created_document: PatientDocument | None = None
     if fax.direction == FaxDirection.inbound and fax.file_url:
         document_exists = (
             await db.execute(
@@ -148,19 +150,32 @@ async def match_fax(db: AsyncSession, user: User, fax_id: str, patient_id: str) 
             )
         ).scalar_one_or_none()
         if not document_exists:
+            created_document = PatientDocument(
+                organization_id=user.organization_id,
+                patient_id=patient_id,
+                title="Inbound fax document",
+                source=fax.from_number,
+                document_type="Fax",
+                status=PatientDocumentStatus.needs_review,
+                matched_by="fax match",
+                pages=fax.pages,
+                file_url=fax.file_url,
+                summary=fax.ocr_text,
+                received_at=fax.created_at,
+            )
+            db.add(created_document)
+            await db.flush()
             db.add(
-                PatientDocument(
+                Task(
                     organization_id=user.organization_id,
+                    title="Review inbound fax document",
+                    description=fax.ocr_text or "Inbound fax was matched to the patient and needs chart review.",
+                    priority=TaskPriority.high,
+                    status=TaskStatus.open,
                     patient_id=patient_id,
-                    title="Inbound fax document",
-                    source=fax.from_number,
-                    document_type="Fax",
-                    status=PatientDocumentStatus.needs_review,
-                    matched_by="fax match",
-                    pages=fax.pages,
-                    file_url=fax.file_url,
-                    summary=fax.ocr_text,
-                    received_at=fax.created_at,
+                    creator_id=user.id,
+                    source_type="document_intake:fax",
+                    source_id=created_document.id,
                 )
             )
     await db.commit()

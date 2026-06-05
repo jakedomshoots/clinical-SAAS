@@ -17,6 +17,7 @@ from app.routers import (
     patients,
     scheduling,
     tasks,
+    users,
     webhooks,
     websocket,
 )
@@ -71,6 +72,7 @@ app.include_router(assistant.router)
 app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(tasks.router)
+app.include_router(users.router)
 app.include_router(scheduling.router)
 app.include_router(faxes.router)
 app.include_router(integrations.router)

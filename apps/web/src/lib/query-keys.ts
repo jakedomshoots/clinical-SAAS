@@ -43,6 +43,7 @@ export const QUERY_KEYS = {
   CHECKOUT_WORKLOAD: ['checkout-workload'] as const,
   TASKS: ['tasks'] as const,
   TASK: (id: string) => ['tasks', id] as const,
+  USERS: ['users'] as const,
   APPOINTMENTS: ['appointments'] as const,
   TODAY_QUEUE: ['today-queue'] as const,
   FAXES: ['faxes'] as const,

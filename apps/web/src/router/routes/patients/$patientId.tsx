@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -50,6 +50,11 @@ const patientMessages = [
   { from: 'Mary Collins', at: '11:18 AM', subject: 'Lab result question', body: 'I saw a lab alert in the portal. Should I change anything before my visit?' },
   { from: 'Clinic Admin', at: '11:44 AM', subject: 'Lab result question', body: 'We received it and the provider is reviewing. We will call you this afternoon.' },
 ];
+
+interface UserListResponse {
+  data: User[];
+  total: number;
+}
 
 function PatientChartPage() {
   const { patientId } = Route.useParams();
@@ -103,11 +108,17 @@ function PatientChartPage() {
     queryFn: () => api.get<PatientEncounterListResponse>(ROUTES.PATIENT_ENCOUNTERS(patientId)),
   });
 
+  const { data: staff } = useQuery({
+    queryKey: QUERY_KEYS.USERS,
+    queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
+  });
+
   const documentRows = documentList?.data ?? [];
   const medicationRows = medicationList?.data ?? [];
   const carePlanItems = carePlanList?.data ?? [];
   const labRows = labList?.data ?? [];
   const encounterRows = encounterList?.data ?? [];
+  const staffRows = staff?.data ?? [];
   const documentsNeedingReview = documentRows.filter((document) => document.status === 'needs_review').length;
   const openTasks = chartSummary?.open_tasks ?? [];
   const blockers = chartSummary?.blockers ?? [];
@@ -153,8 +164,8 @@ function PatientChartPage() {
   });
 
   const updateCarePlanMutation = useMutation({
-    mutationFn: ({ itemId, status }: { itemId: string; status: PatientCarePlanItem['status'] }) =>
-      api.patch<PatientCarePlanItem>(ROUTES.PATIENT_CARE_PLAN_ITEM(patientId, itemId), { status }),
+    mutationFn: ({ itemId, update }: { itemId: string; update: Partial<PatientCarePlanItem> }) =>
+      api.patch<PatientCarePlanItem>(ROUTES.PATIENT_CARE_PLAN_ITEM(patientId, itemId), update),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CARE_PLAN(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
@@ -324,9 +335,16 @@ function PatientChartPage() {
               </div>
               <div className="divide-y divide-clinic-100">
                 {carePlanItems.map((item) => (
-                  <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[7rem_1fr_7rem_7rem]">
+                  <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[10rem_1fr_7rem_7rem]">
                     <div className="text-sm font-medium text-clinic-700">
-                      {item.assigned_to_name ?? item.owner_role}
+                      <select
+                        value={item.assigned_to_id ?? ''}
+                        onChange={(event) => updateCarePlanMutation.mutate({ itemId: item.id, update: { assigned_to_id: event.target.value || null } })}
+                        className="w-full rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                      >
+                        <option value="">{item.owner_role}</option>
+                        {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
+                      </select>
                       {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
                     </div>
                     <div className="text-sm text-clinic-800">{item.item}</div>
@@ -637,9 +655,16 @@ function PatientChartPage() {
           </div>
           <div className="divide-y divide-clinic-100">
             {carePlanItems.map((item) => (
-              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_8rem_8rem]">
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[10rem_1fr_8rem_8rem]">
                 <div className="text-sm font-medium text-clinic-700">
-                  {item.assigned_to_name ?? item.owner_role}
+                  <select
+                    value={item.assigned_to_id ?? ''}
+                    onChange={(event) => updateCarePlanMutation.mutate({ itemId: item.id, update: { assigned_to_id: event.target.value || null } })}
+                    className="w-full rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                  >
+                    <option value="">{item.owner_role}</option>
+                    {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
+                  </select>
                   {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
                 </div>
                 <div className="text-sm text-clinic-800">{item.item}</div>
@@ -648,7 +673,7 @@ function PatientChartPage() {
                   {formatClinicalStatus(item.status)}
                   {item.status !== 'completed' && (
                     <button
-                      onClick={() => updateCarePlanMutation.mutate({ itemId: item.id, status: 'completed' })}
+                      onClick={() => updateCarePlanMutation.mutate({ itemId: item.id, update: { status: 'completed' } })}
                       className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                     >
                       Done
@@ -770,7 +795,7 @@ function PatientChartPage() {
           onFileDocument={(documentId) => updateDocumentMutation.mutate({ documentId, status: 'filed' })}
           onConfirmMedication={(medicationId) => updateMedicationMutation.mutate({ medicationId, status: 'active' })}
           onReviewLab={(labId) => updateLabMutation.mutate({ labId, status: 'reviewed' })}
-          onCompleteCarePlan={(itemId) => updateCarePlanMutation.mutate({ itemId, status: 'completed' })}
+          onCompleteCarePlan={(itemId) => updateCarePlanMutation.mutate({ itemId, update: { status: 'completed' } })}
           onSignEncounter={(encounterId) => updateEncounterMutation.mutate({ encounterId, status: 'signed' })}
           onCreateTask={(sourceType, sourceId) => createHandoffTaskMutation.mutate({ sourceType, sourceId })}
           onCompleteCheckout={() => {

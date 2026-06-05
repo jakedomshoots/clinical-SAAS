@@ -5,14 +5,19 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Task } from '@concierge-os/shared';
-import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save } from 'lucide-react';
+import type { Task, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
+import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
 interface TaskListResponse {
   data: Task[];
   total: number;
   page: number;
   page_size: number;
+}
+
+interface UserListResponse {
+  data: User[];
+  total: number;
 }
 
 const PRIORITY_ICONS: Record<string, React.ReactNode> = {
@@ -41,13 +46,14 @@ function TaskListPage() {
   const [sourceFilter, setSourceFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [outreachDraft, setOutreachDraft] = useState<TaskPatientOutreachDraft | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     description: '',
     priority: 'normal',
     due_date: '',
     patient_name: '',
-    assigned_to_name: 'Clinic Admin',
+    assigned_to_id: '',
   });
 
   const { data, isLoading, isError, error } = useQuery({
@@ -62,6 +68,11 @@ function TaskListPage() {
   const filteredTasks = data?.data.filter((task) => (
     sourceFilter === 'checkout' ? task.source_type?.startsWith('checkout_handoff:') : true
   )) ?? [];
+  const { data: staff } = useQuery({
+    queryKey: QUERY_KEYS.USERS,
+    queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
+  });
+  const staffRows = staff?.data ?? [];
 
   const updateMutation = useMutation({
     mutationFn: ({ id, update }: { id: string; update: Partial<Task> }) =>
@@ -73,13 +84,19 @@ function TaskListPage() {
     mutationFn: () => api.post<Task>('/tasks', {
       ...newTask,
       status: 'open',
+      assigned_to_id: newTask.assigned_to_id || null,
       due_date: newTask.due_date ? new Date(newTask.due_date).toISOString() : null,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       setShowNewTask(false);
-      setNewTask({ title: '', description: '', priority: 'normal', due_date: '', patient_name: '', assigned_to_name: 'Clinic Admin' });
+      setNewTask({ title: '', description: '', priority: 'normal', due_date: '', patient_name: '', assigned_to_id: '' });
     },
+  });
+
+  const outreachMutation = useMutation({
+    mutationFn: (taskId: string) => api.post<TaskPatientOutreachDraft>(ROUTES.TASK_PATIENT_OUTREACH(taskId), {}),
+    onSuccess: (draft) => setOutreachDraft(draft),
   });
 
   function updateTask(id: string, update: Partial<Task>) {
@@ -186,7 +203,16 @@ function TaskListPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-clinic-600">{task.assigned_to_name || '—'}</td>
+                  <td className="px-4 py-3 text-clinic-600">
+                    <select
+                      value={task.assigned_to_id ?? ''}
+                      onChange={(event) => updateTask(task.id, { assigned_to_id: event.target.value || null })}
+                      className="w-40 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                    >
+                      <option value="">Unassigned</option>
+                      {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
+                    </select>
+                  </td>
                   <td className="px-4 py-3 text-clinic-600">{task.patient_name || '—'}</td>
                   <td className="px-4 py-3 text-clinic-500 text-xs">
                     <input
@@ -223,6 +249,15 @@ function TaskListPage() {
                         >
                           <Ban className="h-3.5 w-3.5" />
                           Cancel
+                        </button>
+                      )}
+                      {task.patient_id && (
+                        <button
+                          onClick={() => outreachMutation.mutate(task.id)}
+                          className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50"
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" />
+                          Outreach
                         </button>
                       )}
                     </div>
@@ -284,6 +319,13 @@ function TaskListPage() {
                   <input value={newTask.patient_name} onChange={(event) => setNewTask({ ...newTask, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
                 </label>
               </div>
+              <label className="block text-sm font-medium text-clinic-700">
+                Assignee
+                <select value={newTask.assigned_to_id} onChange={(event) => setNewTask({ ...newTask, assigned_to_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                  <option value="">Unassigned</option>
+                  {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name} - {formatRole(user.role)}</option>)}
+                </select>
+              </label>
             </div>
             <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
               <button type="button" onClick={() => setShowNewTask(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
@@ -293,6 +335,35 @@ function TaskListPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {outreachDraft && (
+        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+          <div className="mx-auto mt-24 max-w-xl rounded-md border border-clinic-300 bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-clinic-900">Patient Outreach Draft</h2>
+                <p className="mt-1 text-xs text-clinic-500">{outreachDraft.patient_name} - {outreachDraft.patient_phone ?? outreachDraft.patient_email ?? 'No contact on file'}</p>
+              </div>
+              <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-3 p-4">
+              <div>
+                <div className="text-xs font-medium uppercase text-clinic-500">Subject</div>
+                <div className="mt-1 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm text-clinic-800">{outreachDraft.subject}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase text-clinic-500">Body</div>
+                <pre className="mt-1 whitespace-pre-wrap rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm leading-6 text-clinic-800">{outreachDraft.body}</pre>
+              </div>
+            </div>
+            <div className="flex justify-end border-t border-clinic-200 px-4 py-3">
+              <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Done</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -314,4 +385,8 @@ function dueTone(task: Task) {
   if (due < now) return `${base} border-red-200 bg-red-50 font-medium text-red-800`;
   if (due - now < 24 * 60 * 60 * 1000) return `${base} border-amber-200 bg-amber-50 font-medium text-amber-800`;
   return `${base} border-clinic-200 bg-white text-clinic-600`;
+}
+
+function formatRole(role: User['role']) {
+  return role.replace('_', ' ');
 }

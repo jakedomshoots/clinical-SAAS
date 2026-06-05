@@ -49,3 +49,13 @@ class TaskListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class TaskPatientOutreachDraftOut(BaseModel):
+    task_id: str
+    patient_id: str
+    patient_name: str
+    patient_email: str | None
+    patient_phone: str | None
+    subject: str
+    body: str

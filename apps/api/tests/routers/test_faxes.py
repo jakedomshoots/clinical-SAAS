@@ -88,6 +88,14 @@ async def test_match_inbound_fax_to_patient(
     assert documents.json()["data"][0]["file_url"] == "s3://concierge-os/faxes/inbound-referral.pdf"
     assert documents.json()["data"][0]["status"] == "needs_review"
 
+    tasks = await client.get(f"/api/tasks?patient_id={patient_id}", headers=auth_headers)
+    assert tasks.status_code == 200
+    assert tasks.json()["total"] == 1
+    task = tasks.json()["data"][0]
+    assert task["title"] == "Review inbound fax document"
+    assert task["priority"] == "high"
+    assert task["source_type"] == "document_intake:fax"
+
 
 @pytest.mark.asyncio
 async def test_fax_list_is_scoped_to_user_organization(

@@ -113,7 +113,10 @@ async def get_task(db: AsyncSession, user: User, task_id: str) -> dict | None:
     return d
 
 
-async def create_task(db: AsyncSession, user: User, data: dict) -> dict:
+async def create_task(db: AsyncSession, user: User, data: dict) -> dict | None:
+    assigned_to_id = data.get("assigned_to_id")
+    if assigned_to_id and not await _user_in_org(db, user, assigned_to_id):
+        return None
     task = Task(
         organization_id=user.organization_id,
         title=data["title"],
@@ -121,7 +124,7 @@ async def create_task(db: AsyncSession, user: User, data: dict) -> dict:
         priority=TaskPriority(data.get("priority", "normal")),
         status=TaskStatus.open,
         due_date=data.get("due_date"),
-        assigned_to_id=data.get("assigned_to_id"),
+        assigned_to_id=assigned_to_id,
         patient_id=data.get("patient_id"),
         source_type=data.get("source_type"),
         source_id=data.get("source_id"),
@@ -151,7 +154,18 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
     task = result.scalar_one_or_none()
     if not task:
         return None
-    old_status = task.status.value
+    if "assigned_to_id" in data and data["assigned_to_id"] and not await _user_in_org(
+        db,
+        user,
+        data["assigned_to_id"],
+    ):
+        return None
+    before = {
+        "status": task.status.value,
+        "priority": task.priority.value,
+        "assigned_to_id": task.assigned_to_id,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
+    }
     for field, value in data.items():
         if hasattr(task, field):
             if field == "priority":
@@ -162,16 +176,69 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
                 setattr(task, field, value)
     await db.commit()
     await db.refresh(task)
-    event_type = f"task.{task.status.value}" if old_status != task.status.value else "task.updated"
+    after = {
+        "status": task.status.value,
+        "priority": task.priority.value,
+        "assigned_to_id": task.assigned_to_id,
+        "due_date": task.due_date.isoformat() if task.due_date else None,
+    }
+    event_type = f"task.{task.status.value}" if before["status"] != task.status.value else "task.updated"
     await log_event(
         db,
         event_type,
         "task",
         task.id,
         actor_id=user.id,
-        payload={"title": task.title, "status": task.status.value},
+        payload={
+            "title": task.title,
+            "updated_fields": list(data.keys()),
+            "before": before,
+            "after": after,
+        },
     )
     return await get_task(db, user, task.id)
+
+
+async def draft_patient_outreach(db: AsyncSession, user: User, task_id: str) -> dict | None:
+    result = await db.execute(
+        select(Task, Patient).join(Patient, Task.patient_id == Patient.id).where(
+            Task.id == task_id,
+            Task.organization_id == user.organization_id,
+            Patient.organization_id == user.organization_id,
+        )
+    )
+    row = result.first()
+    if not row:
+        return None
+    task, patient = row
+    patient_name = f"{patient.first_name} {patient.last_name}"
+    return {
+        "task_id": task.id,
+        "patient_id": patient.id,
+        "patient_name": patient_name,
+        "patient_email": patient.email,
+        "patient_phone": patient.phone,
+        "subject": f"Follow-up from your care team: {task.title}",
+        "body": (
+            f"Hi {patient.first_name},\n\n"
+            "Your care team is following up on an item from your visit. "
+            f"We are reviewing: {task.title}.\n\n"
+            "Please contact the office if you have new symptoms, medication changes, "
+            "or questions before we reach you.\n\n"
+            "Thank you,\nYour care team"
+        ),
+    }
+
+
+async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:
+    result = await db.execute(
+        select(User.id).where(
+            User.id == user_id,
+            User.organization_id == user.organization_id,
+            User.is_active.is_(True),
+        )
+    )
+    return result.scalar_one_or_none() is not None
 
 
 def _make_task_dict(t: Task) -> dict:

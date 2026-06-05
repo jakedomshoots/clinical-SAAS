@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -42,6 +42,15 @@ interface IntegrationEvent {
   created_at: string;
   updated_at: string;
 }
+
+const demoUsers: User[] = [
+  { id: uuid(1), email: 'admin@clinic.example.com', display_name: 'Clinic Admin', role: 'admin', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+  { id: uuid(2), email: 'nora.ellis@clinic.example.com', display_name: 'Dr. Nora Ellis', role: 'provider', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+  { id: uuid(3), email: 'maya.chen@clinic.example.com', display_name: 'Maya Chen, MA', role: 'ma', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+  { id: uuid(4), email: 'riley.morgan@clinic.example.com', display_name: 'Riley Morgan', role: 'manager', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+  { id: uuid(5), email: 'sam.rivera@clinic.example.com', display_name: 'Sam Rivera', role: 'front_desk', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+  { id: uuid(6), email: 'omar.singh@clinic.example.com', display_name: 'Dr. Omar Singh', role: 'provider', organization_id: uuid(900), is_active: true, created_at: iso(-720), updated_at: iso(-24) },
+];
 
 let patients: Patient[] = [
   {
@@ -535,6 +544,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return { data: paginate(auditEvents, page, pageSize), total: auditEvents.length, page, page_size: pageSize } as T;
   }
 
+  if (method === 'GET' && path === '/users') {
+    const role = url.searchParams.get('role');
+    const data = role ? demoUsers.filter((user) => user.role === role) : demoUsers;
+    return { data, total: data.length } as T;
+  }
+
   if (path === '/assistant/actions/follow-up-task' && method === 'POST') {
     const incoming = body as { context: string; title?: string; priority?: Task['priority']; patient_id?: string | null; due_date?: string | null };
     const patient = patients.find((item) => item.id === incoming.patient_id);
@@ -985,10 +1000,39 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   const taskMatch = path.match(/^\/tasks\/([^/]+)$/);
+  const taskOutreachMatch = path.match(/^\/tasks\/([^/]+)\/patient-outreach$/);
+  if (taskOutreachMatch && method === 'POST') {
+    const task = tasks.find((item) => item.id === taskOutreachMatch[1]);
+    const patient = patients.find((item) => item.id === task?.patient_id);
+    if (!task || !patient) throw new Error('Patient task not found');
+    return {
+      task_id: task.id,
+      patient_id: patient.id,
+      patient_name: `${patient.first_name} ${patient.last_name}`,
+      patient_email: patient.email,
+      patient_phone: patient.phone,
+      subject: `Follow-up from your care team: ${task.title}`,
+      body: `Hi ${patient.first_name},\n\nYour care team is following up on an item from your visit. We are reviewing: ${task.title}.\n\nPlease contact the office if you have new symptoms, medication changes, or questions before we reach you.\n\nThank you,\nYour care team`,
+    } as T;
+  }
+
   if (taskMatch && method === 'PATCH') {
     const previous = tasks.find((task) => task.id === taskMatch[1]);
+    const incoming = body as Partial<Task>;
+    const assignee = incoming.assigned_to_id === null
+      ? null
+      : incoming.assigned_to_id
+        ? demoUsers.find((user) => user.id === incoming.assigned_to_id)
+        : undefined;
     tasks = tasks.map((task) =>
-      task.id === taskMatch[1] ? { ...task, ...(body as Partial<Task>), updated_at: new Date().toISOString() } : task,
+      task.id === taskMatch[1]
+        ? {
+            ...task,
+            ...incoming,
+            assigned_to_name: assignee === null ? null : assignee?.display_name ?? task.assigned_to_name,
+            updated_at: new Date().toISOString(),
+          }
+        : task,
     );
     const updated = tasks.find((task) => task.id === taskMatch[1]);
     if (updated) {
