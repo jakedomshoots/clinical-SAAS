@@ -9,6 +9,9 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 - Required live methods:
   - Patient search
   - Patient demographics sync
+  - Medication list sync
+  - Care-plan or order/task sync if supported
+  - Lab result import
   - Encounter or note lookup if needed
 
 ## Fax Provider
@@ -20,6 +23,8 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
   - Receive webhook
   - Delivery status sync
   - Document download
+  - Signed source document URL or object-storage handoff
+  - Inbound fax match callback into patient documents
 
 ## Portal
 
