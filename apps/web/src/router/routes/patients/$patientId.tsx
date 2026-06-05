@@ -114,6 +114,15 @@ function PatientChartPage() {
     },
   });
 
+  const updateDocumentMutation = useMutation({
+    mutationFn: ({ documentId, status }: { documentId: string; status: PatientDocument['status'] }) =>
+      api.patch<PatientDocument>(ROUTES.PATIENT_DOCUMENT(patientId, documentId), { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+    },
+  });
+
   function startEditing() {
     if (!patient) return;
     setEditForm({
@@ -423,8 +432,18 @@ function PatientChartPage() {
                   {document.summary && <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>}
                 </div>
                 <div className="text-sm font-medium text-clinic-700">{formatDocumentStatus(document.status)}</div>
-                <div className="text-sm text-clinic-500">Available in chart</div>
-                <div className="text-right">
+                <div className="text-sm text-clinic-500">{document.file_url ? 'Available in chart' : 'Metadata only'}</div>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {document.status === 'needs_review' && (
+                    <button
+                      onClick={() => updateDocumentMutation.mutate({ documentId: document.id, status: 'filed' })}
+                      disabled={updateDocumentMutation.isPending}
+                      className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      File
+                    </button>
+                  )}
                   <button
                     disabled={!document.file_url}
                     className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"

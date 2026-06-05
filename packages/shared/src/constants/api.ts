@@ -10,6 +10,7 @@ export const ROUTES = {
   PATIENT: (id: string) => `/api/patients/${id}`,
   PATIENT_CHART_SUMMARY: (id: string) => `/api/patients/${id}/chart-summary`,
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
+  PATIENT_DOCUMENT: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}`,
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,
   SCHEDULE: '/api/schedule',

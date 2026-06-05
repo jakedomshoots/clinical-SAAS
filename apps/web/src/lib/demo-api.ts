@@ -577,6 +577,29 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
   }
 
+  const patientDocumentMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)$/);
+  if (patientDocumentMatch && method === 'PATCH') {
+    const [patientId, documentId] = [patientDocumentMatch[1], patientDocumentMatch[2]];
+    const existing = patientDocuments.find((document) => document.patient_id === patientId && document.id === documentId);
+    if (!existing) throw new Error('Document not found');
+    patientDocuments = patientDocuments.map((document) =>
+      document.id === documentId
+        ? { ...document, ...(body as Partial<PatientDocument>), updated_at: new Date().toISOString() }
+        : document,
+    );
+    const updated = patientDocuments.find((document) => document.id === documentId);
+    if (updated) {
+      logDemoEvent({
+        event_type: 'patient_document.updated',
+        entity_type: 'patient_document',
+        entity_id: updated.id,
+        payload: { patient_id: patientId, title: updated.title, status: updated.status, source_mode: 'demo-ui' },
+      });
+    }
+    saveDemoData();
+    return updated as T;
+  }
+
   const patientChartSummaryMatch = path.match(/^\/patients\/([^/]+)\/chart-summary$/);
   if (patientChartSummaryMatch && method === 'GET') {
     const patientId = patientChartSummaryMatch[1];
