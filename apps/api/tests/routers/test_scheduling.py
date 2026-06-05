@@ -64,6 +64,42 @@ async def test_create_list_and_update_appointment(client: AsyncClient, auth_head
 
 
 @pytest.mark.asyncio
+async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 9, 0)
+    end = start + timedelta(minutes=30)
+    await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+            "type": "annual_wellness",
+        },
+        headers=auth_headers,
+    )
+    await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Outside lab",
+        "source": "Outside Lab",
+        "document_type": "Lab result",
+        "status": "needs_review",
+    }, headers=auth_headers)
+
+    res = await client.get(
+        "/api/schedule/today-queue?start_date=2026-06-05&end_date=2026-06-06",
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 1
+    assert data["blocked"] == 1
+    assert data["data"][0]["checkout_readiness"] == "blocked"
+    assert data["data"][0]["documents_needing_review"] == 1
+
+
+@pytest.mark.asyncio
 async def test_set_and_get_provider_availability(client: AsyncClient, auth_headers, admin_user):
     res = await client.post(
         "/api/schedule/availability",

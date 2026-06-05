@@ -14,6 +14,7 @@ from app.schemas.schedule import (
     AppointmentUpdate,
     AvailabilityCreate,
     AvailabilityOut,
+    TodayQueueOut,
 )
 from app.services import schedule_service
 
@@ -47,6 +48,18 @@ async def list_appointments(
         status,
     )
     return AppointmentListOut(data=[AppointmentOut(**a) for a in data], total=total)
+
+
+@router.get("/today-queue", response_model=TodayQueueOut)
+async def today_queue(
+    db: DbDep,
+    current_user: CurrentUserDep,
+    start_date: str | None = Query(None),
+    end_date: str | None = Query(None),
+):
+    sd = datetime.fromisoformat(start_date) if start_date else None
+    ed = datetime.fromisoformat(end_date) if end_date else None
+    return await schedule_service.today_queue(db, current_user, sd, ed)
 
 
 @router.get("/appointments/{appointment_id}", response_model=AppointmentOut)

@@ -77,6 +77,50 @@ async def list_appointments(
     return out, total
 
 
+async def today_queue(
+    db: AsyncSession,
+    user: User,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
+) -> dict:
+    appointments, total = await list_appointments(
+        db,
+        user,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    queue_items = []
+    checked_in = 0
+    blocked = 0
+    for appointment in appointments:
+        from app.services.patient_chart_service import get_patient_chart_summary
+
+        if appointment["status"] in {"checked_in", "in_progress"}:
+            checked_in += 1
+        summary = await get_patient_chart_summary(db, user, appointment["patient_id"])
+        readiness = summary.checkout_readiness if summary else "ready"
+        blockers = summary.blockers if summary else []
+        if readiness == "blocked":
+            blocked += 1
+        counts = summary.counts if summary else None
+        queue_items.append(
+            {
+                "appointment": appointment,
+                "checkout_readiness": readiness,
+                "blockers": blockers,
+                "documents_needing_review": counts.documents_needing_review if counts else 0,
+                "open_tasks": counts.open_tasks if counts else 0,
+                "urgent_tasks": counts.urgent_tasks if counts else 0,
+            }
+        )
+    return {
+        "data": queue_items,
+        "total": total,
+        "checked_in": checked_in,
+        "blocked": blocked,
+    }
+
+
 async def get_appointment(db: AsyncSession, user: User, appt_id: str) -> dict | None:
     result = await db.execute(
         select(Appointment).where(

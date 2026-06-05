@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type { Appointment, AuditEvent, Fax, MessageThread, Task } from '@concierge-os/shared';
+import type { AuditEvent, Fax, MessageThread, Task, TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
   component: CommandCenterPage,
@@ -35,9 +35,9 @@ function CommandCenterPage() {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  const { data: appointments } = useQuery({
-    queryKey: [...QUERY_KEYS.APPOINTMENTS, 'command-center'],
-    queryFn: () => api.get<ListResponse<Appointment>>(`/schedule/appointments?start_date=${dateOnly(today)}&end_date=${dateOnly(tomorrow)}`),
+  const { data: todayQueue } = useQuery({
+    queryKey: [...QUERY_KEYS.TODAY_QUEUE, 'command-center'],
+    queryFn: () => api.get<TodayQueue>(`/schedule/today-queue?start_date=${dateOnly(today)}&end_date=${dateOnly(tomorrow)}`),
   });
   const { data: tasks } = useQuery({
     queryKey: [...QUERY_KEYS.TASKS, 'command-center'],
@@ -60,13 +60,13 @@ function CommandCenterPage() {
   const dueToday = openTasks.filter((task) => task.due_date && dateOnly(new Date(task.due_date)) === dateOnly(today)).length;
   const unreadMessages = threads?.data.reduce((count, thread) => count + thread.unread_count, 0) ?? 0;
   const unmatchedFaxes = inboundFaxes?.data.filter((fax) => !fax.patient_id).length ?? 0;
-  const todayAppointments = (appointments?.data ?? [])
-    .filter((appointment) => dateOnly(new Date(appointment.start_time)) === dateOnly(today))
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
-  const checkedIn = todayAppointments.filter((appointment) => ['checked_in', 'in_progress'].includes(appointment.status)).length;
+  const todayItems = (todayQueue?.data ?? [])
+    .filter((item) => dateOnly(new Date(item.appointment.start_time)) === dateOnly(today))
+    .sort((a, b) => a.appointment.start_time.localeCompare(b.appointment.start_time));
+  const checkedIn = todayQueue?.checked_in ?? 0;
 
   const queueMetrics = [
-    { label: 'Patients scheduled', value: String(todayAppointments.length), note: `${checkedIn} active in clinic`, icon: Users, tone: 'text-clinic-700' },
+    { label: 'Patients scheduled', value: String(todayQueue?.total ?? todayItems.length), note: `${checkedIn} active, ${todayQueue?.blocked ?? 0} blocked`, icon: Users, tone: 'text-clinic-700' },
     { label: 'Open tasks', value: String(openTasks.length), note: `${dueToday} due today`, icon: CheckCircle2, tone: 'text-amber-700' },
     { label: 'Unread messages', value: String(unreadMessages), note: `${threads?.total ?? 0} active threads`, icon: MessageSquare, tone: 'text-accent-700' },
     { label: 'Fax inbox', value: String(inboundFaxes?.total ?? 0), note: `${unmatchedFaxes} unmatched`, icon: FileText, tone: 'text-red-700' },
@@ -87,7 +87,7 @@ function CommandCenterPage() {
   ].slice(0, 4);
 
   const handoffItems = [
-    `${todayAppointments.filter((appointment) => appointment.status === 'scheduled').length} scheduled visits still waiting`,
+    `${todayItems.filter((item) => item.appointment.status === 'scheduled').length} scheduled visits still waiting`,
     `${openTasks.filter((task) => task.priority === 'urgent').length} urgent tasks require same-day action`,
     `${unreadMessages} unread message${unreadMessages === 1 ? '' : 's'} across patient and staff threads`,
   ];
@@ -149,21 +149,26 @@ function CommandCenterPage() {
                 </tr>
               </thead>
               <tbody>
-                {todayAppointments.map((item) => (
-                  <tr key={item.id} className="border-b border-clinic-100 last:border-b-0">
+                {todayItems.map((item) => (
+                  <tr key={item.appointment.id} className="border-b border-clinic-100 last:border-b-0">
                     <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-clinic-600">
-                      {new Date(item.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                      {new Date(item.appointment.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </td>
-                    <td className="px-4 py-3 font-medium text-clinic-900">{item.patient_name}</td>
-                    <td className="px-4 py-3 text-clinic-600">{item.type}</td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
-                        {item.status.replace('_', ' ')}
+                      <div className="font-medium text-clinic-900">{item.appointment.patient_name}</div>
+                      {item.blockers.length > 0 && (
+                        <div className="mt-0.5 text-xs text-red-700">{item.blockers.join(', ')}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-clinic-600">{item.appointment.type}</td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${item.checkout_readiness === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-700'}`}>
+                        {item.appointment.status.replace('_', ' ')}
                       </span>
                     </td>
                   </tr>
                 ))}
-                {todayAppointments.length === 0 && (
+                {todayItems.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-4 py-10 text-center text-sm text-clinic-400">No appointments scheduled today</td>
                   </tr>

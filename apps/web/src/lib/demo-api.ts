@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientChartSummary, PatientDocument, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientChartSummary, PatientDocument, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -703,6 +703,31 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/schedule/appointments') {
     return { data: appointments, total: appointments.length } as T;
+  }
+
+  if (path === '/schedule/today-queue') {
+    const data = appointments.map((appointment) => {
+      const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === appointment.patient_id && document.status === 'needs_review').length;
+      const openTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && ['open', 'in_progress'].includes(task.status));
+      const urgentTasks = openTasks.filter((task) => task.priority === 'urgent').length;
+      return {
+        appointment,
+        checkout_readiness: (documentsNeedingReview || urgentTasks ? 'blocked' : 'ready') as TodayQueue['data'][number]['checkout_readiness'],
+        blockers: [
+          ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
+          ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
+        ],
+        documents_needing_review: documentsNeedingReview,
+        open_tasks: openTasks.length,
+        urgent_tasks: urgentTasks,
+      };
+    });
+    return {
+      data,
+      total: data.length,
+      checked_in: data.filter((item) => ['checked_in', 'in_progress'].includes(item.appointment.status)).length,
+      blocked: data.filter((item) => item.checkout_readiness === 'blocked').length,
+    } satisfies TodayQueue as T;
   }
 
   if (path === '/schedule' && method === 'POST') {

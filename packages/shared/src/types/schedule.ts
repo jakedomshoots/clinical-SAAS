@@ -14,3 +14,19 @@ export interface Appointment {
   created_at: string;
   updated_at: string;
 }
+
+export interface TodayQueueItem {
+  appointment: Appointment;
+  checkout_readiness: 'ready' | 'blocked';
+  blockers: string[];
+  documents_needing_review: number;
+  open_tasks: number;
+  urgent_tasks: number;
+}
+
+export interface TodayQueue {
+  data: TodayQueueItem[];
+  total: number;
+  checked_in: number;
+  blocked: number;
+}

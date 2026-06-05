@@ -41,6 +41,22 @@ class AppointmentListOut(BaseModel):
     total: int
 
 
+class TodayQueueItemOut(BaseModel):
+    appointment: AppointmentOut
+    checkout_readiness: str
+    blockers: list[str]
+    documents_needing_review: int
+    open_tasks: int
+    urgent_tasks: int
+
+
+class TodayQueueOut(BaseModel):
+    data: list[TodayQueueItemOut]
+    total: int
+    checked_in: int
+    blocked: int
+
+
 class AvailabilityCreate(BaseModel):
     provider_id: str
     day_of_week: int = Field(ge=0, le=6)

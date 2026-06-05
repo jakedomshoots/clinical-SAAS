@@ -14,6 +14,7 @@ export const ROUTES = {
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,
   SCHEDULE: '/api/schedule',
+  TODAY_QUEUE: '/api/schedule/today-queue',
   APPOINTMENT: (id: string) => `/api/schedule/${id}`,
   FAXES: '/api/faxes',
   FAX: (id: string) => `/api/faxes/${id}`,
