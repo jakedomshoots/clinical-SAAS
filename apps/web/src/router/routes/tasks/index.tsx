@@ -2,11 +2,11 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
-import { ROUTES } from '@concierge-os/shared'
+import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
 import type { Task } from '@concierge-os/shared';
-import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X } from 'lucide-react';
+import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save } from 'lucide-react';
 
 interface TaskListResponse {
   data: Task[];
@@ -37,6 +37,8 @@ function TaskListPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [sourceFilter, setSourceFilter] = useState('');
   const [page, setPage] = useState(1);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTask, setNewTask] = useState({
@@ -49,17 +51,21 @@ function TaskListPage() {
   });
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: [...QUERY_KEYS.TASKS, statusFilter, page],
+    queryKey: [...QUERY_KEYS.TASKS, statusFilter, priorityFilter, sourceFilter, page],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), page_size: '20' });
       if (statusFilter) params.set('status', statusFilter);
+      if (priorityFilter) params.set('priority', priorityFilter);
       return api.get<TaskListResponse>(`/tasks?${params}`);
     },
   });
+  const filteredTasks = data?.data.filter((task) => (
+    sourceFilter === 'checkout' ? task.source_type?.startsWith('checkout_handoff:') : true
+  )) ?? [];
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch(ROUTES.TASK(id), { status }),
+    mutationFn: ({ id, update }: { id: string; update: Partial<Task> }) =>
+      api.patch(ROUTES.TASK(id), update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS }),
   });
 
@@ -76,6 +82,10 @@ function TaskListPage() {
     },
   });
 
+  function updateTask(id: string, update: Partial<Task>) {
+    updateMutation.mutate({ id, update });
+  }
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
@@ -86,7 +96,7 @@ function TaskListPage() {
         </button>
       </div>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {['', 'open', 'in_progress', 'completed'].map((s) => (
           <button
             key={s}
@@ -100,6 +110,30 @@ function TaskListPage() {
             {s || 'All'}
           </button>
         ))}
+        <div className="h-8 w-px bg-clinic-200" />
+        {['', 'high', 'urgent'].map((priority) => (
+          <button
+            key={priority || 'any-priority'}
+            onClick={() => { setPriorityFilter(priority); setPage(1); }}
+            className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              priorityFilter === priority
+                ? 'bg-clinic-800 text-white'
+                : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
+            }`}
+          >
+            {priority ? `${priority} priority` : 'Any priority'}
+          </button>
+        ))}
+        <button
+          onClick={() => { setSourceFilter(sourceFilter === 'checkout' ? '' : 'checkout'); setPage(1); }}
+          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            sourceFilter === 'checkout'
+              ? 'bg-amber-600 text-white'
+              : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
+          }`}
+        >
+          Checkout tasks
+        </button>
       </div>
 
       {isLoading ? (
@@ -121,36 +155,81 @@ function TaskListPage() {
               </tr>
             </thead>
             <tbody>
-              {data?.data.map((task) => (
+              {filteredTasks.map((task) => (
                 <tr key={task.id} className="border-b border-clinic-100 hover:bg-clinic-50">
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[task.status]}`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
+                    <select
+                      value={task.status}
+                      onChange={(event) => updateTask(task.id, { status: event.target.value as Task['status'] })}
+                      className={`rounded-md border-0 px-2 py-1 text-xs font-medium ${STATUS_COLORS[task.status]}`}
+                    >
+                      {['open', 'in_progress', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}
+                    </select>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1 text-xs text-clinic-500">
+                    <label className="inline-flex items-center gap-1 text-xs text-clinic-500">
                       {PRIORITY_ICONS[task.priority]}
-                      {task.priority}
-                    </span>
+                      <select
+                        value={task.priority}
+                        onChange={(event) => updateTask(task.id, { priority: event.target.value as Task['priority'] })}
+                        className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                      >
+                        {['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority}>{priority}</option>)}
+                      </select>
+                    </label>
                   </td>
-                  <td className="px-4 py-3 font-medium text-clinic-800">{task.title}</td>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-clinic-800">{task.title}</div>
+                    {task.source_type?.startsWith('checkout_handoff:') && (
+                      <div className="mt-1 inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                        {task.source_type.replace('checkout_handoff:', 'checkout ')}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-clinic-600">{task.assigned_to_name || '—'}</td>
                   <td className="px-4 py-3 text-clinic-600">{task.patient_name || '—'}</td>
-                  <td className="px-4 py-3 text-clinic-500 text-xs">{task.due_date ? new Date(task.due_date).toLocaleDateString() : '—'}</td>
+                  <td className="px-4 py-3 text-clinic-500 text-xs">
+                    <input
+                      type="datetime-local"
+                      value={toDateTimeInput(task.due_date)}
+                      onChange={(event) => updateTask(task.id, { due_date: event.target.value ? new Date(event.target.value).toISOString() : null })}
+                      className={dueTone(task)}
+                    />
+                  </td>
                   <td className="px-4 py-3">
-                    {task.status !== 'completed' && (
+                    <div className="flex flex-wrap gap-2">
+                      {task.status === 'open' && (
+                        <button
+                          onClick={() => updateTask(task.id, { status: 'in_progress' })}
+                          className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100"
+                        >
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          Start
+                        </button>
+                      )}
+                      {task.status !== 'completed' && (
                       <button
-                        onClick={() => updateMutation.mutate({ id: task.id, status: 'completed' })}
-                        className="text-xs text-accent-600 hover:text-accent-700"
+                        onClick={() => updateTask(task.id, { status: 'completed' })}
+                        className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                       >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
                         Complete
                       </button>
-                    )}
+                      )}
+                      {task.status !== 'cancelled' && task.status !== 'completed' && (
+                        <button
+                          onClick={() => updateTask(task.id, { status: 'cancelled' })}
+                          className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50"
+                        >
+                          <Ban className="h-3.5 w-3.5" />
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
-              {(!data?.data || data.data.length === 0) && (
+              {filteredTasks.length === 0 && (
                 <tr>
                   <td colSpan={7}>
                     <EmptyState
@@ -209,6 +288,7 @@ function TaskListPage() {
             <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
               <button type="button" onClick={() => setShowNewTask(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
               <button disabled={createMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+                <Save className="mr-1 inline h-3.5 w-3.5" />
                 {createMutation.isPending ? 'Creating...' : 'Create task'}
               </button>
             </div>
@@ -217,4 +297,21 @@ function TaskListPage() {
       )}
     </div>
   );
+}
+
+function toDateTimeInput(value: string | null) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString().slice(0, 16);
+}
+
+function dueTone(task: Task) {
+  const base = 'w-44 rounded-md border px-2 py-1 text-xs';
+  if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') return `${base} border-clinic-200 bg-white text-clinic-600`;
+  const due = new Date(task.due_date).getTime();
+  const now = Date.now();
+  if (due < now) return `${base} border-red-200 bg-red-50 font-medium text-red-800`;
+  if (due - now < 24 * 60 * 60 * 1000) return `${base} border-amber-200 bg-amber-50 font-medium text-amber-800`;
+  return `${base} border-clinic-200 bg-white text-clinic-600`;
 }
