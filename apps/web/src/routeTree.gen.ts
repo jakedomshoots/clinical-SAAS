@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './router/routes/__root'
+import { Route as RolesRouteImport } from './router/routes/roles'
 import { Route as LoginRouteImport } from './router/routes/login'
 import { Route as IndexRouteImport } from './router/routes/index'
 import { Route as TasksIndexRouteImport } from './router/routes/tasks/index'
@@ -19,6 +20,11 @@ import { Route as MessagingIndexRouteImport } from './router/routes/messaging/in
 import { Route as FaxesIndexRouteImport } from './router/routes/faxes/index'
 import { Route as PatientsPatientIdRouteImport } from './router/routes/patients/$patientId'
 
+const RolesRoute = RolesRouteImport.update({
+  id: '/roles',
+  path: '/roles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -68,6 +74,7 @@ const PatientsPatientIdRoute = PatientsPatientIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/roles': typeof RolesRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
   '/messaging/': typeof MessagingIndexRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/roles': typeof RolesRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes': typeof FaxesIndexRoute
   '/messaging': typeof MessagingIndexRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/roles': typeof RolesRoute
   '/patients/$patientId': typeof PatientsPatientIdRoute
   '/faxes/': typeof FaxesIndexRoute
   '/messaging/': typeof MessagingIndexRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/roles'
     | '/patients/$patientId'
     | '/faxes/'
     | '/messaging/'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/roles'
     | '/patients/$patientId'
     | '/faxes'
     | '/messaging'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
+    | '/roles'
     | '/patients/$patientId'
     | '/faxes/'
     | '/messaging/'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  RolesRoute: typeof RolesRoute
   PatientsPatientIdRoute: typeof PatientsPatientIdRoute
   FaxesIndexRoute: typeof FaxesIndexRoute
   MessagingIndexRoute: typeof MessagingIndexRoute
@@ -149,6 +162,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/roles': {
+      id: '/roles'
+      path: '/roles'
+      fullPath: '/roles'
+      preLoaderRoute: typeof RolesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  RolesRoute: RolesRoute,
   PatientsPatientIdRoute: PatientsPatientIdRoute,
   FaxesIndexRoute: FaxesIndexRoute,
   MessagingIndexRoute: MessagingIndexRoute,
