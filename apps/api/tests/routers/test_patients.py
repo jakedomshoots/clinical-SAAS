@@ -233,11 +233,11 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     }, headers=auth_headers)
 
     metadata_access = await client.get(
-        f"/api/patients/{patient_id}/documents/{metadata_doc.json()['id']}/access",
+        f"/api/patients/{patient_id}/documents/{metadata_doc.json()['id']}/access?reason=Chart%20review",
         headers=auth_headers,
     )
     file_access = await client.get(
-        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access",
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access?reason=Chart%20review",
         headers=auth_headers,
     )
 
@@ -251,6 +251,37 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert file_access.json()["preview_supported"] is True
     assert file_access.json()["content_type"] == "application/pdf"
     assert file_access.json()["viewer_mode"] == "inline"
+
+    audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
+    assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
+
+
+@pytest.mark.asyncio
+async def test_patient_document_processing_classifies_and_creates_review_task(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Process", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Outside CMP lab",
+        "source": "Outside Lab",
+        "document_type": "Lab result",
+        "file_url": "s3://concierge-os/documents/cmp.pdf",
+    }, headers=auth_headers)
+
+    processed = await client.post(
+        f"/api/patients/{patient_id}/documents/{document_res.json()['id']}/process",
+        headers=auth_headers,
+    )
+
+    assert processed.status_code == 200
+    data = processed.json()
+    assert data["document"]["classification"] == "lab_result"
+    assert data["document"]["ocr_status"] == "completed"
+    assert data["created_task_id"] is not None
+    tasks = await client.get(f"/api/tasks?patient_id={patient_id}", headers=auth_headers)
+    assert tasks.json()["total"] == 1
+    assert tasks.json()["data"][0]["source_type"] == "document_processing"
 
 
 @pytest.mark.asyncio

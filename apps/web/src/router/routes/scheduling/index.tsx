@@ -4,11 +4,16 @@ import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus } from '@concierge-os/shared';
+import { ROUTES, type Appointment, type AppointmentStatus, type Patient, type UserListResponse } from '@concierge-os/shared';
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface AppointmentListResponse {
   data: Appointment[];
+  total: number;
+}
+
+interface PatientListResponse {
+  data: Patient[];
   total: number;
 }
 
@@ -46,8 +51,8 @@ function SchedulePage() {
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()));
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [newAppointment, setNewAppointment] = useState({
-    patient_name: '',
-    provider_name: 'Dr. Nora Ellis',
+    patient_id: '',
+    provider_id: '',
     start_time: '',
     type: 'Office visit',
     notes: '',
@@ -63,6 +68,16 @@ function SchedulePage() {
     queryFn: () =>
       api.get<AppointmentListResponse>(`/schedule/appointments?start_date=${startStr}&end_date=${endStr}`),
   });
+  const { data: patients } = useQuery({
+    queryKey: [...QUERY_KEYS.PATIENTS, 'schedule-picker'],
+    queryFn: () => api.get<PatientListResponse>(`${ROUTES.PATIENTS}?page=1&page_size=100`),
+  });
+  const { data: staff } = useQuery({
+    queryKey: [...QUERY_KEYS.USERS, 'providers'],
+    queryFn: () => api.get<UserListResponse>(`${ROUTES.USERS}?role=provider`),
+  });
+  const patientOptions = patients?.data ?? [];
+  const providerOptions = staff?.data ?? [];
 
   const weekDays = useMemo(() => {
     const days: Date[] = [];
@@ -78,20 +93,19 @@ function SchedulePage() {
     mutationFn: () => {
       const start = new Date(newAppointment.start_time);
       const end = new Date(start.getTime() + 30 * 60 * 1000);
-      return api.post<Appointment>('/schedule', {
-        patient_name: newAppointment.patient_name,
-        provider_name: newAppointment.provider_name,
+      return api.post<Appointment>(`${ROUTES.SCHEDULE}/appointments`, {
+        patient_id: newAppointment.patient_id,
+        provider_id: newAppointment.provider_id,
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         type: newAppointment.type,
         notes: newAppointment.notes || null,
-        status: 'scheduled',
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
       setShowNewAppointment(false);
-      setNewAppointment({ patient_name: '', provider_name: 'Dr. Nora Ellis', start_time: '', type: 'Office visit', notes: '' });
+      setNewAppointment({ patient_id: '', provider_id: '', start_time: '', type: 'Office visit', notes: '' });
     },
   });
 
@@ -260,11 +274,17 @@ function SchedulePage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm font-medium text-clinic-700">
                   Patient
-                  <input required value={newAppointment.patient_name} onChange={(event) => setNewAppointment({ ...newAppointment, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <select required value={newAppointment.patient_id} onChange={(event) => setNewAppointment({ ...newAppointment, patient_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                    <option value="">Select patient</option>
+                    {patientOptions.map((patient) => <option key={patient.id} value={patient.id}>{patient.last_name}, {patient.first_name}</option>)}
+                  </select>
                 </label>
                 <label className="text-sm font-medium text-clinic-700">
                   Provider
-                  <input required value={newAppointment.provider_name} onChange={(event) => setNewAppointment({ ...newAppointment, provider_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <select required value={newAppointment.provider_id} onChange={(event) => setNewAppointment({ ...newAppointment, provider_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                    <option value="">Select provider</option>
+                    {providerOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.display_name}</option>)}
+                  </select>
                 </label>
                 <label className="text-sm font-medium text-clinic-700">
                   Start time

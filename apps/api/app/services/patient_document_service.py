@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.patient import Patient
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
+from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.schemas.patient_document import PatientDocumentOut
 from app.services.audit_service import log_event
@@ -75,6 +76,9 @@ async def create_patient_document(
         matched_by=data.get("matched_by"),
         pages=data.get("pages", 1),
         file_url=data.get("file_url"),
+        upload_status=data.get("upload_status") or ("uploaded" if data.get("file_url") else "metadata_only"),
+        ocr_status=data.get("ocr_status") or "not_started",
+        classification=data.get("classification"),
         summary=data.get("summary"),
         received_at=data.get("received_at") or datetime.now(UTC).replace(tzinfo=None),
     )
@@ -96,6 +100,82 @@ async def create_patient_document(
         },
     )
     return PatientDocumentOut.model_validate(document).model_dump()
+
+
+async def process_patient_document(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    document_id: str,
+) -> dict | None:
+    document = (
+        await db.execute(
+            select(PatientDocument).where(
+                PatientDocument.id == document_id,
+                PatientDocument.patient_id == patient_id,
+                PatientDocument.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not document:
+        return None
+
+    document.upload_status = "uploaded" if document.file_url else "metadata_only"
+    document.ocr_status = "completed" if document.file_url else "not_available"
+    document.classification = _classify_document(document)
+    if not document.summary:
+        document.summary = _default_summary(document)
+
+    created_task_id = None
+    if document.status in {PatientDocumentStatus.received, PatientDocumentStatus.needs_review}:
+        document.status = PatientDocumentStatus.needs_review
+        existing_task = (
+            await db.execute(
+                select(Task.id).where(
+                    Task.organization_id == user.organization_id,
+                    Task.patient_id == patient_id,
+                    Task.source_type == "document_processing",
+                    Task.source_id == document.id,
+                    Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                )
+            )
+        ).scalar_one_or_none()
+        if not existing_task:
+            task = Task(
+                organization_id=user.organization_id,
+                title=f"Review {document.classification or document.document_type}: {document.title}",
+                description=document.summary,
+                priority=TaskPriority.high if document.classification == "lab_result" else TaskPriority.normal,
+                status=TaskStatus.open,
+                patient_id=patient_id,
+                source_type="document_processing",
+                source_id=document.id,
+                creator_id=user.id,
+            )
+            db.add(task)
+            await db.flush()
+            created_task_id = task.id
+        else:
+            created_task_id = existing_task
+    await db.commit()
+    await db.refresh(document)
+    await log_event(
+        db,
+        "patient_document.processed",
+        "patient_document",
+        document.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "classification": document.classification,
+            "ocr_status": document.ocr_status,
+            "created_task_id": created_task_id,
+        },
+    )
+    return {
+        "document": PatientDocumentOut.model_validate(document).model_dump(),
+        "created_task_id": created_task_id,
+    }
 
 
 async def update_patient_document(
@@ -141,6 +221,7 @@ async def get_document_access(
     user: User,
     patient_id: str,
     document_id: str,
+    reason: str,
 ) -> dict | None:
     document = (
         await db.execute(
@@ -153,6 +234,18 @@ async def get_document_access(
     ).scalar_one_or_none()
     if not document:
         return None
+    await log_event(
+        db,
+        "patient_document.accessed",
+        "patient_document",
+        document.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "reason": reason,
+            "has_file": bool(document.file_url),
+        },
+    )
     if not document.file_url:
         return {
             "document_id": document.id,
@@ -189,3 +282,23 @@ def _infer_content_type(file_url: str) -> str:
     if lower.endswith(".txt"):
         return "text/plain"
     return "application/octet-stream"
+
+
+def _classify_document(document: PatientDocument) -> str:
+    text = " ".join(
+        item.lower()
+        for item in [document.title, document.document_type, document.source, document.summary or ""]
+    )
+    if "lab" in text or "cmp" in text or "cbc" in text:
+        return "lab_result"
+    if "consult" in text or "cardiology" in text or "referral" in text:
+        return "consult_note"
+    if "insurance" in text or "eligibility" in text:
+        return "insurance"
+    return "clinical_record"
+
+
+def _default_summary(document: PatientDocument) -> str:
+    if document.file_url:
+        return f"{document.document_type} from {document.source} was processed and needs chart review."
+    return f"{document.document_type} metadata from {document.source} is available without an attached file."

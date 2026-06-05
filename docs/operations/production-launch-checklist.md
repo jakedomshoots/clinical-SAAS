@@ -22,6 +22,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `FAX_PROVIDER_API_KEY` is set and the chosen fax provider adapter has been implemented.
 - `PORTAL_API_BASE_URL` is set and portal messaging is vendor-tested.
 - SMS/email delivery provider is selected; queued `patient_outreach.staged` events are routed through the provider and delivery callbacks update status.
+- `COMMUNICATIONS_PROVIDER` and `COMMUNICATIONS_PROVIDER_API_KEY` are set for the chosen SMS/email/portal vendor.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.
 - `/api/ready.operational_status` returns `ok`.

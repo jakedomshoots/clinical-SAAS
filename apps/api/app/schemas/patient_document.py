@@ -11,6 +11,9 @@ class PatientDocumentCreate(BaseModel):
     matched_by: str | None = Field(default=None, max_length=100)
     pages: int = Field(default=1, ge=1)
     file_url: str | None = Field(default=None, max_length=500)
+    upload_status: str | None = None
+    ocr_status: str | None = None
+    classification: str | None = None
     summary: str | None = None
     received_at: datetime | None = None
 
@@ -23,6 +26,9 @@ class PatientDocumentUpdate(BaseModel):
     matched_by: str | None = Field(default=None, max_length=100)
     pages: int | None = Field(default=None, ge=1)
     file_url: str | None = Field(default=None, max_length=500)
+    upload_status: str | None = None
+    ocr_status: str | None = None
+    classification: str | None = None
     summary: str | None = None
     received_at: datetime | None = None
 
@@ -39,6 +45,9 @@ class PatientDocumentOut(BaseModel):
     matched_by: str | None
     pages: int
     file_url: str | None
+    upload_status: str
+    ocr_status: str
+    classification: str | None
     summary: str | None
     received_at: datetime
     created_at: datetime
@@ -65,3 +74,8 @@ class PatientDocumentAccessOut(BaseModel):
     preview_supported: bool = False
     content_type: str | None = None
     viewer_mode: str = "metadata"
+
+
+class PatientDocumentProcessOut(BaseModel):
+    document: PatientDocumentOut
+    created_task_id: str | None = None

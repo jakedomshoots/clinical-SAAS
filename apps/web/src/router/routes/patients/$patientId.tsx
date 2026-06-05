@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -143,7 +143,7 @@ function PatientChartPage() {
 
   const documentAccessMutation = useMutation({
     mutationFn: (documentId: string) =>
-      api.get<PatientDocumentAccess>(ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)),
+      api.get<PatientDocumentAccess>(`${ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)}?reason=Clinical%20chart%20review`),
     onSuccess: (access) => {
       if (access.available && access.url) {
         window.open(access.url, '_blank', 'noopener,noreferrer');
@@ -151,6 +151,16 @@ function PatientChartPage() {
       } else {
         setDocumentAccessMessage(access.reason ?? 'This document is not available for viewing yet.');
       }
+    },
+  });
+
+  const processDocumentMutation = useMutation({
+    mutationFn: (documentId: string) =>
+      api.post<PatientDocumentProcessResult>(ROUTES.PATIENT_DOCUMENT_PROCESS(patientId, documentId), {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
     },
   });
 
@@ -566,6 +576,11 @@ function PatientChartPage() {
                     {document.matched_by && <span>Matched by {document.matched_by}</span>}
                   </div>
                   {document.summary && <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>}
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-clinic-500">
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">{document.upload_status.replace('_', ' ')}</span>
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">OCR {document.ocr_status.replace('_', ' ')}</span>
+                    {document.classification && <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-0.5 text-accent-800">{document.classification.replace('_', ' ')}</span>}
+                  </div>
                 </div>
                 <div className="text-sm font-medium text-clinic-700">{formatDocumentStatus(document.status)}</div>
                 <div className="text-sm text-clinic-500">{document.file_url ? 'Available in chart' : 'Metadata only'}</div>
@@ -587,6 +602,13 @@ function PatientChartPage() {
                   >
                     <Download className="h-3.5 w-3.5" />
                     View
+                  </button>
+                  <button
+                    onClick={() => processDocumentMutation.mutate(document.id)}
+                    disabled={processDocumentMutation.isPending}
+                    className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Process
                   </button>
                 </div>
               </div>

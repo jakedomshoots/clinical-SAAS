@@ -17,6 +17,9 @@ export interface PatientDocument {
   matched_by: string | null;
   pages: number;
   file_url: string | null;
+  upload_status: string;
+  ocr_status: string;
+  classification: string | null;
   summary: string | null;
   received_at: string;
   created_at: string;
@@ -39,4 +42,9 @@ export interface PatientDocumentAccess {
   preview_supported: boolean;
   content_type: string | null;
   viewer_mode: 'inline' | 'download' | 'metadata';
+}
+
+export interface PatientDocumentProcessResult {
+  document: PatientDocument;
+  created_task_id: UUID | null;
 }

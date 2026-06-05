@@ -29,6 +29,7 @@ from app.schemas.patient_document import (
     PatientDocumentCreate,
     PatientDocumentListOut,
     PatientDocumentOut,
+    PatientDocumentProcessOut,
     PatientDocumentUpdate,
 )
 from app.schemas.patient_handoff import PatientCheckoutHandoffOut, PatientCheckoutTaskCreate
@@ -243,13 +244,32 @@ async def update_patient_document(
 async def get_patient_document_access(
     patient_id: str,
     document_id: str,
+    reason: str = Query(..., min_length=3),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    access = await patient_document_service.get_document_access(db, current_user, patient_id, document_id)
+    access = await patient_document_service.get_document_access(db, current_user, patient_id, document_id, reason)
     if not access:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return PatientDocumentAccessOut(**access)
+
+
+@router.post("/{patient_id}/documents/{document_id}/process", response_model=PatientDocumentProcessOut)
+async def process_patient_document(
+    patient_id: str,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    result = await patient_document_service.process_patient_document(
+        db,
+        current_user,
+        patient_id,
+        document_id,
+    )
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return PatientDocumentProcessOut(**result)
 
 
 @router.get("/{patient_id}/medications", response_model=PatientMedicationListOut)

@@ -24,6 +24,15 @@ function withDeliveryDefaults(task: Omit<Task, 'delivery_channel' | 'delivery_st
   };
 }
 
+function normalizeDocument(document: PatientDocument): PatientDocument {
+  return {
+    ...document,
+    upload_status: document.upload_status ?? (document.file_url ? 'uploaded' : 'metadata_only'),
+    ocr_status: document.ocr_status ?? 'not_started',
+    classification: document.classification ?? null,
+  };
+}
+
 interface DemoStore {
   patients: Patient[];
   tasks: Task[];
@@ -242,7 +251,7 @@ let patientDocuments: PatientDocument[] = [
     created_at: iso(-23),
     updated_at: iso(-23),
   },
-];
+].map((document) => normalizeDocument(document as PatientDocument));
 
 let patientMedications: PatientMedication[] = [
   { id: uuid(461), patient_id: uuid(101), name: 'Lisinopril', dose: '20 mg', directions: '1 tablet daily', source: 'Active med list', status: 'active', note: null, created_at: iso(-20), updated_at: iso(-2) },
@@ -412,7 +421,7 @@ if (storedDemoData) {
   }));
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
-  patientDocuments = storedDemoData.patientDocuments ?? patientDocuments;
+  patientDocuments = (storedDemoData.patientDocuments ?? patientDocuments).map(normalizeDocument);
   patientMedications = storedDemoData.patientMedications ?? patientMedications;
   patientCarePlan = storedDemoData.patientCarePlan ?? patientCarePlan;
   patientLabs = storedDemoData.patientLabs ?? patientLabs;
@@ -729,7 +738,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     if (!patients.some((patient) => patient.id === patientId)) throw new Error('Patient not found');
     if (method === 'POST') {
       const incoming = body as Partial<PatientDocument>;
-      const document: PatientDocument = {
+      const document: PatientDocument = normalizeDocument({
         id: uuid(980 + patientDocuments.length),
         patient_id: patientId,
         title: incoming.title ?? 'Outside document',
@@ -742,8 +751,11 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         summary: incoming.summary ?? null,
         received_at: incoming.received_at ?? new Date().toISOString(),
         created_at: new Date().toISOString(),
+        upload_status: incoming.upload_status ?? (incoming.file_url ? 'uploaded' : 'metadata_only'),
+        ocr_status: incoming.ocr_status ?? 'not_started',
+        classification: incoming.classification ?? null,
         updated_at: new Date().toISOString(),
-      };
+      });
       patientDocuments = [document, ...patientDocuments];
       logDemoEvent({
         event_type: 'patient_document.created',
@@ -794,7 +806,34 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       url: document.file_url,
       expires_at: document.file_url ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
       reason: document.file_url ? null : 'No file URL is attached to this document yet.',
+      preview_supported: Boolean(document.file_url?.toLowerCase().endsWith('.pdf')),
+      content_type: document.file_url?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : null,
+      viewer_mode: document.file_url ? 'inline' : 'metadata',
     } as T;
+  }
+
+  const patientDocumentProcessMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)\/process$/);
+  if (patientDocumentProcessMatch && method === 'POST') {
+    const [patientId, documentId] = [patientDocumentProcessMatch[1], patientDocumentProcessMatch[2]];
+    const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
+    if (!document) throw new Error('Document not found');
+    const classification = document.document_type.toLowerCase().includes('lab') ? 'lab_result' : 'clinical_record';
+    patientDocuments = patientDocuments.map((item) =>
+      item.id === documentId
+        ? {
+            ...item,
+            status: 'needs_review',
+            upload_status: item.file_url ? 'uploaded' : 'metadata_only',
+            ocr_status: item.file_url ? 'completed' : 'not_available',
+            classification,
+            summary: item.summary ?? `${item.document_type} from ${item.source} was processed and needs chart review.`,
+            updated_at: new Date().toISOString(),
+          }
+        : item,
+    );
+    const updated = patientDocuments.find((item) => item.id === documentId) as PatientDocument;
+    saveDemoData();
+    return { document: updated, created_task_id: null } as T;
   }
 
   const patientChartSummaryMatch = path.match(/^\/patients\/([^/]+)\/chart-summary$/);
@@ -1150,7 +1189,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     } satisfies TodayQueue as T;
   }
 
-  if (path === '/schedule' && method === 'POST') {
+  if ((path === '/schedule' || path === '/schedule/appointments') && method === 'POST') {
     const appointment = {
       id: uuid(940),
       patient_id: uuid(104),
