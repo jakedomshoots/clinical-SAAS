@@ -463,3 +463,48 @@ async def test_patient_encounters_can_be_created_and_signed(client: AsyncClient,
     ready = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
     assert ready.json()["counts"]["unsigned_encounters"] == 0
     assert ready.json()["checkout_readiness"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncClient, auth_headers, admin_user):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Handoff", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Outside record",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+        "status": "needs_review",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/medications", json={
+        "name": "Potassium chloride",
+        "status": "held",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/labs", json={
+        "panel": "CMP",
+        "result": "Potassium 5.9",
+        "status": "needs_review",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "owner_role": "Provider",
+        "item": "Review potassium before checkout.",
+        "status": "open",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/encounters", json={
+        "provider_id": admin_user.id,
+        "encounter_type": "office_visit",
+        "status": "provider_review",
+    }, headers=auth_headers)
+
+    res = await client.get(f"/api/patients/{patient_id}/checkout-handoff", headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["patient"]["id"] == patient_id
+    assert data["chart_summary"]["checkout_readiness"] == "blocked"
+    assert len(data["documents_needing_review"]) == 1
+    assert len(data["medications_needing_review"]) == 1
+    assert len(data["labs_needing_review"]) == 1
+    assert len(data["care_plan_open_items"]) == 1
+    assert len(data["unsigned_encounters"]) == 1

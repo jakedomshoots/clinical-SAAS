@@ -31,7 +31,8 @@ from app.schemas.patient_document import (
     PatientDocumentOut,
     PatientDocumentUpdate,
 )
-from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_service
+from app.schemas.patient_handoff import PatientCheckoutHandoffOut
+from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_handoff_service, patient_service
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
 
@@ -78,6 +79,18 @@ async def get_patient_chart_summary(
     if not summary:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return summary
+
+
+@router.get("/{patient_id}/checkout-handoff", response_model=PatientCheckoutHandoffOut)
+async def get_patient_checkout_handoff(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    handoff = await patient_handoff_service.get_checkout_handoff(db, current_user, patient_id)
+    if not handoff:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    return handoff
 
 
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)
