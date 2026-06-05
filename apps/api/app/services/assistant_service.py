@@ -23,6 +23,7 @@ async def create_follow_up_task(db: AsyncSession, user: User, data: dict) -> dic
         patient_name = f"{patient.first_name} {patient.last_name}" if patient else None
 
     task = Task(
+        organization_id=user.organization_id,
         title=data.get("title") or f"Assistant follow-up: {patient_name or data['context']}",
         description=(
             f"Assistant staged this from: {data['context']}. "
@@ -45,7 +46,7 @@ async def create_follow_up_task(db: AsyncSession, user: User, data: dict) -> dic
         actor_id=user.id,
         payload={"context": data["context"], "patient_id": task.patient_id},
     )
-    return await task_service.get_task(db, task.id)
+    return await task_service.get_task(db, user, task.id)
 
 
 async def draft_portal_reply(db: AsyncSession, user: User, data: dict) -> dict:

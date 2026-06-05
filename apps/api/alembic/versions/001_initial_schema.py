@@ -63,6 +63,13 @@ def upgrade() -> None:
     op.create_table(
         'tasks',
         sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column(
+            'organization_id',
+            sa.String(36),
+            nullable=False,
+            server_default='default',
+            index=True,
+        ),
         sa.Column('title', sa.String(200), nullable=False),
         sa.Column('description', sa.String(2000), nullable=True),
         sa.Column('priority', sa.Enum('low', 'normal', 'high', 'urgent', name='taskpriority'), nullable=False, server_default='normal'),
