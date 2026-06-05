@@ -357,19 +357,20 @@ async def get_document_access(
     ).scalar_one_or_none()
     if not document:
         return None
-    await log_event(
-        db,
-        "patient_document.accessed",
-        "patient_document",
-        document.id,
-        actor_id=user.id,
-        payload={
-            "patient_id": patient_id,
-            "reason": reason,
-            "has_file": bool(document.file_url),
-        },
-    )
     if not document.file_url:
+        await log_event(
+            db,
+            "patient_document.accessed",
+            "patient_document",
+            document.id,
+            actor_id=user.id,
+            payload={
+                "patient_id": patient_id,
+                "reason": reason,
+                "has_file": False,
+                "storage_status": "metadata_only",
+            },
+        )
         return {
             "document_id": document.id,
             "available": False,
@@ -379,18 +380,92 @@ async def get_document_access(
             "preview_supported": False,
             "content_type": None,
             "viewer_mode": "metadata",
+            "access_token": None,
+            "storage_status": "metadata_only",
+            "file_name": None,
+            "source_uri_preview": None,
         }
     expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
     content_type = _infer_content_type(document.file_url)
+    viewer_mode = (
+        "inline"
+        if content_type in {"application/pdf", "image/png", "image/jpeg"}
+        else "download"
+    )
+    access_token = _make_document_access_token(
+        patient_id,
+        document.id,
+        document.file_url,
+        int(expires_at.replace(tzinfo=UTC).timestamp()),
+    )
+    access_url = (
+        f"/api/patients/{patient_id}/documents/{document.id}/download"
+        f"?token={access_token}"
+    )
+    await log_event(
+        db,
+        "patient_document.accessed",
+        "patient_document",
+        document.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "reason": reason,
+            "has_file": True,
+            "storage_status": "signed_handoff",
+            "viewer_mode": viewer_mode,
+            "content_type": content_type,
+            "expires_at": expires_at.isoformat(),
+        },
+    )
     return {
         "document_id": document.id,
         "available": True,
-        "url": document.file_url,
+        "url": access_url,
         "expires_at": expires_at.isoformat(),
         "reason": None,
         "preview_supported": content_type in {"application/pdf", "image/png", "image/jpeg"},
         "content_type": content_type,
-        "viewer_mode": "inline" if content_type in {"application/pdf", "image/png", "image/jpeg"} else "download",
+        "viewer_mode": viewer_mode,
+        "access_token": access_token,
+        "storage_status": "signed_handoff",
+        "file_name": _file_name(document.file_url),
+        "source_uri_preview": _storage_uri_preview(document.file_url),
+    }
+
+
+async def get_document_download_handoff(
+    db: AsyncSession,
+    patient_id: str,
+    document_id: str,
+    token: str,
+) -> dict | None:
+    document = (
+        await db.execute(
+            select(PatientDocument).where(
+                PatientDocument.id == document_id,
+                PatientDocument.patient_id == patient_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not document or not document.file_url:
+        return None
+    if not _verify_document_access_token(token, patient_id, document_id, document.file_url):
+        return None
+    content_type = _infer_content_type(document.file_url)
+    return {
+        "document_id": document.id,
+        "title": document.title,
+        "file_name": _file_name(document.file_url),
+        "content_type": content_type,
+        "viewer_mode": (
+            "inline"
+            if content_type in {"application/pdf", "image/png", "image/jpeg"}
+            else "download"
+        ),
+        "storage_status": "signed_handoff",
+        "source_uri_preview": _storage_uri_preview(document.file_url),
+        "message": "Signed document access is prepared. Configure object-storage signing to stream or redirect the file.",
     }
 
 
@@ -405,6 +480,85 @@ def _infer_content_type(file_url: str) -> str:
     if lower.endswith(".txt"):
         return "text/plain"
     return "application/octet-stream"
+
+
+def _file_name(file_url: str) -> str:
+    return file_url.rstrip("/").rsplit("/", 1)[-1] or "document"
+
+
+def _storage_uri_preview(file_url: str) -> str:
+    if file_url.startswith("s3://"):
+        parts = file_url.removeprefix("s3://").split("/", 1)
+        bucket = parts[0]
+        path = parts[1] if len(parts) > 1 else ""
+        return f"s3://{bucket}/.../{_file_name(path)}" if path else f"s3://{bucket}/..."
+    if len(file_url) <= 80:
+        return file_url
+    return f"{file_url[:42]}...{file_url[-24:]}"
+
+
+def _document_access_token_message(
+    patient_id: str,
+    document_id: str,
+    file_url: str,
+    expires_at: int,
+) -> str:
+    return json.dumps(
+        {
+            "patient_id": patient_id,
+            "document_id": document_id,
+            "file_url": file_url,
+            "expires_at": expires_at,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _make_document_access_token(
+    patient_id: str,
+    document_id: str,
+    file_url: str,
+    expires_at: int,
+) -> str:
+    message = _document_access_token_message(patient_id, document_id, file_url, expires_at)
+    payload = {
+        "patient_id": patient_id,
+        "document_id": document_id,
+        "file_url": file_url,
+        "expires_at": expires_at,
+        "sig": _sign_upload_token(message),
+    }
+    return base64.urlsafe_b64encode(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+
+
+def _verify_document_access_token(
+    token: str,
+    patient_id: str,
+    document_id: str,
+    file_url: str,
+) -> bool:
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8"))
+        expires_at = int(payload["expires_at"])
+        token_patient_id = str(payload["patient_id"])
+        token_document_id = str(payload["document_id"])
+        token_file_url = str(payload["file_url"])
+        signature = str(payload["sig"])
+    except (binascii.Error, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if expires_at < int(datetime.now(UTC).timestamp()):
+        return False
+    if (
+        token_patient_id != patient_id
+        or token_document_id != document_id
+        or token_file_url != file_url
+    ):
+        return False
+    message = _document_access_token_message(patient_id, document_id, file_url, expires_at)
+    return hmac.compare_digest(signature, _sign_upload_token(message))
 
 
 def _upload_token_message(

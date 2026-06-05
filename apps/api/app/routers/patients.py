@@ -321,6 +321,24 @@ async def get_patient_document_access(
     return PatientDocumentAccessOut(**access)
 
 
+@router.get("/{patient_id}/documents/{document_id}/download")
+async def get_patient_document_download(
+    patient_id: str,
+    document_id: str,
+    token: str = Query(..., min_length=1),
+    db: AsyncSession = Depends(get_db),
+):
+    handoff = await patient_document_service.get_document_download_handoff(
+        db,
+        patient_id,
+        document_id,
+        token,
+    )
+    if not handoff:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document access expired")
+    return handoff
+
+
 @router.post("/{patient_id}/documents/{document_id}/process", response_model=PatientDocumentProcessOut)
 async def process_patient_document(
     patient_id: str,

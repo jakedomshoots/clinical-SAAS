@@ -74,6 +74,10 @@ class PatientDocumentAccessOut(BaseModel):
     preview_supported: bool = False
     content_type: str | None = None
     viewer_mode: str = "metadata"
+    access_token: str | None = None
+    storage_status: str = "metadata_only"
+    file_name: str | None = None
+    source_uri_preview: str | None = None
 
 
 class PatientDocumentProcessOut(BaseModel):

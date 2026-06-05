@@ -169,10 +169,15 @@ function PatientChartPage() {
   const documentAccessMutation = useMutation({
     mutationFn: ({ documentId, reason }: { documentId: string; reason: string }) =>
       api.get<PatientDocumentAccess>(`${ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)}?reason=${encodeURIComponent(reason)}`),
-    onSuccess: (access) => {
+    onSuccess: async (access) => {
       setDocumentAccessRequest(null);
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.AUDIT, 'patient-access-history', patientId] });
       if (access.available && access.url) {
+        if (access.url.startsWith('/api/')) {
+          const handoff = await api.get<{ message: string; source_uri_preview: string; file_name: string }>(access.url);
+          setDocumentAccessMessage(`${handoff.file_name}: ${handoff.message} Source ${handoff.source_uri_preview}. Access expires at ${access.expires_at ?? 'the configured expiry time'}.`);
+          return;
+        }
         window.open(access.url, '_blank', 'noopener,noreferrer');
         setDocumentAccessMessage(`${access.viewer_mode === 'inline' ? 'Preview' : 'Download'} access expires at ${access.expires_at ?? 'the configured expiry time'}${access.content_type ? ` (${access.content_type})` : ''}.`);
       } else {

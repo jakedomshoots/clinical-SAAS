@@ -473,6 +473,19 @@ function demoIntegrationConfigs() {
   });
 }
 
+function demoFileName(fileUrl: string) {
+  return fileUrl.replace(/\/+$/, '').split('/').pop() || 'document';
+}
+
+function demoSourcePreview(fileUrl: string) {
+  if (fileUrl.startsWith('s3://')) {
+    const withoutScheme = fileUrl.replace('s3://', '');
+    const [bucket] = withoutScheme.split('/');
+    return `s3://${bucket}/.../${demoFileName(fileUrl)}`;
+  }
+  return fileUrl.length > 80 ? `${fileUrl.slice(0, 42)}...${fileUrl.slice(-24)}` : fileUrl;
+}
+
 const storedDemoData = readStoredDemoData();
 if (storedDemoData) {
   patients = storedDemoData.patients;
@@ -1345,15 +1358,39 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const [patientId, documentId] = [patientDocumentAccessMatch[1], patientDocumentAccessMatch[2]];
     const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
     if (!document) throw new Error('Document not found');
+    const expiresAt = document.file_url ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+    const accessToken = document.file_url ? `demo-doc-access:${document.id}:${Date.now()}` : null;
+    const contentType = document.file_url?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : null;
     return {
       document_id: document.id,
       available: Boolean(document.file_url),
-      url: document.file_url,
-      expires_at: document.file_url ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
+      url: document.file_url ? `/api/patients/${patientId}/documents/${documentId}/download?token=${accessToken}` : null,
+      expires_at: expiresAt,
       reason: document.file_url ? null : 'No file URL is attached to this document yet.',
-      preview_supported: Boolean(document.file_url?.toLowerCase().endsWith('.pdf')),
-      content_type: document.file_url?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : null,
+      preview_supported: contentType === 'application/pdf',
+      content_type: contentType,
       viewer_mode: document.file_url ? 'inline' : 'metadata',
+      access_token: accessToken,
+      storage_status: document.file_url ? 'signed_handoff' : 'metadata_only',
+      file_name: document.file_url ? demoFileName(document.file_url) : null,
+      source_uri_preview: document.file_url ? demoSourcePreview(document.file_url) : null,
+    } as T;
+  }
+
+  const patientDocumentDownloadMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)\/download$/);
+  if (patientDocumentDownloadMatch && method === 'GET') {
+    const [patientId, documentId] = [patientDocumentDownloadMatch[1], patientDocumentDownloadMatch[2]];
+    const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
+    if (!document?.file_url) throw new Error('Document access expired');
+    return {
+      document_id: document.id,
+      title: document.title,
+      file_name: demoFileName(document.file_url),
+      content_type: document.file_url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+      viewer_mode: document.file_url.toLowerCase().endsWith('.pdf') ? 'inline' : 'download',
+      storage_status: 'signed_handoff',
+      source_uri_preview: demoSourcePreview(document.file_url),
+      message: 'Signed document access is prepared. Configure object-storage signing to stream or redirect the file.',
     } as T;
   }
 

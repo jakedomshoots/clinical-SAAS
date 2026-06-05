@@ -42,6 +42,10 @@ export interface PatientDocumentAccess {
   preview_supported: boolean;
   content_type: string | null;
   viewer_mode: 'inline' | 'download' | 'metadata';
+  access_token: string | null;
+  storage_status: string;
+  file_name: string | null;
+  source_uri_preview: string | null;
 }
 
 export interface PatientDocumentProcessResult {

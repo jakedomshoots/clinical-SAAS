@@ -298,11 +298,26 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert metadata_access.json()["reason"]
     assert file_access.status_code == 200
     assert file_access.json()["available"] is True
-    assert file_access.json()["url"] == "s3://concierge-os/documents/file-backed.pdf"
+    assert file_access.json()["url"].startswith(
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/download?token="
+    )
+    assert file_access.json()["access_token"]
     assert file_access.json()["expires_at"] is not None
     assert file_access.json()["preview_supported"] is True
     assert file_access.json()["content_type"] == "application/pdf"
     assert file_access.json()["viewer_mode"] == "inline"
+    assert file_access.json()["storage_status"] == "signed_handoff"
+    assert file_access.json()["file_name"] == "file-backed.pdf"
+    assert file_access.json()["source_uri_preview"] == "s3://concierge-os/.../file-backed.pdf"
+
+    handoff = await client.get(file_access.json()["url"])
+    invalid_handoff = await client.get(
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/download?token=bad"
+    )
+    assert handoff.status_code == 200
+    assert handoff.json()["file_name"] == "file-backed.pdf"
+    assert handoff.json()["storage_status"] == "signed_handoff"
+    assert invalid_handoff.status_code == 404
 
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
     assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
