@@ -908,9 +908,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   const appointmentMatch = path.match(/^\/schedule\/appointments\/([^/]+)$/);
   if (appointmentMatch && method === 'PATCH') {
+    const incoming = body as Partial<Appointment>;
+    const appointment = appointments.find((item) => item.id === appointmentMatch[1]);
+    if (appointment && incoming.status === 'completed') {
+      const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === appointment.patient_id && document.status === 'needs_review').length;
+      const urgentTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
+      const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === appointment.patient_id && ['draft', 'provider_review'].includes(encounter.status)).length;
+      if (documentsNeedingReview || urgentTasks || unsignedEncounters) {
+        throw new Error('Chart blockers must be resolved before completion');
+      }
+    }
     appointments = appointments.map((appointment) =>
       appointment.id === appointmentMatch[1]
-        ? { ...appointment, ...(body as Partial<Appointment>), updated_at: new Date().toISOString() }
+        ? { ...appointment, ...incoming, updated_at: new Date().toISOString() }
         : appointment,
     );
     saveDemoData();

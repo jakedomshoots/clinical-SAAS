@@ -193,6 +193,12 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
     appt = result.scalar_one_or_none()
     if not appt:
         return None
+    if data.get("status") == AppointmentStatus.completed.value:
+        from app.services.patient_chart_service import get_patient_chart_summary
+
+        summary = await get_patient_chart_summary(db, user, appt.patient_id)
+        if summary and summary.checkout_readiness == "blocked":
+            raise ValueError("; ".join(summary.blockers) or "Chart blockers must be resolved before completion")
     for field, value in data.items():
         if hasattr(appt, field):
             setattr(appt, field, AppointmentStatus(value) if field == "status" else value)

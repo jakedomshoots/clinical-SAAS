@@ -121,6 +121,51 @@ async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_hea
 
 
 @pytest.mark.asyncio
+async def test_completed_visit_requires_resolved_chart_blockers(client: AsyncClient, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 10, 0)
+    end = start + timedelta(minutes=30)
+    appointment_res = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+    appointment_id = appointment_res.json()["id"]
+    encounter_res = await client.post(f"/api/patients/{patient_id}/encounters", json={
+        "appointment_id": appointment_id,
+        "provider_id": admin_user.id,
+        "encounter_type": "office_visit",
+        "status": "provider_review",
+    }, headers=auth_headers)
+
+    blocked = await client.patch(
+        f"/api/schedule/appointments/{appointment_id}",
+        json={"status": "completed"},
+        headers=auth_headers,
+    )
+    assert blocked.status_code == 409
+    assert "sign-off" in blocked.json()["detail"]
+
+    await client.patch(
+        f"/api/patients/{patient_id}/encounters/{encounter_res.json()['id']}",
+        json={"status": "signed"},
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/schedule/appointments/{appointment_id}",
+        json={"status": "completed"},
+        headers=auth_headers,
+    )
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+
+
+@pytest.mark.asyncio
 async def test_set_and_get_provider_availability(client: AsyncClient, auth_headers, admin_user):
     res = await client.post(
         "/api/schedule/availability",
