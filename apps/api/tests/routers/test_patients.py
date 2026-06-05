@@ -248,6 +248,9 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert file_access.json()["available"] is True
     assert file_access.json()["url"] == "s3://concierge-os/documents/file-backed.pdf"
     assert file_access.json()["expires_at"] is not None
+    assert file_access.json()["preview_supported"] is True
+    assert file_access.json()["content_type"] == "application/pdf"
+    assert file_access.json()["viewer_mode"] == "inline"
 
 
 @pytest.mark.asyncio

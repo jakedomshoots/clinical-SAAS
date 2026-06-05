@@ -160,12 +160,32 @@ async def get_document_access(
             "url": None,
             "expires_at": None,
             "reason": "No file URL is attached to this document yet.",
+            "preview_supported": False,
+            "content_type": None,
+            "viewer_mode": "metadata",
         }
     expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    content_type = _infer_content_type(document.file_url)
     return {
         "document_id": document.id,
         "available": True,
         "url": document.file_url,
         "expires_at": expires_at.isoformat(),
         "reason": None,
+        "preview_supported": content_type in {"application/pdf", "image/png", "image/jpeg"},
+        "content_type": content_type,
+        "viewer_mode": "inline" if content_type in {"application/pdf", "image/png", "image/jpeg"} else "download",
     }
+
+
+def _infer_content_type(file_url: str) -> str:
+    lower = file_url.lower()
+    if lower.endswith(".pdf"):
+        return "application/pdf"
+    if lower.endswith(".png"):
+        return "image/png"
+    if lower.endswith(".jpg") or lower.endswith(".jpeg"):
+        return "image/jpeg"
+    if lower.endswith(".txt"):
+        return "text/plain"
+    return "application/octet-stream"

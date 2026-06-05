@@ -261,6 +261,38 @@ async def test_create_appointment_rejects_cross_org_provider(
 
 
 @pytest.mark.asyncio
+async def test_create_appointment_rejects_provider_conflict(client: AsyncClient, auth_headers, admin_user):
+    patient_id = await create_patient(client, auth_headers)
+    second_patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 18, 0)
+    end = start + timedelta(minutes=30)
+    first = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+    conflict = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": second_patient_id,
+            "provider_id": admin_user.id,
+            "start_time": (start + timedelta(minutes=15)).isoformat(),
+            "end_time": (end + timedelta(minutes=15)).isoformat(),
+        },
+        headers=auth_headers,
+    )
+
+    assert first.status_code == 201
+    assert conflict.status_code == 409
+    assert "conflicting appointment" in conflict.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_availability_is_scoped_to_user_organization(
     client: AsyncClient,
     auth_headers,

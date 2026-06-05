@@ -80,7 +80,10 @@ async def create_appointment(
     db: DbDep,
     current_user: FrontOfficeUserDep,
 ):
-    appt = await schedule_service.create_appointment(db, current_user, data.model_dump())
+    try:
+        appt = await schedule_service.create_appointment(db, current_user, data.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if not appt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

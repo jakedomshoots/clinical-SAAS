@@ -159,6 +159,14 @@ async def create_appointment(db: AsyncSession, user: User, data: dict) -> dict |
         return None
     if not await _provider_exists(db, user, data["provider_id"]):
         return None
+    if await _provider_has_conflict(
+        db,
+        user,
+        data["provider_id"],
+        data["start_time"],
+        data["end_time"],
+    ):
+        raise ValueError("Provider has a conflicting appointment in this time window")
 
     appt = Appointment(
         organization_id=user.organization_id,
@@ -194,12 +202,26 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
     appt = result.scalar_one_or_none()
     if not appt:
         return None
+    before = {
+        "start_time": appt.start_time.isoformat(),
+        "end_time": appt.end_time.isoformat(),
+        "provider_id": appt.provider_id,
+        "status": appt.status.value,
+    }
     if data.get("status") == AppointmentStatus.completed.value:
         from app.services.patient_chart_service import get_patient_chart_summary
 
         summary = await get_patient_chart_summary(db, user, appt.patient_id)
         if summary and summary.checkout_readiness == "blocked":
             raise ValueError("; ".join(summary.blockers) or "Chart blockers must be resolved before completion")
+    next_provider_id = data.get("provider_id", appt.provider_id)
+    next_start = data.get("start_time", appt.start_time)
+    next_end = data.get("end_time", appt.end_time)
+    if (
+        ("start_time" in data or "end_time" in data or "provider_id" in data)
+        and await _provider_has_conflict(db, user, next_provider_id, next_start, next_end, exclude_appointment_id=appt.id)
+    ):
+        raise ValueError("Provider has a conflicting appointment in this time window")
     for field, value in data.items():
         if hasattr(appt, field):
             setattr(appt, field, AppointmentStatus(value) if field == "status" else value)
@@ -211,7 +233,17 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
         "appointment",
         appt.id,
         actor_id=user.id,
-        payload={"status": appt.status.value},
+        payload={
+            "status": appt.status.value,
+            "updated_fields": list(data.keys()),
+            "before": before,
+            "after": {
+                "start_time": appt.start_time.isoformat(),
+                "end_time": appt.end_time.isoformat(),
+                "provider_id": appt.provider_id,
+                "status": appt.status.value,
+            },
+        },
     )
     return await get_appointment(db, user, appt.id)
 
@@ -289,3 +321,23 @@ async def _provider_exists(db: AsyncSession, user: User, provider_id: str) -> bo
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+async def _provider_has_conflict(
+    db: AsyncSession,
+    user: User,
+    provider_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    exclude_appointment_id: str | None = None,
+) -> bool:
+    query = select(Appointment.id).where(
+        Appointment.organization_id == user.organization_id,
+        Appointment.provider_id == provider_id,
+        Appointment.status.notin_([AppointmentStatus.cancelled, AppointmentStatus.no_show]),
+        Appointment.start_time < end_time,
+        Appointment.end_time > start_time,
+    )
+    if exclude_appointment_id:
+        query = query.where(Appointment.id != exclude_appointment_id)
+    return (await db.execute(query)).scalar_one_or_none() is not None

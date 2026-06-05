@@ -13,6 +13,13 @@ export interface Task {
   patient_name: string | null;
   source_type: string | null;
   source_id: UUID | null;
+  delivery_channel: string | null;
+  delivery_status: string | null;
+  delivery_recipient: string | null;
+  delivery_provider_message_id: string | null;
+  delivery_error: string | null;
+  delivery_attempts: number;
+  delivered_at: string | null;
   creator_id: UUID;
   created_at: string;
   updated_at: string;
@@ -35,4 +42,6 @@ export interface TaskPatientOutreachDelivery {
   delivery_status: string;
   recipient: string | null;
   subject: string;
+  provider_message_id: string | null;
+  attempts: number;
 }

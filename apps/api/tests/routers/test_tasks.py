@@ -227,6 +227,14 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
     assert delivery.status_code == 200
     assert delivery.json()["delivery_status"] == "queued"
     assert delivery.json()["recipient"] == "outreach.patient@example.com"
+    assert delivery.json()["provider_message_id"].startswith("pending-")
+    assert delivery.json()["attempts"] == 1
+
+    listed = await client.get(f"/api/tasks?patient_id={patient_id}", headers=auth_headers)
+    delivered_task = listed.json()["data"][0]
+    assert delivered_task["delivery_channel"] == "email"
+    assert delivered_task["delivery_status"] == "queued"
+    assert delivered_task["delivery_recipient"] == "outreach.patient@example.com"
 
     audit = await client.get("/api/audit?entity_type=task", headers=auth_headers)
     assert any(event["event_type"] == "patient_outreach.staged" for event in audit.json()["data"])

@@ -36,4 +36,7 @@ export interface PatientDocumentAccess {
   url: string | null;
   expires_at: string | null;
   reason: string | null;
+  preview_supported: boolean;
+  content_type: string | null;
+  viewer_mode: 'inline' | 'download' | 'metadata';
 }

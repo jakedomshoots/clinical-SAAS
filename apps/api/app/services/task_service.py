@@ -241,6 +241,27 @@ async def stage_patient_outreach_delivery(
         return None
     channel = data.get("channel", "sms")
     recipient = draft["patient_phone"] if channel == "sms" else draft["patient_email"]
+    result = await db.execute(
+        select(Task).where(
+            Task.id == task_id,
+            Task.organization_id == user.organization_id,
+        )
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        return None
+    task.delivery_channel = channel
+    task.delivery_status = "queued" if recipient else "blocked"
+    task.delivery_recipient = recipient
+    task.delivery_provider_message_id = f"pending-{task.id}"
+    task.delivery_error = None if recipient else f"No {channel} recipient is available for this patient."
+    task.delivery_attempts = (task.delivery_attempts or 0) + 1
+    task.delivery_payload = {
+        "subject": data["subject"],
+        "body": data["body"],
+    }
+    await db.commit()
+    await db.refresh(task)
     await log_event(
         db,
         "patient_outreach.staged",
@@ -252,15 +273,18 @@ async def stage_patient_outreach_delivery(
             "channel": channel,
             "recipient": recipient,
             "subject": data["subject"],
+            "delivery_status": task.delivery_status,
         },
     )
     return {
         "task_id": task_id,
         "patient_id": draft["patient_id"],
         "channel": channel,
-        "delivery_status": "queued",
+        "delivery_status": task.delivery_status,
         "recipient": recipient,
         "subject": data["subject"],
+        "provider_message_id": task.delivery_provider_message_id,
+        "attempts": task.delivery_attempts,
     }
 
 
@@ -289,6 +313,13 @@ def _make_task_dict(t: Task) -> dict:
         "patient_name": None,
         "source_type": t.source_type,
         "source_id": t.source_id,
+        "delivery_channel": t.delivery_channel,
+        "delivery_status": t.delivery_status,
+        "delivery_recipient": t.delivery_recipient,
+        "delivery_provider_message_id": t.delivery_provider_message_id,
+        "delivery_error": t.delivery_error,
+        "delivery_attempts": t.delivery_attempts,
+        "delivered_at": t.delivered_at.isoformat() if t.delivered_at else None,
         "creator_id": t.creator_id,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,

@@ -5,6 +5,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 ## Infrastructure
 
 - Production `DATABASE_URL`, `REDIS_URL`, and MinIO/S3-compatible object storage are provisioned.
+- `.env.production.example` has been copied into the deployment secret store and all placeholders are replaced.
 - `APP_ENV=production`.
 - `AUTO_CREATE_SCHEMA=false`.
 - `ENSURE_OBJECT_STORAGE_ON_STARTUP=true`.
@@ -20,6 +21,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `EHR_API_BASE_URL` is set and the chosen EHR adapter has been implemented.
 - `FAX_PROVIDER_API_KEY` is set and the chosen fax provider adapter has been implemented.
 - `PORTAL_API_BASE_URL` is set and portal messaging is vendor-tested.
+- SMS/email delivery provider is selected; queued `patient_outreach.staged` events are routed through the provider and delivery callbacks update status.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.
 - `/api/ready.operational_status` returns `ok`.
@@ -31,6 +33,8 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Manager-created users are limited to the manager's organization.
 - Role matrix is reviewed with the clinic owner.
 - Audit export access is limited to admin/manager roles.
+- Patient document viewer access is audited and expiring access metadata is reviewed.
+- Patient outreach consent policy is approved before enabling real SMS/email sends.
 - Session lifetime is approved for clinic policy.
 
 ## Backup And Restore
@@ -46,5 +50,6 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Container app profile has been smoke-tested.
 - Browser QA covers login, patients, tasks, schedule, faxes, messages, audit export, and assistant actions.
 - Browser QA covers Command Center queue blockers, patient Documents, Meds, and Care Plan actions.
+- Browser QA covers staff admin, task outreach staging, document preview/download modes, and schedule conflict handling.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

@@ -11,6 +11,19 @@ function uuid(n: number) {
   return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 }
 
+function withDeliveryDefaults(task: Omit<Task, 'delivery_channel' | 'delivery_status' | 'delivery_recipient' | 'delivery_provider_message_id' | 'delivery_error' | 'delivery_attempts' | 'delivered_at'>): Task {
+  return {
+    ...task,
+    delivery_channel: null,
+    delivery_status: null,
+    delivery_recipient: null,
+    delivery_provider_message_id: null,
+    delivery_error: null,
+    delivery_attempts: 0,
+    delivered_at: null,
+  };
+}
+
 interface DemoStore {
   patients: Patient[];
   tasks: Task[];
@@ -146,11 +159,11 @@ let patients: Patient[] = [
 ];
 
 let tasks: Task[] = [
-  { id: uuid(201), title: 'Call Mary Collins with potassium result', description: 'Critical lab callback and medication reconciliation.', priority: 'urgent', status: 'open', due_date: iso(1), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(101), patient_name: 'Mary Collins', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-8), updated_at: iso(-1) },
-  { id: uuid(202), title: 'Room Andre Miller', description: 'Update medication list and repeat blood pressure.', priority: 'high', status: 'in_progress', due_date: iso(0.5), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(102), patient_name: 'Andre Miller', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-2), updated_at: iso(-0.5) },
-  { id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) },
-  { id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) },
-  { id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) },
+  withDeliveryDefaults({ id: uuid(201), title: 'Call Mary Collins with potassium result', description: 'Critical lab callback and medication reconciliation.', priority: 'urgent', status: 'open', due_date: iso(1), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(101), patient_name: 'Mary Collins', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-8), updated_at: iso(-1) }),
+  withDeliveryDefaults({ id: uuid(202), title: 'Room Andre Miller', description: 'Update medication list and repeat blood pressure.', priority: 'high', status: 'in_progress', due_date: iso(0.5), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(102), patient_name: 'Andre Miller', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-2), updated_at: iso(-0.5) }),
+  withDeliveryDefaults({ id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) }),
+  withDeliveryDefaults({ id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) }),
+  withDeliveryDefaults({ id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) }),
 ];
 
 let appointments: Appointment[] = [
@@ -389,6 +402,13 @@ if (storedDemoData) {
     ...task,
     source_type: task.source_type ?? null,
     source_id: task.source_id ?? null,
+    delivery_channel: task.delivery_channel ?? null,
+    delivery_status: task.delivery_status ?? null,
+    delivery_recipient: task.delivery_recipient ?? null,
+    delivery_provider_message_id: task.delivery_provider_message_id ?? null,
+    delivery_error: task.delivery_error ?? null,
+    delivery_attempts: task.delivery_attempts ?? 0,
+    delivered_at: task.delivered_at ?? null,
   }));
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
@@ -563,7 +583,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/assistant/actions/follow-up-task' && method === 'POST') {
     const incoming = body as { context: string; title?: string; priority?: Task['priority']; patient_id?: string | null; due_date?: string | null };
     const patient = patients.find((item) => item.id === incoming.patient_id);
-    const task: Task = {
+    const task: Task = withDeliveryDefaults({
       id: uuid(920 + tasks.length),
       title: incoming.title ?? `Assistant follow-up: ${patient ? `${patient.first_name} ${patient.last_name}` : incoming.context}`,
       description: `Assistant staged this from: ${incoming.context}. Confirm chart context before outreach.`,
@@ -579,7 +599,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       creator_id: uuid(1),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    });
     tasks = [task, ...tasks];
     logDemoEvent({
       event_type: 'assistant.task_created',
@@ -860,7 +880,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     if (existing) return existing as T;
     const source = findDemoHandoffSource(patientId, incoming.source_type, incoming.source_id);
     if (!source) throw new Error('Checkout handoff source not found');
-    const task: Task = {
+    const task: Task = withDeliveryDefaults({
       id: uuid(920 + tasks.length),
       title: incoming.title ?? source.title,
       description: incoming.description ?? source.description,
@@ -876,7 +896,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       creator_id: uuid(1),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-    };
+    });
     tasks = [task, ...tasks];
     logDemoEvent({
       event_type: 'checkout_handoff.task_created',
@@ -972,7 +992,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/tasks') {
     if (method === 'POST') {
       const incoming = body as Partial<Task>;
-      const task: Task = {
+      const task: Task = withDeliveryDefaults({
         id: uuid(920 + tasks.length),
         title: incoming.title ?? 'New task',
         description: incoming.description ?? null,
@@ -988,7 +1008,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         creator_id: uuid(1),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      };
+      });
       tasks = [task, ...tasks];
       logDemoEvent({
         event_type: incoming.description?.includes('Assistant staged') ? 'assistant.task_created' : 'task.created',
@@ -1033,20 +1053,37 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     if (!task || !patient) throw new Error('Patient task not found');
     const incoming = body as { channel: 'sms' | 'email'; subject: string; body: string };
     const recipient = incoming.channel === 'sms' ? patient.phone : patient.email;
+    const deliveryStatus = recipient ? 'queued' : 'blocked';
+    tasks = tasks.map((item) =>
+      item.id === task.id
+        ? {
+            ...item,
+            delivery_channel: incoming.channel,
+            delivery_status: deliveryStatus,
+            delivery_recipient: recipient,
+            delivery_provider_message_id: `pending-${task.id}`,
+            delivery_error: recipient ? null : `No ${incoming.channel} recipient is available for this patient.`,
+            delivery_attempts: item.delivery_attempts + 1,
+            updated_at: new Date().toISOString(),
+          }
+        : item,
+    );
     logDemoEvent({
       event_type: 'patient_outreach.staged',
       entity_type: 'task',
       entity_id: task.id,
-      payload: { patient_id: patient.id, channel: incoming.channel, recipient, subject: incoming.subject },
+      payload: { patient_id: patient.id, channel: incoming.channel, recipient, subject: incoming.subject, delivery_status: deliveryStatus },
     });
     saveDemoData();
     return {
       task_id: task.id,
       patient_id: patient.id,
       channel: incoming.channel,
-      delivery_status: 'queued',
+      delivery_status: deliveryStatus,
       recipient,
       subject: incoming.subject,
+      provider_message_id: `pending-${task.id}`,
+      attempts: task.delivery_attempts + 1,
     } as T;
   }
 

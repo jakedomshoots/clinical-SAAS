@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, JSON, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -62,6 +62,14 @@ class Task(Base):
     )
     source_type: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     source_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    delivery_channel: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    delivery_status: Mapped[str | None] = mapped_column(String(30), nullable=True, index=True)
+    delivery_recipient: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    delivery_provider_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    delivery_error: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    delivery_attempts: Mapped[int] = mapped_column(default=0)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    delivery_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     creator_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),

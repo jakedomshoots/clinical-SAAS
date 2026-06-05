@@ -8,6 +8,8 @@ import {
   RotateCw,
   Server,
   ShieldCheck,
+  Download,
+  ClipboardList,
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -131,6 +133,24 @@ function OperationsPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <a href="/api/audit/export" className="rounded-md border border-clinic-200 bg-white p-4 hover:bg-clinic-50">
+          <Download className="h-4 w-4 text-accent-700" />
+          <div className="mt-3 text-sm font-semibold text-clinic-900">Audit export</div>
+          <div className="mt-1 text-xs text-clinic-500">Download scoped audit CSV for compliance review</div>
+        </a>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <ShieldCheck className="h-4 w-4 text-accent-700" />
+          <div className="mt-3 text-sm font-semibold text-clinic-900">PHI access controls</div>
+          <div className="mt-1 text-xs text-clinic-500">Patient document access uses expiring viewer metadata</div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <ClipboardList className="h-4 w-4 text-accent-700" />
+          <div className="mt-3 text-sm font-semibold text-clinic-900">Launch checklist</div>
+          <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
         </div>
       </section>
 

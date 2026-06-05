@@ -104,6 +104,23 @@ function SchedulePage() {
     },
   });
 
+  const rescheduleMutation = useMutation({
+    mutationFn: ({ appointment, minutes }: { appointment: Appointment; minutes: number }) => {
+      const start = new Date(appointment.start_time);
+      const end = new Date(appointment.end_time);
+      start.setMinutes(start.getMinutes() + minutes);
+      end.setMinutes(end.getMinutes() + minutes);
+      return api.patch<Appointment>(`/schedule/appointments/${appointment.id}`, {
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TODAY_QUEUE });
+    },
+  });
+
   function appointmentsForDay(day: Date): Appointment[] {
     if (!data?.data) return [];
     const dayStr = formatDate(day);
@@ -193,6 +210,14 @@ function SchedulePage() {
                             className="mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
                           >
                             {nextVisitLabel(appt.status)}
+                          </button>
+                        )}
+                        {!['completed', 'cancelled', 'no_show'].includes(appt.status) && (
+                          <button
+                            onClick={() => rescheduleMutation.mutate({ appointment: appt, minutes: 15 })}
+                            className="ml-1 mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                          >
+                            +15m
                           </button>
                         )}
                       </div>

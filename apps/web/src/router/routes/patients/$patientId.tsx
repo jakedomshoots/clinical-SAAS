@@ -147,7 +147,7 @@ function PatientChartPage() {
     onSuccess: (access) => {
       if (access.available && access.url) {
         window.open(access.url, '_blank', 'noopener,noreferrer');
-        setDocumentAccessMessage(`Document access expires at ${access.expires_at ?? 'the configured expiry time'}.`);
+        setDocumentAccessMessage(`${access.viewer_mode === 'inline' ? 'Preview' : 'Download'} access expires at ${access.expires_at ?? 'the configured expiry time'}${access.content_type ? ` (${access.content_type})` : ''}.`);
       } else {
         setDocumentAccessMessage(access.reason ?? 'This document is not available for viewing yet.');
       }

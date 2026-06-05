@@ -37,6 +37,13 @@ class TaskOut(BaseModel):
     patient_name: str | None = None
     source_type: str | None = None
     source_id: str | None = None
+    delivery_channel: str | None = None
+    delivery_status: str | None = None
+    delivery_recipient: str | None = None
+    delivery_provider_message_id: str | None = None
+    delivery_error: str | None = None
+    delivery_attempts: int = 0
+    delivered_at: str | None = None
     creator_id: str
     created_at: str
     updated_at: str
@@ -74,3 +81,5 @@ class TaskPatientOutreachDeliveryOut(BaseModel):
     delivery_status: str
     recipient: str | None
     subject: str
+    provider_message_id: str | None = None
+    attempts: int

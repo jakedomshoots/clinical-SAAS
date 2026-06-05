@@ -62,3 +62,6 @@ class PatientDocumentAccessOut(BaseModel):
     url: str | None
     expires_at: str | None
     reason: str | None = None
+    preview_supported: bool = False
+    content_type: str | None = None
+    viewer_mode: str = "metadata"
