@@ -1,16 +1,19 @@
 # Daily Use Readiness
 
-This guide describes the operational workflows Concierge OS can support before live vendor credentials are connected, and what must be completed before using it with real patients.
+This guide describes the operational workflows Concierge OS can support for a complete local product demo and an internal clinic pilot before live vendor credentials are connected.
 
 ## Ready In Local/Demo Mode
 
 - Command Center shows today's operational queue, active clinic patients, blockers, open work, unread messages, and fax inbox risk.
 - Patient charts include demographics, outside documents, medication reconciliation, care-plan/checkout items, encounters, labs, tasks, and messages.
-- Outside documents are persisted, patient-scoped, organization-scoped, and can be marked filed from the chart.
+- Patient Portal supports patient-scoped login, intake updates, appointment requests, and upload confirmation.
+- Portal Intake supports chart application, appointment conversion with conflict checks, alternate slot selection, document conversion, and rejection.
+- Outside documents are persisted, patient-scoped, organization-scoped, can be marked filed from the chart, can be upload-confirmed, and duplicate upload detection is available.
 - Matched inbound faxes with file URLs create patient document records for review.
 - Medication and care-plan items are persisted and can be updated from the patient chart.
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
-- Operations dashboard reports readiness and integration event state.
+- Billing supports charge review, case creation, eligibility checks/history, claim submit/deny/payment, and audit/integration timelines.
+- Operations and Setup report readiness, integration event state, launch requirements, and demo/pilot readiness scoring.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -47,7 +50,7 @@ This guide describes the operational workflows Concierge OS can support before l
 
 - Live EHR patient import, encounters, medications, labs, and problem-list sync.
 - Live fax sending, inbound fax download, and delivery status callbacks.
-- Patient portal message sync.
+- Live patient portal message sync with an external portal vendor.
 - Calendar/provider schedule sync.
 - CopilotKit runtime with production tool authorization.
 - Production object-storage download URLs for document viewing.
@@ -64,11 +67,20 @@ This guide describes the operational workflows Concierge OS can support before l
 - Test backup and restore on a disposable stack.
 - Review PHI retention and incident-response policy with the clinic owner.
 
-## Recommended Next Build Items
+## Internal Pilot Definition
 
-- Signed download URLs for document viewing.
-- Dedicated role-filtered queues for front desk, MA/nurse, provider, and manager.
-- EHR adapter implementation for medications, labs, encounters, and demographics.
-- Lab result persistence and review workflow.
-- Encounter/note persistence and provider sign-off workflow.
-- Browser-level smoke assertions for the Command Center and patient chart tabs.
+An internal clinic pilot is ready when:
+
+- `/setup` reports Product Demo and Internal Pilot at 100%.
+- `pnpm verify:local` passes, including all API tests, web type checks, lint, frontend audit, and smoke checks.
+- Staff can complete a dry-run day from Command Center through checkout, documents, messaging, faxes, billing, operations, and reports.
+- A patient can use Patient Portal to send intake, request an appointment, and upload a document.
+- Managers can export audit data, retry failed integration events, and inspect readiness.
+
+## Recommended Next Build Items For Production
+
+- Vendor-backed EHR, fax, portal, calendar, communications, clearinghouse, and object-storage adapters.
+- Signed production download URLs for document viewing.
+- Production MFA and identity-provider integration.
+- Real remittance/ERA import and claim reconciliation.
+- Compliance owner approval of PHI retention, incident response, backups, and access review.

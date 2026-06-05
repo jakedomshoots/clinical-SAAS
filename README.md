@@ -130,22 +130,23 @@ pnpm migrate:api
 
 For production-like environments, set `AUTO_CREATE_SCHEMA=false` and run migrations as a deploy step. Development keeps `AUTO_CREATE_SCHEMA=true` so local/test databases can still bootstrap quickly.
 
-## Daily-Use Readiness
+## Demo And Internal Pilot Readiness
 
-Ready for local product work:
+Ready for complete local product demos and internal clinic pilot dry runs:
 
-- Demo-mode walkthroughs across the main operational routes.
+- Demo-mode walkthroughs across all major operational routes, including Patient Portal, Portal Intake, Billing, Operations, and Setup.
 - API test suite coverage for auth, patients, tasks, scheduling, faxes, messages, audit, and role permissions.
 - Organization-level isolation across patients, tasks, messages, faxes, scheduling, and audit logs.
 - Backup and restore commands for local Postgres and MinIO data.
 - Assistant actions are confirmation-gated and audit-visible in demo/API flows.
+- `/api/analytics/pilot-readiness` and `/setup` report product demo and internal pilot readiness scores.
 
-Not ready for real daily clinical operations yet:
+Not ready for real daily clinical operations with live patients yet:
 
 - CopilotKit still needs a deployed runtime endpoint and model policy before live use.
-- Production auth, account provisioning, monitoring, and deployment secrets are not finalized.
-- EHR, fax, portal, calendar, and object-storage integrations are still local/demo surfaces.
-- Compliance hardening needs a pass over PHI retention, access logging, audit exports, session policy, and disaster recovery.
+- Production identity/MFA, monitoring, and deployment secrets need final clinic-specific configuration.
+- EHR, fax, external portal, calendar, communications, clearinghouse, and object-storage integrations are still local/demo or adapter surfaces.
+- Compliance policies need clinic/legal owner approval before live PHI use.
 
 Operational docs:
 
