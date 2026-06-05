@@ -29,3 +29,11 @@ export interface PatientDocumentListResponse {
   page: number;
   page_size: number;
 }
+
+export interface PatientDocumentAccess {
+  document_id: UUID;
+  available: boolean;
+  url: string | null;
+  expires_at: string | null;
+  reason: string | null;
+}

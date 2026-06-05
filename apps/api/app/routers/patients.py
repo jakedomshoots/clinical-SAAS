@@ -25,6 +25,7 @@ from app.schemas.patient_clinical import (
     PatientMedicationUpdate,
 )
 from app.schemas.patient_document import (
+    PatientDocumentAccessOut,
     PatientDocumentCreate,
     PatientDocumentListOut,
     PatientDocumentOut,
@@ -188,6 +189,19 @@ async def update_patient_document(
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return PatientDocumentOut(**document)
+
+
+@router.get("/{patient_id}/documents/{document_id}/access", response_model=PatientDocumentAccessOut)
+async def get_patient_document_access(
+    patient_id: str,
+    document_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    access = await patient_document_service.get_document_access(db, current_user, patient_id, document_id)
+    if not access:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    return PatientDocumentAccessOut(**access)
 
 
 @router.get("/{patient_id}/medications", response_model=PatientMedicationListOut)

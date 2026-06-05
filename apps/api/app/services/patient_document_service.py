@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -134,3 +134,38 @@ async def update_patient_document(
         payload={"patient_id": patient_id, "updated_fields": list(data.keys())},
     )
     return PatientDocumentOut.model_validate(document).model_dump()
+
+
+async def get_document_access(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    document_id: str,
+) -> dict | None:
+    document = (
+        await db.execute(
+            select(PatientDocument).where(
+                PatientDocument.id == document_id,
+                PatientDocument.patient_id == patient_id,
+                PatientDocument.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not document:
+        return None
+    if not document.file_url:
+        return {
+            "document_id": document.id,
+            "available": False,
+            "url": None,
+            "expires_at": None,
+            "reason": "No file URL is attached to this document yet.",
+        }
+    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    return {
+        "document_id": document.id,
+        "available": True,
+        "url": document.file_url,
+        "expires_at": expires_at.isoformat(),
+        "reason": None,
+    }

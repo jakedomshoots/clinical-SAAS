@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
+import type { Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -59,6 +59,7 @@ function PatientChartPage() {
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState<Record<string, string>>({});
+  const [documentAccessMessage, setDocumentAccessMessage] = useState<string | null>(null);
 
   const { data: patient, isLoading, isError, error } = useQuery({
     queryKey: QUERY_KEYS.PATIENT(patientId),
@@ -118,6 +119,19 @@ function PatientChartPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+    },
+  });
+
+  const documentAccessMutation = useMutation({
+    mutationFn: (documentId: string) =>
+      api.get<PatientDocumentAccess>(ROUTES.PATIENT_DOCUMENT_ACCESS(patientId, documentId)),
+    onSuccess: (access) => {
+      if (access.available && access.url) {
+        window.open(access.url, '_blank', 'noopener,noreferrer');
+        setDocumentAccessMessage(`Document access expires at ${access.expires_at ?? 'the configured expiry time'}.`);
+      } else {
+        setDocumentAccessMessage(access.reason ?? 'This document is not available for viewing yet.');
+      }
     },
   });
 
@@ -447,6 +461,11 @@ function PatientChartPage() {
             <p className="mt-1 text-xs text-clinic-500">Faxed, scanned, and imported records from outside offices</p>
           </div>
           <div className="divide-y divide-clinic-100">
+            {documentAccessMessage && (
+              <div className="border-b border-accent-100 bg-accent-50 px-4 py-2 text-sm text-accent-800">
+                {documentAccessMessage}
+              </div>
+            )}
             {documentsLoading && (
               <div className="px-4 py-6 text-sm text-clinic-500">Loading outside documents...</div>
             )}
@@ -487,7 +506,8 @@ function PatientChartPage() {
                     </button>
                   )}
                   <button
-                    disabled={!document.file_url}
+                    onClick={() => documentAccessMutation.mutate(document.id)}
+                    disabled={documentAccessMutation.isPending}
                     className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Download className="h-3.5 w-3.5" />

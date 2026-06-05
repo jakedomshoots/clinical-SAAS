@@ -665,6 +665,20 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return updated as T;
   }
 
+  const patientDocumentAccessMatch = path.match(/^\/patients\/([^/]+)\/documents\/([^/]+)\/access$/);
+  if (patientDocumentAccessMatch && method === 'GET') {
+    const [patientId, documentId] = [patientDocumentAccessMatch[1], patientDocumentAccessMatch[2]];
+    const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
+    if (!document) throw new Error('Document not found');
+    return {
+      document_id: document.id,
+      available: Boolean(document.file_url),
+      url: document.file_url,
+      expires_at: document.file_url ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null,
+      reason: document.file_url ? null : 'No file URL is attached to this document yet.',
+    } as T;
+  }
+
   const patientChartSummaryMatch = path.match(/^\/patients\/([^/]+)\/chart-summary$/);
   if (patientChartSummaryMatch && method === 'GET') {
     const patientId = patientChartSummaryMatch[1];

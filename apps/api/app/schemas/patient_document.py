@@ -54,3 +54,11 @@ class PatientDocumentListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class PatientDocumentAccessOut(BaseModel):
+    document_id: str
+    available: bool
+    url: str | None
+    expires_at: str | None
+    reason: str | None = None

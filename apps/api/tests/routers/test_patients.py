@@ -215,6 +215,42 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
 
 
 @pytest.mark.asyncio
+async def test_patient_document_access_reports_availability(client: AsyncClient, auth_headers):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Access", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    metadata_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Metadata only",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+    }, headers=auth_headers)
+    file_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "File backed",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+        "file_url": "s3://concierge-os/documents/file-backed.pdf",
+    }, headers=auth_headers)
+
+    metadata_access = await client.get(
+        f"/api/patients/{patient_id}/documents/{metadata_doc.json()['id']}/access",
+        headers=auth_headers,
+    )
+    file_access = await client.get(
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access",
+        headers=auth_headers,
+    )
+
+    assert metadata_access.status_code == 200
+    assert metadata_access.json()["available"] is False
+    assert metadata_access.json()["reason"]
+    assert file_access.status_code == 200
+    assert file_access.json()["available"] is True
+    assert file_access.json()["url"] == "s3://concierge-os/documents/file-backed.pdf"
+    assert file_access.json()["expires_at"] is not None
+
+
+@pytest.mark.asyncio
 async def test_patient_documents_are_scoped_to_user_organization(
     client: AsyncClient,
     auth_headers,
