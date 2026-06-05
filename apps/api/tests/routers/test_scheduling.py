@@ -62,6 +62,15 @@ async def test_create_list_and_update_appointment(client: AsyncClient, auth_head
     assert updated.status_code == 200
     assert updated.json()["status"] == "checked_in"
 
+    for lifecycle_status in ["roomed", "provider_review", "checkout", "completed"]:
+        updated = await client.patch(
+            f"/api/schedule/appointments/{appointment['id']}",
+            json={"status": lifecycle_status},
+            headers=auth_headers,
+        )
+        assert updated.status_code == 200
+        assert updated.json()["status"] == lifecycle_status
+
 
 @pytest.mark.asyncio
 async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_headers, admin_user):
@@ -97,6 +106,18 @@ async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_hea
     assert data["blocked"] == 1
     assert data["data"][0]["checkout_readiness"] == "blocked"
     assert data["data"][0]["documents_needing_review"] == 1
+
+    appointment_id = data["data"][0]["appointment"]["id"]
+    await client.patch(
+        f"/api/schedule/appointments/{appointment_id}",
+        json={"status": "roomed"},
+        headers=auth_headers,
+    )
+    active = await client.get(
+        "/api/schedule/today-queue?start_date=2026-06-05&end_date=2026-06-06",
+        headers=auth_headers,
+    )
+    assert active.json()["checked_in"] == 1
 
 
 @pytest.mark.asyncio

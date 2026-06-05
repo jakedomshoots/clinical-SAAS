@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowRight,
@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type { AuditEvent, Fax, MessageThread, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, Fax, MessageThread, Task, TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
   component: CommandCenterPage,
@@ -31,6 +31,7 @@ function dateOnly(date: Date) {
 
 function CommandCenterPage() {
   const api = useApi();
+  const queryClient = useQueryClient();
   const today = new Date('2026-06-03T12:00:00-04:00');
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -93,6 +94,15 @@ function CommandCenterPage() {
   ];
 
   const recentAuditEvents = auditEvents?.data ?? [];
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
+      api.patch<Appointment>(`/schedule/appointments/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TODAY_QUEUE });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   return (
     <div className="space-y-5">
@@ -165,6 +175,14 @@ function CommandCenterPage() {
                       <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${item.checkout_readiness === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-700'}`}>
                         {item.appointment.status.replace('_', ' ')}
                       </span>
+                      {nextVisitStatus(item.appointment.status) && (
+                        <button
+                          onClick={() => statusMutation.mutate({ id: item.appointment.id, status: nextVisitStatus(item.appointment.status)! })}
+                          className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                        >
+                          {nextVisitLabel(item.appointment.status)}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -251,4 +269,28 @@ function CommandCenterPage() {
       </section>
     </div>
   );
+}
+
+function nextVisitStatus(status: AppointmentStatus): AppointmentStatus | null {
+  const flow: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
+    scheduled: 'checked_in',
+    checked_in: 'roomed',
+    roomed: 'provider_review',
+    provider_review: 'checkout',
+    in_progress: 'checkout',
+    checkout: 'completed',
+  };
+  return flow[status] ?? null;
+}
+
+function nextVisitLabel(status: AppointmentStatus) {
+  const labels: Partial<Record<AppointmentStatus, string>> = {
+    scheduled: 'Check in',
+    checked_in: 'Room',
+    roomed: 'Provider',
+    provider_review: 'Checkout',
+    in_progress: 'Checkout',
+    checkout: 'Complete',
+  };
+  return labels[status] ?? 'Advance';
 }

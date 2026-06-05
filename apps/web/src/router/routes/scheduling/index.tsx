@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus } from '@concierge-os/shared';
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface AppointmentListResponse {
@@ -15,6 +15,9 @@ interface AppointmentListResponse {
 const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-sky-100 text-sky-700 border-sky-200',
   checked_in: 'bg-amber-100 text-amber-700 border-amber-200',
+  roomed: 'bg-teal-100 text-teal-700 border-teal-200',
+  provider_review: 'bg-violet-100 text-violet-700 border-violet-200',
+  checkout: 'bg-lime-100 text-lime-700 border-lime-200',
   in_progress: 'bg-accent-100 text-accent-700 border-accent-200',
   completed: 'bg-clinic-100 text-clinic-600 border-clinic-200',
   cancelled: 'bg-red-50 text-red-400 border-red-100 line-through',
@@ -89,6 +92,15 @@ function SchedulePage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
       setShowNewAppointment(false);
       setNewAppointment({ patient_name: '', provider_name: 'Dr. Nora Ellis', start_time: '', type: 'Office visit', notes: '' });
+    },
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
+      api.patch<Appointment>(`/schedule/appointments/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TODAY_QUEUE });
     },
   });
 
@@ -175,6 +187,14 @@ function SchedulePage() {
                         </div>
                         <div className="truncate">{appt.patient_name || 'Unknown'}</div>
                         <div className="text-[10px] opacity-70">{appt.type}</div>
+                        {nextVisitStatus(appt.status) && (
+                          <button
+                            onClick={() => statusMutation.mutate({ id: appt.id, status: nextVisitStatus(appt.status)! })}
+                            className="mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                          >
+                            {nextVisitLabel(appt.status)}
+                          </button>
+                        )}
                       </div>
                     ))}
                     {apps.length === 0 && i === 0 && (
@@ -246,4 +266,28 @@ function SchedulePage() {
       )}
     </div>
   );
+}
+
+function nextVisitStatus(status: AppointmentStatus): AppointmentStatus | null {
+  const flow: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
+    scheduled: 'checked_in',
+    checked_in: 'roomed',
+    roomed: 'provider_review',
+    provider_review: 'checkout',
+    in_progress: 'checkout',
+    checkout: 'completed',
+  };
+  return flow[status] ?? null;
+}
+
+function nextVisitLabel(status: AppointmentStatus) {
+  const labels: Partial<Record<AppointmentStatus, string>> = {
+    scheduled: 'Check in',
+    checked_in: 'Room',
+    roomed: 'Provider',
+    provider_review: 'Checkout',
+    in_progress: 'Checkout',
+    checkout: 'Complete',
+  };
+  return labels[status] ?? 'Advance';
 }

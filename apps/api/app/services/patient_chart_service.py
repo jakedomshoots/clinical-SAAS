@@ -84,6 +84,9 @@ async def get_patient_chart_summary(
                     [
                         AppointmentStatus.scheduled,
                         AppointmentStatus.checked_in,
+                        AppointmentStatus.roomed,
+                        AppointmentStatus.provider_review,
+                        AppointmentStatus.checkout,
                         AppointmentStatus.in_progress,
                     ]
                 ),

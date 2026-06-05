@@ -12,6 +12,9 @@ from app.database import Base
 class AppointmentStatus(str, enum.Enum):
     scheduled = "scheduled"
     checked_in = "checked_in"
+    roomed = "roomed"
+    provider_review = "provider_review"
+    checkout = "checkout"
     in_progress = "in_progress"
     completed = "completed"
     cancelled = "cancelled"

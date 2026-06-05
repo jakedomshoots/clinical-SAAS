@@ -104,7 +104,7 @@ def upgrade() -> None:
         sa.Column('start_time', sa.DateTime(), nullable=False, index=True),
         sa.Column('end_time', sa.DateTime(), nullable=False),
         sa.Column('type', sa.String(50), server_default='office_visit'),
-        sa.Column('status', sa.Enum('scheduled', 'checked_in', 'in_progress', 'completed', 'cancelled', 'no_show', name='appointmentstatus'), nullable=False, server_default='scheduled'),
+        sa.Column('status', sa.Enum('scheduled', 'checked_in', 'roomed', 'provider_review', 'checkout', 'in_progress', 'completed', 'cancelled', 'no_show', name='appointmentstatus'), nullable=False, server_default='scheduled'),
         sa.Column('notes', sa.String(2000), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),

@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   ArrowRight,
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AuditEvent, type Fax, type MessageThread, type Task, type TodayQueue } from '@concierge-os/shared';
+import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type Task, type TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/roles')({
   component: RoleViewsPage,
@@ -32,6 +32,7 @@ function dateOnly(date: Date) {
 
 function RoleViewsPage() {
   const api = useApi();
+  const queryClient = useQueryClient();
   const today = new Date('2026-06-03T12:00:00-04:00');
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
@@ -63,8 +64,16 @@ function RoleViewsPage() {
   const unmatchedFaxes = faxes?.data.filter((fax) => !fax.patient_id) ?? [];
   const unreadMessages = threads?.data.reduce((total, thread) => total + thread.unread_count, 0) ?? 0;
   const blockedPatients = queueItems.filter((item) => item.checkout_readiness === 'blocked');
-  const checkedInPatients = queueItems.filter((item) => ['checked_in', 'in_progress'].includes(item.appointment.status));
+  const checkedInPatients = queueItems.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout', 'in_progress'].includes(item.appointment.status));
   const providerReady = queueItems.filter((item) => item.urgent_tasks > 0 || item.documents_needing_review > 0);
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
+      api.patch<Appointment>(`/schedule/appointments/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TODAY_QUEUE });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.APPOINTMENTS });
+    },
+  });
 
   const lanes = [
     {
@@ -82,6 +91,8 @@ function RoleViewsPage() {
           detail: `${formatTime(item.appointment.start_time)} - ${formatStatus(item.appointment.status)}`,
           tone: item.checkout_readiness === 'blocked' ? 'red' : 'neutral',
           to: `/patients/${item.appointment.patient_id}`,
+          appointmentId: item.appointment.id,
+          nextStatus: nextVisitStatus(item.appointment.status),
         })),
       ],
     },
@@ -186,7 +197,7 @@ function RoleViewsPage() {
 
             <div className="divide-y divide-clinic-100">
               {actions.map((action) => (
-                <Link key={`${title}-${action.label}-${action.detail}`} to={action.to} className="flex items-start gap-3 px-4 py-3 hover:bg-clinic-50">
+                <div key={`${title}-${action.label}-${action.detail}`} className="flex items-start gap-3 px-4 py-3 hover:bg-clinic-50">
                   {action.tone === 'red' ? (
                     <AlertTriangle className="mt-0.5 h-4 w-4 text-red-700" />
                   ) : action.tone === 'amber' ? (
@@ -194,12 +205,21 @@ function RoleViewsPage() {
                   ) : (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent-700" />
                   )}
-                  <div className="min-w-0 flex-1">
+                  <Link to={action.to} className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-clinic-900">{action.label}</div>
                     <div className="mt-0.5 truncate text-xs text-clinic-500">{action.detail}</div>
-                  </div>
-                  <ArrowRight className="mt-0.5 h-3.5 w-3.5 text-clinic-400" />
-                </Link>
+                  </Link>
+                  {'appointmentId' in action && action.appointmentId && action.nextStatus ? (
+                    <button
+                      onClick={() => statusMutation.mutate({ id: action.appointmentId, status: action.nextStatus as AppointmentStatus })}
+                      className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                    >
+                      {nextVisitLabel(action.nextStatus)}
+                    </button>
+                  ) : (
+                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 text-clinic-400" />
+                  )}
+                </div>
               ))}
               {actions.length === 0 && (
                 <div className="flex items-center gap-2 px-4 py-8 text-sm text-clinic-400">
@@ -227,6 +247,29 @@ function RoleViewsPage() {
       </section>
     </div>
   );
+}
+
+function nextVisitStatus(status: AppointmentStatus): AppointmentStatus | null {
+  const flow: Partial<Record<AppointmentStatus, AppointmentStatus>> = {
+    scheduled: 'checked_in',
+    checked_in: 'roomed',
+    roomed: 'provider_review',
+    provider_review: 'checkout',
+    in_progress: 'checkout',
+    checkout: 'completed',
+  };
+  return flow[status] ?? null;
+}
+
+function nextVisitLabel(status: AppointmentStatus) {
+  const labels: Partial<Record<AppointmentStatus, string>> = {
+    checked_in: 'Check in',
+    roomed: 'Room',
+    provider_review: 'Provider',
+    checkout: 'Checkout',
+    completed: 'Complete',
+  };
+  return labels[status] ?? 'Advance';
 }
 
 function formatStatus(status: string) {

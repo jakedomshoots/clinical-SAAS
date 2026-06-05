@@ -808,7 +808,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return {
       data,
       total: data.length,
-      checked_in: data.filter((item) => ['checked_in', 'in_progress'].includes(item.appointment.status)).length,
+      checked_in: data.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout', 'in_progress'].includes(item.appointment.status)).length,
       blocked: data.filter((item) => item.checkout_readiness === 'blocked').length,
     } satisfies TodayQueue as T;
   }
@@ -838,6 +838,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     });
     saveDemoData();
     return appointment as T;
+  }
+
+  const appointmentMatch = path.match(/^\/schedule\/appointments\/([^/]+)$/);
+  if (appointmentMatch && method === 'PATCH') {
+    appointments = appointments.map((appointment) =>
+      appointment.id === appointmentMatch[1]
+        ? { ...appointment, ...(body as Partial<Appointment>), updated_at: new Date().toISOString() }
+        : appointment,
+    );
+    saveDemoData();
+    return appointments.find((appointment) => appointment.id === appointmentMatch[1]) as T;
   }
 
   if (path === '/faxes') {

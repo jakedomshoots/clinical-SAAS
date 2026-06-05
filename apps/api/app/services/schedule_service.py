@@ -95,7 +95,7 @@ async def today_queue(
     for appointment in appointments:
         from app.services.patient_chart_service import get_patient_chart_summary
 
-        if appointment["status"] in {"checked_in", "in_progress"}:
+        if appointment["status"] in {"checked_in", "roomed", "provider_review", "checkout", "in_progress"}:
             checked_in += 1
         summary = await get_patient_chart_summary(db, user, appointment["patient_id"])
         readiness = summary.checkout_readiness if summary else "ready"
