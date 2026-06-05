@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Circle, ShieldCheck } from 'lucide-react';
-import { ROUTES, type IntegrationCapabilities, type SessionPolicy, type UserListResponse } from '@concierge-os/shared';
+import { ROUTES, type IntegrationCapabilities, type PilotReadiness, type SessionPolicy, type UserListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 
@@ -40,6 +40,10 @@ function SetupPage() {
     queryKey: [...QUERY_KEYS.USERS, 'setup'],
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
   });
+  const { data: pilotReadiness } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'pilot-score'],
+    queryFn: () => api.get<PilotReadiness>(ROUTES.PILOT_READINESS),
+  });
   const createUserMutation = useMutation({
     mutationFn: (role: 'provider' | 'front_desk') => api.post(ROUTES.AUTH.REGISTER, {
       email: role === 'provider' ? 'provider@clinic.example.com' : 'frontdesk@clinic.example.com',
@@ -66,6 +70,16 @@ function SetupPage() {
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Setup Checklist</h1>
       </header>
       <section className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Product Demo</div>
+          <div className="mt-3 text-3xl font-semibold text-clinic-900">{pilotReadiness?.product_demo_score ?? 0}%</div>
+          <div className="text-xs text-clinic-500">{pilotReadiness?.product_demo_ready ? 'Ready for complete walkthrough' : 'Needs demo data'}</div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Internal Pilot</div>
+          <div className="mt-3 text-3xl font-semibold text-clinic-900">{pilotReadiness?.internal_pilot_score ?? 0}%</div>
+          <div className="text-xs text-clinic-500">{pilotReadiness?.internal_pilot_ready ? 'Ready for staff pilot' : 'Needs operational setup'}</div>
+        </div>
         {checklist.map((item) => (
           <div key={item.label} className="flex items-center gap-3 rounded-md border border-clinic-200 bg-white p-4">
             {item.ready ? <CheckCircle2 className="h-5 w-5 text-accent-700" /> : <Circle className="h-5 w-5 text-clinic-300" />}

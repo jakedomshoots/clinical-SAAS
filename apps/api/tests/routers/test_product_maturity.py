@@ -166,3 +166,14 @@ async def test_security_templates_and_integration_capabilities(client, auth_head
     assert policy.json()["access_token_expire_minutes"] > 0
     assert templates.json()["total"] >= 2
     assert "fhir_placeholder" in capabilities.json()["ehr"]["supports"]
+
+
+@pytest.mark.asyncio
+async def test_pilot_readiness_score_contract(client, auth_headers):
+    readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
+    assert readiness.status_code == 200
+    data = readiness.json()
+    assert "product_demo_score" in data
+    assert "internal_pilot_score" in data
+    assert len(data["demo_items"]) > 0
+    assert len(data["pilot_items"]) > 0

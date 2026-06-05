@@ -23,3 +23,20 @@ export interface SessionPolicy {
   audit_retention_days: number;
   audit_events: string[];
 }
+
+export interface ReadinessScoreItem {
+  key: string;
+  label: string;
+  ready: boolean;
+  detail: string;
+}
+
+export interface PilotReadiness {
+  product_demo_score: number;
+  internal_pilot_score: number;
+  product_demo_ready: boolean;
+  internal_pilot_ready: boolean;
+  demo_items: ReadinessScoreItem[];
+  pilot_items: ReadinessScoreItem[];
+  generated_at: string;
+}

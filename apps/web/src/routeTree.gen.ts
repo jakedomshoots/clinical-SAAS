@@ -15,6 +15,7 @@ import { Route as RolesRouteImport } from './router/routes/roles'
 import { Route as ReportsRouteImport } from './router/routes/reports'
 import { Route as PortalMockRouteImport } from './router/routes/portal-mock'
 import { Route as PortalIntakeRouteImport } from './router/routes/portal-intake'
+import { Route as PatientPortalRouteImport } from './router/routes/patient-portal'
 import { Route as LoginRouteImport } from './router/routes/login'
 import { Route as IntegrationsRouteImport } from './router/routes/integrations'
 import { Route as BillingRouteImport } from './router/routes/billing'
@@ -56,6 +57,11 @@ const PortalMockRoute = PortalMockRouteImport.update({
 const PortalIntakeRoute = PortalIntakeRouteImport.update({
   id: '/portal-intake',
   path: '/portal-intake',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PatientPortalRoute = PatientPortalRouteImport.update({
+  id: '/patient-portal',
+  path: '/patient-portal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -125,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/patient-portal': typeof PatientPortalRoute
   '/portal-intake': typeof PortalIntakeRoute
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/patient-portal': typeof PatientPortalRoute
   '/portal-intake': typeof PortalIntakeRoute
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/billing': typeof BillingRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
+  '/patient-portal': typeof PatientPortalRoute
   '/portal-intake': typeof PortalIntakeRoute
   '/portal-mock': typeof PortalMockRoute
   '/reports': typeof ReportsRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/login'
+    | '/patient-portal'
     | '/portal-intake'
     | '/portal-mock'
     | '/reports'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/login'
+    | '/patient-portal'
     | '/portal-intake'
     | '/portal-mock'
     | '/reports'
@@ -228,6 +239,7 @@ export interface FileRouteTypes {
     | '/billing'
     | '/integrations'
     | '/login'
+    | '/patient-portal'
     | '/portal-intake'
     | '/portal-mock'
     | '/reports'
@@ -249,6 +261,7 @@ export interface RootRouteChildren {
   BillingRoute: typeof BillingRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
+  PatientPortalRoute: typeof PatientPortalRoute
   PortalIntakeRoute: typeof PortalIntakeRoute
   PortalMockRoute: typeof PortalMockRoute
   ReportsRoute: typeof ReportsRoute
@@ -306,6 +319,13 @@ declare module '@tanstack/react-router' {
       path: '/portal-intake'
       fullPath: '/portal-intake'
       preLoaderRoute: typeof PortalIntakeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/patient-portal': {
+      id: '/patient-portal'
+      path: '/patient-portal'
+      fullPath: '/patient-portal'
+      preLoaderRoute: typeof PatientPortalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -401,6 +421,7 @@ const rootRouteChildren: RootRouteChildren = {
   BillingRoute: BillingRoute,
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
+  PatientPortalRoute: PatientPortalRoute,
   PortalIntakeRoute: PortalIntakeRoute,
   PortalMockRoute: PortalMockRoute,
   ReportsRoute: ReportsRoute,

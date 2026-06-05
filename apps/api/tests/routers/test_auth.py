@@ -49,6 +49,36 @@ async def test_patient_portal_login_returns_patient_scoped_token(client: AsyncCl
     assert me.status_code == 200
     assert me.json()["id"] == patient.json()["id"]
 
+    intake = await client.post(
+        "/api/portal/auth/intake",
+        json={"request_type": "intake_form", "submitted_payload": {"reason": "Portal update"}},
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert intake.status_code == 201
+    assert intake.json()["patient_id"] == patient.json()["id"]
+
+    prepared = await client.post(
+        "/api/portal/auth/documents/upload",
+        json={"filename": "portal-note.pdf", "content_type": "application/pdf"},
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    confirmed = await client.post(
+        "/api/portal/auth/documents/upload/confirm",
+        json={
+            "title": "Portal note",
+            "source": "Patient Portal",
+            "document_type": "Outside record",
+            "file_url": prepared.json()["file_url"],
+            "filename": "portal-note.pdf",
+            "content_type": "application/pdf",
+            "checksum": "portal-test-checksum",
+        },
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+    )
+    assert prepared.status_code == 200
+    assert confirmed.status_code == 201
+    assert confirmed.json()["patient_id"] == patient.json()["id"]
+
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, admin_user):

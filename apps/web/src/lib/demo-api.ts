@@ -549,6 +549,25 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       billing: { draft_cases: billingCases.filter((item) => item.status === 'draft').length, denied_cases: billingCases.filter((item) => item.status === 'denied').length },
     } as T;
   }
+  if (path === '/analytics/pilot-readiness' && method === 'GET') {
+    const demo_items = [
+      { key: 'patients', label: 'Patient chart demo data', ready: patients.length > 0, detail: `${patients.length} patients` },
+      { key: 'users', label: 'Role-based staff demo data', ready: demoUsers.length >= 4, detail: `${demoUsers.length} users` },
+      { key: 'schedule', label: 'Scheduling workflow data', ready: appointments.length > 0, detail: `${appointments.length} appointments` },
+      { key: 'documents', label: 'Document workflow data', ready: patientDocuments.length > 0, detail: `${patientDocuments.length} documents` },
+      { key: 'front_office', label: 'Fax/intake front-office workflows', ready: faxes.length > 0 && portalIntake.length >= 0, detail: `${faxes.length} faxes, ${portalIntake.length} intake submissions` },
+      { key: 'billing', label: 'Billing workflow data', ready: true, detail: `${billingCases.length} billing cases plus charge capture` },
+      { key: 'integrations', label: 'Integration event trail', ready: integrationEvents.length > 0, detail: `${integrationEvents.length} integration events` },
+    ];
+    const pilot_items = [
+      { key: 'core', label: 'Core API dependencies', ready: true, detail: 'ok' },
+      { key: 'deployment_assets', label: 'Deployment and backup assets', ready: true, detail: 'templates/scripts present' },
+      { key: 'roles', label: 'Minimum clinic roles', ready: demoUsers.length >= 4, detail: `${demoUsers.length} users` },
+      { key: 'audit', label: 'Audit-visible workflows', ready: auditEvents.length > 0, detail: `${auditEvents.length} audit events` },
+      { key: 'operational_queues', label: 'Operational queues seeded', ready: tasks.length > 0 && appointments.length > 0, detail: `${tasks.length} tasks, ${appointments.length} appointments` },
+    ];
+    return { product_demo_score: 100, internal_pilot_score: 100, product_demo_ready: true, internal_pilot_ready: true, demo_items, pilot_items, generated_at: new Date().toISOString() } as T;
+  }
 
   if (path === '/integration-capabilities' && method === 'GET') {
     return {
@@ -587,6 +606,31 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/portal/auth/me' && method === 'GET') {
     return patients[0] as T;
+  }
+  if (path === '/portal/auth/intake' && method === 'POST') {
+    const incoming = body as Partial<PortalIntakeSubmission>;
+    const item: PortalIntakeSubmission = {
+      id: uuid(3500 + portalIntake.length),
+      patient_id: patients[0].id,
+      status: 'received',
+      source: 'patient_portal',
+      request_type: incoming.request_type ?? 'intake_form',
+      submitted_payload: incoming.submitted_payload ?? {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    portalIntake = [item, ...portalIntake];
+    saveDemoData();
+    return item as T;
+  }
+  if (path === '/portal/auth/documents/upload' && method === 'POST') {
+    const incoming = body as { filename: string; content_type: string };
+    const safeFilename = incoming.filename.replaceAll('/', '_').replaceAll('\\', '_');
+    const fileUrl = `s3://concierge-os/patients/${patients[0].id}/documents/${Date.now()}-${safeFilename}`;
+    return { upload_url: fileUrl, file_url: fileUrl, method: 'PUT', expires_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(), headers: { 'Content-Type': incoming.content_type } } as T;
+  }
+  if (path === '/portal/auth/documents/upload/confirm' && method === 'POST') {
+    return demoRequest<T>('POST', `/patients/${patients[0].id}/documents/upload/confirm`, body);
   }
 
   if (path === '/clinical/encounter-templates' && method === 'GET') {
