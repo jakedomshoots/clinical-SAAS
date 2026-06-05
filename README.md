@@ -90,6 +90,12 @@ cd apps/api
 uv run pytest
 ```
 
+All local checks:
+
+```sh
+pnpm verify:local
+```
+
 Container config:
 
 ```sh
