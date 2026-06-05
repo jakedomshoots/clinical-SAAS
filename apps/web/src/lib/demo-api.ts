@@ -137,11 +137,11 @@ let patients: Patient[] = [
 ];
 
 let tasks: Task[] = [
-  { id: uuid(201), title: 'Call Mary Collins with potassium result', description: 'Critical lab callback and medication reconciliation.', priority: 'urgent', status: 'open', due_date: iso(1), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(101), patient_name: 'Mary Collins', creator_id: uuid(1), created_at: iso(-8), updated_at: iso(-1) },
-  { id: uuid(202), title: 'Room Andre Miller', description: 'Update medication list and repeat blood pressure.', priority: 'high', status: 'in_progress', due_date: iso(0.5), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(102), patient_name: 'Andre Miller', creator_id: uuid(1), created_at: iso(-2), updated_at: iso(-0.5) },
-  { id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) },
-  { id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) },
-  { id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) },
+  { id: uuid(201), title: 'Call Mary Collins with potassium result', description: 'Critical lab callback and medication reconciliation.', priority: 'urgent', status: 'open', due_date: iso(1), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(101), patient_name: 'Mary Collins', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-8), updated_at: iso(-1) },
+  { id: uuid(202), title: 'Room Andre Miller', description: 'Update medication list and repeat blood pressure.', priority: 'high', status: 'in_progress', due_date: iso(0.5), assigned_to_id: uuid(3), assigned_to_name: 'Maya Chen, MA', patient_id: uuid(102), patient_name: 'Andre Miller', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-2), updated_at: iso(-0.5) },
+  { id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) },
+  { id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) },
+  { id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) },
 ];
 
 let appointments: Appointment[] = [
@@ -352,10 +352,35 @@ function saveDemoData() {
   );
 }
 
+function findDemoHandoffSource(patientId: string, sourceType: string, sourceId: string) {
+  if (sourceType === 'document') {
+    const source = patientDocuments.find((item) => item.patient_id === patientId && item.id === sourceId && item.status === 'needs_review');
+    return source ? { title: `Review document: ${source.title}`, description: `${source.document_type} from ${source.source}; status ${source.status}.` } : null;
+  }
+  if (sourceType === 'medication') {
+    const source = patientMedications.find((item) => item.patient_id === patientId && item.id === sourceId && ['review', 'held'].includes(item.status));
+    return source ? { title: `Resolve medication: ${source.name}`, description: `${source.name} requires checkout reconciliation; status ${source.status}.` } : null;
+  }
+  if (sourceType === 'lab') {
+    const source = patientLabs.find((item) => item.patient_id === patientId && item.id === sourceId && ['new', 'needs_review'].includes(item.status));
+    return source ? { title: `Review lab: ${source.panel}`, description: `${source.panel}: ${source.result}; status ${source.status}.` } : null;
+  }
+  if (sourceType === 'care_plan') {
+    const source = patientCarePlan.find((item) => item.patient_id === patientId && item.id === sourceId && ['open', 'in_progress', 'blocked'].includes(item.status));
+    return source ? { title: source.item, description: source.note ?? `${source.owner_role} checkout work item; status ${source.status}.`, assigned_to_id: source.assigned_to_id, assigned_to_name: source.assigned_to_name } : null;
+  }
+  const source = patientEncounters.find((item) => item.patient_id === patientId && item.id === sourceId && ['draft', 'provider_review'].includes(item.status));
+  return source ? { title: `Sign encounter: ${source.encounter_type}`, description: source.summary ?? `${source.encounter_type} is ${source.status}.`, assigned_to_id: source.provider_id, assigned_to_name: source.provider_name } : null;
+}
+
 const storedDemoData = readStoredDemoData();
 if (storedDemoData) {
   patients = storedDemoData.patients;
-  tasks = storedDemoData.tasks;
+  tasks = storedDemoData.tasks.map((task) => ({
+    ...task,
+    source_type: task.source_type ?? null,
+    source_id: task.source_id ?? null,
+  }));
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
   patientDocuments = storedDemoData.patientDocuments ?? patientDocuments;
@@ -503,6 +528,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       assigned_to_name: 'Clinic Admin',
       patient_id: incoming.patient_id ?? null,
       patient_name: patient ? `${patient.last_name}, ${patient.first_name}` : null,
+      source_type: null,
+      source_id: null,
       creator_id: uuid(1),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -770,6 +797,51 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     return handoff as T;
   }
 
+  const patientCheckoutHandoffTaskMatch = path.match(/^\/patients\/([^/]+)\/checkout-handoff\/tasks$/);
+  if (patientCheckoutHandoffTaskMatch && method === 'POST') {
+    const patientId = patientCheckoutHandoffTaskMatch[1];
+    const patient = patients.find((item) => item.id === patientId);
+    if (!patient) throw new Error('Patient not found');
+    const incoming = body as Partial<Task> & { source_type?: string; source_id?: string };
+    if (!incoming.source_type || !incoming.source_id) throw new Error('Checkout handoff source not found');
+    const sourceType = `checkout_handoff:${incoming.source_type}`;
+    const existing = tasks.find((task) =>
+      task.patient_id === patientId
+      && task.source_type === sourceType
+      && task.source_id === incoming.source_id
+      && ['open', 'in_progress'].includes(task.status),
+    );
+    if (existing) return existing as T;
+    const source = findDemoHandoffSource(patientId, incoming.source_type, incoming.source_id);
+    if (!source) throw new Error('Checkout handoff source not found');
+    const task: Task = {
+      id: uuid(920 + tasks.length),
+      title: incoming.title ?? source.title,
+      description: incoming.description ?? source.description,
+      priority: incoming.priority ?? 'high',
+      status: 'open',
+      due_date: null,
+      assigned_to_id: source.assigned_to_id ?? null,
+      assigned_to_name: source.assigned_to_name ?? null,
+      patient_id: patientId,
+      patient_name: `${patient.first_name} ${patient.last_name}`,
+      source_type: sourceType,
+      source_id: incoming.source_id,
+      creator_id: uuid(1),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    tasks = [task, ...tasks];
+    logDemoEvent({
+      event_type: 'checkout_handoff.task_created',
+      entity_type: 'task',
+      entity_id: task.id,
+      payload: { patient_id: patientId, source_type: incoming.source_type, source_id: incoming.source_id },
+    });
+    saveDemoData();
+    return task as T;
+  }
+
   const patientEncountersMatch = path.match(/^\/patients\/([^/]+)\/encounters$/);
   if (patientEncountersMatch && method === 'GET') {
     const patientId = patientEncountersMatch[1];
@@ -865,6 +937,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         assigned_to_name: incoming.assigned_to_name ?? 'Clinic Admin',
         patient_id: incoming.patient_id ?? null,
         patient_name: incoming.patient_name ?? null,
+        source_type: incoming.source_type ?? null,
+        source_id: incoming.source_id ?? null,
         creator_id: uuid(1),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),

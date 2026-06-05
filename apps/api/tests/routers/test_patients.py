@@ -515,6 +515,43 @@ async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncCl
 
 
 @pytest.mark.asyncio
+async def test_checkout_handoff_item_can_be_converted_to_task(client: AsyncClient, auth_headers, admin_user):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Tasked", "last_name": "Handoff", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    care_res = await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "assigned_to_id": admin_user.id,
+        "owner_role": "Provider",
+        "item": "Resolve checkout blocker before patient leaves.",
+        "status": "blocked",
+        "escalation": "same_day",
+    }, headers=auth_headers)
+    source_id = care_res.json()["id"]
+
+    task_res = await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
+        "source_type": "care_plan",
+        "source_id": source_id,
+        "priority": "urgent",
+    }, headers=auth_headers)
+    duplicate_res = await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
+        "source_type": "care_plan",
+        "source_id": source_id,
+        "priority": "urgent",
+    }, headers=auth_headers)
+
+    assert task_res.status_code == 201
+    task = task_res.json()
+    assert task["patient_id"] == patient_id
+    assert task["assigned_to_id"] == admin_user.id
+    assert task["priority"] == "urgent"
+    assert task["source_type"] == "checkout_handoff:care_plan"
+    assert task["source_id"] == source_id
+    assert duplicate_res.status_code == 201
+    assert duplicate_res.json()["id"] == task["id"]
+
+
+@pytest.mark.asyncio
 async def test_checkout_workload_groups_open_items_by_owner(client: AsyncClient, auth_headers, admin_user):
     create_res = await client.post("/api/patients", json={
         "first_name": "Workload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",

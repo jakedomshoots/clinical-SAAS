@@ -123,6 +123,8 @@ async def create_task(db: AsyncSession, user: User, data: dict) -> dict:
         due_date=data.get("due_date"),
         assigned_to_id=data.get("assigned_to_id"),
         patient_id=data.get("patient_id"),
+        source_type=data.get("source_type"),
+        source_id=data.get("source_id"),
         creator_id=user.id,
     )
     db.add(task)
@@ -184,6 +186,8 @@ def _make_task_dict(t: Task) -> dict:
         "assigned_to_name": None,
         "patient_id": t.patient_id,
         "patient_name": None,
+        "source_type": t.source_type,
+        "source_id": t.source_id,
         "creator_id": t.creator_id,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,

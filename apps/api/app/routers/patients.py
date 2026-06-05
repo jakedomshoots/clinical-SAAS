@@ -31,7 +31,8 @@ from app.schemas.patient_document import (
     PatientDocumentOut,
     PatientDocumentUpdate,
 )
-from app.schemas.patient_handoff import PatientCheckoutHandoffOut
+from app.schemas.patient_handoff import PatientCheckoutHandoffOut, PatientCheckoutTaskCreate
+from app.schemas.task import TaskOut
 from app.schemas.workload import WorkloadSummaryOut
 from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_handoff_service, patient_service, workload_service
 
@@ -100,6 +101,31 @@ async def get_patient_checkout_handoff(
     if not handoff:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return handoff
+
+
+@router.post(
+    "/{patient_id}/checkout-handoff/tasks",
+    response_model=TaskOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_patient_checkout_handoff_task(
+    patient_id: str,
+    data: PatientCheckoutTaskCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(clinical_write_required),
+):
+    try:
+        task = await patient_handoff_service.create_checkout_handoff_task(
+            db,
+            current_user,
+            patient_id,
+            data.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checkout handoff source not found")
+    return TaskOut(**task)
 
 
 @router.post("", response_model=PatientOut, status_code=status.HTTP_201_CREATED)

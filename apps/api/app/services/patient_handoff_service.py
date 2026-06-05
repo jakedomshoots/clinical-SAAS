@@ -13,6 +13,7 @@ from app.models.patient_clinical import (
     PatientMedication,
 )
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
+from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.schemas.patient import PatientOut
 from app.schemas.patient_clinical import (
@@ -24,6 +25,17 @@ from app.schemas.patient_clinical import (
 from app.schemas.patient_document import PatientDocumentOut
 from app.schemas.patient_handoff import PatientCheckoutHandoffOut
 from app.services.patient_chart_service import get_patient_chart_summary
+from app.services.task_service import get_task
+from app.services.audit_service import log_event
+
+
+CHECKOUT_SOURCE_TYPES = {
+    "document",
+    "medication",
+    "lab",
+    "care_plan",
+    "encounter",
+}
 
 
 async def get_checkout_handoff(
@@ -125,7 +137,164 @@ async def get_checkout_handoff(
     )
 
 
+async def create_checkout_handoff_task(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    data: dict,
+) -> dict | None:
+    patient = (
+        await db.execute(
+            select(Patient).where(
+                Patient.id == patient_id,
+                Patient.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not patient:
+        return None
+
+    source_type = data["source_type"]
+    source_id = data["source_id"]
+    if source_type not in CHECKOUT_SOURCE_TYPES:
+        raise ValueError("Unsupported checkout source type")
+
+    source = await _get_open_handoff_source(db, user, patient_id, source_type, source_id)
+    if source is None:
+        return None
+
+    existing = (
+        await db.execute(
+            select(Task).where(
+                Task.organization_id == user.organization_id,
+                Task.patient_id == patient_id,
+                Task.source_type == f"checkout_handoff:{source_type}",
+                Task.source_id == source_id,
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+            )
+        )
+    ).scalar_one_or_none()
+    if existing:
+        return await get_task(db, user, existing.id)
+
+    title = data.get("title") or _default_task_title(source_type, source)
+    description = data.get("description") or _default_task_description(source_type, source)
+    assigned_to_id = data.get("assigned_to_id") or getattr(source, "assigned_to_id", None)
+    priority = TaskPriority(data.get("priority", "high"))
+    task = Task(
+        organization_id=user.organization_id,
+        title=title,
+        description=description,
+        priority=priority,
+        status=TaskStatus.open,
+        assigned_to_id=assigned_to_id,
+        patient_id=patient_id,
+        source_type=f"checkout_handoff:{source_type}",
+        source_id=source_id,
+        creator_id=user.id,
+    )
+    db.add(task)
+    await db.commit()
+    await db.refresh(task)
+    await log_event(
+        db,
+        "checkout_handoff.task_created",
+        "task",
+        task.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "source_type": source_type,
+            "source_id": source_id,
+            "priority": task.priority.value,
+        },
+    )
+    return await get_task(db, user, task.id)
+
+
 def _care_plan_out(item: PatientCarePlanItem, assigned_to_name: str | None) -> PatientCarePlanItemOut:
     data = PatientCarePlanItemOut.model_validate(item).model_dump()
     data["assigned_to_name"] = assigned_to_name
     return PatientCarePlanItemOut(**data)
+
+
+async def _get_open_handoff_source(
+    db: AsyncSession,
+    user: User,
+    patient_id: str,
+    source_type: str,
+    source_id: str,
+):
+    common = {
+        "id": source_id,
+        "patient_id": patient_id,
+        "organization_id": user.organization_id,
+    }
+    if source_type == "document":
+        return (
+            await db.execute(
+                select(PatientDocument).where(
+                    PatientDocument.status == PatientDocumentStatus.needs_review,
+                    *[getattr(PatientDocument, key) == value for key, value in common.items()],
+                )
+            )
+        ).scalar_one_or_none()
+    if source_type == "medication":
+        return (
+            await db.execute(
+                select(PatientMedication).where(
+                    PatientMedication.status.in_([MedicationStatus.review, MedicationStatus.held]),
+                    *[getattr(PatientMedication, key) == value for key, value in common.items()],
+                )
+            )
+        ).scalar_one_or_none()
+    if source_type == "lab":
+        return (
+            await db.execute(
+                select(PatientLabResult).where(
+                    PatientLabResult.status.in_([LabResultStatus.new, LabResultStatus.needs_review]),
+                    *[getattr(PatientLabResult, key) == value for key, value in common.items()],
+                )
+            )
+        ).scalar_one_or_none()
+    if source_type == "care_plan":
+        return (
+            await db.execute(
+                select(PatientCarePlanItem).where(
+                    PatientCarePlanItem.status.in_([CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]),
+                    *[getattr(PatientCarePlanItem, key) == value for key, value in common.items()],
+                )
+            )
+        ).scalar_one_or_none()
+    return (
+        await db.execute(
+            select(PatientEncounter).where(
+                PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+                *[getattr(PatientEncounter, key) == value for key, value in common.items()],
+            )
+        )
+    ).scalar_one_or_none()
+
+
+def _default_task_title(source_type: str, source) -> str:
+    if source_type == "document":
+        return f"Review document: {source.title}"
+    if source_type == "medication":
+        return f"Resolve medication: {source.name}"
+    if source_type == "lab":
+        return f"Review lab: {source.panel}"
+    if source_type == "care_plan":
+        return source.item
+    return f"Sign encounter: {source.encounter_type}"
+
+
+def _default_task_description(source_type: str, source) -> str:
+    if source_type == "document":
+        return f"{source.document_type} from {source.source}; status {source.status.value}."
+    if source_type == "medication":
+        return f"{source.name} requires checkout reconciliation; status {source.status.value}."
+    if source_type == "lab":
+        return f"{source.panel}: {source.result}; status {source.status.value}."
+    if source_type == "care_plan":
+        return source.note or f"{source.owner_role} checkout work item; status {source.status.value}."
+    return source.summary or f"{source.encounter_type} is {source.status.value}."

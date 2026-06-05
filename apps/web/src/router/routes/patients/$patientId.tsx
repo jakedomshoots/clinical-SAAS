@@ -180,6 +180,20 @@ function PatientChartPage() {
     },
   });
 
+  const createHandoffTaskMutation = useMutation({
+    mutationFn: ({ sourceType, sourceId }: { sourceType: string; sourceId: string }) =>
+      api.post<Task>(ROUTES.PATIENT_CHECKOUT_HANDOFF_TASKS(patientId), {
+        source_type: sourceType,
+        source_id: sourceId,
+        priority: 'high',
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHECKOUT_HANDOFF(patientId) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
+    },
+  });
+
   const completeCheckoutMutation = useMutation({
     mutationFn: (appointmentId: string) =>
       api.patch<Appointment>(`/schedule/appointments/${appointmentId}`, { status: 'completed' satisfies AppointmentStatus }),
@@ -758,6 +772,7 @@ function PatientChartPage() {
           onReviewLab={(labId) => updateLabMutation.mutate({ labId, status: 'reviewed' })}
           onCompleteCarePlan={(itemId) => updateCarePlanMutation.mutate({ itemId, status: 'completed' })}
           onSignEncounter={(encounterId) => updateEncounterMutation.mutate({ encounterId, status: 'signed' })}
+          onCreateTask={(sourceType, sourceId) => createHandoffTaskMutation.mutate({ sourceType, sourceId })}
           onCompleteCheckout={() => {
             const appointment = checkoutHandoff.chart_summary.upcoming_appointments.find((item) =>
               ['checkout', 'provider_review', 'roomed', 'checked_in', 'in_progress'].includes(item.status),
@@ -780,6 +795,7 @@ function CheckoutHandoffPanel({
   onReviewLab,
   onCompleteCarePlan,
   onSignEncounter,
+  onCreateTask,
   onCompleteCheckout,
 }: {
   handoff: PatientCheckoutHandoff;
@@ -791,6 +807,7 @@ function CheckoutHandoffPanel({
   onReviewLab: (labId: string) => void;
   onCompleteCarePlan: (itemId: string) => void;
   onSignEncounter: (encounterId: string) => void;
+  onCreateTask: (sourceType: string, sourceId: string) => void;
   onCompleteCheckout: () => void;
 }) {
   const blocked = handoff.chart_summary.checkout_readiness === 'blocked';
@@ -821,6 +838,7 @@ function CheckoutHandoffPanel({
             detail: `${item.source} - ${item.pages} pages`,
             actionLabel: 'File',
             onAction: () => onFileDocument(item.id),
+            onCreateTask: () => onCreateTask('document', item.id),
           }))} />
 
           <HandoffSection title="Medication Reconciliation" rows={handoff.medications_needing_review.map((item) => ({
@@ -829,6 +847,7 @@ function CheckoutHandoffPanel({
             detail: `${item.dose ?? 'No dose'} - ${formatClinicalStatus(item.status)}`,
             actionLabel: 'Confirm',
             onAction: () => onConfirmMedication(item.id),
+            onCreateTask: () => onCreateTask('medication', item.id),
           }))} />
 
           <HandoffSection title="Labs Needing Review" rows={handoff.labs_needing_review.map((item) => ({
@@ -837,6 +856,7 @@ function CheckoutHandoffPanel({
             detail: `${item.flag ?? 'No flag'} - ${formatClinicalStatus(item.status)}`,
             actionLabel: 'Reviewed',
             onAction: () => onReviewLab(item.id),
+            onCreateTask: () => onCreateTask('lab', item.id),
           }))} />
 
           <HandoffSection title="Care Plan Open Items" rows={handoff.care_plan_open_items.map((item) => ({
@@ -845,6 +865,7 @@ function CheckoutHandoffPanel({
             detail: `${item.assigned_to_name ?? item.owner_role} - ${item.due ?? 'No due date'}${item.escalation ? ` - ${formatClinicalStatus(item.escalation)}` : ''}`,
             actionLabel: 'Done',
             onAction: () => onCompleteCarePlan(item.id),
+            onCreateTask: () => onCreateTask('care_plan', item.id),
           }))} />
 
           <HandoffSection title="Unsigned Encounters" rows={handoff.unsigned_encounters.map((item) => ({
@@ -853,6 +874,7 @@ function CheckoutHandoffPanel({
             detail: item.provider_name ?? 'No provider assigned',
             actionLabel: 'Sign',
             onAction: () => onSignEncounter(item.id),
+            onCreateTask: () => onCreateTask('encounter', item.id),
           }))} />
         </div>
 
@@ -881,7 +903,7 @@ function HandoffSection({
   rows,
 }: {
   title: string;
-  rows: Array<{ id: string; title: string; detail: string; actionLabel: string; onAction: () => void }>;
+  rows: Array<{ id: string; title: string; detail: string; actionLabel: string; onAction: () => void; onCreateTask: () => void }>;
 }) {
   return (
     <section className="border-b border-clinic-100">
@@ -896,9 +918,15 @@ function HandoffSection({
               <div className="truncate text-sm font-medium text-clinic-900">{row.title}</div>
               <div className="mt-0.5 truncate text-xs text-clinic-500">{row.detail}</div>
             </div>
-            <button onClick={row.onAction} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
-              {row.actionLabel}
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={row.onCreateTask} className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Task
+              </button>
+              <button onClick={row.onAction} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
+                {row.actionLabel}
+              </button>
+            </div>
           </div>
         ))}
         {rows.length === 0 && <div className="px-4 py-4 text-sm text-clinic-400">Clear</div>}

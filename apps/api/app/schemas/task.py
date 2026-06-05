@@ -9,6 +9,8 @@ class TaskCreate(BaseModel):
     due_date: datetime | None = None
     assigned_to_id: str | None = None
     patient_id: str | None = None
+    source_type: str | None = Field(default=None, max_length=100)
+    source_id: str | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -18,6 +20,8 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     due_date: datetime | None = None
     assigned_to_id: str | None = None
+    source_type: str | None = Field(default=None, max_length=100)
+    source_id: str | None = None
 
 
 class TaskOut(BaseModel):
@@ -31,6 +35,8 @@ class TaskOut(BaseModel):
     assigned_to_name: str | None = None
     patient_id: str | None
     patient_name: str | None = None
+    source_type: str | None = None
+    source_id: str | None = None
     creator_id: str
     created_at: str
     updated_at: str

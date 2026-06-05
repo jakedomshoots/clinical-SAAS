@@ -60,6 +60,8 @@ class Task(Base):
         ForeignKey("patients.id", ondelete="SET NULL"),
         nullable=True,
     )
+    source_type: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    source_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
     creator_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),

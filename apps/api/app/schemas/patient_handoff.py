@@ -10,6 +10,15 @@ from app.schemas.patient_document import PatientDocumentOut
 from pydantic import BaseModel
 
 
+class PatientCheckoutTaskCreate(BaseModel):
+    source_type: str
+    source_id: str
+    title: str | None = None
+    description: str | None = None
+    priority: str = "high"
+    assigned_to_id: str | None = None
+
+
 class PatientCheckoutHandoffOut(BaseModel):
     patient: PatientOut
     chart_summary: PatientChartSummaryOut

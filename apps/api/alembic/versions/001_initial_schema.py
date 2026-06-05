@@ -84,6 +84,8 @@ def upgrade() -> None:
         sa.Column('due_date', sa.DateTime(), nullable=True),
         sa.Column('assigned_to_id', sa.String(36), sa.ForeignKey('users.id', ondelete='SET NULL'), nullable=True),
         sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='SET NULL'), nullable=True),
+        sa.Column('source_type', sa.String(100), nullable=True, index=True),
+        sa.Column('source_id', sa.String(36), nullable=True, index=True),
         sa.Column('creator_id', sa.String(36), sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),

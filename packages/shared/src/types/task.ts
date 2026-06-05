@@ -11,6 +11,8 @@ export interface Task {
   assigned_to_name: string | null;
   patient_id: UUID | null;
   patient_name: string | null;
+  source_type: string | null;
+  source_id: UUID | null;
   creator_id: UUID;
   created_at: string;
   updated_at: string;
