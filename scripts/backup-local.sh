@@ -29,4 +29,6 @@ postgres_dump=postgres.sql
 object_archive=minio-concierge-os.tar
 EOF
 
+cp "$DEST/manifest.txt" "$BACKUP_ROOT/latest-manifest.txt"
+
 echo "Backup complete: $DEST"

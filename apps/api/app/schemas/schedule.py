@@ -79,3 +79,12 @@ class AppointmentReminderOut(BaseModel):
     appointment_id: str
     queued: int
     event_ids: list[str]
+
+
+class AppointmentConflictCheckOut(BaseModel):
+    provider_id: str
+    start_time: str
+    end_time: str
+    has_conflict: bool
+    in_availability: bool
+    warnings: list[str]

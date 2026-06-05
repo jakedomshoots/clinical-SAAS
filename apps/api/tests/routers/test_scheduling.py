@@ -239,12 +239,14 @@ async def test_queue_appointment_reminders_records_communication_events(client: 
     )
 
     assert reminders.status_code == 200
-    assert reminders.json()["queued"] == 2
+    assert reminders.json()["queued"] == 4
 
     events = await client.get("/api/integrations/events?integration=communications", headers=auth_headers)
     actions = {event["action"] for event in events.json()["data"]}
     assert "appointment.reminder.sms" in actions
     assert "appointment.reminder.email" in actions
+    offsets = {event["payload"]["offset_minutes"] for event in events.json()["data"] if event["action"].startswith("appointment.reminder")}
+    assert offsets == {1440, 120}
 
 
 @pytest.mark.asyncio
@@ -349,6 +351,32 @@ async def test_create_appointment_rejects_provider_conflict(client: AsyncClient,
     assert first.status_code == 201
     assert conflict.status_code == 409
     assert "conflicting appointment" in conflict.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_appointment_slot_check_reports_availability_warning(client: AsyncClient, auth_headers, admin_user):
+    await client.post(
+        "/api/schedule/availability",
+        json={
+            "provider_id": admin_user.id,
+            "day_of_week": 5,
+            "start_time": "09:00",
+            "end_time": "12:00",
+        },
+        headers=auth_headers,
+    )
+    start = datetime(2026, 6, 5, 13, 0)
+    end = start + timedelta(minutes=30)
+
+    check = await client.get(
+        f"/api/schedule/appointments/conflicts/check?provider_id={admin_user.id}&start_time={start.isoformat()}&end_time={end.isoformat()}",
+        headers=auth_headers,
+    )
+
+    assert check.status_code == 200
+    assert check.json()["has_conflict"] is False
+    assert check.json()["in_availability"] is False
+    assert "outside configured provider availability" in check.json()["warnings"][0]
 
 
 @pytest.mark.asyncio

@@ -78,6 +78,31 @@ async def list_appointments(
     return out, total
 
 
+async def check_appointment_slot(
+    db: AsyncSession,
+    user: User,
+    provider_id: str,
+    start_time: datetime,
+    end_time: datetime,
+    exclude_appointment_id: str | None = None,
+) -> dict:
+    has_conflict = await _provider_has_conflict(db, user, provider_id, start_time, end_time, exclude_appointment_id)
+    in_availability = await _provider_is_available(db, user, provider_id, start_time, end_time)
+    warnings = []
+    if has_conflict:
+        warnings.append("Provider has a conflicting appointment in this time window")
+    if not in_availability:
+        warnings.append("Appointment is outside configured provider availability")
+    return {
+        "provider_id": provider_id,
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "has_conflict": has_conflict,
+        "in_availability": in_availability,
+        "warnings": warnings,
+    }
+
+
 async def today_queue(
     db: AsyncSession,
     user: User,
@@ -168,6 +193,8 @@ async def create_appointment(db: AsyncSession, user: User, data: dict) -> dict |
         data["end_time"],
     ):
         raise ValueError("Provider has a conflicting appointment in this time window")
+    if not await _provider_is_available(db, user, data["provider_id"], data["start_time"], data["end_time"]):
+        raise ValueError("Appointment is outside configured provider availability")
 
     appt = Appointment(
         organization_id=user.organization_id,
@@ -282,27 +309,37 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
     appointment = await get_appointment(db, user, appt_id)
     if not appointment:
         return None
+    from app.services.settings_service import get_or_create_settings
+
+    settings = await get_or_create_settings(db, user)
 
     event_ids: list[str] = []
-    for channel in ("sms", "email"):
-        event = await record_event(
-            db,
-            user,
-            integration="communications",
-            direction="outbound",
-            action=f"appointment.reminder.{channel}",
-            status="pending",
-            entity_type="appointment",
-            entity_id=appt_id,
-            idempotency_key=f"appointment:reminder:{channel}:{appt_id}:{appointment['start_time']}",
-            payload={
-                "patient_id": appointment["patient_id"],
-                "provider_id": appointment["provider_id"],
-                "appointment_start": appointment["start_time"],
-                "channel": channel,
-            },
-        )
-        event_ids.append(event.id)
+    for offset_minutes in settings.reminder_offsets_minutes:
+        for channel, template in (
+            ("sms", settings.reminder_sms_template),
+            ("email", settings.reminder_email_template),
+        ):
+            event = await record_event(
+                db,
+                user,
+                integration="communications",
+                direction="outbound",
+                action=f"appointment.reminder.{channel}",
+                status="pending",
+                entity_type="appointment",
+                entity_id=appt_id,
+                idempotency_key=f"appointment:reminder:{channel}:{offset_minutes}:{appt_id}:{appointment['start_time']}",
+                payload={
+                    "patient_id": appointment["patient_id"],
+                    "provider_id": appointment["provider_id"],
+                    "appointment_start": appointment["start_time"],
+                    "channel": channel,
+                    "offset_minutes": offset_minutes,
+                    "sender_identity": settings.sender_identity,
+                    "template": template,
+                },
+            )
+            event_ids.append(event.id)
 
     await log_event(
         db,
@@ -310,7 +347,7 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
         "appointment",
         appt_id,
         actor_id=user.id,
-        payload={"event_ids": event_ids, "channels": ["sms", "email"]},
+        payload={"event_ids": event_ids, "channels": ["sms", "email"], "offsets": settings.reminder_offsets_minutes},
     )
     return {"appointment_id": appt_id, "queued": len(event_ids), "event_ids": event_ids}
 
@@ -408,3 +445,25 @@ async def _provider_has_conflict(
     if exclude_appointment_id:
         query = query.where(Appointment.id != exclude_appointment_id)
     return (await db.execute(query)).scalar_one_or_none() is not None
+
+
+async def _provider_is_available(
+    db: AsyncSession,
+    user: User,
+    provider_id: str,
+    start_time: datetime,
+    end_time: datetime,
+) -> bool:
+    result = await db.execute(
+        select(ProviderAvailability).where(
+            ProviderAvailability.organization_id == user.organization_id,
+            ProviderAvailability.provider_id == provider_id,
+            ProviderAvailability.day_of_week == ((start_time.weekday() + 1) % 7),
+        )
+    )
+    start_hhmm = start_time.strftime("%H:%M")
+    end_hhmm = end_time.strftime("%H:%M")
+    rows = result.scalars().all()
+    if not rows:
+        return True
+    return any(row.start_time <= start_hhmm and row.end_time >= end_hhmm for row in rows)

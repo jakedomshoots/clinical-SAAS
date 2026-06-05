@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import require_roles
+from app.deps import get_current_user, require_roles
 from app.models.user import User, UserRole
 from app.schemas.audit import AuditEventListOut, AuditEventOut, PatientAccessHistoryOut
 from app.services.audit_service import list_events, list_events_for_export, patient_access_history
@@ -94,7 +94,7 @@ async def export_audit_events(
 async def get_patient_access_history(
     patient_id: str,
     db: AsyncSession = Depends(get_db),  # noqa: B008
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
+    current_user: User = Depends(get_current_user),  # noqa: B008
 ):
     data, total = await patient_access_history(db, current_user, patient_id)
     return PatientAccessHistoryOut(

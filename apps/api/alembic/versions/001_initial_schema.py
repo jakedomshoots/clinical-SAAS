@@ -294,8 +294,21 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
     )
 
+    op.create_table(
+        'clinic_settings',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, unique=True, index=True),
+        sa.Column('reminder_offsets_minutes', sa.JSON(), server_default=sa.text("'[1440, 120]'")),
+        sa.Column('reminder_sms_template', sa.Text(), nullable=False),
+        sa.Column('reminder_email_template', sa.Text(), nullable=False),
+        sa.Column('sender_identity', sa.String(200), nullable=False, server_default='ConciergeOS Clinic'),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table('clinic_settings')
     op.drop_table('integration_events')
     op.drop_table('messages')
     op.drop_table('patient_encounters')

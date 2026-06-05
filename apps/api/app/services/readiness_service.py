@@ -95,7 +95,27 @@ def _check_deployment_assets() -> dict:
         "health_report_script": repo_root / "scripts" / "health-report.sh",
         "local_backup_script": repo_root / "scripts" / "backup-local.sh",
     }
-    return {
+    deployment = {
         key: {"ok": path.exists(), "path": str(path.relative_to(repo_root))}
         for key, path in assets.items()
+    }
+    deployment["latest_backup"] = _latest_backup_status(repo_root)
+    return deployment
+
+
+def _latest_backup_status(repo_root: Path) -> dict:
+    backup_root = repo_root / "backups"
+    manifests = sorted(backup_root.glob("*/manifest.txt"), reverse=True)
+    if not manifests:
+        return {"ok": False, "path": "backups", "last_success_at": None, "error": "No backup manifest found"}
+    latest = manifests[0]
+    created_at = None
+    for line in latest.read_text().splitlines():
+        if line.startswith("created_at="):
+            created_at = line.split("=", 1)[1]
+            break
+    return {
+        "ok": True,
+        "path": str(latest.relative_to(repo_root)),
+        "last_success_at": created_at,
     }

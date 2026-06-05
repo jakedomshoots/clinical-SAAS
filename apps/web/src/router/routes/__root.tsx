@@ -1,8 +1,12 @@
 import { Link, Navigate, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import {useAuth} from '@/lib/auth';
 import { useEffect, useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClinicalAssistantTools, type AssistantAction } from '@/lib/assistant-tools';
+import { useApi } from '@/lib/api-client';
+import { QUERY_KEYS } from '@/lib/query-keys';
 import { ErrorState } from '@/lib/ui-state';
+import { ROUTES, type ClinicSettings, type ClinicSettingsUpdate } from '@concierge-os/shared';
 import {
   Activity,
   Bot,
@@ -215,7 +219,25 @@ function SettingsPanel({
   onDensityChange: () => void;
   onClose: () => void;
 }) {
+  const api = useApi();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const [settingsForm, setSettingsForm] = useState<ClinicSettingsUpdate>({});
+  const canManageSettings = user?.role === 'admin' || user?.role === 'manager';
+  const { data: clinicSettings } = useQuery({
+    queryKey: QUERY_KEYS.SETTINGS,
+    queryFn: () => api.get<ClinicSettings>(ROUTES.SETTINGS),
+  });
+  const settingsMutation = useMutation({
+    mutationFn: (update: ClinicSettingsUpdate) => api.patch<ClinicSettings>(ROUTES.SETTINGS, update),
+    onSuccess: async () => {
+      setSettingsForm({});
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.SETTINGS });
+    },
+  });
   if (!open) return null;
+  const effectiveSettings = { ...clinicSettings, ...settingsForm } as ClinicSettings;
+  const offsets = (effectiveSettings.reminder_offsets_minutes ?? []).join(', ');
 
   return (
     <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4" role="dialog" aria-modal="true">
@@ -231,6 +253,57 @@ function SettingsPanel({
         </div>
 
         <div className="space-y-5 p-4">
+          <section>
+            <h3 className="text-xs font-semibold uppercase text-clinic-500">Reminder Rules</h3>
+            <div className="mt-2 space-y-3 rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <label className="block text-sm font-medium text-clinic-700">
+                Timing offsets
+                <input
+                  disabled={!canManageSettings}
+                  value={offsets}
+                  onChange={(event) => setSettingsForm({ ...settingsForm, reminder_offsets_minutes: event.target.value.split(',').map((value) => Number(value.trim())).filter(Number.isFinite) })}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                />
+              </label>
+              <label className="block text-sm font-medium text-clinic-700">
+                Sender identity
+                <input
+                  disabled={!canManageSettings}
+                  value={effectiveSettings.sender_identity ?? ''}
+                  onChange={(event) => setSettingsForm({ ...settingsForm, sender_identity: event.target.value })}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                />
+              </label>
+              <label className="block text-sm font-medium text-clinic-700">
+                SMS template
+                <textarea
+                  disabled={!canManageSettings}
+                  rows={3}
+                  value={effectiveSettings.reminder_sms_template ?? ''}
+                  onChange={(event) => setSettingsForm({ ...settingsForm, reminder_sms_template: event.target.value })}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                />
+              </label>
+              <label className="block text-sm font-medium text-clinic-700">
+                Email template
+                <textarea
+                  disabled={!canManageSettings}
+                  rows={3}
+                  value={effectiveSettings.reminder_email_template ?? ''}
+                  onChange={(event) => setSettingsForm({ ...settingsForm, reminder_email_template: event.target.value })}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm disabled:bg-clinic-100"
+                />
+              </label>
+              <button
+                disabled={!canManageSettings || Object.keys(settingsForm).length === 0 || settingsMutation.isPending}
+                onClick={() => settingsMutation.mutate(settingsForm)}
+                className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50"
+              >
+                {settingsMutation.isPending ? 'Saving...' : 'Save reminder settings'}
+              </button>
+            </div>
+          </section>
+
           <section>
             <h3 className="text-xs font-semibold uppercase text-clinic-500">Workspace</h3>
             <div className="mt-2 rounded-md border border-clinic-200 bg-clinic-50 p-3 text-sm">

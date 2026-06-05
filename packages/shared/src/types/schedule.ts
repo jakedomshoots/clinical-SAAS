@@ -45,3 +45,12 @@ export interface AppointmentReminderQueue {
   queued: number;
   event_ids: UUID[];
 }
+
+export interface AppointmentConflictCheck {
+  provider_id: UUID;
+  start_time: string;
+  end_time: string;
+  has_conflict: boolean;
+  in_availability: boolean;
+  warnings: string[];
+}

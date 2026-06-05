@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, ClinicSettings, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, ProviderAvailability, Task, TodayQueue, User, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -47,6 +47,7 @@ interface DemoStore {
   auditEvents?: AuditEvent[];
   integrationEvents?: IntegrationEvent[];
   providerAvailability?: ProviderAvailability[];
+  clinicSettings?: ClinicSettings;
 }
 
 interface IntegrationEvent {
@@ -80,6 +81,13 @@ let providerAvailability: ProviderAvailability[] = [
   { id: uuid(2502), provider_id: uuid(2), day_of_week: 3, start_time: '09:00', end_time: '15:00' },
   { id: uuid(2503), provider_id: uuid(6), day_of_week: 2, start_time: '08:00', end_time: '16:00' },
 ];
+
+let clinicSettings: ClinicSettings = {
+  reminder_offsets_minutes: [1440, 120],
+  reminder_sms_template: 'Reminder: you have an appointment with {clinic_name} on {appointment_time}. Reply STOP to opt out.',
+  reminder_email_template: 'You have an appointment with {clinic_name} on {appointment_time}. Please arrive 10 minutes early.',
+  sender_identity: 'ConciergeOS Clinic',
+};
 
 let patients: Patient[] = [
   {
@@ -386,7 +394,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings }),
   );
 }
 
@@ -437,6 +445,7 @@ if (storedDemoData) {
   auditEvents = storedDemoData.auditEvents ?? auditEvents;
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
   providerAvailability = storedDemoData.providerAvailability ?? providerAvailability;
+  clinicSettings = storedDemoData.clinicSettings ?? clinicSettings;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -513,8 +522,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         deployment_runbook: { ok: true, path: 'docs/operations/deployment-runbook.md' },
         health_report_script: { ok: true, path: 'scripts/health-report.sh' },
         local_backup_script: { ok: true, path: 'scripts/backup-local.sh' },
+        latest_backup: { ok: false, path: 'backups', last_success_at: null, error: 'No backup manifest found' },
       },
     } as T;
+  }
+
+  if (path === '/settings' && method === 'GET') return clinicSettings as T;
+  if (path === '/settings' && method === 'PATCH') {
+    clinicSettings = { ...clinicSettings, ...(body as Partial<ClinicSettings>) };
+    saveDemoData();
+    return clinicSettings as T;
   }
 
   if (method === 'GET' && path === '/integrations/events') {
@@ -1227,6 +1244,28 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     } satisfies TodayQueue as T;
   }
 
+  if (path === '/schedule/appointments/conflicts/check' && method === 'GET') {
+    const providerId = url.searchParams.get('provider_id') ?? '';
+    const start = new Date(url.searchParams.get('start_time') ?? '');
+    const end = new Date(url.searchParams.get('end_time') ?? '');
+    const hasConflict = appointments.some((appointment) =>
+      appointment.provider_id === providerId &&
+      !['cancelled', 'no_show'].includes(appointment.status) &&
+      new Date(appointment.start_time) < end &&
+      new Date(appointment.end_time) > start
+    );
+    const dayOfWeek = start.getDay();
+    const hhmm = start.toTimeString().slice(0, 5);
+    const endHhmm = end.toTimeString().slice(0, 5);
+    const windows = providerAvailability.filter((item) => item.provider_id === providerId && item.day_of_week === dayOfWeek);
+    const inAvailability = windows.length === 0 || windows.some((item) => item.start_time <= hhmm && item.end_time >= endHhmm);
+    const warnings = [
+      ...(hasConflict ? ['Provider has a conflicting appointment in this time window'] : []),
+      ...(!inAvailability ? ['Appointment is outside configured provider availability'] : []),
+    ];
+    return { provider_id: providerId, start_time: start.toISOString(), end_time: end.toISOString(), has_conflict: hasConflict, in_availability: inAvailability, warnings } as T;
+  }
+
   const availabilityMatch = path.match(/^\/schedule\/availability\/([^/]+)$/);
   if (availabilityMatch && method === 'GET') {
     const data = providerAvailability.filter((item) => item.provider_id === availabilityMatch[1]);
@@ -1293,7 +1332,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (appointmentReminderMatch && method === 'POST') {
     const appointment = appointments.find((item) => item.id === appointmentReminderMatch[1]);
     if (!appointment) throw new Error('Appointment not found');
-    const eventIds = ['sms', 'email'].map((channel, index) => {
+    const channels = clinicSettings.reminder_offsets_minutes.flatMap((offset) => ['sms', 'email'].map((channel) => ({ channel, offset })));
+    const eventIds = channels.map(({ channel, offset }, index) => {
       const eventId = uuid(2700 + integrationEvents.length + index);
       integrationEvents = [
         {
@@ -1305,10 +1345,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
           status: 'pending',
           entity_type: 'appointment',
           entity_id: appointment.id,
-          idempotency_key: `demo:appointment:reminder:${channel}:${appointment.id}`,
+          idempotency_key: `demo:appointment:reminder:${channel}:${offset}:${appointment.id}`,
           attempts: 1,
           error: null,
-          payload: { patient_id: appointment.patient_id, appointment_start: appointment.start_time, channel },
+          payload: {
+            patient_id: appointment.patient_id,
+            appointment_start: appointment.start_time,
+            channel,
+            offset_minutes: offset,
+            sender_identity: clinicSettings.sender_identity,
+            template: channel === 'sms' ? clinicSettings.reminder_sms_template : clinicSettings.reminder_email_template,
+          },
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },

@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import { ROUTES, type Appointment, type AppointmentReminderQueue, type AppointmentStatus, type Patient, type ProviderAvailability, type UserListResponse } from '@concierge-os/shared';
+import { ROUTES, type Appointment, type AppointmentConflictCheck, type AppointmentReminderQueue, type AppointmentStatus, type Patient, type ProviderAvailability, type UserListResponse } from '@concierge-os/shared';
 import { Bell, CalendarClock, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
 interface AppointmentListResponse {
@@ -89,6 +89,21 @@ function SchedulePage() {
     queryKey: [...QUERY_KEYS.APPOINTMENTS, 'availability', activeProviderId],
     enabled: Boolean(activeProviderId),
     queryFn: () => api.get<ProviderAvailability[]>(ROUTES.PROVIDER_AVAILABILITY(activeProviderId)),
+  });
+  const conflictWindow = useMemo(() => {
+    if (!newAppointment.provider_id || !newAppointment.start_time) return null;
+    const start = new Date(newAppointment.start_time);
+    if (Number.isNaN(start.getTime())) return null;
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    return { start, end };
+  }, [newAppointment.provider_id, newAppointment.start_time]);
+  const { data: conflictCheck } = useQuery({
+    queryKey: [...QUERY_KEYS.APPOINTMENTS, 'conflict-check', newAppointment.provider_id, newAppointment.start_time],
+    enabled: Boolean(showNewAppointment && conflictWindow),
+    queryFn: () =>
+      api.get<AppointmentConflictCheck>(
+        `${ROUTES.APPOINTMENT_CONFLICT_CHECK}?provider_id=${encodeURIComponent(newAppointment.provider_id)}&start_time=${encodeURIComponent(conflictWindow!.start.toISOString())}&end_time=${encodeURIComponent(conflictWindow!.end.toISOString())}`,
+      ),
   });
 
   const weekDays = useMemo(() => {
@@ -378,6 +393,11 @@ function SchedulePage() {
                 Notes
                 <textarea value={newAppointment.notes} onChange={(event) => setNewAppointment({ ...newAppointment, notes: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
               </label>
+              {conflictCheck && (
+                <div className={`rounded-md border px-3 py-2 text-sm ${conflictCheck.warnings.length ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                  {conflictCheck.warnings.length ? conflictCheck.warnings.join('. ') : 'Provider is available for this slot.'}
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
               <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>

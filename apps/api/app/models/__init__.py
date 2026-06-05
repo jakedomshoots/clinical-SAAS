@@ -1,6 +1,7 @@
 from app.database import Base
 from app.models.user import User
 from app.models.audit import AuditLog
+from app.models.clinic_settings import ClinicSettings
 from app.models.patient import Patient
 from app.models.patient_document import PatientDocument
 from app.models.patient_clinical import PatientCarePlanItem, PatientEncounter, PatientLabResult, PatientMedication

@@ -16,6 +16,7 @@ from app.routers import (
     messages,
     patients,
     scheduling,
+    settings as settings_router,
     tasks,
     users,
     webhooks,
@@ -74,6 +75,7 @@ app.include_router(patients.router)
 app.include_router(tasks.router)
 app.include_router(users.router)
 app.include_router(scheduling.router)
+app.include_router(settings_router.router)
 app.include_router(faxes.router)
 app.include_router(integrations.router)
 app.include_router(messages.router)

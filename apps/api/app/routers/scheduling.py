@@ -11,6 +11,7 @@ from app.schemas.schedule import (
     AppointmentCreate,
     AppointmentListOut,
     AppointmentOut,
+    AppointmentConflictCheckOut,
     AppointmentUpdate,
     AvailabilityCreate,
     AvailabilityOut,
@@ -61,6 +62,21 @@ async def today_queue(
     sd = datetime.fromisoformat(start_date) if start_date else None
     ed = datetime.fromisoformat(end_date) if end_date else None
     return await schedule_service.today_queue(db, current_user, sd, ed)
+
+
+@router.get("/appointments/conflicts/check", response_model=AppointmentConflictCheckOut)
+async def check_appointment_conflicts(
+    db: DbDep,
+    current_user: CurrentUserDep,
+    provider_id: str = Query(...),
+    start_time: str = Query(...),
+    end_time: str = Query(...),
+):
+    start = datetime.fromisoformat(start_time)
+    end = datetime.fromisoformat(end_time)
+    return AppointmentConflictCheckOut(
+        **await schedule_service.check_appointment_slot(db, current_user, provider_id, start, end)
+    )
 
 
 @router.get("/appointments/{appointment_id}", response_model=AppointmentOut)
