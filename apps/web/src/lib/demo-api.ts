@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, Task, TodayQueue, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const now = new Date('2026-06-03T13:30:00-04:00');
@@ -447,6 +447,31 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       page,
       page_size: pageSize,
     } as T;
+  }
+
+  if (method === 'GET' && path === '/patients/workload/checkout') {
+    const openItems = patientCarePlan.filter((item) => ['open', 'in_progress', 'blocked'].includes(item.status));
+    const buckets = new Map<string, WorkloadSummary['data'][number]>();
+    for (const item of openItems) {
+      const key = `${item.owner_role}:${item.assigned_to_id ?? 'unassigned'}`;
+      const bucket = buckets.get(key) ?? {
+        owner_role: item.owner_role,
+        assigned_to_id: item.assigned_to_id,
+        assigned_to_name: item.assigned_to_name,
+        open_items: 0,
+        blocked_items: 0,
+        escalated_items: 0,
+      };
+      bucket.open_items += 1;
+      if (item.status === 'blocked') bucket.blocked_items += 1;
+      if (item.escalation) bucket.escalated_items += 1;
+      buckets.set(key, bucket);
+    }
+    return {
+      data: [...buckets.values()],
+      total_open_items: openItems.length,
+      unassigned_items: openItems.filter((item) => !item.assigned_to_id).length,
+    } satisfies WorkloadSummary as T;
   }
 
   const integrationRetryMatch = path.match(/^\/integrations\/events\/([^/]+)\/retry$/);

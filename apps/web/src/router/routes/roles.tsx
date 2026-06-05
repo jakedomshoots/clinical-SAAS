@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type Task, type TodayQueue } from '@concierge-os/shared';
+import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type Task, type TodayQueue, type WorkloadSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/roles')({
   component: RoleViewsPage,
@@ -56,6 +56,10 @@ function RoleViewsPage() {
   const { data: auditEvents } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'role-views'],
     queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=8'),
+  });
+  const { data: workload } = useQuery({
+    queryKey: QUERY_KEYS.CHECKOUT_WORKLOAD,
+    queryFn: () => api.get<WorkloadSummary>(ROUTES.CHECKOUT_WORKLOAD),
   });
 
   const queueItems = todayQueue?.data ?? [];
@@ -138,10 +142,16 @@ function RoleViewsPage() {
       summary: `${unmatchedFaxes.length} unmatched faxes, ${auditEvents?.total ?? 0} audit events`,
       metrics: [
         ['Unmatched faxes', String(unmatchedFaxes.length)],
-        ['Audit events', String(auditEvents?.total ?? 0)],
-        ['Threads', String(threads?.total ?? 0)],
+        ['Open handoffs', String(workload?.total_open_items ?? 0)],
+        ['Unassigned', String(workload?.unassigned_items ?? 0)],
       ],
       actions: [
+        ...(workload?.data.slice(0, 3).map((bucket) => ({
+          label: bucket.assigned_to_name ?? `${bucket.owner_role} unassigned`,
+          detail: `${bucket.open_items} open, ${bucket.escalated_items} escalated`,
+          tone: bucket.escalated_items > 0 || bucket.blocked_items > 0 ? 'red' : 'neutral',
+          to: '/roles',
+        })) ?? []),
         ...unmatchedFaxes.slice(0, 2).map((fax) => ({
           label: `Inbound fax from ${fax.from_number}`,
           detail: `${fax.pages} pages - ${fax.status}`,

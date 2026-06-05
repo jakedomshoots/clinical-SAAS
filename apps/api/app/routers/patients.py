@@ -32,9 +32,18 @@ from app.schemas.patient_document import (
     PatientDocumentUpdate,
 )
 from app.schemas.patient_handoff import PatientCheckoutHandoffOut
-from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_handoff_service, patient_service
+from app.schemas.workload import WorkloadSummaryOut
+from app.services import patient_chart_service, patient_clinical_service, patient_document_service, patient_handoff_service, patient_service, workload_service
 
 router = APIRouter(prefix="/api/patients", tags=["patients"])
+
+
+@router.get("/workload/checkout", response_model=WorkloadSummaryOut)
+async def get_checkout_workload(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await workload_service.checkout_workload(db, current_user)
 
 
 @router.get("", response_model=PatientListOut)

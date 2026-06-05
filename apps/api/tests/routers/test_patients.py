@@ -512,3 +512,34 @@ async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncCl
     assert data["care_plan_open_items"][0]["assigned_to_name"] == admin_user.display_name
     assert data["care_plan_open_items"][0]["escalation"] == "same_day"
     assert len(data["unsigned_encounters"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_checkout_workload_groups_open_items_by_owner(client: AsyncClient, auth_headers, admin_user):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Workload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "assigned_to_id": admin_user.id,
+        "owner_role": "Provider",
+        "item": "Review checkout blocker.",
+        "status": "blocked",
+        "escalation": "same_day",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "owner_role": "Front desk",
+        "item": "Schedule follow-up.",
+        "status": "open",
+    }, headers=auth_headers)
+
+    res = await client.get("/api/patients/workload/checkout", headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total_open_items"] == 2
+    assert data["unassigned_items"] == 1
+    provider_bucket = next(item for item in data["data"] if item["owner_role"] == "Provider")
+    assert provider_bucket["assigned_to_name"] == admin_user.display_name
+    assert provider_bucket["blocked_items"] == 1
+    assert provider_bucket["escalated_items"] == 1

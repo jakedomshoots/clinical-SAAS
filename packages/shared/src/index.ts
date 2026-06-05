@@ -6,6 +6,7 @@ export * from './types/patient-clinical';
 export * from './types/patient-document';
 export * from './types/patient-handoff';
 export * from './types/task';
+export * from './types/workload';
 export * from './types/schedule';
 export * from './types/fax';
 export * from './types/message';

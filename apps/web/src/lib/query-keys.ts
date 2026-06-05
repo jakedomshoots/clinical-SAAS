@@ -40,6 +40,7 @@ export const QUERY_KEYS = {
   PATIENT_CARE_PLAN: (id: string) => ['patients', id, 'care-plan'] as const,
   PATIENT_LABS: (id: string) => ['patients', id, 'labs'] as const,
   PATIENT_ENCOUNTERS: (id: string) => ['patients', id, 'encounters'] as const,
+  CHECKOUT_WORKLOAD: ['checkout-workload'] as const,
   TASKS: ['tasks'] as const,
   TASK: (id: string) => ['tasks', id] as const,
   APPOINTMENTS: ['appointments'] as const,
