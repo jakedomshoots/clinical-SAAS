@@ -40,6 +40,44 @@ export interface LaunchReadiness {
   requirements: LaunchRequirement[];
 }
 
+export interface IntegrationConfigField {
+  key: string;
+  label: string;
+  required: boolean;
+  secret: boolean;
+  configured: boolean;
+  source: 'environment' | 'setup_draft' | 'missing';
+  value_preview: string | null;
+}
+
+export interface IntegrationConfig {
+  key: string;
+  label: string;
+  configured: boolean;
+  healthy: boolean;
+  mode: 'environment' | 'setup_draft' | 'demo';
+  status: 'healthy' | 'configured' | 'draft' | 'missing';
+  fields: IntegrationConfigField[];
+  workflows: string[];
+  action: string;
+  last_tested_at: string | null;
+  last_test_status: string | null;
+}
+
+export interface IntegrationConfigListResponse {
+  data: IntegrationConfig[];
+}
+
+export interface IntegrationConnectionTestResult {
+  integration: string;
+  status: string;
+  configured: boolean;
+  healthy: boolean;
+  mode: string;
+  message: string;
+  event_id: string;
+}
+
 export interface SessionPolicy {
   user_id: string;
   role: string;

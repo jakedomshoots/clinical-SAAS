@@ -71,6 +71,9 @@ export const ROUTES = {
   PORTAL_PATIENT_DOCUMENT_UPLOAD_CONFIRM: '/api/portal/auth/documents/upload/confirm',
   ENCOUNTER_TEMPLATES: '/api/clinical/encounter-templates',
   INTEGRATION_CAPABILITIES: '/api/integration-capabilities',
+  INTEGRATION_CONFIG: '/api/integrations/config',
+  INTEGRATION_CONFIG_ITEM: (integration: string) => `/api/integrations/config/${integration}`,
+  INTEGRATION_CONFIG_TEST: (integration: string) => `/api/integrations/config/${integration}/test`,
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

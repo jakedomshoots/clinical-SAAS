@@ -51,6 +51,8 @@ interface DemoStore {
   clinicSettings?: ClinicSettings;
   billingCases?: BillingCase[];
   portalIntake?: PortalIntakeSubmission[];
+  integrationDrafts?: Record<string, Record<string, string>>;
+  integrationLastTests?: Record<string, { last_tested_at: string; last_test_status: string }>;
 }
 
 interface IntegrationEvent {
@@ -97,6 +99,8 @@ let clinicSettings: ClinicSettings = {
 let billingCases: BillingCase[] = [];
 let portalIntake: PortalIntakeSubmission[] = [];
 const preparedUploadTokens = new Map<string, { patientId: string; fileUrl: string; contentType: string }>();
+let integrationDrafts: Record<string, Record<string, string>> = {};
+let integrationLastTests: Record<string, { last_tested_at: string; last_test_status: string }> = {};
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -407,7 +411,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests }),
   );
 }
 
@@ -430,6 +434,43 @@ function findDemoHandoffSource(patientId: string, sourceType: string, sourceId: 
   }
   const source = patientEncounters.find((item) => item.patient_id === patientId && item.id === sourceId && ['draft', 'provider_review'].includes(item.status));
   return source ? { title: `Sign encounter: ${source.encounter_type}`, description: source.summary ?? `${source.encounter_type} is ${source.status}.`, assigned_to_id: source.provider_id, assigned_to_name: source.provider_name } : null;
+}
+
+function demoIntegrationConfigs() {
+  const specs = [
+    ['ehr', 'EHR', ['EHR_API_BASE_URL'], false, ['Chart sync', 'Medication reconciliation', 'Lab import'], 'Connect the chosen EHR API and validate sync.'],
+    ['fax', 'Fax provider', ['FAX_PROVIDER_API_KEY'], true, ['Inbound fax matching', 'Outbound referrals', 'Delivery status'], 'Set provider credentials and verify inbound/outbound callbacks.'],
+    ['portal', 'Patient portal', ['PORTAL_API_BASE_URL'], false, ['Portal messages', 'Patient intake', 'Document import'], 'Connect portal API and validate webhook mapping.'],
+    ['calendar', 'Calendar', ['CALENDAR_API_BASE_URL'], false, ['Appointment sync', 'Conflict checks', 'Provider availability'], 'Connect calendar API and validate appointment sync.'],
+    ['communications', 'Communications', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], true, ['Patient outreach', 'Appointment reminders', 'Delivery callbacks'], 'Select SMS/email provider and validate delivery callbacks.'],
+    ['copilotkit', 'CopilotKit runtime', ['COPILOTKIT_RUNTIME_URL'], false, ['Assistant runtime', 'Tool policy', 'Confirmation gates'], 'Deploy runtime and approve model/tool policy.'],
+  ] as const;
+  return specs.map(([key, label, fields, secret, workflows, action]) => {
+    const draft = integrationDrafts[key] ?? {};
+    const configured = fields.every((field) => Boolean(draft[field]));
+    const lastTest = integrationLastTests[key] ?? {};
+    return {
+      key,
+      label,
+      configured,
+      healthy: false,
+      mode: configured ? 'setup_draft' : 'demo',
+      status: configured ? 'draft' : 'missing',
+      fields: fields.map((field) => ({
+        key: field,
+        label: field.replaceAll('_', ' '),
+        required: true,
+        secret: secret || field.includes('KEY'),
+        configured: Boolean(draft[field]),
+        source: draft[field] ? 'setup_draft' : 'missing',
+        value_preview: draft[field] ? (field.includes('KEY') ? `****${draft[field].slice(-4)}` : draft[field]) : null,
+      })),
+      workflows,
+      action,
+      last_tested_at: lastTest.last_tested_at ?? null,
+      last_test_status: lastTest.last_test_status ?? null,
+    };
+  });
 }
 
 const storedDemoData = readStoredDemoData();
@@ -461,6 +502,8 @@ if (storedDemoData) {
   clinicSettings = storedDemoData.clinicSettings ?? clinicSettings;
   billingCases = storedDemoData.billingCases ?? billingCases;
   portalIntake = storedDemoData.portalIntake ?? portalIntake;
+  integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
+  integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -582,6 +625,59 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       calendar: { label: 'Calendar', configured: false, healthy: false, mode: 'demo', env_vars: ['CALENDAR_API_BASE_URL'], supports: ['appointment_create', 'appointment_update', 'conflict_sync'], workflows: ['Schedule sync', 'Conflict checks', 'Reminder source of truth'], action: 'Set CALENDAR_API_BASE_URL and verify appointment create/update sync.' },
       communications: { label: 'Communications', configured: false, healthy: false, mode: 'demo', env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'], workflows: ['Patient outreach', 'Appointment reminders', 'Delivery tracking'], action: 'Select the delivery provider and configure callback secrets.' },
       copilotkit: { label: 'CopilotKit runtime', configured: false, healthy: false, mode: 'demo', env_vars: ['COPILOTKIT_RUNTIME_URL'], supports: ['assistant_runtime', 'tool_policy', 'confirmation_gates'], workflows: ['Clinical assistant', 'Tool execution', 'Review queue'], action: 'Deploy the runtime and approve model/tool policy before live use.' },
+    } as T;
+  }
+  if (path === '/integrations/config' && method === 'GET') {
+    return { data: demoIntegrationConfigs() } as T;
+  }
+  const integrationConfigMatch = path.match(/^\/integrations\/config\/([^/]+)$/);
+  if (integrationConfigMatch && method === 'PATCH') {
+    const integration = integrationConfigMatch[1];
+    const incoming = body as { values?: Record<string, string> };
+    integrationDrafts = {
+      ...integrationDrafts,
+      [integration]: {
+        ...(integrationDrafts[integration] ?? {}),
+        ...Object.fromEntries(Object.entries(incoming.values ?? {}).filter(([, value]) => value.trim())),
+      },
+    };
+    saveDemoData();
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    if (!config) throw new Error('Integration configuration not found');
+    return config as T;
+  }
+  const integrationTestMatch = path.match(/^\/integrations\/config\/([^/]+)\/test$/);
+  if (integrationTestMatch && method === 'POST') {
+    const integration = integrationTestMatch[1];
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    if (!config) throw new Error('Integration configuration not found');
+    const event = {
+      id: uuid(4100 + auditEvents.length),
+      organization_id: uuid(900),
+      integration: integration === 'fax' ? 'fax_provider' : integration,
+      direction: 'outbound',
+      action: 'integration.connection_test',
+      status: config.configured ? 'failed' : 'failed',
+      entity_type: 'integration_config',
+      entity_id: integration,
+      idempotency_key: null,
+      attempts: 1,
+      error: config.configured ? 'Credentials are staged but no vendor adapter is connected.' : 'Missing required integration configuration.',
+      payload: { configured: config.configured, healthy: false, mode: config.mode },
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    integrationLastTests = { ...integrationLastTests, [integration]: { last_tested_at: event.created_at, last_test_status: event.status } };
+    logDemoEvent({ event_type: event.action, entity_type: event.entity_type, entity_id: event.entity_id, payload: event.payload });
+    saveDemoData();
+    return {
+      integration,
+      status: event.status,
+      configured: config.configured,
+      healthy: false,
+      mode: config.mode,
+      message: event.error,
+      event_id: event.id,
     } as T;
   }
   if (path === '/launch-readiness' && method === 'GET') {

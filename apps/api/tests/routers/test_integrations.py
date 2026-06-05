@@ -88,3 +88,80 @@ async def test_provider_cannot_list_integration_events(
     res = await client.get("/api/integrations/events", headers=headers_for(provider))
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_list_integration_config_reports_required_fields(
+    client: AsyncClient,
+    auth_headers,
+):
+    res = await client.get("/api/integrations/config", headers=auth_headers)
+
+    assert res.status_code == 200
+    body = res.json()
+    keys = {item["key"] for item in body["data"]}
+    assert {"ehr", "fax", "portal", "calendar", "communications", "copilotkit"} <= keys
+    fax = next(item for item in body["data"] if item["key"] == "fax")
+    assert fax["configured"] is False
+    assert fax["fields"][0]["key"] == "FAX_PROVIDER_API_KEY"
+    assert fax["fields"][0]["secret"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_integration_config_saves_redacted_setup_draft(
+    client: AsyncClient,
+    auth_headers,
+):
+    res = await client.patch(
+        "/api/integrations/config/fax",
+        json={"values": {"FAX_PROVIDER_API_KEY": "fax-secret-1234"}},
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["key"] == "fax"
+    assert body["configured"] is True
+    assert body["mode"] == "setup_draft"
+    assert body["fields"][0]["value_preview"] == "****1234"
+
+
+@pytest.mark.asyncio
+async def test_connection_test_records_integration_event(
+    client: AsyncClient,
+    auth_headers,
+):
+    await client.patch(
+        "/api/integrations/config/ehr",
+        json={"values": {"EHR_API_BASE_URL": "https://ehr.example.test"}},
+        headers=auth_headers,
+    )
+
+    tested = await client.post("/api/integrations/config/ehr/test", headers=auth_headers)
+    events = await client.get(
+        "/api/integrations/events?integration=ehr",
+        headers=auth_headers,
+    )
+
+    assert tested.status_code == 200
+    assert tested.json()["configured"] is True
+    assert tested.json()["status"] == "failed"
+    assert events.status_code == 200
+    assert any(
+        event["action"] == "integration.connection_test"
+        for event in events.json()["data"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_provider_cannot_manage_integration_config(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = await make_user(db, UserRole.provider, "integration-config-provider@example.com")
+
+    listed = await client.get("/api/integrations/config", headers=headers_for(provider))
+    tested = await client.post("/api/integrations/config/ehr/test", headers=headers_for(provider))
+
+    assert listed.status_code == 403
+    assert tested.status_code == 403

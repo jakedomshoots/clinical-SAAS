@@ -6,13 +6,65 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
+from app.schemas.integration_config import (
+    IntegrationConfigListOut,
+    IntegrationConfigOut,
+    IntegrationConfigUpdate,
+    IntegrationConnectionTestOut,
+)
 from app.schemas.integration_event import IntegrationEventListOut, IntegrationEventOut
-from app.services import integration_event_service
+from app.services import integration_config_service, integration_event_service
 
 router = APIRouter(prefix="/api/integrations", tags=["integrations"])
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 OpsUserDep = Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))]
+
+
+@router.get("/config", response_model=IntegrationConfigListOut)
+async def list_integration_config(db: DbDep, current_user: OpsUserDep):
+    configs = await integration_config_service.list_integration_configs(db, current_user)
+    return IntegrationConfigListOut(data=[IntegrationConfigOut(**item) for item in configs])
+
+
+@router.patch("/config/{integration}", response_model=IntegrationConfigOut)
+async def update_integration_config(
+    integration: str,
+    data: IntegrationConfigUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    config = await integration_config_service.update_integration_config(
+        db,
+        current_user,
+        integration,
+        data.values,
+    )
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration configuration not found",
+        )
+    return IntegrationConfigOut(**config)
+
+
+@router.post("/config/{integration}/test", response_model=IntegrationConnectionTestOut)
+async def test_integration_connection(
+    integration: str,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    result = await integration_config_service.test_integration_connection(
+        db,
+        current_user,
+        integration,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration configuration not found",
+        )
+    return IntegrationConnectionTestOut(**result)
 
 
 @router.get("/events", response_model=IntegrationEventListOut)
