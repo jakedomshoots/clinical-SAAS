@@ -4,6 +4,7 @@ const port = 4174;
 const baseUrl = `http://127.0.0.1:${port}`;
 const routes = [
   '/',
+  '/roles',
   '/login',
   '/patients',
   '/tasks',

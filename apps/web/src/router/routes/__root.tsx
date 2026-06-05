@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Command,
   Gauge,
+  LayoutDashboard,
   LogOut,
   Menu,
   MessageSquare,
@@ -28,6 +29,7 @@ function SideNav() {
 
   const navItems = [
     { to: '/', label: 'Command', icon: Gauge },
+    { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
@@ -139,6 +141,7 @@ function MobileNav({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, logout } = useAuth();
   const navItems = [
     { to: '/', label: 'Command', icon: Gauge },
+    { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/tasks', label: 'Tasks', icon: ClipboardList },
     { to: '/scheduling', label: 'Schedule', icon: Calendar },
@@ -301,6 +304,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   const actions = useMemo(
     () => [
       { label: 'Open Command Center', detail: 'Clinic dashboard and live work', to: '/', icon: Gauge },
+      { label: 'Role Views', detail: 'Front desk, nursing, provider, manager lanes', to: '/roles', icon: LayoutDashboard },
       { label: 'Find Patients', detail: 'Search charts and demographics', to: '/patients', icon: Users },
       { label: 'Task Queue', detail: 'Open, assigned, and urgent tasks', to: '/tasks', icon: ClipboardList },
       { label: 'Schedule', detail: 'Clinic week and visit states', to: '/scheduling', icon: Calendar },
