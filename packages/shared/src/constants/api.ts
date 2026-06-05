@@ -46,6 +46,12 @@ export const ROUTES = {
   WS: '/api/ws',
   HEALTH: '/api/health',
   PATIENT_ACCESS_HISTORY: (id: string) => `/api/audit/patients/${id}/access-history`,
+  ANALYTICS_SUMMARY: '/api/analytics/summary',
+  BILLING_CASES: '/api/billing/cases',
+  PORTAL_INTAKE: '/api/portal-intake',
+  ENCOUNTER_TEMPLATES: '/api/clinical/encounter-templates',
+  INTEGRATION_CAPABILITIES: '/api/integration-capabilities',
+  SESSION_POLICY: '/api/auth/session-policy',
 } as const;
 
 export const WS_CHANNELS = {

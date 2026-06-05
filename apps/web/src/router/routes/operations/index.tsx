@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type { AuditEvent } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type IntegrationCapabilities, type SessionPolicy } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -82,6 +82,22 @@ function OperationsPage() {
   const { data: auditEvents } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'phi-access'],
     queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=8&event_type=patient_document.accessed'),
+  });
+  const { data: assistantEvents } = useQuery({
+    queryKey: [...QUERY_KEYS.AUDIT, 'assistant-actions'],
+    queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=8&event_type=assistant.task_created'),
+  });
+  const { data: analytics } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'analytics-summary'],
+    queryFn: () => api.get<AnalyticsSummary>(ROUTES.ANALYTICS_SUMMARY),
+  });
+  const { data: capabilities } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'integration-capabilities'],
+    queryFn: () => api.get<IntegrationCapabilities>(ROUTES.INTEGRATION_CAPABILITIES),
+  });
+  const { data: sessionPolicy } = useQuery({
+    queryKey: [...QUERY_KEYS.USER, 'session-policy'],
+    queryFn: () => api.get<SessionPolicy>(ROUTES.SESSION_POLICY),
   });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
@@ -158,6 +174,44 @@ function OperationsPage() {
           <ClipboardList className="h-4 w-4 text-accent-700" />
           <div className="mt-3 text-sm font-semibold text-clinic-900">Launch checklist</div>
           <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
+        </div>
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-4">
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Patient Intake</div>
+          <div className="mt-3 text-2xl font-semibold text-clinic-900">{analytics?.front_office.intake_needing_review ?? 0}</div>
+          <div className="text-xs text-clinic-500">portal submissions needing review</div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Billing Work</div>
+          <div className="mt-3 text-2xl font-semibold text-clinic-900">{analytics?.billing.draft_cases ?? 0}</div>
+          <div className="text-xs text-clinic-500">{analytics?.billing.denied_cases ?? 0} denied cases</div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Security Policy</div>
+          <div className="mt-3 text-2xl font-semibold text-clinic-900">{sessionPolicy?.access_token_expire_minutes ?? '—'}m</div>
+          <div className="text-xs text-clinic-500">{sessionPolicy?.mfa_required ? 'MFA required' : 'MFA staged for production'}</div>
+        </div>
+        <div className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="text-sm font-semibold text-clinic-900">Assistant Governance</div>
+          <div className="mt-3 text-2xl font-semibold text-clinic-900">{assistantEvents?.total ?? 0}</div>
+          <div className="text-xs text-clinic-500">confirmed task actions audited</div>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="text-sm font-semibold text-clinic-900">Integration Capability Map</div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
+          {Object.entries(capabilities ?? {}).map(([key, capability]) => (
+            <div key={key} className="rounded-md border border-clinic-100 bg-clinic-50 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium capitalize text-clinic-800">{key.replace('_', ' ')}</span>
+                <StatusBadge ok={capability.configured} label={capability.configured ? 'Live' : 'Staged'} />
+              </div>
+              <div className="mt-2 text-xs text-clinic-500">{capability.supports.join(', ')}</div>
+            </div>
+          ))}
         </div>
       </section>
 

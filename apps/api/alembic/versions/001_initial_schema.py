@@ -306,8 +306,38 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
     )
 
+    op.create_table(
+        'billing_cases',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='CASCADE'), nullable=False, index=True),
+        sa.Column('appointment_id', sa.String(36), sa.ForeignKey('appointments.id', ondelete='SET NULL'), nullable=True, index=True),
+        sa.Column('status', sa.Enum('draft', 'ready', 'submitted', 'denied', 'paid', name='billingstatus'), nullable=False, server_default='draft', index=True),
+        sa.Column('payer', sa.String(200), nullable=True),
+        sa.Column('eligibility_status', sa.String(50), nullable=False, server_default='not_checked', index=True),
+        sa.Column('cpt_codes', sa.JSON(), server_default=sa.text("'[]'")),
+        sa.Column('diagnosis_codes', sa.JSON(), server_default=sa.text("'[]'")),
+        sa.Column('notes', sa.Text(), nullable=True),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
+    op.create_table(
+        'portal_intake_submissions',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('patient_id', sa.String(36), sa.ForeignKey('patients.id', ondelete='SET NULL'), nullable=True, index=True),
+        sa.Column('status', sa.Enum('received', 'needs_review', 'applied', 'rejected', name='portalintakestatus'), nullable=False, server_default='received', index=True),
+        sa.Column('source', sa.String(100), nullable=False, server_default='portal'),
+        sa.Column('submitted_payload', sa.JSON(), server_default=sa.text("'{}'")),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), index=True),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table('portal_intake_submissions')
+    op.drop_table('billing_cases')
     op.drop_table('clinic_settings')
     op.drop_table('integration_events')
     op.drop_table('messages')

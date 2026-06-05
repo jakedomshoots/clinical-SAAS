@@ -9,12 +9,17 @@ from app.minio_client import ensure_bucket
 from app.redis_client import redis
 from app.routers import (
     assistant,
+    analytics,
     audit,
     auth,
+    billing,
+    clinical_templates,
     faxes,
+    integration_capabilities,
     integrations,
     messages,
     patients,
+    portal_intake,
     scheduling,
     settings as settings_router,
     tasks,
@@ -70,13 +75,18 @@ async def readiness_check():
 
 app.include_router(audit.router)
 app.include_router(assistant.router)
+app.include_router(analytics.router)
 app.include_router(auth.router)
+app.include_router(billing.router)
+app.include_router(clinical_templates.router)
 app.include_router(patients.router)
+app.include_router(portal_intake.router)
 app.include_router(tasks.router)
 app.include_router(users.router)
 app.include_router(scheduling.router)
 app.include_router(settings_router.router)
 app.include_router(faxes.router)
+app.include_router(integration_capabilities.router)
 app.include_router(integrations.router)
 app.include_router(messages.router)
 app.include_router(webhooks.router)

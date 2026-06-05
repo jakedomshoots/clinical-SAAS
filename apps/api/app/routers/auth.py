@@ -77,6 +77,18 @@ async def me(current_user: User = Depends(get_current_user)):  # noqa: B008
     return UserOut.model_validate(current_user)
 
 
+@router.get("/session-policy")
+async def session_policy(current_user: User = Depends(get_current_user)):  # noqa: B008
+    return {
+        "user_id": current_user.id,
+        "role": current_user.role.value,
+        "access_token_expire_minutes": settings.access_token_expire_minutes,
+        "mfa_required": settings.is_production,
+        "phi_reauth_required": settings.is_production,
+        "audit_events": ["auth.login", "patient_document.accessed", "settings.updated"],
+    }
+
+
 @router.post("/seed", status_code=status.HTTP_201_CREATED)
 async def seed(db: AsyncSession = Depends(get_db)):  # noqa: B008
     if not settings.allow_seed_endpoint:

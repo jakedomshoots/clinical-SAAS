@@ -523,8 +523,32 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         health_report_script: { ok: true, path: 'scripts/health-report.sh' },
         local_backup_script: { ok: true, path: 'scripts/backup-local.sh' },
         latest_backup: { ok: false, path: 'backups', last_success_at: null, error: 'No backup manifest found' },
+        latest_restore: { ok: false, path: 'backups/latest-restore.txt', last_success_at: null, error: 'No restore marker found' },
       },
     } as T;
+  }
+
+  if (path === '/analytics/summary' && method === 'GET') {
+    return {
+      schedule: { scheduled: appointments.filter((item) => item.status === 'scheduled').length, active: appointments.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout'].includes(item.status)).length, no_show: appointments.filter((item) => item.status === 'no_show').length },
+      work: { open_tasks: tasks.filter((item) => ['open', 'in_progress'].includes(item.status)).length, documents_needing_review: patientDocuments.filter((item) => item.status === 'needs_review').length, unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length },
+      front_office: { unmatched_faxes: faxes.filter((item) => !item.patient_id).length, intake_needing_review: 0 },
+      billing: { draft_cases: 0, denied_cases: 0 },
+    } as T;
+  }
+
+  if (path === '/integration-capabilities' && method === 'GET') {
+    return {
+      ehr: { configured: false, supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'] },
+      portal: { configured: false, supports: ['messages', 'intake', 'appointment_requests'] },
+      fax: { configured: false, supports: ['inbound', 'outbound', 'document_matching'] },
+      calendar: { configured: false, supports: ['appointment_create', 'appointment_update'] },
+      communications: { configured: false, supports: ['sms', 'email', 'delivery_callbacks'] },
+    } as T;
+  }
+
+  if (path === '/auth/session-policy' && method === 'GET') {
+    return { user_id: uuid(1), role: 'admin', access_token_expire_minutes: 480, mfa_required: false, phi_reauth_required: false, audit_events: ['auth.login', 'patient_document.accessed', 'settings.updated'] } as T;
   }
 
   if (path === '/settings' && method === 'GET') return clinicSettings as T;

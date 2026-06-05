@@ -37,4 +37,8 @@ docker compose -f "$COMPOSE_FILE" exec -T minio sh -lc "rm -rf /data/concierge-o
 docker compose -f "$COMPOSE_FILE" exec -T minio sh -lc "tar -C /data -xf -" \
   < "$BACKUP_DIR/minio-concierge-os.tar"
 
+mkdir -p "$ROOT_DIR/backups"
+date -u +"restored_at=%Y%m%dT%H%M%SZ" > "$ROOT_DIR/backups/latest-restore.txt"
+echo "restore_source=$BACKUP_DIR" >> "$ROOT_DIR/backups/latest-restore.txt"
+
 echo "Restore complete from $BACKUP_DIR"

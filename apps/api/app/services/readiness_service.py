@@ -100,6 +100,7 @@ def _check_deployment_assets() -> dict:
         for key, path in assets.items()
     }
     deployment["latest_backup"] = _latest_backup_status(repo_root)
+    deployment["latest_restore"] = _latest_restore_status(repo_root)
     return deployment
 
 
@@ -119,3 +120,15 @@ def _latest_backup_status(repo_root: Path) -> dict:
         "path": str(latest.relative_to(repo_root)),
         "last_success_at": created_at,
     }
+
+
+def _latest_restore_status(repo_root: Path) -> dict:
+    marker = repo_root / "backups" / "latest-restore.txt"
+    if not marker.exists():
+        return {"ok": False, "path": "backups/latest-restore.txt", "last_success_at": None, "error": "No restore marker found"}
+    restored_at = None
+    for line in marker.read_text().splitlines():
+        if line.startswith("restored_at="):
+            restored_at = line.split("=", 1)[1]
+            break
+    return {"ok": True, "path": "backups/latest-restore.txt", "last_success_at": restored_at}

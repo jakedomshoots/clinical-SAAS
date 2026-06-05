@@ -1,0 +1,42 @@
+from datetime import datetime
+
+from pydantic import BaseModel
+
+
+class BillingCaseCreate(BaseModel):
+    patient_id: str
+    appointment_id: str | None = None
+    payer: str | None = None
+    cpt_codes: list[str] = []
+    diagnosis_codes: list[str] = []
+    notes: str | None = None
+
+
+class BillingCaseUpdate(BaseModel):
+    status: str | None = None
+    payer: str | None = None
+    eligibility_status: str | None = None
+    cpt_codes: list[str] | None = None
+    diagnosis_codes: list[str] | None = None
+    notes: str | None = None
+
+
+class BillingCaseOut(BaseModel):
+    id: str
+    patient_id: str
+    appointment_id: str | None
+    status: str
+    payer: str | None
+    eligibility_status: str
+    cpt_codes: list[str]
+    diagnosis_codes: list[str]
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class BillingCaseListOut(BaseModel):
+    data: list[BillingCaseOut]
+    total: int
