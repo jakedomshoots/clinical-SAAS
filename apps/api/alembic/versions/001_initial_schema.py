@@ -167,8 +167,33 @@ def upgrade() -> None:
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), index=True),
     )
 
+    op.create_table(
+        'integration_events',
+        sa.Column('id', sa.String(36), primary_key=True),
+        sa.Column('organization_id', sa.String(36), nullable=False, server_default='default', index=True),
+        sa.Column('integration', sa.String(50), nullable=False, index=True),
+        sa.Column('direction', sa.String(20), nullable=False),
+        sa.Column('action', sa.String(100), nullable=False),
+        sa.Column(
+            'status',
+            sa.Enum('pending', 'succeeded', 'failed', 'retrying', name='integrationeventstatus'),
+            nullable=False,
+            server_default='pending',
+            index=True,
+        ),
+        sa.Column('entity_type', sa.String(50), nullable=True),
+        sa.Column('entity_id', sa.String(36), nullable=True, index=True),
+        sa.Column('idempotency_key', sa.String(120), nullable=True, index=True),
+        sa.Column('attempts', sa.Integer(), server_default='0'),
+        sa.Column('error', sa.String(500), nullable=True),
+        sa.Column('payload', sa.JSON(), server_default=sa.text("'{}'")),
+        sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), index=True),
+        sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
+    )
+
 
 def downgrade() -> None:
+    op.drop_table('integration_events')
     op.drop_table('messages')
     op.drop_table('faxes')
     op.drop_table('provider_availability')

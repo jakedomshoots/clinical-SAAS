@@ -116,6 +116,12 @@ Local restore:
 pnpm restore:local backups/<timestamp>
 ```
 
+Validate a backup folder without restoring it:
+
+```sh
+pnpm backup:validate backups/<timestamp>
+```
+
 Run API migrations explicitly before production-style startup:
 
 ```sh

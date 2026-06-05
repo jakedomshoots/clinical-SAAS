@@ -23,3 +23,9 @@ class AssistantFaxMatchRequest(BaseModel):
     context: str = Field(min_length=1, max_length=500)
     fax_id: str
     patient_id: str
+
+
+class AssistantPolicyOut(BaseModel):
+    allowed_tools: list[str]
+    confirmation_required: bool = True
+    execution_mode: str = "staff_confirmed"

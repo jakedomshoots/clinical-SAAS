@@ -131,3 +131,42 @@ async def test_assistant_fax_match_requires_front_office_role(
     )
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_assistant_policy_lists_tools_for_provider(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = await make_user(db, UserRole.provider, "assistant-policy-provider@example.com")
+
+    res = await client.get(
+        "/api/assistant/actions/policy",
+        headers=headers_for(provider),
+    )
+
+    assert res.status_code == 200
+    tools = set(res.json()["allowed_tools"])
+    assert "clinical.create_follow_up_task" in tools
+    assert "clinical.draft_portal_reply" in tools
+    assert "clinical.stage_fax_match" not in tools
+
+
+@pytest.mark.asyncio
+async def test_assistant_policy_lists_tools_for_front_desk(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    front_desk = await make_user(
+        db,
+        UserRole.front_desk,
+        "assistant-policy-front-desk@example.com",
+    )
+
+    res = await client.get(
+        "/api/assistant/actions/policy",
+        headers=headers_for(front_desk),
+    )
+
+    assert res.status_code == 200
+    assert res.json()["allowed_tools"] == ["clinical.stage_fax_match"]

@@ -2,19 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import clinical_write_required, front_office_write_required
+from app.deps import clinical_write_required, front_office_write_required, get_current_user
 from app.models.user import User
 from app.schemas.assistant import (
     AssistantFaxMatchRequest,
     AssistantFollowUpTaskRequest,
+    AssistantPolicyOut,
     AssistantPortalReplyDraftRequest,
 )
 from app.schemas.fax import FaxOut
 from app.schemas.message import MessageOut
 from app.schemas.task import TaskOut
 from app.services import assistant_service
+from app.services.assistant_policy import allowed_tools_for
 
 router = APIRouter(prefix="/api/assistant/actions", tags=["assistant"])
+
+
+@router.get("/policy", response_model=AssistantPolicyOut)
+async def get_assistant_policy(current_user: User = Depends(get_current_user)):  # noqa: B008
+    return AssistantPolicyOut(allowed_tools=allowed_tools_for(current_user))
 
 
 @router.post("/follow-up-task", response_model=TaskOut, status_code=status.HTTP_201_CREATED)

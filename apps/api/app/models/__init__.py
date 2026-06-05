@@ -6,3 +6,4 @@ from app.models.task import Task
 from app.models.schedule import Appointment, ProviderAvailability
 from app.models.fax import Fax
 from app.models.message import Message
+from app.models.integration_event import IntegrationEvent

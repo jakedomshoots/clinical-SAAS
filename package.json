@@ -8,6 +8,7 @@
     "dev:infra": "docker compose -f docker/docker-compose.yml up -d",
     "dev:infra:down": "docker compose -f docker/docker-compose.yml down",
     "backup:local": "sh scripts/backup-local.sh",
+    "backup:validate": "sh scripts/validate-backup.sh",
     "restore:local": "sh scripts/restore-local.sh",
     "migrate:api": "sh scripts/migrate-api.sh",
     "verify:local": "sh scripts/verify-local.sh",

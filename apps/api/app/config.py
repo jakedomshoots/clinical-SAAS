@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     portal_api_base_url: str = ""
     calendar_api_base_url: str = ""
     copilotkit_runtime_url: str = ""
+    webhook_shared_secret: str = ""
 
     @property
     def cors_origin_list(self) -> list[str]:

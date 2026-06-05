@@ -12,10 +12,12 @@ from app.routers import (
     audit,
     auth,
     faxes,
+    integrations,
     messages,
     patients,
     scheduling,
     tasks,
+    webhooks,
     websocket,
 )
 from app.services.auth_service import seed_admin
@@ -71,5 +73,7 @@ app.include_router(patients.router)
 app.include_router(tasks.router)
 app.include_router(scheduling.router)
 app.include_router(faxes.router)
+app.include_router(integrations.router)
 app.include_router(messages.router)
+app.include_router(webhooks.router)
 app.include_router(websocket.router)
