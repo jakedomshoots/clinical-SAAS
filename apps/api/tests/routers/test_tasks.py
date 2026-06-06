@@ -1,6 +1,7 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import UTC, datetime, timedelta
 
 from app.models.user import UserRole
 from tests.conftest import headers_for, make_user
@@ -42,6 +43,91 @@ async def test_list_tasks(client: AsyncClient, auth_headers, admin_user):
     assert res.status_code == 200
     data = res.json()
     assert data["total"] == 2
+
+
+@pytest.mark.asyncio
+async def test_task_work_queue_summarizes_daily_operations(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    nurse = await make_user(db, UserRole.ma, "task-queue-ma@clinic.example.com")
+    provider = await make_user(db, UserRole.provider, "task-queue-provider@clinic.example.com")
+    now = datetime.now(UTC)
+    overdue = (now - timedelta(days=1)).isoformat()
+    due_today = (now + timedelta(hours=2)).isoformat()
+    tomorrow = (now + timedelta(days=1)).isoformat()
+    await client.post(
+        "/api/tasks",
+        json={
+            "title": "Review urgent outside lab",
+            "priority": "urgent",
+            "due_date": overdue,
+            "assigned_to_id": provider.id,
+            "source_type": "document_processing",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/tasks",
+        json={
+            "title": "Call patient after checkout",
+            "priority": "high",
+            "due_date": due_today,
+            "assigned_to_id": nurse.id,
+            "source_type": "checkout_handoff:care_plan",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/tasks",
+        json={
+            "title": "Unassigned insurance follow-up",
+            "priority": "normal",
+            "due_date": tomorrow,
+            "source_type": "billing",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.post(
+        "/api/tasks",
+        json={"title": "Completed task", "priority": "urgent", "due_date": overdue},
+        headers=auth_headers,
+    )
+    await client.patch(
+        f"/api/tasks/{completed.json()['id']}",
+        json={"status": "completed"},
+        headers=auth_headers,
+    )
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-task-work-queue@clinic.example.com",
+        organization_id="other-org",
+    )
+    await client.post(
+        "/api/tasks",
+        json={"title": "Hidden urgent task", "priority": "urgent", "due_date": overdue},
+        headers=headers_for(other_user),
+    )
+
+    res = await client.get("/api/tasks/work-queue", headers=auth_headers)
+
+    assert res.status_code == 200
+    queue = res.json()
+    assert queue["open_count"] == 3
+    assert queue["urgent_count"] == 1
+    assert queue["high_priority_count"] == 2
+    assert queue["overdue_count"] == 1
+    assert queue["due_today_count"] == 1
+    assert queue["unassigned_count"] == 1
+    assert queue["role_buckets"]["provider"]["open_count"] == 1
+    assert queue["role_buckets"]["ma"]["open_count"] == 1
+    assert queue["role_buckets"]["unassigned"]["open_count"] == 1
+    assert queue["source_buckets"]["document_processing"] == 1
+    assert queue["source_buckets"]["checkout_handoff"] == 1
+    assert queue["source_buckets"]["billing"] == 1
+    assert queue["next_actions"][0]["severity"] == "critical"
 
 
 @pytest.mark.asyncio

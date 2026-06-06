@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Task, TaskOutreachSummary, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
+import type { Task, TaskOutreachSummary, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, TaskWorkQueue, User } from '@concierge-os/shared';
 import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
 interface TaskListResponse {
@@ -76,6 +76,10 @@ function TaskListPage() {
   const { data: outreachSummary } = useQuery({
     queryKey: QUERY_KEYS.TASK_OUTREACH_SUMMARY,
     queryFn: () => api.get<TaskOutreachSummary>(ROUTES.TASK_PATIENT_OUTREACH_SUMMARY),
+  });
+  const { data: workQueue } = useQuery({
+    queryKey: [...QUERY_KEYS.TASKS, 'work-queue'],
+    queryFn: () => api.get<TaskWorkQueue>(ROUTES.TASK_WORK_QUEUE),
   });
   const staffRows = staff?.data ?? [];
 
@@ -188,6 +192,95 @@ function TaskListPage() {
           </div>
         ))}
       </section>
+
+      {workQueue && (
+        <section className="mb-4 rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Work Queue Control</h2>
+              <p className="text-xs text-clinic-500">{new Date(workQueue.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workQueue.overdue_count} overdue</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workQueue.unassigned_count} unassigned</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workQueue.due_today_count} due today</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid gap-2 md:grid-cols-4">
+              {[
+                ['Open', workQueue.open_count],
+                ['In progress', workQueue.in_progress_count],
+                ['Urgent', workQueue.urgent_count],
+                ['High priority', workQueue.high_priority_count],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2">
+                  <div className="text-lg font-semibold text-clinic-900">{value}</div>
+                  <div className="text-xs text-clinic-500">{label}</div>
+                </div>
+              ))}
+              <div className="md:col-span-2">
+                <div className="mb-1 text-xs font-semibold uppercase text-clinic-500">Role buckets</div>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {Object.entries(workQueue.role_buckets).map(([role, bucket]) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setStatusFilter('')}
+                      className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-left text-xs hover:bg-clinic-50"
+                    >
+                      <span className="font-medium capitalize text-clinic-800">{role.replace('_', ' ')}</span>
+                      <span className="ml-2 text-clinic-500">{bucket.open_count} open · {bucket.urgent_count} urgent</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <div className="mb-1 text-xs font-semibold uppercase text-clinic-500">Source buckets</div>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {Object.entries(workQueue.source_buckets).map(([source, count]) => (
+                    <button
+                      key={source}
+                      type="button"
+                      onClick={() => { setSourceFilter(source === 'checkout_handoff' ? 'checkout' : ''); setPage(1); }}
+                      className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-left text-xs hover:bg-clinic-50"
+                    >
+                      <span className="font-medium capitalize text-clinic-800">{source.replace('_', ' ')}</span>
+                      <span className="ml-2 text-clinic-500">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Next actions</div>
+              <div className="divide-y divide-clinic-100">
+                {workQueue.next_actions.map((action) => (
+                  <button
+                    key={action.key}
+                    type="button"
+                    onClick={() => {
+                      if (action.key === 'urgent') setPriorityFilter('urgent');
+                      if (action.key === 'unassigned') setStatusFilter('');
+                      setPage(1);
+                    }}
+                    className="block w-full px-3 py-2 text-left hover:bg-clinic-50"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                  </button>
+                ))}
+                {workQueue.next_actions.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No work queue actions.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
 
       {isLoading ? (
         <LoadingState label="Loading tasks" />

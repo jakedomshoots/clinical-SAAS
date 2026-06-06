@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, time
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -113,6 +115,53 @@ async def get_task(db: AsyncSession, user: User, task_id: str) -> dict | None:
         ).scalar_one_or_none()
         d["patient_name"] = f"{p.last_name}, {p.first_name}" if p else None
     return d
+
+
+async def work_queue_summary(db: AsyncSession, user: User) -> dict:
+    now = datetime.now(UTC).replace(tzinfo=None)
+    today_end = datetime.combine(now.date(), time.max)
+    rows = (
+        await db.execute(
+            select(Task, User.role)
+            .outerjoin(User, Task.assigned_to_id == User.id)
+            .where(
+                Task.organization_id == user.organization_id,
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+            )
+        )
+    ).all()
+    tasks = [row[0] for row in rows]
+    role_buckets: dict[str, dict] = {}
+    source_buckets: dict[str, int] = {}
+    for task, role in rows:
+        role_key = role.value if role else "unassigned"
+        bucket = role_buckets.setdefault(role_key, {"open_count": 0, "urgent_count": 0, "overdue_count": 0})
+        bucket["open_count"] += 1
+        if task.priority == TaskPriority.urgent:
+            bucket["urgent_count"] += 1
+        if task.due_date and task.due_date < now:
+            bucket["overdue_count"] += 1
+        source_key = _task_source_bucket(task.source_type)
+        source_buckets[source_key] = source_buckets.get(source_key, 0) + 1
+
+    urgent_count = sum(1 for task in tasks if task.priority == TaskPriority.urgent)
+    high_priority_count = sum(1 for task in tasks if task.priority in {TaskPriority.high, TaskPriority.urgent})
+    overdue_count = sum(1 for task in tasks if task.due_date and task.due_date < now)
+    due_today_count = sum(1 for task in tasks if task.due_date and now <= task.due_date <= today_end)
+    unassigned_count = sum(1 for task in tasks if not task.assigned_to_id)
+    return {
+        "generated_at": now.isoformat(),
+        "open_count": sum(1 for task in tasks if task.status == TaskStatus.open),
+        "in_progress_count": sum(1 for task in tasks if task.status == TaskStatus.in_progress),
+        "urgent_count": urgent_count,
+        "high_priority_count": high_priority_count,
+        "overdue_count": overdue_count,
+        "due_today_count": due_today_count,
+        "unassigned_count": unassigned_count,
+        "role_buckets": role_buckets,
+        "source_buckets": source_buckets,
+        "next_actions": _task_work_queue_actions(overdue_count, urgent_count, unassigned_count, due_today_count),
+    }
 
 
 async def create_task(db: AsyncSession, user: User, data: dict) -> dict | None:
@@ -407,6 +456,51 @@ def _get_value(source: Patient | dict, key: str, fallback: str | None = None, de
             return source[fallback]
         return default
     return getattr(source, key, default)
+
+
+def _task_source_bucket(source_type: str | None) -> str:
+    if not source_type:
+        return "manual"
+    if source_type.startswith("checkout_handoff:"):
+        return "checkout_handoff"
+    return source_type
+
+
+def _task_work_queue_actions(overdue_count: int, urgent_count: int, unassigned_count: int, due_today_count: int) -> list[dict]:
+    actions = []
+    if overdue_count:
+        actions.append({
+            "key": "overdue",
+            "label": "Clear overdue work",
+            "detail": f"{overdue_count} open task(s) are past due.",
+            "severity": "critical",
+            "route": "/tasks",
+        })
+    if urgent_count:
+        actions.append({
+            "key": "urgent",
+            "label": "Review urgent work",
+            "detail": f"{urgent_count} urgent task(s) need same-day ownership.",
+            "severity": "critical",
+            "route": "/tasks",
+        })
+    if unassigned_count:
+        actions.append({
+            "key": "unassigned",
+            "label": "Assign open work",
+            "detail": f"{unassigned_count} open task(s) have no owner.",
+            "severity": "warning",
+            "route": "/tasks",
+        })
+    if due_today_count:
+        actions.append({
+            "key": "due_today",
+            "label": "Prepare today's queue",
+            "detail": f"{due_today_count} task(s) are due today.",
+            "severity": "warning",
+            "route": "/tasks",
+        })
+    return actions
 
 
 async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:

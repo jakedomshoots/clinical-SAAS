@@ -56,6 +56,28 @@ export interface TaskPatientOutreachDelivery {
   retryable: boolean;
 }
 
+export interface TaskWorkQueueAction {
+  key: string;
+  label: string;
+  detail: string;
+  severity: 'critical' | 'warning';
+  route: string;
+}
+
+export interface TaskWorkQueue {
+  generated_at: string;
+  open_count: number;
+  in_progress_count: number;
+  urgent_count: number;
+  high_priority_count: number;
+  overdue_count: number;
+  due_today_count: number;
+  unassigned_count: number;
+  role_buckets: Record<string, { open_count: number; urgent_count: number; overdue_count: number }>;
+  source_buckets: Record<string, number>;
+  next_actions: TaskWorkQueueAction[];
+}
+
 export interface TaskOutreachSummary {
   queued_count: number;
   delivered_count: number;

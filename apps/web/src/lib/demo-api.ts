@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -107,6 +107,47 @@ function outreachSummary() {
     no_contact_blocked_count: outreachTasks.filter((task) => task.delivery_status === 'blocked' && task.delivery_error?.toLowerCase().includes('recipient')).length,
     total_outreach_tasks: outreachTasks.length,
     consent_required: true,
+  };
+}
+
+function taskWorkQueue(): TaskWorkQueue {
+  const now = new Date();
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const openTasks = tasks.filter((task) => ['open', 'in_progress'].includes(task.status));
+  const roleBuckets: TaskWorkQueue['role_buckets'] = {};
+  const sourceBuckets: Record<string, number> = {};
+  openTasks.forEach((task) => {
+    const assignee = demoUsers.find((user) => user.id === task.assigned_to_id);
+    const role = assignee?.role ?? 'unassigned';
+    roleBuckets[role] = roleBuckets[role] ?? { open_count: 0, urgent_count: 0, overdue_count: 0 };
+    roleBuckets[role].open_count += 1;
+    if (task.priority === 'urgent') roleBuckets[role].urgent_count += 1;
+    if (task.due_date && new Date(task.due_date) < now) roleBuckets[role].overdue_count += 1;
+    const source = task.source_type?.startsWith('checkout_handoff:') ? 'checkout_handoff' : task.source_type ?? 'manual';
+    sourceBuckets[source] = (sourceBuckets[source] ?? 0) + 1;
+  });
+  const urgentCount = openTasks.filter((task) => task.priority === 'urgent').length;
+  const overdueCount = openTasks.filter((task) => task.due_date && new Date(task.due_date) < now).length;
+  const unassignedCount = openTasks.filter((task) => !task.assigned_to_id).length;
+  const dueTodayCount = openTasks.filter((task) => task.due_date && new Date(task.due_date) >= now && new Date(task.due_date) <= todayEnd).length;
+  return {
+    generated_at: now.toISOString(),
+    open_count: openTasks.filter((task) => task.status === 'open').length,
+    in_progress_count: openTasks.filter((task) => task.status === 'in_progress').length,
+    urgent_count: urgentCount,
+    high_priority_count: openTasks.filter((task) => ['urgent', 'high'].includes(task.priority)).length,
+    overdue_count: overdueCount,
+    due_today_count: dueTodayCount,
+    unassigned_count: unassignedCount,
+    role_buckets: roleBuckets,
+    source_buckets: sourceBuckets,
+    next_actions: [
+      ...(overdueCount ? [{ key: 'overdue', label: 'Clear overdue work', detail: `${overdueCount} open task(s) are past due.`, severity: 'critical' as const, route: '/tasks' }] : []),
+      ...(urgentCount ? [{ key: 'urgent', label: 'Review urgent work', detail: `${urgentCount} urgent task(s) need same-day ownership.`, severity: 'critical' as const, route: '/tasks' }] : []),
+      ...(unassignedCount ? [{ key: 'unassigned', label: 'Assign open work', detail: `${unassignedCount} open task(s) have no owner.`, severity: 'warning' as const, route: '/tasks' }] : []),
+      ...(dueTodayCount ? [{ key: 'due_today', label: "Prepare today's queue", detail: `${dueTodayCount} task(s) are due today.`, severity: 'warning' as const, route: '/tasks' }] : []),
+    ],
   };
 }
 
@@ -3672,6 +3713,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/tasks/patient-outreach/summary' && method === 'GET') {
     return outreachSummary() as T;
+  }
+
+  if (path === '/tasks/work-queue' && method === 'GET') {
+    return taskWorkQueue() as T;
   }
 
   const taskOutreachDeliverMatch = path.match(/^\/tasks\/([^/]+)\/patient-outreach\/deliver$/);

@@ -58,6 +58,28 @@ class TaskListOut(BaseModel):
     page_size: int
 
 
+class TaskWorkQueueActionOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    severity: str
+    route: str
+
+
+class TaskWorkQueueOut(BaseModel):
+    generated_at: str
+    open_count: int
+    in_progress_count: int
+    urgent_count: int
+    high_priority_count: int
+    overdue_count: int
+    due_today_count: int
+    unassigned_count: int
+    role_buckets: dict[str, dict]
+    source_buckets: dict[str, int]
+    next_actions: list[TaskWorkQueueActionOut]
+
+
 class TaskPatientOutreachDraftOut(BaseModel):
     task_id: str
     patient_id: str

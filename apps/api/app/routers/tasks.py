@@ -15,6 +15,7 @@ from app.schemas.task import (
     TaskPatientOutreachDraftOut,
     TaskPatientOutreachSend,
     TaskUpdate,
+    TaskWorkQueueOut,
 )
 from app.services import task_service
 
@@ -62,6 +63,14 @@ async def patient_outreach_summary(
     current_user: CurrentUserDep,
 ):
     return TaskOutreachSummaryOut(**await task_service.outreach_summary(db, current_user))
+
+
+@router.get("/work-queue", response_model=TaskWorkQueueOut)
+async def task_work_queue(
+    db: DbDep,
+    current_user: CurrentUserDep,
+):
+    return TaskWorkQueueOut(**await task_service.work_queue_summary(db, current_user))
 
 
 @router.get("/{task_id}", response_model=TaskOut)
