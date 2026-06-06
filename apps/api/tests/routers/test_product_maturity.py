@@ -7,6 +7,7 @@ from app.models.audit import AuditLog
 from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
 from app.models.user import User, UserRole
 from app.services.auth_service import hash_password
+from app.services import operations_service
 from tests.conftest import headers_for, make_user
 
 
@@ -764,6 +765,114 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
     assert rehearsal_evidence["status"] == "blocking"
     assert data["open_workplan_items"]
     assert all(item["route"] for item in data["open_workplan_items"])
+
+
+@pytest.mark.asyncio
+async def test_go_live_packet_requires_all_evidence_ready(monkeypatch):
+    async def fake_check_readiness():
+        return {
+            "environment": "test",
+            "status": "ok",
+            "operational_status": "ok",
+            "deployment": {
+                "latest_backup": {"ok": True, "last_success_at": "2026-06-06T12:00:00Z"},
+                "latest_restore": {"ok": True, "last_success_at": "2026-06-06T12:30:00Z"},
+            },
+        }
+
+    async def fake_launch_readiness():
+        return {"score": 100, "critical_blockers": 0, "warnings": 0}
+
+    async def fake_credential_preflight(db, user):
+        return {"blocking_count": 0, "staged_count": 0}
+
+    async def fake_launch_workplan(db, user):
+        return {
+            "blocking_count": 0,
+            "warning_count": 0,
+            "items": [],
+        }
+
+    async def fake_readiness_snapshots(db, user):
+        return ([
+            {
+                "id": "readiness-warning",
+                "created_at": datetime.now(UTC),
+                "operational_status": "ok",
+                "core_status": "ok",
+                "launch_score": 100,
+                "incident_count": 1,
+                "critical_count": 0,
+                "warning_count": 1,
+            }
+        ], 1)
+
+    async def fake_rehearsal_snapshots(db, user):
+        return ([
+            {
+                "id": "rehearsal-ready",
+                "created_at": datetime.now(UTC),
+                "rehearsal_ready": True,
+                "blocking_count": 0,
+                "warning_count": 0,
+            }
+        ], 1)
+
+    async def fake_workplan_snapshots(db, user):
+        return ([
+            {
+                "id": "workplan-ready",
+                "created_at": datetime.now(UTC),
+                "blocking_count": 0,
+                "warning_count": 0,
+                "assigned_count": 0,
+                "unassigned_count": 0,
+                "unassigned_blocking_count": 0,
+            }
+        ], 1)
+
+    async def fake_empty_list(db, user):
+        return ([], 0)
+
+    async def fake_role_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_browser_sessions(db, user):
+        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_training_sessions(db, user):
+        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_policy_sessions(db, user):
+        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_restore_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_cutover_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+
+    monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
+    monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
+    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
+    monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
+    monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
+    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
+    monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
+    monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
+    monkeypatch.setattr(operations_service, "list_staff_training_sessions", fake_training_sessions)
+    monkeypatch.setattr(operations_service, "list_policy_approval_sessions", fake_policy_sessions)
+    monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
+    monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
+
+    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+
+    assert packet["blocking_count"] == 0
+    assert packet["warning_count"] > 0
+    assert packet["evidence_ready_count"] < packet["evidence_total"]
+    assert packet["go_live_ready"] is False
 
 
 @pytest.mark.asyncio

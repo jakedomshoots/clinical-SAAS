@@ -1740,9 +1740,11 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     blocking = sum(1 for item in evidence if item["status"] == "blocking") + workplan["blocking_count"] + launch["critical_blockers"]
     warnings = sum(1 for item in evidence if item["status"] == "warning") + workplan["warning_count"] + launch["warnings"]
     ready_count = sum(1 for item in evidence if item["status"] == "ready")
+    all_evidence_ready = ready_count == len(evidence)
+    go_live_ready = blocking == 0 and warnings == 0 and all_evidence_ready and readiness["operational_status"] == "ok"
     return {
-        "status": "ready" if blocking == 0 and readiness["operational_status"] == "ok" else "attention",
-        "go_live_ready": blocking == 0 and readiness["operational_status"] == "ok",
+        "status": "ready" if go_live_ready else "attention",
+        "go_live_ready": go_live_ready,
         "generated_at": datetime.now(UTC),
         "environment": readiness["environment"],
         "core_status": readiness["status"],
