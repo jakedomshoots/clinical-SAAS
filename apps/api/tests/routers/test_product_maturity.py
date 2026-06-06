@@ -805,6 +805,40 @@ async def test_vendor_credential_request_packet_prepares_vendor_outreach(client,
 
 
 @pytest.mark.asyncio
+async def test_adapter_implementation_packet_maps_placeholder_work(client, auth_headers):
+    packet = await client.get("/api/operations/adapter-implementation-packet", headers=auth_headers)
+    exported = await client.get("/api/operations/adapter-implementation-packet/export", headers=auth_headers)
+
+    assert packet.status_code == 200
+    data = packet.json()
+    assert data["total"] >= 6
+    assert data["export_filename"] == "concierge-os-adapter-implementation-packet.csv"
+    assert data["summary"]["total"] == data["total"]
+    assert data["placeholder_count"] >= 1
+    assert data["generated_at"]
+
+    fax = next(item for item in data["items"] if item["integration"] == "fax")
+    assert fax["label"] == "Fax provider"
+    assert fax["implementation_status"] in {"implemented", "placeholder", "sandbox_only"}
+    assert fax["priority"] in {"critical", "high", "normal"}
+    assert fax["adapter_method_total"] >= 4
+    assert isinstance(fax["adapter_methods"], list)
+    assert isinstance(fax["required_credentials"], list)
+    assert isinstance(fax["sandbox_tests"], list)
+    assert isinstance(fax["implementation_phases"], list)
+    assert any(phase["key"] == "adapter_contract" for phase in fax["implementation_phases"])
+    assert isinstance(fax["blockers"], list)
+    assert "docs/integrations/vendor-adapter-plan.md" in fax["docs"]
+    assert fax["route"] == "/integrations"
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-adapter-implementation-packet.csv" in exported.headers["content-disposition"]
+    assert "integration,label,implementation_status,priority" in exported.text
+    assert "fax,Fax provider" in exported.text
+
+
+@pytest.mark.asyncio
 async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
     snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)

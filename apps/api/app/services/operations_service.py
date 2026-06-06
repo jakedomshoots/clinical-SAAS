@@ -1616,6 +1616,37 @@ async def vendor_credential_request_packet(db: AsyncSession, user: User) -> dict
     }
 
 
+async def adapter_implementation_packet(db: AsyncSession, user: User) -> dict:
+    preflight = await integration_config_service.credential_preflight(db, user)
+    items = [_adapter_implementation_item(item) for item in preflight.get("data", [])]
+    implemented_count = sum(1 for item in items if item["implementation_status"] == "implemented")
+    placeholder_count = sum(1 for item in items if item["implementation_status"] == "placeholder")
+    sandbox_only_count = sum(1 for item in items if item["implementation_status"] == "sandbox_only")
+    critical_count = sum(1 for item in items if item["priority"] == "critical")
+    high_count = sum(1 for item in items if item["priority"] == "high")
+    status = "ready" if placeholder_count == 0 and sandbox_only_count == 0 else "blocked" if critical_count else "attention"
+    return {
+        "status": status,
+        "generated_at": datetime.now(UTC),
+        "export_filename": "concierge-os-adapter-implementation-packet.csv",
+        "implemented_count": implemented_count,
+        "placeholder_count": placeholder_count,
+        "sandbox_only_count": sandbox_only_count,
+        "critical_count": critical_count,
+        "high_count": high_count,
+        "total": len(items),
+        "summary": {
+            "total": len(items),
+            "implemented": implemented_count,
+            "placeholder": placeholder_count,
+            "sandbox_only": sandbox_only_count,
+            "critical": critical_count,
+            "high": high_count,
+        },
+        "items": items,
+    }
+
+
 async def _vendor_handoff_archive_workplan_items(
     db: AsyncSession | None,
     user: User,
@@ -2381,6 +2412,30 @@ def vendor_credential_request_packet_csv(packet: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def adapter_implementation_packet_csv(packet: dict) -> str:
+    rows = [
+        "integration,label,implementation_status,priority,readiness_mode,configured,adapter_method_ready_count,adapter_method_total,required_credentials,missing_credentials,workflows,sandbox_tests,blockers,route"
+    ]
+    for item in packet["items"]:
+        rows.append(_csv_row([
+            item["integration"],
+            item["label"],
+            item["implementation_status"],
+            item["priority"],
+            item["readiness_mode"],
+            str(item["configured"]).lower(),
+            str(item["adapter_method_ready_count"]),
+            str(item["adapter_method_total"]),
+            "; ".join(item["required_credentials"]),
+            "; ".join(item["missing_credentials"]),
+            "; ".join(item["workflows"]),
+            "; ".join(item["sandbox_tests"]),
+            "; ".join(item["blockers"]),
+            item["route"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 def live_use_rehearsal_csv(dashboard: dict) -> str:
     rows = ["section,key,label,status,detail,route"]
     for gate in dashboard["gates"]:
@@ -3052,6 +3107,111 @@ def _vendor_credential_request_body(
         "",
         "Please also confirm any IP allowlists, callback URLs, sandbox test references, and production cutover requirements for this integration.",
     ])
+
+
+def _adapter_implementation_item(item: dict) -> dict:
+    adapter_implemented = bool(item.get("adapter_implemented"))
+    readiness_mode = item.get("readiness_mode") or "production_vendor"
+    if adapter_implemented and readiness_mode == "production_vendor":
+        implementation_status = "implemented"
+    elif readiness_mode == "local_sandbox":
+        implementation_status = "sandbox_only"
+    else:
+        implementation_status = "placeholder"
+
+    priority = _adapter_priority(item, implementation_status)
+    required_credentials = sorted(set((item.get("configured_fields") or []) + (item.get("missing_fields") or [])))
+    phases = _adapter_implementation_phases(item, implementation_status)
+    blockers = list(item.get("blockers") or [])
+    if implementation_status == "placeholder":
+        blockers.append(item.get("adapter_detail") or f"Implement the {item['label']} production adapter before live use.")
+    elif implementation_status == "sandbox_only":
+        blockers.append("Local sandbox adapter is rehearsal-only and must be replaced with production vendor adapter evidence before live use.")
+    if item.get("missing_fields"):
+        blockers.append(f"Credential values still missing: {', '.join(item['missing_fields'])}.")
+
+    return {
+        "integration": item["key"],
+        "label": item["label"],
+        "implementation_status": implementation_status,
+        "priority": priority,
+        "readiness_mode": readiness_mode,
+        "configured": item["configured"],
+        "adapter_implemented": adapter_implemented,
+        "adapter_method_ready_count": item["adapter_method_ready_count"],
+        "adapter_method_total": item["adapter_method_total"],
+        "adapter_methods": item.get("adapter_methods", []),
+        "required_credentials": required_credentials,
+        "missing_credentials": list(item.get("missing_fields") or []),
+        "workflows": item.get("workflows", []),
+        "sandbox_tests": item.get("sandbox_tests", []),
+        "implementation_phases": phases,
+        "blockers": blockers,
+        "docs": item.get("docs", []),
+        "route": "/integrations",
+    }
+
+
+def _adapter_priority(item: dict, implementation_status: str) -> str:
+    if implementation_status == "implemented":
+        return "normal"
+    if item["key"] in {"fax", "communications", "portal"}:
+        return "critical"
+    if item["key"] in {"ehr", "calendar", "clearinghouse"}:
+        return "high"
+    return "normal"
+
+
+def _adapter_implementation_phases(item: dict, implementation_status: str) -> list[dict]:
+    missing_credentials = item.get("missing_fields") or []
+    adapter_ready = item.get("adapter_method_ready_count", 0) == item.get("adapter_method_total", 0) and item.get("adapter_method_total", 0) > 0
+    sandbox_count = len(item.get("sandbox_tests", []))
+    sandbox_passed = sum(1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed")
+    vendor_reference_count = sum(
+        1
+        for evidence in item.get("sandbox_evidence", [])
+        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+    )
+    return [
+        {
+            "key": "vendor_selection",
+            "label": "Vendor selection and credential scope",
+            "status": "ready" if not missing_credentials else "attention",
+            "detail": (
+                "Required credential fields are identified and staged."
+                if not missing_credentials
+                else f"Missing credential field(s): {', '.join(missing_credentials)}."
+            ),
+        },
+        {
+            "key": "adapter_contract",
+            "label": "Adapter contract implementation",
+            "status": "ready" if adapter_ready else "blocked",
+            "detail": f"{item.get('adapter_method_ready_count', 0)} of {item.get('adapter_method_total', 0)} required adapter method(s) are ready.",
+        },
+        {
+            "key": "workflow_mapping",
+            "label": "Workflow mapping",
+            "status": "ready" if item.get("workflows") else "attention",
+            "detail": ", ".join(item.get("workflows") or ["Workflow mapping needs to be defined."]),
+        },
+        {
+            "key": "sandbox_evidence",
+            "label": "Sandbox evidence",
+            "status": "ready" if sandbox_count and sandbox_passed == sandbox_count else "attention",
+            "detail": f"{sandbox_passed} of {sandbox_count} sandbox workflow(s) have passing evidence.",
+        },
+        {
+            "key": "production_vendor_evidence",
+            "label": "Production vendor evidence",
+            "status": "ready" if item.get("production_ready") else "blocked" if implementation_status != "implemented" else "attention",
+            "detail": (
+                "Production-vendor readiness is recorded."
+                if item.get("production_ready")
+                else f"{vendor_reference_count} of {sandbox_count} workflow(s) have vendor reference URLs."
+            ),
+        },
+    ]
 
 
 def _credential_binder_archive(item: dict, archive: dict | None) -> dict:

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
+import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -250,6 +250,10 @@ function OperationsPage() {
   const { data: vendorCredentialPacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'vendor-credential-request-packet'],
     queryFn: () => api.get<VendorCredentialRequestPacket>(ROUTES.OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET),
+  });
+  const { data: adapterPacket } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'adapter-implementation-packet'],
+    queryFn: () => api.get<AdapterImplementationPacket>(ROUTES.OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET),
   });
   const { data: credentialBinderSnapshots } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'credential-dry-run-binder'],
@@ -927,6 +931,68 @@ function OperationsPage() {
                 </div>
                 <div className="mt-2 text-xs text-clinic-500">{snapshot.blocking_count} blocking, {snapshot.warning_count} warning, {snapshot.archive_ready_count}/{snapshot.total} archives ready</div>
               </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {adapterPacket && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <PlugZap className="h-4 w-4 text-accent-600" />
+                Adapter Implementation Packet
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(adapterPacket.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${adapterPacket.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : adapterPacket.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                {adapterPacket.status}
+              </span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{adapterPacket.critical_count} critical</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{adapterPacket.high_count} high</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{adapterPacket.implemented_count}/{adapterPacket.total} implemented</span>
+              <a
+                href={ROUTES.OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET_EXPORT}
+                download={adapterPacket.export_filename}
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {adapterPacket.items.map((item) => (
+              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{item.adapter_method_ready_count}/{item.adapter_method_total} methods · {item.workflows.length} workflows</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.priority === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : item.priority === 'high' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-clinic-200 bg-white text-clinic-600'}`}>
+                      {item.priority}
+                    </span>
+                    <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] text-clinic-500">{item.implementation_status}</span>
+                  </div>
+                </div>
+                <div className="mt-3 space-y-1">
+                  {item.implementation_phases.slice(0, 3).map((phase) => (
+                    <div key={phase.key} className="flex items-start justify-between gap-2 rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs">
+                      <div>
+                        <div className="font-medium text-clinic-800">{phase.label}</div>
+                        <div className="mt-0.5 text-clinic-500">{phase.detail}</div>
+                      </div>
+                      <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${phase.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : phase.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        {phase.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-clinic-500">{item.blockers[0] || item.docs[0] || 'Adapter implementation tracked.'}</div>
+              </Link>
             ))}
           </div>
         </section>

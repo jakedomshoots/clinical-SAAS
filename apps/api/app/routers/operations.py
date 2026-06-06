@@ -13,6 +13,7 @@ from app.schemas.operations import (
     BrowserQaSessionOut,
     BrowserQaSessionStart,
     BrowserQaSessionUpdate,
+    AdapterImplementationPacketOut,
     CredentialBinderSnapshotListOut,
     CredentialBinderSnapshotOut,
     CredentialDryRunBinderOut,
@@ -361,6 +362,23 @@ async def export_vendor_credential_request_packet(db: DbDep, current_user: OpsUs
     packet = await operations_service.vendor_credential_request_packet(db, current_user)
     return Response(
         content=operations_service.vendor_credential_request_packet_csv(packet),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
+    )
+
+
+@router.get("/adapter-implementation-packet", response_model=AdapterImplementationPacketOut)
+async def get_adapter_implementation_packet(db: DbDep, current_user: OpsUserDep):
+    return AdapterImplementationPacketOut(
+        **await operations_service.adapter_implementation_packet(db, current_user)
+    )
+
+
+@router.get("/adapter-implementation-packet/export")
+async def export_adapter_implementation_packet(db: DbDep, current_user: OpsUserDep):
+    packet = await operations_service.adapter_implementation_packet(db, current_user)
+    return Response(
+        content=operations_service.adapter_implementation_packet_csv(packet),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
     )

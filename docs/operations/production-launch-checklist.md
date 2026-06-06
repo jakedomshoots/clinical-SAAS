@@ -36,6 +36,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Every live integration has no unresolved vendor risk marked as blocking live-use rehearsal; blocking risks are mitigated or explicitly accepted by the launch owner.
 - Every live integration has an exported vendor handoff packet archived with the launch review evidence and visible as latest handoff archive evidence.
 - `/api/operations/credential-dry-run-binder` has been reviewed, saved as snapshot evidence, and exported so each live integration has credential status, vendor owner, sandbox reference coverage, handoff archive reference, and blockers in one launch artifact.
+- `/api/operations/adapter-implementation-packet` has been reviewed and exported so every placeholder or sandbox-only adapter has required contract methods, workflow mapping, sandbox tests, credential prerequisites, priority, docs, and production-vendor evidence gaps assigned before credential cutover.
 - `/api/operations/vendor-credential-request-packet` has been reviewed and exported so each vendor request has required credential fields, missing values, owner/support contact readiness, handoff archive context, sandbox reference coverage, checklist items, and draft request copy.
 - Failed sandbox evidence is resolved with a new passing evidence record before live-use rehearsal.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.

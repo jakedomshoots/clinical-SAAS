@@ -675,6 +675,48 @@ class VendorCredentialRequestPacketOut(BaseModel):
     items: list[VendorCredentialRequestItemOut]
 
 
+class AdapterImplementationPhaseOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    detail: str
+
+
+class AdapterImplementationItemOut(BaseModel):
+    integration: str
+    label: str
+    implementation_status: str
+    priority: str
+    readiness_mode: str
+    configured: bool
+    adapter_implemented: bool
+    adapter_method_ready_count: int
+    adapter_method_total: int
+    adapter_methods: list[dict]
+    required_credentials: list[str]
+    missing_credentials: list[str]
+    workflows: list[str]
+    sandbox_tests: list[str]
+    implementation_phases: list[AdapterImplementationPhaseOut]
+    blockers: list[str]
+    docs: list[str]
+    route: str
+
+
+class AdapterImplementationPacketOut(BaseModel):
+    status: str
+    generated_at: datetime
+    export_filename: str
+    implemented_count: int
+    placeholder_count: int
+    sandbox_only_count: int
+    critical_count: int
+    high_count: int
+    total: int
+    summary: dict[str, int]
+    items: list[AdapterImplementationItemOut]
+
+
 class CredentialBinderSnapshotOut(BaseModel):
     id: str
     created_at: datetime

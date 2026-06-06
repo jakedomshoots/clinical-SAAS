@@ -740,6 +740,48 @@ export interface VendorCredentialRequestPacket {
   items: VendorCredentialRequestItem[];
 }
 
+export interface AdapterImplementationPhase {
+  key: string;
+  label: string;
+  status: 'ready' | 'attention' | 'blocked';
+  detail: string;
+}
+
+export interface AdapterImplementationItem {
+  integration: string;
+  label: string;
+  implementation_status: 'implemented' | 'placeholder' | 'sandbox_only';
+  priority: 'critical' | 'high' | 'normal';
+  readiness_mode: CredentialPreflightItem['readiness_mode'];
+  configured: boolean;
+  adapter_implemented: boolean;
+  adapter_method_ready_count: number;
+  adapter_method_total: number;
+  adapter_methods: AdapterMethod[];
+  required_credentials: string[];
+  missing_credentials: string[];
+  workflows: string[];
+  sandbox_tests: string[];
+  implementation_phases: AdapterImplementationPhase[];
+  blockers: string[];
+  docs: string[];
+  route: string;
+}
+
+export interface AdapterImplementationPacket {
+  status: 'ready' | 'attention' | 'blocked';
+  generated_at: string;
+  export_filename: string;
+  implemented_count: number;
+  placeholder_count: number;
+  sandbox_only_count: number;
+  critical_count: number;
+  high_count: number;
+  total: number;
+  summary: Record<string, number>;
+  items: AdapterImplementationItem[];
+}
+
 export interface CredentialBinderSnapshot {
   id: string;
   created_at: string;

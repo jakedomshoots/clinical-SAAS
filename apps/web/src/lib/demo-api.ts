@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
+import type { AdapterImplementationItem, AdapterImplementationPacket, Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -1782,6 +1782,127 @@ function vendorCredentialRequestPacketCsv(packet: VendorCredentialRequestPacket)
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
+function adapterImplementationPacket(): AdapterImplementationPacket {
+  const items = demoCredentialPreflight().data.map((item): AdapterImplementationItem => {
+    const implementationStatus: AdapterImplementationItem['implementation_status'] = item.adapter_implemented && item.readiness_mode === 'production_vendor'
+      ? 'implemented'
+      : item.readiness_mode === 'local_sandbox'
+        ? 'sandbox_only'
+        : 'placeholder';
+    const priority: AdapterImplementationItem['priority'] = implementationStatus === 'implemented'
+      ? 'normal'
+      : ['fax', 'communications', 'portal'].includes(item.key)
+        ? 'critical'
+        : ['ehr', 'calendar', 'clearinghouse'].includes(item.key)
+          ? 'high'
+          : 'normal';
+    const requiredCredentials = Array.from(new Set([...item.configured_fields, ...item.missing_fields])).sort();
+    const sandboxPassed = item.sandbox_evidence.filter((evidence) => evidence.status === 'passed').length;
+    const vendorReferenceCount = item.sandbox_evidence.filter((evidence) => evidence.status === 'passed' && Boolean(evidence.reference_url) && !evidence.reference_url?.startsWith('sandbox://')).length;
+    const blockers = [...item.blockers];
+    if (implementationStatus === 'placeholder') blockers.push(item.adapter_detail ?? `Implement the ${item.label} production adapter before live use.`);
+    if (implementationStatus === 'sandbox_only') blockers.push('Local sandbox adapter is rehearsal-only and must be replaced with production vendor adapter evidence before live use.');
+    if (item.missing_fields.length) blockers.push(`Credential values still missing: ${item.missing_fields.join(', ')}.`);
+    return {
+      integration: item.key,
+      label: item.label,
+      implementation_status: implementationStatus,
+      priority,
+      readiness_mode: item.readiness_mode,
+      configured: item.configured,
+      adapter_implemented: item.adapter_implemented,
+      adapter_method_ready_count: item.adapter_method_ready_count,
+      adapter_method_total: item.adapter_method_total,
+      adapter_methods: item.adapter_methods,
+      required_credentials: requiredCredentials,
+      missing_credentials: item.missing_fields,
+      workflows: item.workflows,
+      sandbox_tests: item.sandbox_tests,
+      implementation_phases: [
+        {
+          key: 'vendor_selection',
+          label: 'Vendor selection and credential scope',
+          status: item.missing_fields.length ? 'attention' : 'ready',
+          detail: item.missing_fields.length ? `Missing credential field(s): ${item.missing_fields.join(', ')}.` : 'Required credential fields are identified and staged.',
+        },
+        {
+          key: 'adapter_contract',
+          label: 'Adapter contract implementation',
+          status: item.adapter_method_ready_count === item.adapter_method_total && item.adapter_method_total > 0 ? 'ready' : 'blocked',
+          detail: `${item.adapter_method_ready_count} of ${item.adapter_method_total} required adapter method(s) are ready.`,
+        },
+        {
+          key: 'workflow_mapping',
+          label: 'Workflow mapping',
+          status: item.workflows.length ? 'ready' : 'attention',
+          detail: item.workflows.join(', ') || 'Workflow mapping needs to be defined.',
+        },
+        {
+          key: 'sandbox_evidence',
+          label: 'Sandbox evidence',
+          status: item.sandbox_tests.length && sandboxPassed === item.sandbox_tests.length ? 'ready' : 'attention',
+          detail: `${sandboxPassed} of ${item.sandbox_tests.length} sandbox workflow(s) have passing evidence.`,
+        },
+        {
+          key: 'production_vendor_evidence',
+          label: 'Production vendor evidence',
+          status: item.production_ready ? 'ready' : implementationStatus !== 'implemented' ? 'blocked' : 'attention',
+          detail: item.production_ready ? 'Production-vendor readiness is recorded.' : `${vendorReferenceCount} of ${item.sandbox_tests.length} workflow(s) have vendor reference URLs.`,
+        },
+      ],
+      blockers,
+      docs: item.docs,
+      route: '/integrations',
+    };
+  });
+  const implementedCount = items.filter((item) => item.implementation_status === 'implemented').length;
+  const placeholderCount = items.filter((item) => item.implementation_status === 'placeholder').length;
+  const sandboxOnlyCount = items.filter((item) => item.implementation_status === 'sandbox_only').length;
+  const criticalCount = items.filter((item) => item.priority === 'critical').length;
+  const highCount = items.filter((item) => item.priority === 'high').length;
+  return {
+    status: placeholderCount || sandboxOnlyCount ? criticalCount ? 'blocked' : 'attention' : 'ready',
+    generated_at: new Date().toISOString(),
+    export_filename: 'concierge-os-adapter-implementation-packet.csv',
+    implemented_count: implementedCount,
+    placeholder_count: placeholderCount,
+    sandbox_only_count: sandboxOnlyCount,
+    critical_count: criticalCount,
+    high_count: highCount,
+    total: items.length,
+    summary: {
+      total: items.length,
+      implemented: implementedCount,
+      placeholder: placeholderCount,
+      sandbox_only: sandboxOnlyCount,
+      critical: criticalCount,
+      high: highCount,
+    },
+    items,
+  };
+}
+
+function adapterImplementationPacketCsv(packet: AdapterImplementationPacket) {
+  const rows = [['integration', 'label', 'implementation_status', 'priority', 'readiness_mode', 'configured', 'adapter_method_ready_count', 'adapter_method_total', 'required_credentials', 'missing_credentials', 'workflows', 'sandbox_tests', 'blockers', 'route']];
+  packet.items.forEach((item) => rows.push([
+    item.integration,
+    item.label,
+    item.implementation_status,
+    item.priority,
+    item.readiness_mode,
+    String(item.configured),
+    String(item.adapter_method_ready_count),
+    String(item.adapter_method_total),
+    item.required_credentials.join('; '),
+    item.missing_credentials.join('; '),
+    item.workflows.join('; '),
+    item.sandbox_tests.join('; '),
+    item.blockers.join('; '),
+    item.route,
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 function credentialBinderSnapshotFromEvent(event: AuditEvent): CredentialBinderSnapshot {
   const payload = event.payload as Partial<CredentialDryRunBinder>;
   return {
@@ -3393,6 +3514,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/vendor-credential-request-packet/export' && method === 'GET') {
     return vendorCredentialRequestPacketCsv(vendorCredentialRequestPacket()) as T;
+  }
+  if (path === '/operations/adapter-implementation-packet' && method === 'GET') {
+    return adapterImplementationPacket() as T;
+  }
+  if (path === '/operations/adapter-implementation-packet/export' && method === 'GET') {
+    return adapterImplementationPacketCsv(adapterImplementationPacket()) as T;
   }
   if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'POST') {
     const binder = credentialDryRunBinder();
