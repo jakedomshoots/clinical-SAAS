@@ -10,7 +10,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `AUTO_CREATE_SCHEMA=false`.
 - `ENSURE_OBJECT_STORAGE_ON_STARTUP=true`.
 - `ALLOW_SEED_ENDPOINT=false`.
-- `WEBHOOK_SHARED_SECRET` is unique, random, shared only with trusted webhook senders, and vendors send `X-Concierge-Webhook-Timestamp` within the replay window plus a stable `event_id` on every callback.
+- `WEBHOOK_SHARED_SECRET` is unique, random, shared only with trusted webhook senders, and vendors send `X-Concierge-Webhook-Timestamp` within the replay window, `X-Concierge-Webhook-Signature` over `timestamp.raw_body`, plus a stable `event_id` on every callback.
 - `SECRET_KEY` is unique, random, and at least 32 characters.
 - `CORS_ORIGINS` contains only production HTTPS origins.
 - `/api/operations/production-config-audit` has status `ready` with zero critical checks.

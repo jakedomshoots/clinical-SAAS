@@ -728,7 +728,7 @@ function productionConfigAudit(): ProductionConfigAudit {
     demoConfigCheck('schema_migrations', 'Infrastructure', 'Explicit database migrations', false, 'critical', 'Demo mode can bootstrap schema automatically.', 'Set AUTO_CREATE_SCHEMA=false and run pnpm migrate:api during deploy.', ['AUTO_CREATE_SCHEMA'], ['scripts/migrate-api.sh', 'docs/operations/deployment-runbook.md']),
     demoConfigCheck('object_storage_startup', 'Infrastructure', 'Object storage startup enforcement', true, 'critical', 'Object storage startup enforcement is enabled in local defaults.', 'Keep ENSURE_OBJECT_STORAGE_ON_STARTUP=true for production.', ['ENSURE_OBJECT_STORAGE_ON_STARTUP'], ['docs/operations/production-launch-checklist.md']),
     demoConfigCheck('minio_credentials', 'Security', 'Production object-storage credentials', false, 'critical', 'Demo object storage uses local credentials and insecure transport.', 'Set production object-storage endpoint, credentials, bucket, and MINIO_SECURE=true.', ['MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET', 'MINIO_SECURE'], ['.env.production.example', 'docs/operations/production-launch-checklist.md']),
-    demoConfigCheck('webhook_secret', 'Security', 'Webhook signing secret', false, 'critical', 'No production webhook shared secret is configured in demo mode.', 'Set WEBHOOK_SHARED_SECRET and configure vendors to send it.', ['WEBHOOK_SHARED_SECRET'], ['docs/integrations/vendor-adapter-plan.md']),
+    demoConfigCheck('webhook_secret', 'Security', 'Webhook signing secret', false, 'critical', 'No production webhook shared secret is configured in demo mode.', 'Set WEBHOOK_SHARED_SECRET and configure vendors to send X-Concierge-Webhook-Secret, X-Concierge-Webhook-Timestamp, X-Concierge-Webhook-Signature, and event_id.', ['WEBHOOK_SHARED_SECRET'], ['docs/integrations/vendor-adapter-plan.md']),
     demoConfigCheck('communications_provider', 'Integrations', 'Production communications provider', false, 'warning', 'Current communications provider is demo.', 'Select the production SMS/email/portal provider and set COMMUNICATIONS_PROVIDER_API_KEY.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], ['docs/integrations/vendor-adapter-plan.md']),
   ];
   const critical = checks.filter((item) => !item.ready && item.severity === 'critical').length;
@@ -1400,7 +1400,7 @@ function demoLaunchRequirements() {
   return [
     ['Security', 'Unique API signing secret', false, 'critical', 'Generate and store a production SECRET_KEY.', ['SECRET_KEY']],
     ['Security', 'Seed endpoints disabled', false, 'critical', 'Set ALLOW_SEED_ENDPOINT=false.', ['ALLOW_SEED_ENDPOINT']],
-    ['Security', 'Webhook signing secret', false, 'critical', 'Set WEBHOOK_SHARED_SECRET for vendor callbacks.', ['WEBHOOK_SHARED_SECRET']],
+    ['Security', 'Webhook signing secret', false, 'critical', 'Set WEBHOOK_SHARED_SECRET and require timestamp, signature, and event_id headers for vendor callbacks.', ['WEBHOOK_SHARED_SECRET']],
     ['Integrations', 'EHR sync', false, 'critical', 'Connect demographics, medications, labs, and encounters.', ['EHR_API_BASE_URL']],
     ['Integrations', 'Fax provider', false, 'critical', 'Connect inbound and outbound fax delivery.', ['FAX_PROVIDER_API_KEY']],
     ['Integrations', 'External patient portal', false, 'critical', 'Connect messages, intake, appointment requests, and documents.', ['PORTAL_API_BASE_URL']],

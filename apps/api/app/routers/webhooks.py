@@ -1,7 +1,9 @@
 import secrets
+import hashlib
+import hmac
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -23,7 +25,12 @@ INTEGRATION_BY_SOURCE = {
 }
 
 
-def _verify_webhook_secret(secret: str | None, timestamp: str | None) -> None:
+def _verify_webhook_secret(
+    secret: str | None,
+    timestamp: str | None,
+    signature: str | None,
+    body: bytes,
+) -> None:
     expected = settings.webhook_shared_secret.strip()
     if not expected:
         raise HTTPException(
@@ -48,6 +55,17 @@ def _verify_webhook_secret(secret: str | None, timestamp: str | None) -> None:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Webhook timestamp is outside the allowed replay window",
         )
+    expected_signature = hmac.new(
+        expected.encode("utf-8"),
+        timestamp.encode("utf-8") + b"." + body,
+        hashlib.sha256,
+    ).hexdigest()
+    expected_header = f"sha256={expected_signature}"
+    if not signature or not secrets.compare_digest(signature, expected_header):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature",
+        )
 
 
 async def _receive_webhook(
@@ -56,8 +74,10 @@ async def _receive_webhook(
     db: AsyncSession,
     secret: str | None,
     timestamp: str | None,
+    signature: str | None,
+    body: bytes,
 ) -> WebhookOut:
-    _verify_webhook_secret(secret, timestamp)
+    _verify_webhook_secret(secret, timestamp, signature, body)
     integration = INTEGRATION_BY_SOURCE[source]
     if not data.event_id:
         raise HTTPException(
@@ -112,49 +132,59 @@ async def _receive_webhook(
 
 @router.post("/fax", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
 async def receive_fax_webhook(
+    request: Request,
     data: WebhookIn,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
+    signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("fax", data, db, secret, timestamp)
+    return await _receive_webhook("fax", data, db, secret, timestamp, signature, await request.body())
 
 
 @router.post("/portal", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
 async def receive_portal_webhook(
+    request: Request,
     data: WebhookIn,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
+    signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("portal", data, db, secret, timestamp)
+    return await _receive_webhook("portal", data, db, secret, timestamp, signature, await request.body())
 
 
 @router.post("/calendar", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
 async def receive_calendar_webhook(
+    request: Request,
     data: WebhookIn,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
+    signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("calendar", data, db, secret, timestamp)
+    return await _receive_webhook("calendar", data, db, secret, timestamp, signature, await request.body())
 
 
 @router.post("/ehr", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
 async def receive_ehr_webhook(
+    request: Request,
     data: WebhookIn,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
+    signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("ehr", data, db, secret, timestamp)
+    return await _receive_webhook("ehr", data, db, secret, timestamp, signature, await request.body())
 
 
 @router.post("/communications", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
 async def receive_communications_webhook(
+    request: Request,
     data: WebhookIn,
     db: AsyncSession = Depends(get_db),  # noqa: B008
     secret: str | None = Header(default=None, alias="X-Concierge-Webhook-Secret"),
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
+    signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("communications", data, db, secret, timestamp)
+    return await _receive_webhook("communications", data, db, secret, timestamp, signature, await request.body())
