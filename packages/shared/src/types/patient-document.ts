@@ -15,6 +15,16 @@ export interface PatientDocument {
   document_type: string;
   status: PatientDocumentStatus;
   matched_by: string | null;
+  source_contact: string | null;
+  source_phone: string | null;
+  source_fax: string | null;
+  source_reference: string | null;
+  requested_by: string | null;
+  routed_to_role: string | null;
+  review_priority: string;
+  review_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
   pages: number;
   file_url: string | null;
   upload_status: string;

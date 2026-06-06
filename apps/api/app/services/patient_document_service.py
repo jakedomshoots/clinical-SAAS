@@ -82,6 +82,16 @@ async def create_patient_document(
         document_type=data["document_type"],
         status=PatientDocumentStatus(data.get("status") or PatientDocumentStatus.received.value),
         matched_by=data.get("matched_by"),
+        source_contact=data.get("source_contact"),
+        source_phone=data.get("source_phone"),
+        source_fax=data.get("source_fax"),
+        source_reference=data.get("source_reference"),
+        requested_by=data.get("requested_by"),
+        routed_to_role=data.get("routed_to_role"),
+        review_priority=data.get("review_priority") or "normal",
+        review_note=data.get("review_note"),
+        reviewed_by=data.get("reviewed_by"),
+        reviewed_at=data.get("reviewed_at"),
         pages=data.get("pages", 1),
         file_url=data.get("file_url"),
         upload_status=data.get("upload_status") or ("uploaded" if data.get("file_url") else "metadata_only"),
@@ -105,6 +115,8 @@ async def create_patient_document(
             "title": document.title,
             "source": document.source,
             "status": document.status.value,
+            "routed_to_role": document.routed_to_role,
+            "review_priority": document.review_priority,
         },
     )
     return PatientDocumentOut.model_validate(document).model_dump()
@@ -203,6 +215,7 @@ async def confirm_document_upload(
         "document_type": data["document_type"],
         "status": PatientDocumentStatus.needs_review.value,
         "matched_by": "upload confirmation",
+        "review_priority": "normal",
         "pages": data.get("pages", 1),
         "file_url": data["file_url"],
         "upload_status": "uploaded",
@@ -327,6 +340,8 @@ async def update_patient_document(
             document.status = PatientDocumentStatus(value)
         elif hasattr(document, field):
             setattr(document, field, value)
+    if (data.get("reviewed_by") or data.get("review_note")) and not document.reviewed_at:
+        document.reviewed_at = datetime.now(UTC).replace(tzinfo=None)
 
     await db.commit()
     await db.refresh(document)
@@ -337,7 +352,12 @@ async def update_patient_document(
         "patient_document",
         document.id,
         actor_id=user.id,
-        payload={"patient_id": patient_id, "updated_fields": list(data.keys())},
+        payload={
+            "patient_id": patient_id,
+            "updated_fields": list(data.keys()),
+            "status": document.status.value,
+            "reviewed_by": document.reviewed_by,
+        },
     )
     return PatientDocumentOut.model_validate(document).model_dump()
 

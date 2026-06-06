@@ -8,7 +8,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Patient charts include demographics, outside documents, medication reconciliation, care-plan/checkout items, encounters, labs, tasks, and messages.
 - Patient Portal supports patient-scoped login, intake updates, appointment requests, and upload confirmation.
 - Portal Intake supports chart application, appointment conversion with conflict checks, alternate slot selection, document conversion, and rejection.
-- Outside documents are persisted, patient-scoped, organization-scoped, can be marked filed from the chart, can be upload-confirmed, and duplicate upload detection is available.
+- Outside documents are persisted, patient-scoped, organization-scoped, can be marked filed from the chart, can be upload-confirmed, include sending-office contact/reference and clinical review routing metadata, and duplicate upload detection is available.
 - Matched inbound faxes with file URLs create patient document records for review.
 - Medication and care-plan items are persisted and can be updated from the patient chart.
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
@@ -33,6 +33,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 
 - Open the patient chart from the queue.
 - Review Documents for outside records that need filing or provider review.
+- Confirm each outside document's sending office, contact/reference, route role, priority, reviewer, and review note before filing or reconciling it.
 - Reconcile Meds and confirm any items marked Review.
 - Work Care Plan items assigned to MA or nursing roles.
 - Escalate blockers through tasks instead of untracked notes.

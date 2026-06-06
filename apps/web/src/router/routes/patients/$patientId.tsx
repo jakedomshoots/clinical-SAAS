@@ -62,6 +62,14 @@ interface AuditListResponse {
   total: number;
 }
 
+type DocumentReviewFormState = {
+  status: PatientDocument['status'];
+  routed_to_role: string;
+  review_priority: string;
+  reviewed_by: string;
+  review_note: string;
+};
+
 function PatientChartPage() {
   const { patientId } = Route.useParams();
   const api = useApi();
@@ -73,6 +81,7 @@ function PatientChartPage() {
   const [documentAccessMessage, setDocumentAccessMessage] = useState<string | null>(null);
   const [documentAccessRequest, setDocumentAccessRequest] = useState<PatientDocument | null>(null);
   const [documentAccessReason, setDocumentAccessReason] = useState('Clinical chart review');
+  const [documentReviewForms, setDocumentReviewForms] = useState<Record<string, DocumentReviewFormState>>({});
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
@@ -157,8 +166,8 @@ function PatientChartPage() {
   });
 
   const updateDocumentMutation = useMutation({
-    mutationFn: ({ documentId, status }: { documentId: string; status: PatientDocument['status'] }) =>
-      api.patch<PatientDocument>(ROUTES.PATIENT_DOCUMENT(patientId, documentId), { status }),
+    mutationFn: ({ documentId, data }: { documentId: string; data: Partial<PatientDocument> }) =>
+      api.patch<PatientDocument>(ROUTES.PATIENT_DOCUMENT(patientId, documentId), data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(patientId) });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(patientId) });
@@ -198,6 +207,33 @@ function PatientChartPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
     },
   });
+
+  const formForDocumentReview = (document: PatientDocument): DocumentReviewFormState => documentReviewForms[document.id] ?? {
+    status: document.status,
+    routed_to_role: document.routed_to_role ?? '',
+    review_priority: document.review_priority ?? 'normal',
+    reviewed_by: document.reviewed_by ?? '',
+    review_note: document.review_note ?? '',
+  };
+  const updateDocumentReviewForm = (document: PatientDocument, patch: Partial<DocumentReviewFormState>) => {
+    setDocumentReviewForms((current) => ({
+      ...current,
+      [document.id]: { ...formForDocumentReview(document), ...patch },
+    }));
+  };
+  const submitDocumentReview = (document: PatientDocument) => {
+    const form = formForDocumentReview(document);
+    updateDocumentMutation.mutate({
+      documentId: document.id,
+      data: {
+        status: form.status,
+        routed_to_role: form.routed_to_role.trim() || null,
+        review_priority: form.review_priority.trim() || 'normal',
+        reviewed_by: form.reviewed_by.trim() || null,
+        review_note: form.review_note.trim() || null,
+      },
+    });
+  };
 
   const updateMedicationMutation = useMutation({
     mutationFn: ({ medicationId, status }: { medicationId: string; status: PatientMedication['status'] }) =>
@@ -674,9 +710,11 @@ function PatientChartPage() {
             {!documentsLoading && !documentsError && documentRows.length === 0 && (
               <div className="px-4 py-6 text-sm text-clinic-500">No outside documents have been attached to this chart yet.</div>
             )}
-            {!documentsLoading && !documentsError && documentRows.map((document) => (
-              <div key={document.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_12rem_10rem_6rem]">
-                <div>
+            {!documentsLoading && !documentsError && documentRows.map((document) => {
+              const reviewForm = formForDocumentReview(document);
+              return (
+              <div key={document.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_13rem_10rem_6rem]">
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-clinic-900">{document.title}</span>
                     <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-xs font-medium text-clinic-600">
@@ -689,11 +727,85 @@ function PatientChartPage() {
                     <span>{document.pages} pages</span>
                     {document.matched_by && <span>Matched by {document.matched_by}</span>}
                   </div>
+                  <div className="mt-2 grid gap-2 text-xs text-clinic-500 md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
+                      <div className="font-medium text-clinic-700">{document.source_contact ?? 'Source contact not set'}</div>
+                      <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
+                        {document.source_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{document.source_phone}</span>}
+                        {document.source_fax && <span>Fax {document.source_fax}</span>}
+                      </div>
+                    </div>
+                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
+                      <div className="font-medium text-clinic-700">Reference</div>
+                      <div className="mt-0.5">{document.source_reference ?? 'Not provided'}</div>
+                    </div>
+                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
+                      <div className="font-medium text-clinic-700">Requested by</div>
+                      <div className="mt-0.5">{document.requested_by ?? 'Not tracked'}</div>
+                    </div>
+                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
+                      <div className="font-medium text-clinic-700">Routing</div>
+                      <div className="mt-0.5">{document.routed_to_role ?? 'Unrouted'} · {document.review_priority ?? 'normal'}</div>
+                    </div>
+                  </div>
                   {document.summary && <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>}
+                  {document.review_note && (
+                    <p className="mt-2 max-w-3xl rounded-md border border-accent-100 bg-accent-50 px-2 py-1.5 text-xs text-accent-800">
+                      {document.review_note} {document.reviewed_by ? `- ${document.reviewed_by}` : ''} {document.reviewed_at ? `(${formatDateTime(document.reviewed_at)})` : ''}
+                    </p>
+                  )}
                   <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-clinic-500">
                     <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">{document.upload_status.replace('_', ' ')}</span>
                     <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">OCR {document.ocr_status.replace('_', ' ')}</span>
                     {document.classification && <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-0.5 text-accent-800">{document.classification.replace('_', ' ')}</span>}
+                  </div>
+                  <div className="mt-3 grid gap-2 rounded-md border border-clinic-200 bg-white p-2 md:grid-cols-[8.5rem_8.5rem_8.5rem_9rem_minmax(0,1fr)_5rem]">
+                    <select
+                      value={reviewForm.status}
+                      onChange={(event) => updateDocumentReviewForm(document, { status: event.target.value as PatientDocument['status'] })}
+                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    >
+                      <option value="received">Received</option>
+                      <option value="needs_review">Needs review</option>
+                      <option value="filed">Filed</option>
+                      <option value="reconciled">Reconciled</option>
+                      <option value="rejected">Rejected</option>
+                    </select>
+                    <input
+                      value={reviewForm.routed_to_role}
+                      onChange={(event) => updateDocumentReviewForm(document, { routed_to_role: event.target.value })}
+                      placeholder="Route role"
+                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <select
+                      value={reviewForm.review_priority}
+                      onChange={(event) => updateDocumentReviewForm(document, { review_priority: event.target.value })}
+                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    >
+                      <option value="normal">Normal</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
+                    </select>
+                    <input
+                      value={reviewForm.reviewed_by}
+                      onChange={(event) => updateDocumentReviewForm(document, { reviewed_by: event.target.value })}
+                      placeholder="Reviewer"
+                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <input
+                      value={reviewForm.review_note}
+                      onChange={(event) => updateDocumentReviewForm(document, { review_note: event.target.value })}
+                      placeholder="Review note"
+                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => submitDocumentReview(document)}
+                      disabled={updateDocumentMutation.isPending}
+                      className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                    >
+                      Save
+                    </button>
                   </div>
                 </div>
                 <div className="text-sm font-medium text-clinic-700">{formatDocumentStatus(document.status)}</div>
@@ -701,7 +813,7 @@ function PatientChartPage() {
                 <div className="flex flex-wrap justify-end gap-2">
                   {document.status === 'needs_review' && (
                     <button
-                      onClick={() => updateDocumentMutation.mutate({ documentId: document.id, status: 'filed' })}
+                      onClick={() => updateDocumentMutation.mutate({ documentId: document.id, data: { status: 'filed' } })}
                       disabled={updateDocumentMutation.isPending}
                       className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -729,7 +841,8 @@ function PatientChartPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
           <div className="border-t border-clinic-100 bg-clinic-50 px-4 py-3">
             <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-clinic-500">
@@ -1023,7 +1136,7 @@ function PatientChartPage() {
           checkoutError={checkoutError}
           completing={completeCheckoutMutation.isPending}
           onClose={() => setHandoffOpen(false)}
-          onFileDocument={(documentId) => updateDocumentMutation.mutate({ documentId, status: 'filed' })}
+          onFileDocument={(documentId) => updateDocumentMutation.mutate({ documentId, data: { status: 'filed' } })}
           onConfirmMedication={(medicationId) => updateMedicationMutation.mutate({ medicationId, status: 'active' })}
           onReviewLab={(labId) => updateLabMutation.mutate({ labId, status: 'reviewed' })}
           onCompleteCarePlan={(itemId) => updateCarePlanMutation.mutate({ itemId, update: { status: 'completed' } })}

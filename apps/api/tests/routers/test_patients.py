@@ -192,6 +192,13 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
         "status": "needs_review",
         "matched_by": "manual",
         "pages": 6,
+        "source_contact": "Dr. Priya Rao",
+        "source_phone": "555-0101",
+        "source_fax": "555-0102",
+        "source_reference": "Referral packet NSC-44",
+        "requested_by": "Front desk",
+        "routed_to_role": "provider",
+        "review_priority": "high",
         "summary": "Medication recommendations and follow-up plan.",
     }, headers=auth_headers)
 
@@ -199,20 +206,32 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
     document = document_res.json()
     assert document["patient_id"] == patient_id
     assert document["status"] == "needs_review"
+    assert document["source_contact"] == "Dr. Priya Rao"
+    assert document["source_phone"] == "555-0101"
+    assert document["source_fax"] == "555-0102"
+    assert document["source_reference"] == "Referral packet NSC-44"
+    assert document["requested_by"] == "Front desk"
+    assert document["routed_to_role"] == "provider"
+    assert document["review_priority"] == "high"
 
     list_res = await client.get(f"/api/patients/{patient_id}/documents", headers=auth_headers)
     assert list_res.status_code == 200
     listed = list_res.json()
     assert listed["total"] == 1
     assert listed["data"][0]["title"] == "Outside cardiology note"
+    assert listed["data"][0]["source_contact"] == "Dr. Priya Rao"
 
     update_res = await client.patch(
         f"/api/patients/{patient_id}/documents/{document['id']}",
-        json={"status": "filed"},
+        json={"status": "filed", "review_note": "Reviewed by provider; no medication change.", "reviewed_by": "Dr. Chen"},
         headers=auth_headers,
     )
     assert update_res.status_code == 200
-    assert update_res.json()["status"] == "filed"
+    updated = update_res.json()
+    assert updated["status"] == "filed"
+    assert updated["review_note"] == "Reviewed by provider; no medication change."
+    assert updated["reviewed_by"] == "Dr. Chen"
+    assert updated["reviewed_at"]
 
 
 @pytest.mark.asyncio

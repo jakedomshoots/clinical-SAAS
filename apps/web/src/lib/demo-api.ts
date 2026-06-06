@@ -28,6 +28,16 @@ function withDeliveryDefaults(task: Omit<Task, 'delivery_channel' | 'delivery_st
 function normalizeDocument(document: PatientDocument): PatientDocument {
   return {
     ...document,
+    source_contact: document.source_contact ?? null,
+    source_phone: document.source_phone ?? null,
+    source_fax: document.source_fax ?? null,
+    source_reference: document.source_reference ?? null,
+    requested_by: document.requested_by ?? null,
+    routed_to_role: document.routed_to_role ?? null,
+    review_priority: document.review_priority ?? 'normal',
+    review_note: document.review_note ?? null,
+    reviewed_by: document.reviewed_by ?? null,
+    reviewed_at: document.reviewed_at ?? null,
     upload_status: document.upload_status ?? (document.file_url ? 'uploaded' : 'metadata_only'),
     ocr_status: document.ocr_status ?? 'not_started',
     classification: document.classification ?? null,
@@ -1683,6 +1693,13 @@ let patientDocuments: PatientDocument[] = [
     document_type: 'Lab result',
     status: 'needs_review',
     matched_by: 'MRN detected',
+    source_contact: 'LabCorp client services',
+    source_phone: '+13125550144',
+    source_fax: '+13125550145',
+    source_reference: 'LC-CRIT-20260603',
+    requested_by: 'Maya Chen, MA',
+    routed_to_role: 'provider',
+    review_priority: 'urgent',
     pages: 4,
     file_url: null,
     summary: 'CMP and A1c received. Potassium is flagged critical and requires same-day review.',
@@ -1698,6 +1715,16 @@ let patientDocuments: PatientDocument[] = [
     document_type: 'Consult note',
     status: 'filed',
     matched_by: 'manual',
+    source_contact: 'Dr. Priya Rao',
+    source_phone: '+13125550177',
+    source_fax: '+13125550178',
+    source_reference: 'NSC consult 1028',
+    requested_by: 'Dr. Nora Ellis',
+    routed_to_role: 'provider',
+    review_priority: 'normal',
+    review_note: 'Filed after provider review; follow-up EKG plan already added.',
+    reviewed_by: 'Dr. Nora Ellis',
+    reviewed_at: iso(-138),
     pages: 7,
     file_url: null,
     summary: 'Medication recommendations and follow-up EKG plan after cardiology evaluation.',
@@ -1713,6 +1740,16 @@ let patientDocuments: PatientDocument[] = [
     document_type: 'Discharge',
     status: 'reconciled',
     matched_by: 'patient DOB + name',
+    source_contact: 'Mercy records desk',
+    source_phone: '+13125550190',
+    source_fax: '+13125550191',
+    source_reference: 'Discharge 2026-05-21',
+    requested_by: 'Care coordinator',
+    routed_to_role: 'ma_nurse',
+    review_priority: 'high',
+    review_note: 'Medication changes reconciled with active list.',
+    reviewed_by: 'Maya Chen, MA',
+    reviewed_at: iso(-260),
     pages: 11,
     file_url: null,
     summary: 'Observation stay summary, medication changes, and discharge instructions.',
@@ -1728,6 +1765,13 @@ let patientDocuments: PatientDocument[] = [
     document_type: 'Referral',
     status: 'received',
     matched_by: 'manual',
+    source_contact: 'Lakeview referral desk',
+    source_phone: '+13125550210',
+    source_fax: '+13125550211',
+    source_reference: 'Referral response LVH-778',
+    requested_by: 'Front desk',
+    routed_to_role: 'care_coordinator',
+    review_priority: 'normal',
     pages: 3,
     file_url: null,
     summary: 'Referral accepted with suggested anticoagulation follow-up window.',
@@ -2617,7 +2661,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       }, ...appointments];
     }
     if (action === 'convert-document' && submission.patient_id) {
-      patientDocuments = [{
+      patientDocuments = [normalizeDocument({
         id: uuid(2860 + patientDocuments.length),
         patient_id: submission.patient_id,
         title: String(submission.submitted_payload.title ?? 'Portal uploaded document'),
@@ -2625,6 +2669,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         document_type: String(submission.submitted_payload.document_type ?? 'Patient upload'),
         status: 'needs_review',
         matched_by: 'portal intake',
+        source_contact: null,
+        source_phone: null,
+        source_fax: null,
+        source_reference: String(submission.submitted_payload.source_reference ?? 'Portal intake'),
+        requested_by: 'Patient portal',
+        routed_to_role: 'front_desk',
+        review_priority: 'normal',
+        review_note: null,
+        reviewed_by: null,
+        reviewed_at: null,
         pages: Number(submission.submitted_payload.pages ?? 1),
         file_url: typeof submission.submitted_payload.file_url === 'string' ? submission.submitted_payload.file_url : null,
         upload_status: 'metadata_only',
@@ -2634,7 +2688,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         received_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      }, ...patientDocuments];
+      }), ...patientDocuments];
     }
     portalIntake = portalIntake.map((item) => item.id === submissionId ? { ...item, status: 'applied', updated_at: new Date().toISOString() } : item);
     saveDemoData();
@@ -3110,6 +3164,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         document_type: incoming.document_type ?? 'Clinical record',
         status: incoming.status ?? 'received',
         matched_by: incoming.matched_by ?? 'manual',
+        source_contact: incoming.source_contact ?? null,
+        source_phone: incoming.source_phone ?? null,
+        source_fax: incoming.source_fax ?? null,
+        source_reference: incoming.source_reference ?? null,
+        requested_by: incoming.requested_by ?? null,
+        routed_to_role: incoming.routed_to_role ?? null,
+        review_priority: incoming.review_priority ?? 'normal',
+        review_note: incoming.review_note ?? null,
+        reviewed_by: incoming.reviewed_by ?? null,
+        reviewed_at: incoming.reviewed_at ?? null,
         pages: incoming.pages ?? 1,
         file_url: incoming.file_url ?? null,
         summary: incoming.summary ?? null,
@@ -3182,6 +3246,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       document_type: incoming.document_type,
       status: 'needs_review',
       matched_by: 'upload confirmation',
+      source_contact: null,
+      source_phone: null,
+      source_fax: null,
+      source_reference: null,
+      requested_by: null,
+      routed_to_role: 'front_desk',
+      review_priority: 'normal',
+      review_note: null,
+      reviewed_by: null,
+      reviewed_at: null,
       pages: incoming.pages ?? 1,
       file_url: incoming.file_url,
       upload_status: 'uploaded',
@@ -3203,9 +3277,11 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const [patientId, documentId] = [patientDocumentMatch[1], patientDocumentMatch[2]];
     const existing = patientDocuments.find((document) => document.patient_id === patientId && document.id === documentId);
     if (!existing) throw new Error('Document not found');
+    const incoming = body as Partial<PatientDocument>;
+    const reviewedAt = (incoming.reviewed_by || incoming.review_note) && !existing.reviewed_at ? new Date().toISOString() : incoming.reviewed_at;
     patientDocuments = patientDocuments.map((document) =>
       document.id === documentId
-        ? { ...document, ...(body as Partial<PatientDocument>), updated_at: new Date().toISOString() }
+        ? { ...document, ...incoming, reviewed_at: reviewedAt ?? document.reviewed_at, updated_at: new Date().toISOString() }
         : document,
     );
     const updated = patientDocuments.find((document) => document.id === documentId);
