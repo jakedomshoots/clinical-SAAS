@@ -1545,6 +1545,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     restore_drill_sessions, _ = await list_restore_drill_sessions(db, user)
     cutover_sessions, _ = await list_cutover_runbook_sessions(db, user)
     deployment = readiness.get("deployment", {})
+    handoff_archive_evidence = await _vendor_handoff_archive_packet_evidence(db, user, preflight)
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
     latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
@@ -1706,6 +1707,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "/integrations",
             None,
         ),
+        handoff_archive_evidence,
         _packet_evidence(
             "backup_restore",
             "Backup and restore",
@@ -1800,6 +1802,7 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
             "/integrations",
             None,
         ),
+        _live_gate_from_evidence("vendor_handoff_archives", "Vendor handoff archives", evidence_by_key.get("vendor_handoff_archives")),
         _live_gate_from_evidence("browser_qa", "Browser QA", evidence_by_key.get("browser_qa_session")),
         _live_gate_from_evidence("staff_training", "Staff training", evidence_by_key.get("staff_training_session")),
         _live_gate_from_evidence("policy_approval", "Policy approval", evidence_by_key.get("policy_approval_session")),
@@ -2635,6 +2638,87 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "route": route,
         "captured_at": captured_at,
     }
+
+
+async def _vendor_handoff_archive_packet_evidence(db: AsyncSession | None, user: User, preflight: dict) -> dict:
+    required = [
+        item
+        for item in preflight.get("data", [])
+        if item.get("readiness_mode") == "production_vendor"
+        and item.get("production_ready")
+        and item.get("status") == "ready"
+    ]
+    if not required:
+        return _packet_evidence(
+            "vendor_handoff_archives",
+            "Vendor handoff archives",
+            "warning",
+            "No production-vendor-ready integrations are available for handoff packet archive review.",
+            "/integrations",
+            None,
+        )
+
+    archives = await _latest_vendor_handoff_archives(db, user)
+    missing = [item["label"] for item in required if item["key"] not in archives]
+    archived_without_reference = [
+        item["label"]
+        for item in required
+        if item["key"] in archives and not archives[item["key"]].get("archive_reference_url")
+    ]
+    captured_at = max(
+        (archives[item["key"]]["archived_at"] for item in required if item["key"] in archives),
+        default=None,
+    )
+
+    if missing:
+        return _packet_evidence(
+            "vendor_handoff_archives",
+            "Vendor handoff archives",
+            "blocking",
+            f"{len(missing)} production integration handoff packet archive(s) missing: {', '.join(missing)}.",
+            "/integrations",
+            captured_at,
+        )
+    if archived_without_reference:
+        return _packet_evidence(
+            "vendor_handoff_archives",
+            "Vendor handoff archives",
+            "warning",
+            f"{len(archived_without_reference)} archived handoff packet(s) need a launch evidence reference: {', '.join(archived_without_reference)}.",
+            "/integrations",
+            captured_at,
+        )
+    return _packet_evidence(
+        "vendor_handoff_archives",
+        "Vendor handoff archives",
+        "ready",
+        f"{len(required)} production integration handoff packet archive(s) recorded for launch review.",
+        "/integrations",
+        captured_at,
+    )
+
+
+async def _latest_vendor_handoff_archives(db: AsyncSession | None, user: User) -> dict[str, dict]:
+    if db is None:
+        return {}
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == integration_config_service.HANDOFF_PACKET_ARCHIVE_EVENT,
+        AuditLog.entity_type == "integration_config",
+    ).order_by(AuditLog.created_at.desc())
+    result = await db.execute(query)
+    archives: dict[str, dict] = {}
+    for event in result.scalars().all():
+        payload = event.payload or {}
+        integration = str(payload.get("integration") or event.entity_id or "").strip()
+        if not integration or integration in archives:
+            continue
+        archives[integration] = {
+            "integration": integration,
+            "archive_reference_url": payload.get("archive_reference_url"),
+            "archived_at": event.created_at,
+        }
+    return archives
 
 
 def _readiness_snapshot_packet_status(snapshot: dict | None) -> str:

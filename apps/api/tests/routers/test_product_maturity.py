@@ -876,6 +876,220 @@ async def test_go_live_packet_requires_all_evidence_ready(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_go_live_packet_blocks_production_integrations_without_archived_handoff_packet(monkeypatch):
+    async def fake_check_readiness():
+        return {
+            "environment": "test",
+            "status": "ok",
+            "operational_status": "ok",
+            "deployment": {
+                "latest_backup": {"ok": True, "last_success_at": "2026-06-06T12:00:00Z"},
+                "latest_restore": {"ok": True, "last_success_at": "2026-06-06T12:30:00Z"},
+            },
+        }
+
+    async def fake_launch_readiness():
+        return {"score": 100, "critical_blockers": 0, "warnings": 0}
+
+    async def fake_credential_preflight(db, user):
+        return {
+            "blocking_count": 0,
+            "staged_count": 0,
+            "data": [
+                {
+                    "key": "fax",
+                    "label": "Fax provider",
+                    "status": "ready",
+                    "readiness_mode": "production_vendor",
+                    "production_ready": True,
+                    "blockers": [],
+                    "steps": [],
+                }
+            ],
+        }
+
+    async def fake_launch_workplan(db, user):
+        return {
+            "blocking_count": 0,
+            "warning_count": 0,
+            "items": [],
+        }
+
+    async def fake_readiness_snapshots(db, user):
+        return ([
+            {
+                "id": "readiness-ready",
+                "created_at": datetime.now(UTC),
+                "operational_status": "ok",
+                "core_status": "ok",
+                "launch_score": 100,
+                "incident_count": 0,
+                "critical_count": 0,
+                "warning_count": 0,
+            }
+        ], 1)
+
+    async def fake_rehearsal_snapshots(db, user):
+        return ([
+            {
+                "id": "rehearsal-ready",
+                "created_at": datetime.now(UTC),
+                "rehearsal_ready": True,
+                "blocking_count": 0,
+                "warning_count": 0,
+            }
+        ], 1)
+
+    async def fake_workplan_snapshots(db, user):
+        return ([
+            {
+                "id": "workplan-ready",
+                "created_at": datetime.now(UTC),
+                "blocking_count": 0,
+                "warning_count": 0,
+                "assigned_count": 0,
+                "unassigned_count": 0,
+                "unassigned_blocking_count": 0,
+            }
+        ], 1)
+
+    async def fake_empty_list(db, user):
+        return ([], 0)
+
+    async def fake_role_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_browser_sessions(db, user):
+        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_training_sessions(db, user):
+        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_policy_sessions(db, user):
+        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_restore_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_cutover_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+
+    monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
+    monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
+    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
+    monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
+    monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
+    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
+    monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
+    monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
+    monkeypatch.setattr(operations_service, "list_staff_training_sessions", fake_training_sessions)
+    monkeypatch.setattr(operations_service, "list_policy_approval_sessions", fake_policy_sessions)
+    monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
+    monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
+
+    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+
+    handoff_evidence = next(item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives")
+    assert handoff_evidence["status"] == "blocking"
+    assert "Fax provider" in handoff_evidence["detail"]
+    assert packet["go_live_ready"] is False
+
+
+@pytest.mark.asyncio
+async def test_go_live_packet_marks_archived_handoff_packets_ready(monkeypatch):
+    async def fake_check_readiness():
+        return {
+            "environment": "test",
+            "status": "ok",
+            "operational_status": "ok",
+            "deployment": {
+                "latest_backup": {"ok": True, "last_success_at": "2026-06-06T12:00:00Z"},
+                "latest_restore": {"ok": True, "last_success_at": "2026-06-06T12:30:00Z"},
+            },
+        }
+
+    async def fake_launch_readiness():
+        return {"score": 100, "critical_blockers": 0, "warnings": 0}
+
+    async def fake_credential_preflight(db, user):
+        return {
+            "blocking_count": 0,
+            "staged_count": 0,
+            "data": [
+                {
+                    "key": "fax",
+                    "label": "Fax provider",
+                    "status": "ready",
+                    "readiness_mode": "production_vendor",
+                    "production_ready": True,
+                    "blockers": [],
+                    "steps": [],
+                }
+            ],
+        }
+
+    async def fake_launch_workplan(db, user):
+        return {"blocking_count": 0, "warning_count": 0, "items": []}
+
+    async def fake_readiness_snapshots(db, user):
+        return ([{"id": "readiness-ready", "created_at": datetime.now(UTC), "operational_status": "ok", "core_status": "ok", "launch_score": 100, "incident_count": 0, "critical_count": 0, "warning_count": 0}], 1)
+
+    async def fake_rehearsal_snapshots(db, user):
+        return ([{"id": "rehearsal-ready", "created_at": datetime.now(UTC), "rehearsal_ready": True, "blocking_count": 0, "warning_count": 0}], 1)
+
+    async def fake_workplan_snapshots(db, user):
+        return ([{"id": "workplan-ready", "created_at": datetime.now(UTC), "blocking_count": 0, "warning_count": 0, "assigned_count": 0, "unassigned_count": 0, "unassigned_blocking_count": 0}], 1)
+
+    async def fake_empty_list(db, user):
+        return ([], 0)
+
+    async def fake_role_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_browser_sessions(db, user):
+        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_training_sessions(db, user):
+        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_policy_sessions(db, user):
+        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_restore_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_cutover_sessions(db, user):
+        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+
+    async def fake_handoff_archives(db, user):
+        return {"fax": {"integration": "fax", "archive_reference_url": "s3://launch-evidence/fax.json", "archived_at": datetime.now(UTC)}}
+
+    monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
+    monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
+    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
+    monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
+    monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
+    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
+    monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
+    monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
+    monkeypatch.setattr(operations_service, "list_staff_training_sessions", fake_training_sessions)
+    monkeypatch.setattr(operations_service, "list_policy_approval_sessions", fake_policy_sessions)
+    monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
+    monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
+    monkeypatch.setattr(operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives)
+
+    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+
+    handoff_evidence = next(item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives")
+    assert handoff_evidence["status"] == "ready"
+    assert "1 production integration" in handoff_evidence["detail"]
+
+
+@pytest.mark.asyncio
 async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
     attestation = await client.post(
         "/api/operations/go-live-packet/attestations",
@@ -1497,6 +1711,7 @@ async def test_live_use_rehearsal_dashboard_rolls_up_launch_evidence(client, aut
         "staff_training",
         "policy_approval",
         "role_dry_run",
+        "vendor_handoff_archives",
     } <= gate_keys
     assert all(gate["route"] for gate in data["gates"])
     assert all(gate["status"] in {"ready", "warning", "blocking", "missing"} for gate in data["gates"])
@@ -1505,7 +1720,7 @@ async def test_live_use_rehearsal_dashboard_rolls_up_launch_evidence(client, aut
     assert all(action["label"] and action["route"] for action in data["next_actions"])
     assert data["evidence"]
     evidence_keys = {item["key"] for item in data["evidence"]}
-    assert {"browser_qa_session", "staff_training_session", "policy_approval_session"} <= evidence_keys
+    assert {"browser_qa_session", "staff_training_session", "policy_approval_session", "vendor_handoff_archives"} <= evidence_keys
 
     assert export.status_code == 200
     assert export.headers["content-type"].startswith("text/csv")
