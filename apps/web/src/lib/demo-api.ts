@@ -542,8 +542,10 @@ function documentStorageReadiness(): DocumentStorageReadiness {
   const unsignedHandoffs = recentHandoffs.filter((item) => item.storage_status === 'signed_handoff' && !item.presigned).length;
   const expiredHandoffs = recentHandoffs.filter((item) => item.expired).length;
   const configGaps = 3;
+  const signingGaps = 2;
   const checks: DocumentStorageReadiness['checks'] = [
     demoDocumentStorageCheck('object_storage_credentials', 'Object-storage credentials', configGaps, 'critical', 'Demo object storage uses local credentials and insecure transport.', 'Set production MINIO/S3 endpoint, bucket, access key, secret key, and secure transport.'),
+    demoDocumentStorageCheck('object_storage_signing', 'Object-storage signing', signingGaps, 'critical', `${signingGaps} object-storage signing path(s) failed a presigned URL capability check.`, 'Verify upload and download presigning against the production bucket before go-live.'),
     demoDocumentStorageCheck('metadata_only_documents', 'Metadata-only documents', metadataOnly.length, 'warning', `${metadataOnly.length} document(s) do not have a file URL attached.`, 'Upload or reconcile missing files before relying on document previews/downloads.'),
     demoDocumentStorageCheck('unsigned_handoffs', 'Unsigned object handoffs', unsignedHandoffs, 'warning', `${unsignedHandoffs} recent handoff(s) did not receive a presigned object-storage URL.`, 'Verify object-storage signing is reachable and configured before go-live.'),
     demoDocumentStorageCheck('expired_handoffs', 'Expired signed handoffs', expiredHandoffs, 'warning', `${expiredHandoffs} signed handoff(s) are expired and should be regenerated on demand.`, 'Have staff request a fresh document access link when the original handoff expires.'),
@@ -562,6 +564,7 @@ function documentStorageReadiness(): DocumentStorageReadiness {
       unsigned_handoffs: unsignedHandoffs,
       expired_handoffs: expiredHandoffs,
       config_gaps: configGaps,
+      signing_gaps: signingGaps,
     },
     checks,
     recent_handoffs: recentHandoffs,

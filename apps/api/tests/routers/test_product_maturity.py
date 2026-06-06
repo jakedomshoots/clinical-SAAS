@@ -551,9 +551,11 @@ async def test_document_storage_readiness_surfaces_handoff_and_storage_gaps(
     assert data["summary"]["metadata_only_documents"] >= 1
     assert data["summary"]["unsigned_handoffs"] >= 1
     assert data["summary"]["expired_handoffs"] >= 1
+    assert "signing_gaps" in data["summary"]
     check_keys = {check["key"] for check in data["checks"]}
     assert {
         "object_storage_credentials",
+        "object_storage_signing",
         "metadata_only_documents",
         "unsigned_handoffs",
         "expired_handoffs",

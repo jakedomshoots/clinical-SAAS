@@ -20,6 +20,7 @@ from app.config import (
 from app.services import integration_config_service, user_service
 from app.services.audit_service import log_event
 from app.services.launch_readiness_service import launch_readiness
+from app.services import patient_document_service
 from app.services.readiness_service import check_readiness
 
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
@@ -304,6 +305,7 @@ async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
     )
     expired_handoffs = sum(1 for item in recent_handoffs if item["expired"])
     config_gaps = _document_storage_config_gap_count()
+    signing_gaps = 2 if config_gaps else _document_storage_signing_gap_count()
 
     checks = [
         _document_storage_check(
@@ -315,6 +317,16 @@ async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
             if config_gaps
             else "Object storage credentials and secure transport are configured.",
             "Set production MINIO/S3 endpoint, bucket, access key, secret key, and secure transport.",
+        ),
+        _document_storage_check(
+            "object_storage_signing",
+            "Object-storage signing",
+            signing_gaps,
+            "critical",
+            f"{signing_gaps} object-storage signing path(s) failed a presigned URL capability check."
+            if signing_gaps
+            else "Upload and download signing paths can produce presigned URLs.",
+            "Verify upload and download presigning against the production bucket before go-live.",
         ),
         _document_storage_check(
             "metadata_only_documents",
@@ -356,6 +368,7 @@ async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
             "unsigned_handoffs": unsigned_handoffs,
             "expired_handoffs": expired_handoffs,
             "config_gaps": config_gaps,
+            "signing_gaps": signing_gaps,
         },
         "checks": checks,
         "recent_handoffs": recent_handoffs[:10],
@@ -2248,6 +2261,15 @@ def _document_storage_config_gap_count() -> int:
         settings.minio_access_key != DEFAULT_MINIO_ACCESS_KEY,
         settings.minio_secret_key != DEFAULT_MINIO_SECRET_KEY,
         settings.minio_secure,
+    ]
+    return sum(1 for ready in checks if not ready)
+
+
+def _document_storage_signing_gap_count() -> int:
+    probe_url = f"s3://{settings.minio_bucket}/readiness/probe-document.pdf"
+    checks = [
+        bool(patient_document_service._presigned_put_url(probe_url)),
+        bool(patient_document_service._presigned_get_url(probe_url)),
     ]
     return sum(1 for ready in checks if not ready)
 

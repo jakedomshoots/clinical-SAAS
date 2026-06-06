@@ -67,7 +67,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
 - Use Audit Review Control to review sensitive patient chart/profile access, document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
-- Use Document Storage Readiness in Operations to review metadata-only documents, unsigned handoffs, expired time-bound handoffs, and object-storage credential gaps before live-use rehearsal.
+- Use Document Storage Readiness in Operations to review metadata-only documents, unsigned handoffs, expired time-bound handoffs, object-storage credential gaps, and upload/download presigning capability before live-use rehearsal.
 - Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, patient chart/profile access, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness before closeout or live-use rehearsal.
 - Run backup and restore validation before any live-use rehearsal.
 
@@ -93,7 +93,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Review the Staff Role Access Matrix and resolve privileged MFA or missing-role coverage warnings.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
 - Confirm `/api/operations/production-config-audit` reports zero critical checks.
-- Confirm `/api/operations/document-storage-readiness` reports `ready` before relying on document preview/download behavior for real patients.
+- Confirm `/api/operations/document-storage-readiness` reports `ready` before relying on document preview/download behavior for real patients, including upload and download presigning checks.
 - Configure vendor adapters listed in `docs/integrations/vendor-adapter-plan.md`.
 - Approve patient outreach consent policy and test queued, blocked, failed, and delivered callback states.
 - Confirm `/api/ready` reports `operational_status: ok`.
