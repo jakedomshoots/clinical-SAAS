@@ -19,7 +19,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Tasks includes Work Queue Control for open/in-progress/blocked work, urgent/high priority counts, overdue/due-today/unassigned/blocked work, role buckets, source buckets, next-action guidance, status filtering, and bulk assignment/start/block/complete controls.
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
-- Integration Setup includes credential preflight for vendor env/draft fields, adapter contract method readiness, placeholder-adapter blockers, connection-test status, and sandbox workflow evidence.
+- Integration Setup includes credential preflight for vendor env/draft fields, adapter contract method readiness, placeholder-adapter blockers, connection-test status, sandbox workflow evidence, and explicit `local_sandbox` versus `production_vendor` readiness labels.
 - Operations includes a live-use rehearsal board, Operator Health, document storage readiness, a go-live packet, incident timeline, local alert rules, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, expiring document handoff/storage gaps, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
 - Staff includes a Role Access Matrix so managers can review active staff counts, clinical/front-office/staff/operations/audit capabilities, MFA-required roles, and role coverage warnings before production use.
 - Audit export, backup, restore validation, and local verification scripts are available.
@@ -126,6 +126,7 @@ An internal clinic pilot is ready when:
 
 - Vendor-backed EHR, fax, portal, calendar, communications, clearinghouse, and object-storage adapters.
 - Completed credential preflight with implemented vendor adapters and vendor sandbox evidence for each live adapter; passed evidence includes notes or a vendor reference, placeholder adapters remain blocked, and failed sandbox evidence is resolved before rehearsal.
+- Replacement of any `local_sandbox` readiness with `production_vendor` readiness before live-use rehearsal; local sandbox success is useful contract proof but not live vendor evidence.
 - Production validation of signed document upload and download URLs.
 - Production MFA and identity-provider integration.
 - Real remittance/ERA import and claim reconciliation.

@@ -328,19 +328,24 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
     adapter_implemented = bool(status.get("adapter_implemented"))
     adapter_methods = _adapter_methods_out(spec, adapter_implemented)
     mode = "environment" if env_configured else "setup_draft" if draft_configured else "demo"
+    readiness_mode = status.get("readiness_mode") or "production_vendor"
+    healthy = bool(status.get("ok"))
     last_test = _last_tests.get(_test_key(organization_id, spec.key), {})
     return {
         "key": spec.key,
         "label": spec.label,
         "configured": configured,
-        "healthy": bool(status.get("ok")),
+        "healthy": healthy,
         "adapter_implemented": adapter_implemented,
         "adapter_detail": status.get("adapter_detail"),
         "adapter_methods": adapter_methods,
         "adapter_method_ready_count": sum(1 for method in adapter_methods if method["status"] == "ready"),
         "adapter_method_total": len(adapter_methods),
+        "readiness_mode": readiness_mode,
+        "sandbox_ready": readiness_mode == "local_sandbox" and healthy and adapter_implemented,
+        "production_ready": readiness_mode == "production_vendor" and healthy and adapter_implemented,
         "mode": mode,
-        "status": _config_status(configured, bool(status.get("ok")), mode),
+        "status": _config_status(configured, healthy, mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
         "workflows": spec.workflows,
         "action": spec.action,
@@ -491,11 +496,14 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     adapter_methods = config.get("adapter_methods", [])
     adapter_method_ready_count = int(config.get("adapter_method_ready_count") or 0)
     adapter_method_total = int(config.get("adapter_method_total") or len(adapter_methods))
+    readiness_mode = config.get("readiness_mode") or "production_vendor"
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
     )
-    if config["healthy"] and adapter_implemented and sandbox_complete:
+    sandbox_ready = bool(config.get("sandbox_ready")) and sandbox_complete
+    production_ready = bool(config.get("production_ready")) and sandbox_complete
+    if production_ready:
         status = "ready"
     elif missing_fields:
         status = "missing"
@@ -519,7 +527,12 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         if last_test_status == "failed":
             blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
     if status == "staged":
-        blockers.append("Credentials are staged, but sandbox evidence is still pending.")
+        if sandbox_ready and readiness_mode == "local_sandbox":
+            blockers.append(
+                "Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use."
+            )
+        else:
+            blockers.append("Credentials are staged, but sandbox evidence is still pending.")
     if not missing_fields and not sandbox_complete:
         blockers.append("Sandbox workflow evidence is incomplete.")
     steps = [
@@ -568,7 +581,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             "label": "Sandbox workflow evidence",
             "status": "ready" if sandbox_complete else "blocked" if failed_evidence else "pending",
             "detail": (
-                "All sandbox workflow checks have recorded passing evidence."
+                "All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live."
+                if sandbox_complete and readiness_mode == "local_sandbox"
+                else "All vendor sandbox workflow checks have recorded passing evidence."
                 if sandbox_complete
                 else f"{len(failed_evidence)} sandbox workflow check(s) failed and need vendor review."
                 if failed_evidence
@@ -587,6 +602,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "adapter_methods": adapter_methods,
         "adapter_method_ready_count": adapter_method_ready_count,
         "adapter_method_total": adapter_method_total,
+        "readiness_mode": readiness_mode,
+        "sandbox_ready": sandbox_ready,
+        "production_ready": production_ready,
         "mode": config["mode"],
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,

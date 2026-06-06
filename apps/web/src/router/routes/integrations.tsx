@@ -148,6 +148,11 @@ function IntegrationsPage() {
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       <StatusBadge config={config} />
+                      <ReadinessModeBadge
+                        readinessMode={config.readiness_mode}
+                        sandboxReady={config.sandbox_ready}
+                        productionReady={config.production_ready}
+                      />
                       <span className="rounded-md bg-clinic-50 px-2 py-1 font-medium text-clinic-600">mode: {config.mode}</span>
                       {config.last_test_status && (
                         <span className="rounded-md bg-clinic-50 px-2 py-1 font-medium text-clinic-600">
@@ -282,6 +287,18 @@ function CredentialPreflightPanel({
           {item.status}
         </span>
       </div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+        <ReadinessModeBadge
+          readinessMode={item.readiness_mode}
+          sandboxReady={item.sandbox_ready}
+          productionReady={item.production_ready}
+        />
+        {item.readiness_mode === 'local_sandbox' && (
+          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+            production vendor pending
+          </span>
+        )}
+      </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2">
         <div className="text-xs text-clinic-600">
           {item.sandbox_evidence.filter((evidence) => evidence.status === 'passed').length} / {item.sandbox_evidence.length} sandbox checks passed
@@ -403,6 +420,36 @@ function preflightStatusClass(status: CredentialPreflightItem['status']) {
   if (status === 'ready') return 'border-accent-200 bg-accent-50 text-accent-800';
   if (status === 'staged') return 'border-amber-200 bg-amber-50 text-amber-800';
   return 'border-red-200 bg-red-50 text-red-700';
+}
+
+function ReadinessModeBadge({
+  readinessMode,
+  sandboxReady,
+  productionReady,
+}: {
+  readinessMode: IntegrationConfig['readiness_mode'];
+  sandboxReady: boolean;
+  productionReady: boolean;
+}) {
+  if (productionReady) {
+    return (
+      <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 font-medium text-accent-800">
+        production vendor ready
+      </span>
+    );
+  }
+  if (readinessMode === 'local_sandbox') {
+    return (
+      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+        {sandboxReady ? 'local sandbox ready' : 'local sandbox mode'}
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 font-medium text-clinic-600">
+      production vendor mode
+    </span>
+  );
 }
 
 function StatusBadge({ config }: { config: IntegrationConfig }) {

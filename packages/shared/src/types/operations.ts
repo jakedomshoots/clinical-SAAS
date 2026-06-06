@@ -842,6 +842,9 @@ export interface IntegrationConfig {
   adapter_methods: AdapterMethod[];
   adapter_method_ready_count: number;
   adapter_method_total: number;
+  readiness_mode: 'production_vendor' | 'local_sandbox';
+  sandbox_ready: boolean;
+  production_ready: boolean;
   mode: 'environment' | 'setup_draft' | 'demo';
   status: 'healthy' | 'configured' | 'draft' | 'missing';
   fields: IntegrationConfigField[];
@@ -908,6 +911,9 @@ export interface CredentialPreflightItem {
   adapter_methods: AdapterMethod[];
   adapter_method_ready_count: number;
   adapter_method_total: number;
+  readiness_mode: 'production_vendor' | 'local_sandbox';
+  sandbox_ready: boolean;
+  production_ready: boolean;
   mode: string;
   missing_fields: string[];
   configured_fields: string[];

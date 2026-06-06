@@ -9,6 +9,7 @@ from app.integrations.portal import PortalClient
 class SandboxEHRClient(EHRClient):
     adapter_implemented = True
     adapter_detail = "Sandbox EHR adapter implements the local contract harness."
+    readiness_mode = "local_sandbox"
 
     async def search_patient(self, query: str) -> list[dict]:
         self.require_configured()
@@ -29,6 +30,7 @@ class SandboxEHRClient(EHRClient):
 class SandboxFaxProviderClient(FaxProviderClient):
     adapter_implemented = True
     adapter_detail = "Sandbox fax adapter implements outbound and inbound document harnesses."
+    readiness_mode = "local_sandbox"
 
     async def send_document(self, to_number: str, file_url: str | None) -> dict:
         self.require_configured()
@@ -44,6 +46,7 @@ class SandboxFaxProviderClient(FaxProviderClient):
 class SandboxPortalClient(PortalClient):
     adapter_implemented = True
     adapter_detail = "Sandbox portal adapter implements message and intake harnesses."
+    readiness_mode = "local_sandbox"
 
     async def send_message(self, recipient_id: str, subject: str, body: str) -> dict:
         self.require_configured()
@@ -59,6 +62,7 @@ class SandboxPortalClient(PortalClient):
 class SandboxCalendarClient(CalendarClient):
     adapter_implemented = True
     adapter_detail = "Sandbox calendar adapter implements appointment sync harnesses."
+    readiness_mode = "local_sandbox"
 
     async def create_event(self, appointment: dict) -> dict:
         self.require_configured()
@@ -80,6 +84,7 @@ class SandboxCalendarClient(CalendarClient):
 class SandboxCommunicationsClient(CommunicationsClient):
     adapter_implemented = True
     adapter_detail = "Sandbox communications adapter implements outreach delivery harnesses."
+    readiness_mode = "local_sandbox"
 
     async def send(self, *, channel: str, recipient: str, subject: str, body: str) -> dict:
         self.require_configured()
@@ -96,6 +101,7 @@ class SandboxCommunicationsClient(CommunicationsClient):
 class SandboxClearinghouseClient(ClearinghouseClient):
     adapter_implemented = True
     adapter_detail = "Sandbox clearinghouse adapter implements claim and remittance harnesses."
+    readiness_mode = "local_sandbox"
 
     async def submit_claim(self, claim_payload: dict) -> dict:
         self.require_configured()

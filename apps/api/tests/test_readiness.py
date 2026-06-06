@@ -60,6 +60,9 @@ async def test_external_integrations_use_sandbox_harnesses_when_enabled(monkeypa
 
     assert integrations["ehr"]["ok"] is True
     assert integrations["ehr"]["adapter_implemented"] is True
+    assert integrations["ehr"]["readiness_mode"] == "local_sandbox"
+    assert integrations["ehr"]["sandbox_ready"] is True
+    assert integrations["ehr"]["production_ready"] is False
     assert "sandbox" in integrations["ehr"]["adapter_detail"].lower()
     assert integrations["fax_provider"]["ok"] is True
     assert integrations["clearinghouse"]["ok"] is True

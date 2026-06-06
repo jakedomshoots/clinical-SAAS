@@ -77,7 +77,7 @@ USE_SANDBOX_ADAPTERS=false
 `/api/ready.status` reflects core infrastructure. `/api/ready.operational_status` includes these external integration checks.
 Configured credentials do not make an integration live-ready by themselves; placeholder vendor adapters keep `/api/ready.operational_status` and `/api/integrations/credential-preflight` blocked until the adapter is implemented and sandbox evidence is recorded.
 Set `USE_SANDBOX_ADAPTERS=true` only for local contract rehearsal; it enables deterministic fake adapters so teams can test adapter wiring before real vendor credentials are available.
-In that mode, Integration Setup can run sandbox workflows and automatically record passing evidence; production use still requires real vendor adapters, credentials, and vendor sandbox references.
+In that mode, Integration Setup can run sandbox workflows and automatically record passing evidence. These lanes are labeled `local_sandbox`, can become `sandbox_ready`, and stay `production_ready=false`; production use still requires real vendor adapters, credentials, and vendor sandbox references.
 
 ## Verification
 

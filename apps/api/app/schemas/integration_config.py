@@ -30,6 +30,9 @@ class IntegrationConfigOut(BaseModel):
     adapter_methods: list[AdapterMethodOut] = Field(default_factory=list)
     adapter_method_ready_count: int = 0
     adapter_method_total: int = 0
+    readiness_mode: str = "production_vendor"
+    sandbox_ready: bool = False
+    production_ready: bool = False
     mode: str
     status: str
     fields: list[IntegrationConfigFieldOut]
@@ -89,6 +92,9 @@ class CredentialPreflightItemOut(BaseModel):
     adapter_methods: list[AdapterMethodOut] = Field(default_factory=list)
     adapter_method_ready_count: int = 0
     adapter_method_total: int = 0
+    readiness_mode: str = "production_vendor"
+    sandbox_ready: bool = False
+    production_ready: bool = False
     mode: str
     missing_fields: list[str]
     configured_fields: list[str]

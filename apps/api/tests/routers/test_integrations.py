@@ -446,6 +446,34 @@ async def test_run_all_sandbox_workflows_records_all_passing_evidence(
 
 
 @pytest.mark.asyncio
+async def test_local_sandbox_success_does_not_claim_production_vendor_readiness(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    monkeypatch.setattr(integration_config_service.settings, "use_sandbox_adapters", True)
+    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "sandbox")
+
+    ran = await client.post(
+        "/api/integrations/config/fax/sandbox-workflows/run-all",
+        headers=auth_headers,
+    )
+    updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in updated.json()["data"] if item["key"] == "fax")
+    sandbox_step = next(step for step in fax["steps"] if step["key"] == "sandbox_workflows")
+
+    assert ran.status_code == 201
+    assert fax["readiness_mode"] == "local_sandbox"
+    assert fax["sandbox_ready"] is True
+    assert fax["production_ready"] is False
+    assert fax["status"] == "staged"
+    assert sandbox_step["status"] == "ready"
+    assert any("production vendor" in blocker.lower() for blocker in fax["blockers"])
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,

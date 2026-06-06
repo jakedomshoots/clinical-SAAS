@@ -2557,6 +2557,9 @@ function demoIntegrationConfigs() {
       adapter_methods: methods,
       adapter_method_ready_count: methods.filter((method) => method.status === 'ready').length,
       adapter_method_total: methods.length,
+      readiness_mode: 'production_vendor',
+      sandbox_ready: false,
+      production_ready: false,
       mode: configured ? 'setup_draft' : 'demo',
       status: configured ? 'draft' : 'missing',
       fields: fields.map((field) => ({
@@ -2598,7 +2601,9 @@ function demoCredentialPreflight() {
     const passedEvidenceCount = sandboxEvidence.filter((item) => item.status === 'passed').length;
     const failedEvidence = sandboxEvidence.filter((item) => item.status === 'failed');
     const sandboxComplete = sandboxEvidence.length > 0 && passedEvidenceCount === sandboxEvidence.length;
-    const status = config.healthy && config.adapter_implemented && sandboxComplete
+    const sandboxReady = config.sandbox_ready && sandboxComplete;
+    const productionReady = config.production_ready && sandboxComplete;
+    const status = productionReady
       ? 'ready'
       : missingFields.length
       ? 'missing'
@@ -2616,6 +2621,9 @@ function demoCredentialPreflight() {
       adapter_methods: config.adapter_methods,
       adapter_method_ready_count: config.adapter_method_ready_count,
       adapter_method_total: config.adapter_method_total,
+      readiness_mode: config.readiness_mode,
+      sandbox_ready: sandboxReady,
+      production_ready: productionReady,
       mode: config.mode,
       missing_fields: missingFields,
       configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
@@ -2630,6 +2638,8 @@ function demoCredentialPreflight() {
         ? [`Failed sandbox workflow evidence requires vendor review: ${failedEvidence.map((item) => item.test_label).join(', ')}.`]
         : status === 'blocked'
         ? ['Latest connection test failed; vendor adapter or credentials need review.']
+        : status === 'staged' && sandboxReady
+        ? ['Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use.']
         : status === 'staged'
         ? ['Credentials are staged, but sandbox evidence is still pending.']
         : [],
@@ -2656,7 +2666,7 @@ function demoCredentialPreflight() {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
           status: sandboxComplete ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
-          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
+          detail: sandboxComplete && config.readiness_mode === 'local_sandbox' ? 'All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live.' : sandboxComplete ? 'All vendor sandbox workflow checks have recorded passing evidence.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
         },
       ],
       docs: config.docs,
