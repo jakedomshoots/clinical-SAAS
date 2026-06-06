@@ -522,6 +522,7 @@ async def get_document_download_handoff(
         return None
     content_type = _infer_content_type(document.file_url)
     presigned_url = _presigned_get_url(document.file_url)
+    expires_at = _document_access_token_expires_at(token)
     await log_event(
         db,
         "patient_document.download_handoff",
@@ -538,6 +539,7 @@ async def get_document_download_handoff(
             ),
             "content_type": content_type,
             "presigned": bool(presigned_url),
+            "expires_at": expires_at.isoformat() if expires_at else None,
         },
     )
     return {
@@ -690,6 +692,15 @@ def _verify_document_access_token(
         return False
     message = _document_access_token_message(patient_id, document_id, file_url, expires_at)
     return hmac.compare_digest(signature, _sign_upload_token(message))
+
+
+def _document_access_token_expires_at(token: str) -> datetime | None:
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(token.encode("ascii")).decode("utf-8"))
+        expires_at = int(payload["expires_at"])
+    except (binascii.Error, KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return datetime.fromtimestamp(expires_at, tz=UTC).replace(tzinfo=None)
 
 
 def _upload_token_message(

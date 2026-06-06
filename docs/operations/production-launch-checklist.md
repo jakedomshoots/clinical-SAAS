@@ -67,7 +67,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Browser QA covers Command Center queue blockers, patient Documents, Meds, and Care Plan actions.
 - Browser QA covers staff admin, task outreach staging, document preview/download modes, and schedule conflict handling.
 - `/api/operations/operator-health` has no critical checks, backup/restore freshness is current, integration failures are cleared, staff role/access warnings are resolved or assigned, and launch evidence gaps are assigned before the live-use rehearsal.
-- `/api/operations/document-storage-readiness` has status `ready`; metadata-only document gaps, unsigned handoffs, expired handoffs, and object-storage credential gaps are cleared or assigned with launch-owner sign-off.
+- `/api/operations/document-storage-readiness` has status `ready`; metadata-only document gaps, unsigned handoffs, expired time-bound handoffs, and object-storage credential gaps are cleared or assigned with launch-owner sign-off.
 - `/api/operations/alert-rules` has no critical triggered rules, and `/api/operations/incident-timeline` has been reviewed for failed integrations, blocked logins, expired onboarding, backup/restore gaps, patient chart/profile access, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness.
 - `/api/operations/live-use-rehearsal` has been reviewed/exported by the manager and has no blocking gates before the live-use rehearsal starts.
 - `/api/operations/production-rehearsal` has been reviewed, saved as rehearsal evidence, exported for the launch packet, and every blocking gate has an assigned owner, status, due date, and launch note before the rehearsal starts.

@@ -426,6 +426,16 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert handoff.json()["presigned_url"] is None
     assert invalid_handoff.status_code == 404
 
+    readiness = await client.get("/api/operations/document-storage-readiness", headers=auth_headers)
+    assert readiness.status_code == 200
+    recent_handoff = next(
+        item
+        for item in readiness.json()["recent_handoffs"]
+        if item["document_id"] == file_doc.json()["id"]
+    )
+    assert recent_handoff["expires_at"] is not None
+    assert recent_handoff["expired"] is False
+
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
     assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
     assert any(event["event_type"] == "patient_document.download_handoff" for event in audit.json()["data"])

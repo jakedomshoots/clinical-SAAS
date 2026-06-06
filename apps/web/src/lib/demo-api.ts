@@ -3893,8 +3893,23 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
     if (!document) throw new Error('Document not found');
     const expiresAt = document.file_url ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
-    const accessToken = document.file_url ? `demo-doc-access:${document.id}:${Date.now()}` : null;
+    const accessToken = document.file_url ? `demo-doc-access:${document.id}:${expiresAt}` : null;
     const contentType = document.file_url?.toLowerCase().endsWith('.pdf') ? 'application/pdf' : null;
+    logDemoEvent({
+      event_type: 'patient_document.accessed',
+      entity_type: 'patient_document',
+      entity_id: document.id,
+      payload: {
+        patient_id: patientId,
+        reason: url.searchParams.get('reason') ?? null,
+        has_file: Boolean(document.file_url),
+        storage_status: document.file_url ? 'signed_handoff' : 'metadata_only',
+        viewer_mode: document.file_url ? 'inline' : 'metadata',
+        content_type: contentType,
+        expires_at: expiresAt,
+        source_mode: 'demo-ui',
+      },
+    });
     return {
       document_id: document.id,
       available: Boolean(document.file_url),
@@ -3916,6 +3931,24 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const [patientId, documentId] = [patientDocumentDownloadMatch[1], patientDocumentDownloadMatch[2]];
     const document = patientDocuments.find((item) => item.patient_id === patientId && item.id === documentId);
     if (!document?.file_url) throw new Error('Document access expired');
+    const token = url.searchParams.get('token') ?? '';
+    const expiresAt = token.startsWith(`demo-doc-access:${document.id}:`)
+      ? token.replace(`demo-doc-access:${document.id}:`, '')
+      : null;
+    logDemoEvent({
+      event_type: 'patient_document.download_handoff',
+      entity_type: 'patient_document',
+      entity_id: document.id,
+      payload: {
+        patient_id: patientId,
+        storage_status: 'signed_handoff',
+        viewer_mode: document.file_url.toLowerCase().endsWith('.pdf') ? 'inline' : 'download',
+        content_type: document.file_url.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream',
+        presigned: false,
+        expires_at: expiresAt,
+        source_mode: 'demo-ui',
+      },
+    });
     return {
       document_id: document.id,
       title: document.title,
