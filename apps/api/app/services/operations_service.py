@@ -1569,6 +1569,53 @@ async def credential_dry_run_binder(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def vendor_credential_request_packet(db: AsyncSession, user: User) -> dict:
+    preflight = await integration_config_service.credential_preflight(db, user)
+    archives = await _latest_vendor_handoff_archives(db, user)
+    items = [
+        _vendor_credential_request_item(item, archives.get(item["key"]))
+        for item in preflight.get("data", [])
+    ]
+    ready_count = sum(1 for item in items if item["request_status"] == "ready")
+    attention_count = sum(1 for item in items if item["request_status"] == "attention")
+    blocked_count = sum(1 for item in items if item["request_status"] == "blocked")
+    missing_owner_count = sum(
+        1
+        for item in items
+        if item["vendor_profile"].get("missing_fields")
+        and any(field in item["vendor_profile"]["missing_fields"] for field in ["owner_name", "owner_email", "support_contact"])
+    )
+    missing_contract_count = sum(
+        1
+        for item in items
+        if "contract_reference_url" in (item["vendor_profile"].get("missing_fields") or [])
+    )
+    archive_missing_count = sum(1 for item in items if item["handoff_archive"]["status"] == "missing")
+    status = "ready" if blocked_count == 0 and attention_count == 0 else "blocked" if blocked_count else "attention"
+    return {
+        "status": status,
+        "generated_at": datetime.now(UTC),
+        "export_filename": "concierge-os-vendor-credential-request-packet.csv",
+        "ready_to_request_count": ready_count,
+        "attention_count": attention_count,
+        "blocked_count": blocked_count,
+        "missing_owner_count": missing_owner_count,
+        "missing_contract_count": missing_contract_count,
+        "archive_missing_count": archive_missing_count,
+        "total": len(items),
+        "summary": {
+            "total": len(items),
+            "ready_to_request": ready_count,
+            "attention": attention_count,
+            "blocked": blocked_count,
+            "missing_owner": missing_owner_count,
+            "missing_contract": missing_contract_count,
+            "archive_missing": archive_missing_count,
+        },
+        "items": items,
+    }
+
+
 async def _vendor_handoff_archive_workplan_items(
     db: AsyncSession | None,
     user: User,
@@ -2307,6 +2354,33 @@ def credential_dry_run_binder_csv(binder: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def vendor_credential_request_packet_csv(packet: dict) -> str:
+    rows = [
+        "integration,label,request_status,vendor_name,environment,owner_email,support_contact,required_fields,missing_fields,handoff_archive_status,handoff_archive_reference,sandbox_reference_count,sandbox_reference_total,blockers,route"
+    ]
+    for item in packet["items"]:
+        profile = item["vendor_profile"]
+        archive = item["handoff_archive"]
+        rows.append(_csv_row([
+            item["integration"],
+            item["label"],
+            item["request_status"],
+            profile.get("vendor_name", ""),
+            profile.get("environment", ""),
+            profile.get("owner_email", ""),
+            profile.get("support_contact", ""),
+            "; ".join(item["required_fields"]),
+            "; ".join(item["missing_fields"]),
+            archive["status"],
+            archive.get("archive_reference_url") or "",
+            str(item["sandbox_reference_count"]),
+            str(item["sandbox_reference_total"]),
+            "; ".join(item["blockers"]),
+            item["route"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 def live_use_rehearsal_csv(dashboard: dict) -> str:
     rows = ["section,key,label,status,detail,route"]
     for gate in dashboard["gates"]:
@@ -2845,6 +2919,139 @@ def _credential_binder_item(item: dict, archive: dict | None) -> dict:
         "blockers": blockers,
         "route": "/integrations",
     }
+
+
+def _vendor_credential_request_item(item: dict, archive: dict | None) -> dict:
+    archive_state = _credential_binder_archive(item, archive)
+    vendor_profile = item.get("vendor_profile") or {}
+    missing_profile_fields = vendor_profile.get("missing_fields") or []
+    missing_fields = list(item.get("missing_fields") or [])
+    configured_fields = list(item.get("configured_fields") or [])
+    required_fields = sorted(set(missing_fields + configured_fields))
+    sandbox_reference_count = sum(
+        1
+        for evidence in item.get("sandbox_evidence", [])
+        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+    )
+    sandbox_reference_total = len(item.get("sandbox_tests", []))
+    blockers = list(item.get("blockers") or [])
+
+    has_owner_contact = bool(vendor_profile.get("owner_email") or vendor_profile.get("support_contact"))
+    has_contract = bool(vendor_profile.get("contract_reference_url"))
+    if not has_owner_contact:
+        request_status = "blocked"
+        blockers.append("Vendor owner email or support contact is required before a credential request can be sent.")
+    elif missing_fields or archive_state["status"] == "missing" or not has_contract:
+        request_status = "attention"
+    else:
+        request_status = "ready"
+
+    if "contract_reference_url" in missing_profile_fields and "Vendor contract/reference link is missing." not in blockers:
+        blockers.append("Vendor contract/reference link is missing.")
+    if archive_state["status"] == "missing":
+        blockers.append("Archive the vendor handoff packet before final launch review.")
+
+    checklist = _vendor_credential_request_checklist(
+        item,
+        required_fields,
+        missing_fields,
+        archive_state,
+        sandbox_reference_count,
+        sandbox_reference_total,
+    )
+    subject = f"Concierge OS credential request: {item['label']}"
+    body = _vendor_credential_request_body(
+        item,
+        vendor_profile,
+        required_fields,
+        missing_fields,
+        archive_state,
+        sandbox_reference_count,
+        sandbox_reference_total,
+    )
+    return {
+        "integration": item["key"],
+        "label": item["label"],
+        "request_status": request_status,
+        "credential_status": item["status"],
+        "readiness_mode": item["readiness_mode"],
+        "vendor_profile": vendor_profile,
+        "handoff_archive": archive_state,
+        "required_fields": required_fields,
+        "missing_fields": missing_fields,
+        "configured_fields": configured_fields,
+        "sandbox_reference_count": sandbox_reference_count,
+        "sandbox_reference_total": sandbox_reference_total,
+        "blockers": blockers,
+        "request_checklist": checklist,
+        "request_subject": subject,
+        "request_body": body,
+        "route": "/integrations",
+    }
+
+
+def _vendor_credential_request_checklist(
+    item: dict,
+    required_fields: list[str],
+    missing_fields: list[str],
+    archive: dict,
+    sandbox_reference_count: int,
+    sandbox_reference_total: int,
+) -> list[str]:
+    credential_label = ", ".join(missing_fields or required_fields) if required_fields else "vendor credential fields"
+    checklist = [
+        "Confirm vendor owner, owner email, support contact, and escalation notes.",
+        f"Request credential values or setup confirmation for: {credential_label}.",
+        "Attach the credential dry-run binder export for this integration.",
+    ]
+    if archive.get("archive_reference_url"):
+        checklist.append(f"Attach archived vendor handoff packet evidence: {archive['archive_reference_url']}.")
+    else:
+        checklist.append("Export and archive the vendor handoff packet before final launch review.")
+    if sandbox_reference_total:
+        missing_reference_count = max(sandbox_reference_total - sandbox_reference_count, 0)
+        if missing_reference_count:
+            checklist.append(f"Request vendor sandbox reference URLs for {missing_reference_count} workflow(s).")
+        else:
+            checklist.append("Confirm vendor sandbox reference URLs remain valid for all workflows.")
+    if item.get("readiness_mode") == "local_sandbox":
+        checklist.append("Replace local sandbox rehearsal evidence with production vendor evidence before live use.")
+    return checklist
+
+
+def _vendor_credential_request_body(
+    item: dict,
+    vendor_profile: dict,
+    required_fields: list[str],
+    missing_fields: list[str],
+    archive: dict,
+    sandbox_reference_count: int,
+    sandbox_reference_total: int,
+) -> str:
+    credential_fields = ", ".join(missing_fields or required_fields) if required_fields else "the required production credential fields"
+    vendor_name = vendor_profile.get("vendor_name") or item["label"]
+    owner_name = vendor_profile.get("owner_name") or "Vendor team"
+    environment = vendor_profile.get("environment") or "production"
+    archive_line = (
+        f"Handoff packet evidence: {archive['archive_reference_url']}"
+        if archive.get("archive_reference_url")
+        else "Handoff packet evidence: pending archive before launch review"
+    )
+    sandbox_line = (
+        f"Vendor sandbox references captured: {sandbox_reference_count} of {sandbox_reference_total}"
+        if sandbox_reference_total
+        else "Vendor sandbox references captured: no sandbox workflows are configured"
+    )
+    return "\n".join([
+        f"Hello {owner_name},",
+        "",
+        f"We are preparing Concierge OS {item['label']} connectivity for the {environment} environment with {vendor_name}.",
+        f"Please provide or confirm: {credential_fields}.",
+        sandbox_line,
+        archive_line,
+        "",
+        "Please also confirm any IP allowlists, callback URLs, sandbox test references, and production cutover requirements for this integration.",
+    ])
 
 
 def _credential_binder_archive(item: dict, archive: dict | None) -> dict:

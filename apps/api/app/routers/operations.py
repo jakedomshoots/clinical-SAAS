@@ -65,6 +65,7 @@ from app.schemas.operations import (
     StaffTrainingSessionOut,
     StaffTrainingSessionStart,
     StaffTrainingSessionUpdate,
+    VendorCredentialRequestPacketOut,
 )
 from app.services import operations_service
 
@@ -345,6 +346,23 @@ async def export_credential_dry_run_binder(db: DbDep, current_user: OpsUserDep):
         content=operations_service.credential_dry_run_binder_csv(binder),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{binder["export_filename"]}"'},
+    )
+
+
+@router.get("/vendor-credential-request-packet", response_model=VendorCredentialRequestPacketOut)
+async def get_vendor_credential_request_packet(db: DbDep, current_user: OpsUserDep):
+    return VendorCredentialRequestPacketOut(
+        **await operations_service.vendor_credential_request_packet(db, current_user)
+    )
+
+
+@router.get("/vendor-credential-request-packet/export")
+async def export_vendor_credential_request_packet(db: DbDep, current_user: OpsUserDep):
+    packet = await operations_service.vendor_credential_request_packet(db, current_user)
+    return Response(
+        content=operations_service.vendor_credential_request_packet_csv(packet),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
     )
 
 

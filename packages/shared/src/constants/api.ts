@@ -121,6 +121,8 @@ export const ROUTES = {
   OPERATIONS_CREDENTIAL_DRY_RUN_BINDER: '/api/operations/credential-dry-run-binder',
   OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT: '/api/operations/credential-dry-run-binder/export',
   OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_SNAPSHOTS: '/api/operations/credential-dry-run-binder/snapshots',
+  OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET: '/api/operations/vendor-credential-request-packet',
+  OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET_EXPORT: '/api/operations/vendor-credential-request-packet/export',
   OPERATIONS_LIVE_USE_REHEARSAL: '/api/operations/live-use-rehearsal',
   OPERATIONS_LIVE_USE_REHEARSAL_EXPORT: '/api/operations/live-use-rehearsal/export',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',

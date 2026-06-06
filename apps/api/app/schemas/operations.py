@@ -633,6 +633,48 @@ class CredentialDryRunBinderOut(BaseModel):
     items: list[CredentialBinderItemOut]
 
 
+class VendorCredentialRequestArchiveOut(BaseModel):
+    status: str
+    detail: str
+    archive_reference_url: str | None = None
+    archived_at: datetime | str | None = None
+
+
+class VendorCredentialRequestItemOut(BaseModel):
+    integration: str
+    label: str
+    request_status: str
+    credential_status: str
+    readiness_mode: str
+    vendor_profile: dict
+    handoff_archive: VendorCredentialRequestArchiveOut
+    required_fields: list[str]
+    missing_fields: list[str]
+    configured_fields: list[str]
+    sandbox_reference_count: int
+    sandbox_reference_total: int
+    blockers: list[str]
+    request_checklist: list[str]
+    request_subject: str
+    request_body: str
+    route: str
+
+
+class VendorCredentialRequestPacketOut(BaseModel):
+    status: str
+    generated_at: datetime
+    export_filename: str
+    ready_to_request_count: int
+    attention_count: int
+    blocked_count: int
+    missing_owner_count: int
+    missing_contract_count: int
+    archive_missing_count: int
+    total: int
+    summary: dict[str, int]
+    items: list[VendorCredentialRequestItemOut]
+
+
 class CredentialBinderSnapshotOut(BaseModel):
     id: str
     created_at: datetime

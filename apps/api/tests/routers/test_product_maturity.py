@@ -771,6 +771,40 @@ async def test_credential_dry_run_binder_rolls_up_vendor_launch_materials(client
 
 
 @pytest.mark.asyncio
+async def test_vendor_credential_request_packet_prepares_vendor_outreach(client, auth_headers):
+    packet = await client.get("/api/operations/vendor-credential-request-packet", headers=auth_headers)
+    exported = await client.get("/api/operations/vendor-credential-request-packet/export", headers=auth_headers)
+
+    assert packet.status_code == 200
+    data = packet.json()
+    assert data["total"] >= 6
+    assert data["export_filename"] == "concierge-os-vendor-credential-request-packet.csv"
+    assert data["summary"]["total"] == data["total"]
+    assert data["ready_to_request_count"] + data["attention_count"] + data["blocked_count"] == data["total"]
+    assert data["generated_at"]
+
+    fax = next(item for item in data["items"] if item["integration"] == "fax")
+    assert fax["label"] == "Fax provider"
+    assert fax["request_status"] in {"ready", "attention", "blocked"}
+    assert fax["readiness_mode"] in {"production_vendor", "local_sandbox"}
+    assert isinstance(fax["required_fields"], list)
+    assert isinstance(fax["missing_fields"], list)
+    assert fax["vendor_profile"]["profile_complete"] in {True, False}
+    assert fax["handoff_archive"]["status"] in {"ready", "warning", "missing"}
+    assert isinstance(fax["sandbox_reference_count"], int)
+    assert isinstance(fax["request_checklist"], list)
+    assert fax["request_subject"].startswith("Concierge OS credential request:")
+    assert "Fax provider" in fax["request_body"]
+    assert fax["route"] == "/integrations"
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-vendor-credential-request-packet.csv" in exported.headers["content-disposition"]
+    assert "integration,label,request_status,vendor_name" in exported.text
+    assert "fax,Fax provider" in exported.text
+
+
+@pytest.mark.asyncio
 async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
     snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)

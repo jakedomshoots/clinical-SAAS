@@ -705,6 +705,41 @@ export interface CredentialDryRunBinder {
   items: CredentialBinderItem[];
 }
 
+export interface VendorCredentialRequestItem {
+  integration: string;
+  label: string;
+  request_status: 'ready' | 'attention' | 'blocked';
+  credential_status: CredentialPreflightItem['status'];
+  readiness_mode: CredentialPreflightItem['readiness_mode'];
+  vendor_profile: VendorProfile;
+  handoff_archive: CredentialBinderArchive;
+  required_fields: string[];
+  missing_fields: string[];
+  configured_fields: string[];
+  sandbox_reference_count: number;
+  sandbox_reference_total: number;
+  blockers: string[];
+  request_checklist: string[];
+  request_subject: string;
+  request_body: string;
+  route: string;
+}
+
+export interface VendorCredentialRequestPacket {
+  status: 'ready' | 'attention' | 'blocked';
+  generated_at: string;
+  export_filename: string;
+  ready_to_request_count: number;
+  attention_count: number;
+  blocked_count: number;
+  missing_owner_count: number;
+  missing_contract_count: number;
+  archive_missing_count: number;
+  total: number;
+  summary: Record<string, number>;
+  items: VendorCredentialRequestItem[];
+}
+
 export interface CredentialBinderSnapshot {
   id: string;
   created_at: string;

@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -1652,6 +1652,136 @@ function credentialDryRunBinderCsv(binder: CredentialDryRunBinder) {
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
+function vendorCredentialRequestPacket(): VendorCredentialRequestPacket {
+  const preflight = demoCredentialPreflight();
+  const items = preflight.data.map((item): VendorCredentialRequestItem => {
+    const archive = integrationHandoffArchives[item.key] ?? null;
+    const handoffArchive = archive
+      ? {
+          status: archive.archive_reference_url ? 'ready' as const : 'warning' as const,
+          detail: archive.archive_reference_url ? `${item.label} handoff packet archive is linked to launch evidence.` : `${item.label} handoff packet is archived but missing a launch evidence reference.`,
+          archive_reference_url: archive.archive_reference_url,
+          archived_at: archive.archived_at,
+        }
+      : {
+          status: 'missing' as const,
+          detail: `${item.label} handoff packet has not been archived for launch review.`,
+          archive_reference_url: null,
+          archived_at: null,
+        };
+    const missingFields = [...item.missing_fields];
+    const requiredFields = Array.from(new Set([...item.configured_fields, ...missingFields])).sort();
+    const sandboxReferenceCount = item.sandbox_evidence.filter((evidence) => evidence.status === 'passed' && Boolean(evidence.reference_url) && !evidence.reference_url?.startsWith('sandbox://')).length;
+    const sandboxReferenceTotal = item.sandbox_tests.length;
+    const blockers = [...item.blockers];
+    const hasOwnerContact = Boolean(item.vendor_profile.owner_email || item.vendor_profile.support_contact);
+    const hasContract = Boolean(item.vendor_profile.contract_reference_url);
+    if (!hasOwnerContact) blockers.push('Vendor owner email or support contact is required before a credential request can be sent.');
+    if (!hasContract) blockers.push('Vendor contract/reference link is missing.');
+    if (handoffArchive.status === 'missing') blockers.push('Archive the vendor handoff packet before final launch review.');
+    const requestStatus: VendorCredentialRequestItem['request_status'] = !hasOwnerContact
+      ? 'blocked'
+      : missingFields.length || handoffArchive.status === 'missing' || !hasContract
+        ? 'attention'
+        : 'ready';
+    const credentialLabel = (missingFields.length ? missingFields : requiredFields).join(', ') || 'vendor credential fields';
+    const requestChecklist = [
+      'Confirm vendor owner, owner email, support contact, and escalation notes.',
+      `Request credential values or setup confirmation for: ${credentialLabel}.`,
+      'Attach the credential dry-run binder export for this integration.',
+      handoffArchive.archive_reference_url
+        ? `Attach archived vendor handoff packet evidence: ${handoffArchive.archive_reference_url}.`
+        : 'Export and archive the vendor handoff packet before final launch review.',
+      sandboxReferenceTotal > sandboxReferenceCount
+        ? `Request vendor sandbox reference URLs for ${sandboxReferenceTotal - sandboxReferenceCount} workflow(s).`
+        : 'Confirm vendor sandbox reference URLs remain valid for all workflows.',
+      ...(item.readiness_mode === 'local_sandbox' ? ['Replace local sandbox rehearsal evidence with production vendor evidence before live use.'] : []),
+    ];
+    const vendorName = item.vendor_profile.vendor_name || item.label;
+    const ownerName = item.vendor_profile.owner_name || 'Vendor team';
+    const environment = item.vendor_profile.environment || 'production';
+    const requestBody = [
+      `Hello ${ownerName},`,
+      '',
+      `We are preparing Concierge OS ${item.label} connectivity for the ${environment} environment with ${vendorName}.`,
+      `Please provide or confirm: ${credentialLabel}.`,
+      `Vendor sandbox references captured: ${sandboxReferenceCount} of ${sandboxReferenceTotal}`,
+      handoffArchive.archive_reference_url ? `Handoff packet evidence: ${handoffArchive.archive_reference_url}` : 'Handoff packet evidence: pending archive before launch review',
+      '',
+      'Please also confirm any IP allowlists, callback URLs, sandbox test references, and production cutover requirements for this integration.',
+    ].join('\n');
+    return {
+      integration: item.key,
+      label: item.label,
+      request_status: requestStatus,
+      credential_status: item.status,
+      readiness_mode: item.readiness_mode,
+      vendor_profile: item.vendor_profile,
+      handoff_archive: handoffArchive,
+      required_fields: requiredFields,
+      missing_fields: missingFields,
+      configured_fields: item.configured_fields,
+      sandbox_reference_count: sandboxReferenceCount,
+      sandbox_reference_total: sandboxReferenceTotal,
+      blockers,
+      request_checklist: requestChecklist,
+      request_subject: `Concierge OS credential request: ${item.label}`,
+      request_body: requestBody,
+      route: '/integrations',
+    };
+  });
+  const readyCount = items.filter((item) => item.request_status === 'ready').length;
+  const attentionCount = items.filter((item) => item.request_status === 'attention').length;
+  const blockedCount = items.filter((item) => item.request_status === 'blocked').length;
+  const missingOwnerCount = items.filter((item) => item.vendor_profile.missing_fields.some((field) => ['owner_name', 'owner_email', 'support_contact'].includes(field))).length;
+  const missingContractCount = items.filter((item) => item.vendor_profile.missing_fields.includes('contract_reference_url')).length;
+  const archiveMissingCount = items.filter((item) => item.handoff_archive.status === 'missing').length;
+  return {
+    status: blockedCount ? 'blocked' : attentionCount ? 'attention' : 'ready',
+    generated_at: new Date().toISOString(),
+    export_filename: 'concierge-os-vendor-credential-request-packet.csv',
+    ready_to_request_count: readyCount,
+    attention_count: attentionCount,
+    blocked_count: blockedCount,
+    missing_owner_count: missingOwnerCount,
+    missing_contract_count: missingContractCount,
+    archive_missing_count: archiveMissingCount,
+    total: items.length,
+    summary: {
+      total: items.length,
+      ready_to_request: readyCount,
+      attention: attentionCount,
+      blocked: blockedCount,
+      missing_owner: missingOwnerCount,
+      missing_contract: missingContractCount,
+      archive_missing: archiveMissingCount,
+    },
+    items,
+  };
+}
+
+function vendorCredentialRequestPacketCsv(packet: VendorCredentialRequestPacket) {
+  const rows = [['integration', 'label', 'request_status', 'vendor_name', 'environment', 'owner_email', 'support_contact', 'required_fields', 'missing_fields', 'handoff_archive_status', 'handoff_archive_reference', 'sandbox_reference_count', 'sandbox_reference_total', 'blockers', 'route']];
+  packet.items.forEach((item) => rows.push([
+    item.integration,
+    item.label,
+    item.request_status,
+    item.vendor_profile.vendor_name,
+    item.vendor_profile.environment,
+    item.vendor_profile.owner_email,
+    item.vendor_profile.support_contact,
+    item.required_fields.join('; '),
+    item.missing_fields.join('; '),
+    item.handoff_archive.status,
+    item.handoff_archive.archive_reference_url ?? '',
+    String(item.sandbox_reference_count),
+    String(item.sandbox_reference_total),
+    item.blockers.join('; '),
+    item.route,
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 function credentialBinderSnapshotFromEvent(event: AuditEvent): CredentialBinderSnapshot {
   const payload = event.payload as Partial<CredentialDryRunBinder>;
   return {
@@ -3257,6 +3387,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/credential-dry-run-binder/export' && method === 'GET') {
     return credentialDryRunBinderCsv(credentialDryRunBinder()) as T;
+  }
+  if (path === '/operations/vendor-credential-request-packet' && method === 'GET') {
+    return vendorCredentialRequestPacket() as T;
+  }
+  if (path === '/operations/vendor-credential-request-packet/export' && method === 'GET') {
+    return vendorCredentialRequestPacketCsv(vendorCredentialRequestPacket()) as T;
   }
   if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'POST') {
     const binder = credentialDryRunBinder();
