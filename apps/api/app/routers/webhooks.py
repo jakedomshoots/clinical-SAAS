@@ -59,7 +59,12 @@ async def _receive_webhook(
 ) -> WebhookOut:
     _verify_webhook_secret(secret, timestamp)
     integration = INTEGRATION_BY_SOURCE[source]
-    idempotency_key = data.event_id or f"{source}:{data.action}:{data.entity_id or 'none'}"
+    if not data.event_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Webhook event_id is required for idempotency",
+        )
+    idempotency_key = data.event_id
     existing = await find_by_idempotency_key(db, data.organization_id, idempotency_key)
     if existing:
         return WebhookOut(

@@ -82,6 +82,26 @@ async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_webhook_requires_vendor_event_id(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+
+    res = await client.post(
+        "/api/webhooks/fax",
+        json={
+            "organization_id": "default",
+            "action": "status.received",
+            "entity_type": "fax",
+            "entity_id": "fax-123",
+            "payload": {"status": "received"},
+        },
+        headers=webhook_headers(),
+    )
+
+    assert res.status_code == 400
+    assert "event_id" in res.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_webhook_rejects_stale_timestamp(client: AsyncClient, monkeypatch):
     monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
 
