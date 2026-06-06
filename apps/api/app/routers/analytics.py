@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,14 +10,15 @@ from app.database import get_db
 from app.deps import get_current_user, require_roles
 from app.models.billing import BillingCase, BillingStatus
 from app.models.fax import Fax
-from app.models.integration_event import IntegrationEvent
+from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
 from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.portal_intake import PortalIntakeStatus, PortalIntakeSubmission
 from app.models.schedule import Appointment, AppointmentStatus
-from app.models.task import Task, TaskStatus
+from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User, UserRole
+from app.services import billing_service
 from app.services.pilot_seed_service import seed_pilot_workspace
 from app.services.readiness_service import check_readiness
 
@@ -54,6 +55,98 @@ async def summary(db: DbDep, current_user: CurrentUserDep):
             "draft_cases": await count(BillingCase, BillingCase.status == BillingStatus.draft),
             "denied_cases": await count(BillingCase, BillingCase.status == BillingStatus.denied),
         },
+    }
+
+
+@router.get("/daily-closeout")
+async def daily_closeout(db: DbDep, current_user: CurrentUserDep):
+    org = current_user.organization_id
+    now = datetime.now(UTC).replace(tzinfo=None)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    tomorrow_start = today_start + timedelta(days=1)
+    task_aging_threshold = now - timedelta(hours=48)
+    document_aging_threshold = now - timedelta(hours=72)
+
+    async def count(model, *clauses) -> int:
+        result = await db.execute(select(func.count(model.id)).where(model.organization_id == org, *clauses))
+        return result.scalar() or 0
+
+    open_task_clause = Task.status.in_([TaskStatus.open, TaskStatus.in_progress])
+    billing = await billing_service.work_queue(db, current_user)
+    totals = {
+        "appointments_today": await count(
+            Appointment,
+            Appointment.start_time >= today_start,
+            Appointment.start_time < tomorrow_start,
+        ),
+        "active_visits": await count(
+            Appointment,
+            Appointment.status.in_([
+                AppointmentStatus.checked_in,
+                AppointmentStatus.roomed,
+                AppointmentStatus.provider_review,
+                AppointmentStatus.checkout,
+            ]),
+        ),
+        "open_tasks": await count(Task, open_task_clause),
+        "overdue_tasks": await count(Task, open_task_clause, Task.due_date < now),
+        "urgent_tasks": await count(Task, open_task_clause, Task.priority == TaskPriority.urgent),
+        "documents_needing_review": await count(
+            PatientDocument,
+            PatientDocument.status == PatientDocumentStatus.needs_review,
+        ),
+        "unsigned_encounters": await count(
+            PatientEncounter,
+            PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+        ),
+        "intake_needing_review": await count(
+            PortalIntakeSubmission,
+            PortalIntakeSubmission.status.in_([
+                PortalIntakeStatus.received,
+                PortalIntakeStatus.needs_review,
+            ]),
+        ),
+        "unmatched_faxes": await count(Fax, Fax.patient_id.is_(None)),
+        "failed_integrations": await count(
+            IntegrationEvent,
+            IntegrationEvent.status == IntegrationEventStatus.failed,
+        ),
+    }
+    aging = {
+        "tasks_over_48h": await count(
+            Task,
+            open_task_clause,
+            Task.due_date.is_not(None),
+            Task.due_date <= task_aging_threshold,
+        ),
+        "documents_over_72h": await count(
+            PatientDocument,
+            PatientDocument.status == PatientDocumentStatus.needs_review,
+            PatientDocument.received_at <= document_aging_threshold,
+        ),
+        "draft_billing_cases": billing["draft_count"],
+        "denials_waiting_rework": billing["denial_rework_count"],
+        "remittance_pending": billing["remittance_pending_count"],
+        "failed_integration_events": totals["failed_integrations"],
+    }
+    risk_register = [
+        _risk("Urgent open tasks", totals["urgent_tasks"], "clinical", "Open urgent tasks should be owned before closeout."),
+        _risk("Overdue work", totals["overdue_tasks"], "operations", "Overdue tasks remain unresolved."),
+        _risk("Aging documents", aging["documents_over_72h"], "clinical", "Outside documents have waited more than 72 hours for review."),
+        _risk("Unsigned encounters", totals["unsigned_encounters"], "clinical", "Draft or provider-review encounters are blocking downstream work."),
+        _risk("Billing coding gaps", billing["missing_coding_count"], "revenue", "Claims are missing CPT or diagnosis coding."),
+        _risk("Integration failures", totals["failed_integrations"], "vendor", "Failed integration events need retry or vendor follow-up."),
+    ]
+    risk_register = [item for item in risk_register if item["count"] > 0]
+    recommended_actions = _daily_closeout_actions(totals, aging, billing)
+    return {
+        "status": "clear" if not risk_register else "attention",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "totals": totals,
+        "aging": aging,
+        "billing": billing,
+        "risk_register": risk_register,
+        "recommended_actions": recommended_actions,
     }
 
 
@@ -118,3 +211,67 @@ async def seed_pilot_readiness(
     if not settings.allow_seed_endpoint or settings.is_production:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
     return await seed_pilot_workspace(db, current_user)
+
+
+def _risk(label: str, count: int, category: str, detail: str) -> dict:
+    severity = "critical" if category in {"clinical", "vendor"} and count > 0 else "warning"
+    return {
+        "label": label,
+        "category": category,
+        "count": count,
+        "severity": severity,
+        "detail": detail,
+    }
+
+
+def _daily_closeout_actions(totals: dict, aging: dict, billing: dict) -> list[dict]:
+    actions = []
+    if totals["urgent_tasks"] > 0:
+        actions.append({
+            "key": "urgent_tasks",
+            "severity": "critical",
+            "label": "Assign or complete urgent tasks",
+            "detail": f"{totals['urgent_tasks']} urgent task(s) are still open.",
+            "route": "/tasks",
+        })
+    if aging["documents_over_72h"] > 0:
+        actions.append({
+            "key": "documents_over_72h",
+            "severity": "critical",
+            "label": "Review aging outside documents",
+            "detail": f"{aging['documents_over_72h']} document(s) have aged past 72 hours.",
+            "route": "/patients",
+        })
+    if totals["unsigned_encounters"] > 0:
+        actions.append({
+            "key": "unsigned_encounters",
+            "severity": "warning",
+            "label": "Close unsigned encounters",
+            "detail": f"{totals['unsigned_encounters']} encounter(s) remain draft or in provider review.",
+            "route": "/patients",
+        })
+    if billing["missing_coding_count"] > 0:
+        actions.append({
+            "key": "billing_coding",
+            "severity": "warning",
+            "label": "Resolve billing coding gaps",
+            "detail": f"{billing['missing_coding_count']} claim(s) are missing coding before submission.",
+            "route": "/billing",
+        })
+    if totals["failed_integrations"] > 0:
+        actions.append({
+            "key": "failed_integrations",
+            "severity": "warning",
+            "label": "Retry failed integration events",
+            "detail": f"{totals['failed_integrations']} vendor event(s) failed.",
+            "route": "/operations",
+        })
+    if totals["intake_needing_review"] > 0:
+        actions.append({
+            "key": "portal_intake",
+            "severity": "normal",
+            "label": "Clear portal intake review",
+            "detail": f"{totals['intake_needing_review']} intake submission(s) need review.",
+            "route": "/portal-intake",
+        })
+    return actions

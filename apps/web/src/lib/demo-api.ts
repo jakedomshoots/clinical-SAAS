@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, EncounterTemplate, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -149,6 +149,66 @@ function billingWorkQueue() {
     denial_rework_count: billingCases.filter((item) => item.status === 'denied' && !item.denial_worked_at).length,
     remittance_pending_count: billingCases.filter((item) => item.status === 'submitted' && item.remittance_status === 'not_received').length,
     total: billingCases.length,
+  };
+}
+
+function dailyCloseout(): DailyCloseout {
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(todayStart.getDate() + 1);
+  const openTasks = tasks.filter((item) => ['open', 'in_progress'].includes(item.status));
+  const overdueTasks = openTasks.filter((item) => item.due_date && new Date(item.due_date) < now);
+  const urgentTasks = openTasks.filter((item) => item.priority === 'urgent');
+  const documentsNeedingReview = patientDocuments.filter((item) => item.status === 'needs_review');
+  const billing = billingWorkQueue();
+  const totals = {
+    appointments_today: appointments.filter((item) => {
+      const start = new Date(item.start_time);
+      return start >= todayStart && start < tomorrowStart;
+    }).length,
+    active_visits: appointments.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout'].includes(item.status)).length,
+    open_tasks: openTasks.length,
+    overdue_tasks: overdueTasks.length,
+    urgent_tasks: urgentTasks.length,
+    documents_needing_review: documentsNeedingReview.length,
+    unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length,
+    intake_needing_review: portalIntake.filter((item) => ['received', 'needs_review'].includes(item.status)).length,
+    unmatched_faxes: faxes.filter((item) => !item.patient_id).length,
+    failed_integrations: integrationEvents.filter((item) => item.status === 'failed').length,
+  };
+  const aging = {
+    tasks_over_48h: openTasks.filter((item) => item.due_date && now.getTime() - new Date(item.due_date).getTime() >= 48 * 60 * 60 * 1000).length,
+    documents_over_72h: documentsNeedingReview.filter((item) => now.getTime() - new Date(item.received_at).getTime() >= 72 * 60 * 60 * 1000).length,
+    draft_billing_cases: billing.draft_count,
+    denials_waiting_rework: billing.denial_rework_count,
+    remittance_pending: billing.remittance_pending_count,
+    failed_integration_events: totals.failed_integrations,
+  };
+  const risk_register: DailyCloseoutRisk[] = [
+    { label: 'Urgent open tasks', category: 'clinical', count: totals.urgent_tasks, severity: 'critical' as const, detail: 'Open urgent tasks should be owned before closeout.' },
+    { label: 'Overdue work', category: 'operations', count: totals.overdue_tasks, severity: 'warning' as const, detail: 'Overdue tasks remain unresolved.' },
+    { label: 'Aging documents', category: 'clinical', count: aging.documents_over_72h, severity: 'critical' as const, detail: 'Outside documents have waited more than 72 hours for review.' },
+    { label: 'Unsigned encounters', category: 'clinical', count: totals.unsigned_encounters, severity: 'critical' as const, detail: 'Draft or provider-review encounters are blocking downstream work.' },
+    { label: 'Billing coding gaps', category: 'revenue', count: billing.missing_coding_count, severity: 'warning' as const, detail: 'Claims are missing CPT or diagnosis coding.' },
+    { label: 'Integration failures', category: 'vendor', count: totals.failed_integrations, severity: 'critical' as const, detail: 'Failed integration events need retry or vendor follow-up.' },
+  ].filter((item) => item.count > 0);
+  const recommended_actions: DailyCloseoutAction[] = [
+    ...(totals.urgent_tasks > 0 ? [{ key: 'urgent_tasks', severity: 'critical' as const, label: 'Assign or complete urgent tasks', detail: `${totals.urgent_tasks} urgent task(s) are still open.`, route: '/tasks' }] : []),
+    ...(aging.documents_over_72h > 0 ? [{ key: 'documents_over_72h', severity: 'critical' as const, label: 'Review aging outside documents', detail: `${aging.documents_over_72h} document(s) have aged past 72 hours.`, route: '/patients' }] : []),
+    ...(totals.unsigned_encounters > 0 ? [{ key: 'unsigned_encounters', severity: 'warning' as const, label: 'Close unsigned encounters', detail: `${totals.unsigned_encounters} encounter(s) remain draft or in provider review.`, route: '/patients' }] : []),
+    ...(billing.missing_coding_count > 0 ? [{ key: 'billing_coding', severity: 'warning' as const, label: 'Resolve billing coding gaps', detail: `${billing.missing_coding_count} claim(s) are missing coding before submission.`, route: '/billing' }] : []),
+    ...(totals.failed_integrations > 0 ? [{ key: 'failed_integrations', severity: 'warning' as const, label: 'Retry failed integration events', detail: `${totals.failed_integrations} vendor event(s) failed.`, route: '/operations' }] : []),
+    ...(totals.intake_needing_review > 0 ? [{ key: 'portal_intake', severity: 'normal' as const, label: 'Clear portal intake review', detail: `${totals.intake_needing_review} intake submission(s) need review.`, route: '/portal-intake' }] : []),
+  ];
+  return {
+    status: risk_register.length === 0 ? 'clear' : 'attention',
+    generated_at: new Date().toISOString(),
+    totals,
+    aging,
+    billing,
+    risk_register,
+    recommended_actions,
   };
 }
 
@@ -739,6 +799,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       front_office: { unmatched_faxes: faxes.filter((item) => !item.patient_id).length, intake_needing_review: portalIntake.filter((item) => ['received', 'needs_review'].includes(item.status)).length },
       billing: { draft_cases: billingCases.filter((item) => item.status === 'draft').length, denied_cases: billingCases.filter((item) => item.status === 'denied').length },
     } as T;
+  }
+  if (path === '/analytics/daily-closeout' && method === 'GET') {
+    return dailyCloseout() as T;
   }
   if (path === '/analytics/pilot-readiness' && method === 'GET') {
     const demo_items = [

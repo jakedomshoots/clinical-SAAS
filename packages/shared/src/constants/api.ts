@@ -52,6 +52,7 @@ export const ROUTES = {
   HEALTH: '/api/health',
   PATIENT_ACCESS_HISTORY: (id: string) => `/api/audit/patients/${id}/access-history`,
   ANALYTICS_SUMMARY: '/api/analytics/summary',
+  ANALYTICS_DAILY_CLOSEOUT: '/api/analytics/daily-closeout',
   PILOT_READINESS: '/api/analytics/pilot-readiness',
   PILOT_READINESS_SEED: '/api/analytics/pilot-readiness/seed',
   BILLING_CASES: '/api/billing/cases',

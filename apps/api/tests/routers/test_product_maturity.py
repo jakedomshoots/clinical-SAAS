@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
 from app.models.user import UserRole
 from tests.conftest import headers_for, make_user
 
@@ -202,6 +203,81 @@ async def test_billing_claim_readiness_and_work_queue(client, auth_headers):
     assert submitted.status_code == 200
     assert submitted.json()["status"] == "submitted"
     assert queue_after.json()["remittance_pending_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_daily_closeout_reports_operational_aging_and_actions(
+    client,
+    auth_headers,
+    db: AsyncSession,
+):
+    patient_id = await create_patient(client, auth_headers)
+    now = datetime.now()
+    stale_due = now - timedelta(days=3)
+
+    task = await client.post(
+        "/api/tasks",
+        json={
+            "title": "Call patient about outside labs",
+            "description": "Needs same-day follow up before checkout",
+            "priority": "urgent",
+            "due_date": stale_due.isoformat(),
+            "patient_id": patient_id,
+        },
+        headers=auth_headers,
+    )
+    document = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside cardiology notes",
+            "source": "Cardiology Associates",
+            "document_type": "Consult note",
+            "status": "needs_review",
+            "pages": 4,
+            "received_at": (now - timedelta(days=8)).isoformat(),
+        },
+        headers=auth_headers,
+    )
+    billing = await client.post(
+        "/api/billing/cases",
+        json={"patient_id": patient_id, "cpt_codes": ["99213"], "diagnosis_codes": []},
+        headers=auth_headers,
+    )
+    db.add(
+        IntegrationEvent(
+            organization_id="default",
+            integration="ehr",
+            direction="inbound",
+            action="sync_patient",
+            status=IntegrationEventStatus.failed,
+            entity_type="patient",
+            entity_id=patient_id,
+            attempts=2,
+            error="Timeout",
+        )
+    )
+    await db.commit()
+
+    closeout = await client.get("/api/analytics/daily-closeout", headers=auth_headers)
+
+    assert task.status_code == 201
+    assert document.status_code == 201
+    assert billing.status_code == 201
+    assert closeout.status_code == 200
+    data = closeout.json()
+    assert data["status"] == "attention"
+    assert data["totals"]["open_tasks"] == 1
+    assert data["totals"]["overdue_tasks"] == 1
+    assert data["totals"]["urgent_tasks"] == 1
+    assert data["totals"]["documents_needing_review"] == 1
+    assert data["totals"]["failed_integrations"] == 1
+    assert data["aging"]["tasks_over_48h"] == 1
+    assert data["aging"]["documents_over_72h"] == 1
+    assert data["billing"]["missing_coding_count"] == 1
+    assert any(action["key"] == "urgent_tasks" for action in data["recommended_actions"])
+    assert any(action["key"] == "documents_over_72h" for action in data["recommended_actions"])
+    assert any(item["label"] == "Billing coding gaps" for item in data["risk_register"])
+    assert data["generated_at"]
 
 
 @pytest.mark.asyncio

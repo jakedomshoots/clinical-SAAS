@@ -5,6 +5,32 @@ export interface AnalyticsSummary {
   billing: Record<string, number>;
 }
 
+export interface DailyCloseoutRisk {
+  label: string;
+  category: string;
+  count: number;
+  severity: 'critical' | 'warning' | 'normal';
+  detail: string;
+}
+
+export interface DailyCloseoutAction {
+  key: string;
+  severity: 'critical' | 'warning' | 'normal';
+  label: string;
+  detail: string;
+  route: string;
+}
+
+export interface DailyCloseout {
+  status: 'clear' | 'attention';
+  generated_at: string;
+  totals: Record<string, number>;
+  aging: Record<string, number>;
+  billing: Record<string, number>;
+  risk_register: DailyCloseoutRisk[];
+  recommended_actions: DailyCloseoutAction[];
+}
+
 export interface IntegrationCapabilities {
   [key: string]: {
     label?: string;

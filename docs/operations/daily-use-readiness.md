@@ -14,6 +14,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
 - Billing supports charge review, case creation, eligibility checks/history, readiness-gated claim submission, denial rework, remittance placeholders, and audit/integration timelines.
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
+- Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, and demo/pilot readiness scoring.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
@@ -44,6 +45,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 ### Manager/Admin
 
 - Use Operations to check production readiness and integration-event failures.
+- Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
 - Run backup and restore validation before any live-use rehearsal.
 
