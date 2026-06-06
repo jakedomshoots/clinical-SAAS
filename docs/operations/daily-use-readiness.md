@@ -68,7 +68,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Review audit exports for sensitive workflow activity.
 - Use Audit Review Control to review sensitive document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
 - Use Document Storage Readiness in Operations to review metadata-only documents, unsigned handoffs, expired handoffs, and object-storage credential gaps before live-use rehearsal.
-- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, document access review signals, staff role/access warnings, and document-storage readiness before closeout or live-use rehearsal.
+- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness before closeout or live-use rehearsal.
 - Run backup and restore validation before any live-use rehearsal.
 
 ## Not Ready Without Real Credentials
@@ -116,7 +116,7 @@ An internal clinic pilot is ready when:
 - Restore drill evidence is recorded in Operations with backup reference, complete/blocked checklist item status, RTO/RPO minutes, and exported evidence before live-use rehearsal.
 - Cutover runbook evidence is recorded in Operations with timed step owners, complete/blocked/rollback statuses, rollback readiness, and exportable go/no-go notes.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
-- Managers can export audit data, retry failed integration events, and inspect readiness.
+- Managers can export audit data with recorded `audit.exported` evidence, retry failed integration events, and inspect readiness.
 - Managers can use Operator Health to route critical production signals to Operations, Integrations, Staff access, or evidence workflows before a live-use rehearsal.
 - Managers can use Document Storage Readiness to clear metadata-only document gaps, unsigned object handoffs, expired signed handoffs, and object-storage configuration blockers before a live-use rehearsal.
 - Managers can review and sign off the Go-Live Packet, use/export the Live-Use Rehearsal Board, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, policy approval, cutover runbook, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run.

@@ -47,6 +47,29 @@ async def test_export_audit_events_csv(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_export_audit_events_logs_export_evidence(client: AsyncClient, auth_headers):
+    await client.post("/api/tasks", json={"title": "Export evidence task"}, headers=auth_headers)
+
+    export = await client.get("/api/audit/export?entity_type=task&limit=500", headers=auth_headers)
+    audit = await client.get("/api/audit?event_type=audit.exported", headers=auth_headers)
+    alert_rules = await client.get("/api/operations/alert-rules", headers=auth_headers)
+
+    assert export.status_code == 200
+    assert audit.status_code == 200
+    event = audit.json()["data"][0]
+    assert event["event_type"] == "audit.exported"
+    assert event["entity_type"] == "audit"
+    assert event["payload"]["filters"]["entity_type"] == "task"
+    assert event["payload"]["limit"] == 500
+    assert event["payload"]["row_count"] == 1
+
+    rule = next(item for item in alert_rules.json()["data"] if item["key"] == "audit_export_review")
+    assert rule["status"] == "triggered"
+    assert rule["severity"] == "warning"
+    assert rule["route"] == "/operations"
+
+
+@pytest.mark.asyncio
 async def test_audit_events_require_admin_or_manager(
     client: AsyncClient,
     db: AsyncSession,

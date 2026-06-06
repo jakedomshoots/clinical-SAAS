@@ -67,6 +67,14 @@ AUDIT_REVIEW_CATEGORIES = [
         "route": "/integrations",
         "action_label": "Review integration changes",
     },
+    {
+        "key": "audit_exports",
+        "label": "Audit exports",
+        "event_types": ["audit.exported"],
+        "severity": "warning",
+        "route": "/operations",
+        "action_label": "Review audit export evidence",
+    },
 ]
 
 

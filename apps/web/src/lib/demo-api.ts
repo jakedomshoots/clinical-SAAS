@@ -10,6 +10,7 @@ const AUDIT_REVIEW_CATEGORIES = [
   { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'user.password_reset_issued', 'auth.login', 'auth.login_blocked', 'auth.password_rotated'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
   { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },
   { key: 'integration_operations', label: 'Integration operations', event_types: ['integration_event.retry', 'integration_config.updated', 'integration_config.connection_test', 'integration_config.sandbox_evidence'], severity: 'warning' as const, route: '/integrations', action_label: 'Review integration changes' },
+  { key: 'audit_exports', label: 'Audit exports', event_types: ['audit.exported'], severity: 'warning' as const, route: '/operations', action_label: 'Review audit export evidence' },
 ];
 
 function iso(offsetHours = 0) {
@@ -451,16 +452,16 @@ function incidentTimeline(): OperationsIncidentTimeline {
       entity_type: event.entity_type,
       entity_id: event.entity_id,
     }));
-  const auditTypes = ['auth.login_blocked', 'user.password_reset_issued', 'auth.password_rotated', 'patient_document.download_handoff', 'patient_document.accessed', 'integration_event.retry'];
+  const auditTypes = ['auth.login_blocked', 'user.password_reset_issued', 'auth.password_rotated', 'audit.exported', 'patient_document.download_handoff', 'patient_document.accessed', 'integration_event.retry'];
   const auditItems: OperationsTimelineItem[] = auditEvents
     .filter((event) => auditTypes.includes(event.event_type))
     .map((event) => ({
       key: `audit_event:${event.event_type}`,
       occurred_at: event.created_at,
       severity: ['auth.login_blocked', 'user.password_reset_issued'].includes(event.event_type) ? 'critical' as const : 'warning' as const,
-      category: event.event_type.startsWith('auth.') || event.event_type.startsWith('user.') ? 'security' : 'document',
+      category: event.event_type.startsWith('auth.') || event.event_type.startsWith('user.') ? 'security' : event.event_type === 'audit.exported' ? 'compliance' : 'document',
       title: event.event_type.replace('.', ' ').replace('_', ' '),
-      detail: event.event_type === 'auth.login_blocked' ? `Login blocked: ${String(event.payload?.reason ?? 'policy')}` : `${event.event_type} recorded.`,
+      detail: event.event_type === 'auth.login_blocked' ? `Login blocked: ${String(event.payload?.reason ?? 'policy')}` : event.event_type === 'audit.exported' ? `Audit export generated with ${String(event.payload?.row_count ?? 0)} row(s).` : `${event.event_type} recorded.`,
       source: 'audit',
       route: event.event_type.startsWith('auth.') || event.event_type.startsWith('user.') ? '/staff' : '/operations',
       entity_type: event.entity_type,
@@ -480,6 +481,7 @@ function alertRules(): OperationsAlertRuleList {
   const failedEvents = integrationEvents.filter((item) => item.status === 'failed');
   const blockedLogins = auditEvents.filter((item) => item.event_type === 'auth.login_blocked');
   const documentAccess = auditEvents.filter((item) => ['patient_document.accessed', 'patient_document.download_handoff'].includes(item.event_type));
+  const auditExports = auditEvents.filter((item) => item.event_type === 'audit.exported');
   const recovery = recoverySummary();
   const storage = documentStorageReadiness();
   const roleMatrix = roleAccessMatrix();
@@ -489,6 +491,7 @@ function alertRules(): OperationsAlertRuleList {
     demoAlertRule('expired_onboarding', 'Expired onboarding credentials', recovery.expired_temporary_password_count > 0, 'warning', recovery.expired_temporary_password_count, `${recovery.expired_temporary_password_count} expired temporary credential(s).`, '/staff', null),
     demoAlertRule('backup_restore_gap', 'Backup and restore gap', true, 'warning', 1, 'Backup and restore validation evidence is missing in demo mode.', '/operations', null),
     demoAlertRule('document_access_review', 'Document access review', documentAccess.length > 0, 'warning', documentAccess.length, `${documentAccess.length} document access event(s) should be reviewed before closeout.`, '/operations', documentAccess[0]?.created_at ?? null),
+    demoAlertRule('audit_export_review', 'Audit export review', auditExports.length > 0, 'warning', auditExports.length, auditExports.length ? `${auditExports.length} audit export event(s). Latest exported ${String(auditExports[0]?.payload?.row_count ?? 0)} row(s).` : 'No audit export events recorded.', '/operations', auditExports[0]?.created_at ?? null),
     demoAlertRule('document_storage_readiness', 'Document storage readiness', storage.status !== 'ready', storage.status === 'blocked' ? 'critical' : 'warning', storage.summary.config_gaps + storage.summary.metadata_only_documents + storage.summary.unsigned_handoffs + storage.summary.expired_handoffs, `${storage.summary.config_gaps} config gap(s), ${storage.summary.metadata_only_documents} metadata-only document(s), ${storage.summary.unsigned_handoffs} unsigned handoff(s), and ${storage.summary.expired_handoffs} expired handoff(s).`, '/operations', storage.recent_handoffs[0]?.occurred_at ?? null),
     demoAlertRule('role_access_matrix', 'Role access matrix', roleMatrix.warnings.length > 0, roleMatrix.warnings.some((item) => item.severity === 'critical') ? 'critical' : 'warning', roleMatrix.warnings.length, `${roleMatrix.warnings.length} role access warning(s), ${roleMatrix.summary.privileged_users_without_mfa} privileged MFA gap(s), and ${roleMatrix.summary.roles_without_active_users} role coverage gap(s).`, '/staff', roleMatrix.warnings.length ? roleMatrix.generated_at : null),
   ];

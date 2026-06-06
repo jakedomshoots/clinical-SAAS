@@ -18,6 +18,7 @@ from app.schemas.audit import (
 from app.services.audit_service import (
     list_events,
     list_events_for_export,
+    log_event,
     patient_access_history,
     review_summary,
 )
@@ -76,6 +77,22 @@ async def export_audit_events(
         entity_type=entity_type,
         entity_id=entity_id,
         limit=limit,
+    )
+    await log_event(
+        db,
+        "audit.exported",
+        "audit",
+        current_user.organization_id,
+        actor_id=current_user.id,
+        payload={
+            "filters": {
+                "event_type": event_type,
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+            },
+            "limit": limit,
+            "row_count": len(events),
+        },
     )
     buffer = io.StringIO()
     writer = csv.writer(buffer)

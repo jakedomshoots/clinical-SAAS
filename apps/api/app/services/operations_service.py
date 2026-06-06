@@ -83,6 +83,7 @@ async def incident_timeline(db: AsyncSession, user: User, limit: int = 30) -> di
         "auth.login_blocked",
         "user.password_reset_issued",
         "auth.password_rotated",
+        "audit.exported",
         "patient_document.download_handoff",
         "patient_document.accessed",
         "integration_event.retry",
@@ -150,6 +151,16 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
             .order_by(AuditLog.created_at.desc())
         )
     ).scalars().all()
+    audit_exports = (
+        await db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type == "audit.exported",
+            )
+            .order_by(AuditLog.created_at.desc())
+        )
+    ).scalars().all()
     recovery = await user_service.recovery_summary(db, user)
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
@@ -205,6 +216,16 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
             f"{len(document_access)} document access event(s) should be reviewed before closeout.",
             "/operations",
             document_access[0].created_at if document_access else None,
+        ),
+        _alert_rule(
+            "audit_export_review",
+            "Audit export review",
+            bool(audit_exports),
+            "warning",
+            len(audit_exports),
+            _audit_export_detail(audit_exports),
+            "/operations",
+            audit_exports[0].created_at if audit_exports else None,
         ),
         _alert_rule(
             "document_storage_readiness",
@@ -2339,6 +2360,7 @@ def _timeline_item_from_audit(event: AuditLog) -> dict:
         "auth.login_blocked": "Blocked login",
         "user.password_reset_issued": "Password reset issued",
         "auth.password_rotated": "Password rotated",
+        "audit.exported": "Audit export",
         "patient_document.download_handoff": "Document download handoff",
         "patient_document.accessed": "Document accessed",
         "integration_event.retry": "Integration retry",
@@ -2347,7 +2369,11 @@ def _timeline_item_from_audit(event: AuditLog) -> dict:
         "key": f"audit_event:{event.event_type}",
         "occurred_at": event.created_at,
         "severity": "critical" if event.event_type in critical_types else "warning",
-        "category": "security" if event.event_type.startswith(("auth.", "user.")) else "document",
+        "category": "security"
+        if event.event_type.startswith(("auth.", "user."))
+        else "compliance"
+        if event.event_type == "audit.exported"
+        else "document",
         "title": title_map.get(event.event_type, event.event_type.replace("_", " ").replace(".", " ").title()),
         "detail": _audit_timeline_detail(event),
         "source": "audit",
@@ -2362,6 +2388,8 @@ def _audit_timeline_detail(event: AuditLog) -> str:
         return f"Login blocked: {event.payload.get('reason', 'policy')}"
     if event.event_type == "user.password_reset_issued":
         return "A temporary password reset was issued and requires review."
+    if event.event_type == "audit.exported":
+        return _audit_export_event_detail(event)
     if event.event_type == "patient_document.download_handoff":
         return "A signed document download handoff was prepared."
     if event.event_type == "patient_document.accessed":
@@ -2396,6 +2424,30 @@ def _blocked_login_detail(events: list[AuditLog]) -> str:
         return "No blocked login events recorded."
     reason = events[0].payload.get("reason", "policy")
     return f"{len(events)} blocked login event(s). Latest reason: {reason}."
+
+
+def _audit_export_detail(events: list[AuditLog]) -> str:
+    if not events:
+        return "No audit export events recorded."
+    latest = events[0]
+    row_count = latest.payload.get("row_count", 0)
+    filters = _audit_export_filter_summary(latest.payload.get("filters") or {})
+    return f"{len(events)} audit export event(s). Latest exported {row_count} row(s){filters}."
+
+
+def _audit_export_event_detail(event: AuditLog) -> str:
+    row_count = event.payload.get("row_count", 0)
+    filters = _audit_export_filter_summary(event.payload.get("filters") or {})
+    return f"Audit export generated with {row_count} row(s){filters}."
+
+
+def _audit_export_filter_summary(filters: dict) -> str:
+    applied = [
+        f"{key}={value}"
+        for key, value in filters.items()
+        if value not in {None, ""}
+    ]
+    return f" for {', '.join(applied)}" if applied else ""
 
 
 def _restore_drill_item(key: str, label: str, detail: str, docs: list[str]) -> dict:
