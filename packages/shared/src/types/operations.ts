@@ -849,6 +849,7 @@ export interface IntegrationConfig {
   status: 'healthy' | 'configured' | 'draft' | 'missing';
   fields: IntegrationConfigField[];
   vendor_profile: VendorProfile;
+  cutover_evidence: CutoverEvidence;
   workflows: string[];
   action: string;
   sandbox_tests: string[];
@@ -866,6 +867,16 @@ export interface VendorProfile {
   escalation_notes: string;
   contract_reference_url: string;
   profile_complete: boolean;
+  missing_fields: string[];
+}
+
+export interface CutoverEvidence {
+  planned_cutover_at: string;
+  last_vendor_test_at: string;
+  rollback_owner: string;
+  go_no_go_notes: string;
+  live_rehearsal_approved: boolean;
+  evidence_complete: boolean;
   missing_fields: string[];
 }
 
@@ -929,6 +940,7 @@ export interface CredentialPreflightItem {
   production_ready: boolean;
   mode: string;
   vendor_profile: VendorProfile;
+  cutover_evidence: CutoverEvidence;
   missing_fields: string[];
   configured_fields: string[];
   workflows: string[];

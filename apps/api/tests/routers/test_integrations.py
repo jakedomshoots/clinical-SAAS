@@ -200,6 +200,45 @@ async def test_update_integration_config_saves_vendor_profile_metadata(
 
 
 @pytest.mark.asyncio
+async def test_update_integration_config_saves_cutover_rehearsal_evidence(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+
+    res = await client.patch(
+        "/api/integrations/config/fax",
+        json={
+            "values": {
+                "FAX_PROVIDER_API_KEY": "fax-secret-1234",
+                "CUTOVER_PLANNED_AT": "2026-07-15T14:00:00Z",
+                "LAST_VENDOR_TEST_AT": "2026-07-01T18:30:00Z",
+                "ROLLBACK_OWNER": "Morgan Manager",
+                "GO_NO_GO_NOTES": "Vendor sandbox callbacks verified; rollback to manual fax queue approved.",
+                "LIVE_REHEARSAL_APPROVED": "true",
+            }
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["cutover_evidence"]["planned_cutover_at"] == "2026-07-15T14:00:00Z"
+    assert body["cutover_evidence"]["last_vendor_test_at"] == "2026-07-01T18:30:00Z"
+    assert body["cutover_evidence"]["rollback_owner"] == "Morgan Manager"
+    assert body["cutover_evidence"]["live_rehearsal_approved"] is True
+    assert body["cutover_evidence"]["evidence_complete"] is True
+
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+    cutover_step = next(step for step in fax["steps"] if step["key"] == "cutover_evidence")
+    assert fax["cutover_evidence"]["evidence_complete"] is True
+    assert cutover_step["status"] == "ready"
+    assert "Morgan Manager" in cutover_step["detail"]
+
+
+@pytest.mark.asyncio
 async def test_connection_test_records_integration_event(
     client: AsyncClient,
     auth_headers,

@@ -31,6 +31,20 @@ VENDOR_PROFILE_REQUIRED = {
     "OWNER_EMAIL",
     "SUPPORT_CONTACT",
 }
+CUTOVER_EVIDENCE_FIELDS = {
+    "CUTOVER_PLANNED_AT": "planned_cutover_at",
+    "LAST_VENDOR_TEST_AT": "last_vendor_test_at",
+    "ROLLBACK_OWNER": "rollback_owner",
+    "GO_NO_GO_NOTES": "go_no_go_notes",
+    "LIVE_REHEARSAL_APPROVED": "live_rehearsal_approved",
+}
+CUTOVER_EVIDENCE_REQUIRED = {
+    "CUTOVER_PLANNED_AT",
+    "LAST_VENDOR_TEST_AT",
+    "ROLLBACK_OWNER",
+    "GO_NO_GO_NOTES",
+    "LIVE_REHEARSAL_APPROVED",
+}
 
 
 @dataclass(frozen=True)
@@ -249,7 +263,11 @@ async def update_integration_config(
     spec = _find_spec(integration)
     if not spec:
         return None
-    allowed = {field.key for field in spec.fields} | set(VENDOR_PROFILE_FIELDS)
+    allowed = (
+        {field.key for field in spec.fields}
+        | set(VENDOR_PROFILE_FIELDS)
+        | set(CUTOVER_EVIDENCE_FIELDS)
+    )
     sanitized = {
         key: value.strip()
         for key, value in values.items()
@@ -348,6 +366,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
     healthy = bool(status.get("ok"))
     last_test = _last_tests.get(_test_key(organization_id, spec.key), {})
     vendor_profile = _vendor_profile_out(spec.key, organization_id)
+    cutover_evidence = _cutover_evidence_out(spec.key, organization_id)
     return {
         "key": spec.key,
         "label": spec.label,
@@ -365,6 +384,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "status": _config_status(configured, healthy, mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
         "vendor_profile": vendor_profile,
+        "cutover_evidence": cutover_evidence,
         "workflows": spec.workflows,
         "action": spec.action,
         "sandbox_tests": spec.sandbox_tests,
@@ -516,6 +536,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     adapter_method_total = int(config.get("adapter_method_total") or len(adapter_methods))
     readiness_mode = config.get("readiness_mode") or "production_vendor"
     vendor_profile = config.get("vendor_profile") or _empty_vendor_profile()
+    cutover_evidence = config.get("cutover_evidence") or _empty_cutover_evidence()
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
@@ -549,6 +570,11 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         blockers.append(
             "Vendor profile is incomplete: "
             + ", ".join(vendor_profile["missing_fields"])
+        )
+    if not cutover_evidence["evidence_complete"]:
+        blockers.append(
+            "Cutover rehearsal evidence is incomplete: "
+            + ", ".join(cutover_evidence["missing_fields"])
         )
     if status == "blocked":
         if not adapter_implemented:
@@ -621,6 +647,16 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             ),
         },
         {
+            "key": "cutover_evidence",
+            "label": "Cutover rehearsal evidence",
+            "status": "ready" if cutover_evidence["evidence_complete"] else "pending",
+            "detail": (
+                f"Cutover planned for {cutover_evidence['planned_cutover_at']}; rollback owner {cutover_evidence['rollback_owner']}."
+                if cutover_evidence["evidence_complete"]
+                else "Capture planned cutover date, last vendor test date, rollback owner, go/no-go notes, and live-use rehearsal approval."
+            ),
+        },
+        {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
             "status": (
@@ -661,6 +697,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "production_ready": production_ready,
         "mode": config["mode"],
         "vendor_profile": vendor_profile,
+        "cutover_evidence": cutover_evidence,
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,
         "workflows": config["workflows"],
@@ -847,6 +884,54 @@ def _empty_vendor_profile() -> dict:
             for input_key in VENDOR_PROFILE_REQUIRED
         ],
     }
+
+
+def _cutover_evidence_out(integration: str, organization_id: str) -> dict:
+    drafts = _draft_values.get(organization_id, {})
+    values = {
+        output_key: _cutover_value(drafts.get(_draft_key(integration, input_key), ""))
+        for input_key, output_key in CUTOVER_EVIDENCE_FIELDS.items()
+    }
+    missing = [
+        CUTOVER_EVIDENCE_FIELDS[input_key]
+        for input_key in CUTOVER_EVIDENCE_REQUIRED
+        if not _cutover_value(drafts.get(_draft_key(integration, input_key), ""))
+    ]
+    return {
+        **values,
+        "live_rehearsal_approved": _truthy_value(values["live_rehearsal_approved"]),
+        "evidence_complete": len(missing) == 0 and _truthy_value(values["live_rehearsal_approved"]),
+        "missing_fields": missing
+        if _truthy_value(values["live_rehearsal_approved"])
+        else sorted(set(missing + ["live_rehearsal_approved"])),
+    }
+
+
+def _empty_cutover_evidence() -> dict:
+    return {
+        "planned_cutover_at": "",
+        "last_vendor_test_at": "",
+        "rollback_owner": "",
+        "go_no_go_notes": "",
+        "live_rehearsal_approved": False,
+        "evidence_complete": False,
+        "missing_fields": [
+            CUTOVER_EVIDENCE_FIELDS[input_key]
+            for input_key in CUTOVER_EVIDENCE_REQUIRED
+        ],
+    }
+
+
+def _cutover_value(value: str | bool) -> str:
+    if isinstance(value, bool):
+        return "true" if value else ""
+    return str(value or "").strip()
+
+
+def _truthy_value(value: str | bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    return value.strip().lower() in {"true", "yes", "approved", "1"}
 
 
 def _adapter_methods_out(spec: IntegrationSpec, adapter_implemented: bool) -> list[dict]:

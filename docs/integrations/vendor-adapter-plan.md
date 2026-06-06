@@ -2,7 +2,7 @@
 
 Concierge OS currently exposes vendor-neutral integration boundaries. Live use requires vendor-specific adapters behind these interfaces.
 
-The Integration Setup screen and `/api/integrations/credential-preflight` publish the same adapter contract methods listed below. A vendor lane is not live-ready until every required method is implemented, the connection test passes, sandbox workflow evidence is recorded, and vendor ownership metadata is captured.
+The Integration Setup screen and `/api/integrations/credential-preflight` publish the same adapter contract methods listed below. A vendor lane is not live-ready until every required method is implemented, the connection test passes, sandbox workflow evidence is recorded, vendor ownership metadata is captured, and cutover rehearsal evidence is approved.
 
 For local contract rehearsal before real credentials are available, `USE_SANDBOX_ADAPTERS=true` swaps the placeholder clients for deterministic sandbox harnesses. Keep this disabled in production; sandbox adapters prove app-side wiring only, not vendor connectivity.
 When sandbox adapters are enabled, Integration Setup can run each sandbox workflow through `/api/integrations/config/{integration}/sandbox-workflows/run`, or all workflows through `/api/integrations/config/{integration}/sandbox-workflows/run-all`, and record passing audit-backed evidence automatically.
@@ -78,6 +78,7 @@ Sandbox harnesses report `readiness_mode: local_sandbox` and can make an item `s
 - Use `/api/integrations/credential-preflight` before any live-use rehearsal.
 - Every integration should have required credentials captured from environment variables or setup drafts.
 - Every integration should have a vendor profile captured with vendor name, environment, internal owner, owner email, support contact, escalation notes, and contract/reference link.
+- Every integration should have cutover rehearsal evidence captured with planned cutover date, last vendor test date, rollback owner, go/no-go notes, and explicit live-use rehearsal approval.
 - Credential preflight blocks integrations whose Python client is still a placeholder adapter, even when credentials and sandbox notes are present.
 - Credential preflight shows the adapter method checklist and ready/blocked counts for each vendor lane.
 - Inbound callbacks must send `X-Concierge-Webhook-Secret`, `X-Concierge-Webhook-Timestamp`, `X-Concierge-Webhook-Signature`, and a stable vendor `event_id`; sign `timestamp.raw_body` with `WEBHOOK_SHARED_SECRET` as `sha256=<hmac>`. Stale timestamps outside the replay window, invalid signatures, and callbacks without `event_id` are rejected.

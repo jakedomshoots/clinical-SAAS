@@ -32,6 +32,16 @@ class VendorProfileOut(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
 
 
+class CutoverEvidenceOut(BaseModel):
+    planned_cutover_at: str = ""
+    last_vendor_test_at: str = ""
+    rollback_owner: str = ""
+    go_no_go_notes: str = ""
+    live_rehearsal_approved: bool = False
+    evidence_complete: bool = False
+    missing_fields: list[str] = Field(default_factory=list)
+
+
 class IntegrationConfigOut(BaseModel):
     key: str
     label: str
@@ -49,6 +59,7 @@ class IntegrationConfigOut(BaseModel):
     status: str
     fields: list[IntegrationConfigFieldOut]
     vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
+    cutover_evidence: CutoverEvidenceOut = Field(default_factory=CutoverEvidenceOut)
     workflows: list[str]
     action: str
     sandbox_tests: list[str] = Field(default_factory=list)
@@ -110,6 +121,7 @@ class CredentialPreflightItemOut(BaseModel):
     production_ready: bool = False
     mode: str
     vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
+    cutover_evidence: CutoverEvidenceOut = Field(default_factory=CutoverEvidenceOut)
     missing_fields: list[str]
     configured_fields: list[str]
     workflows: list[str]

@@ -14,6 +14,14 @@ const VENDOR_PROFILE_FIELDS = {
   CONTRACT_REFERENCE_URL: 'contract_reference_url',
 } as const;
 const VENDOR_PROFILE_REQUIRED = ['VENDOR_NAME', 'VENDOR_ENVIRONMENT', 'OWNER_NAME', 'OWNER_EMAIL', 'SUPPORT_CONTACT'] as const;
+const CUTOVER_EVIDENCE_FIELDS = {
+  CUTOVER_PLANNED_AT: 'planned_cutover_at',
+  LAST_VENDOR_TEST_AT: 'last_vendor_test_at',
+  ROLLBACK_OWNER: 'rollback_owner',
+  GO_NO_GO_NOTES: 'go_no_go_notes',
+  LIVE_REHEARSAL_APPROVED: 'live_rehearsal_approved',
+} as const;
+const CUTOVER_EVIDENCE_REQUIRED = ['CUTOVER_PLANNED_AT', 'LAST_VENDOR_TEST_AT', 'ROLLBACK_OWNER', 'GO_NO_GO_NOTES', 'LIVE_REHEARSAL_APPROVED'] as const;
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'patient_chart_access', label: 'Patient chart access', event_types: ['patient.profile_viewed', 'patient_chart.viewed', 'patient_clinical.medications_viewed', 'patient_clinical.care_plan_viewed', 'patient_clinical.labs_viewed', 'patient_clinical.encounters_viewed', 'patient_checkout_handoff.viewed'], severity: 'critical' as const, route: '/audit?entity_type=patient', action_label: 'Review patient chart access' },
@@ -2548,6 +2556,13 @@ function demoIntegrationConfigs() {
     const missingProfileFields = VENDOR_PROFILE_REQUIRED
       .filter((field) => !draft[field])
       .map((field) => VENDOR_PROFILE_FIELDS[field]);
+    const missingCutoverFields = CUTOVER_EVIDENCE_REQUIRED
+      .filter((field) => !draft[field])
+      .map((field) => CUTOVER_EVIDENCE_FIELDS[field]);
+    const liveRehearsalApproved = truthyDemoValue(draft.LIVE_REHEARSAL_APPROVED);
+    const cutoverMissingFields = liveRehearsalApproved
+      ? missingCutoverFields
+      : Array.from(new Set([...missingCutoverFields, 'live_rehearsal_approved'])).sort();
     const lastTest = integrationLastTests[key] ?? {};
     const adapterImplemented = key === 'copilotkit';
     const adapterDetail = adapterImplemented
@@ -2594,6 +2609,15 @@ function demoIntegrationConfigs() {
         contract_reference_url: draft.CONTRACT_REFERENCE_URL ?? '',
         profile_complete: missingProfileFields.length === 0,
         missing_fields: missingProfileFields,
+      },
+      cutover_evidence: {
+        planned_cutover_at: draft.CUTOVER_PLANNED_AT ?? '',
+        last_vendor_test_at: draft.LAST_VENDOR_TEST_AT ?? '',
+        rollback_owner: draft.ROLLBACK_OWNER ?? '',
+        go_no_go_notes: draft.GO_NO_GO_NOTES ?? '',
+        live_rehearsal_approved: liveRehearsalApproved,
+        evidence_complete: cutoverMissingFields.length === 0,
+        missing_fields: cutoverMissingFields,
       },
       workflows,
       action,
@@ -2653,6 +2677,9 @@ function demoCredentialPreflight() {
     if (!config.vendor_profile.profile_complete) {
       blockers.push(`Vendor profile is incomplete: ${config.vendor_profile.missing_fields.join(', ')}`);
     }
+    if (!config.cutover_evidence.evidence_complete) {
+      blockers.push(`Cutover rehearsal evidence is incomplete: ${config.cutover_evidence.missing_fields.join(', ')}`);
+    }
     return {
       key: config.key,
       label: config.label,
@@ -2700,6 +2727,12 @@ function demoCredentialPreflight() {
           detail: config.vendor_profile.profile_complete ? `${config.vendor_profile.vendor_name} ${config.vendor_profile.environment} owned by ${config.vendor_profile.owner_name}.` : 'Capture vendor name, environment, owner, owner email, and support contact before live-use rehearsal.',
         },
         {
+          key: 'cutover_evidence',
+          label: 'Cutover rehearsal evidence',
+          status: config.cutover_evidence.evidence_complete ? 'ready' : 'pending',
+          detail: config.cutover_evidence.evidence_complete ? `Cutover planned for ${config.cutover_evidence.planned_cutover_at}; rollback owner ${config.cutover_evidence.rollback_owner}.` : 'Capture planned cutover date, last vendor test date, rollback owner, go/no-go notes, and live-use rehearsal approval.',
+        },
+        {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
           status: sandboxComplete && (config.readiness_mode === 'local_sandbox' || vendorReferenceComplete) ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
@@ -2728,6 +2761,10 @@ function demoSandboxTestKey(testLabel: string) {
 function isVendorReference(referenceUrl: string | null | undefined) {
   const normalized = referenceUrl?.trim() ?? '';
   return Boolean(normalized) && !normalized.toLowerCase().startsWith('sandbox://');
+}
+
+function truthyDemoValue(value: string | undefined) {
+  return ['true', 'yes', 'approved', '1'].includes((value ?? '').trim().toLowerCase());
 }
 
 function demoFileName(fileUrl: string) {

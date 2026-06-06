@@ -32,6 +32,13 @@ const VENDOR_PROFILE_FIELDS = [
   { key: 'ESCALATION_NOTES', label: 'Escalation notes', profileKey: 'escalation_notes' },
 ] as const;
 
+const CUTOVER_EVIDENCE_FIELDS = [
+  { key: 'CUTOVER_PLANNED_AT', label: 'Planned cutover', evidenceKey: 'planned_cutover_at', type: 'datetime-local' },
+  { key: 'LAST_VENDOR_TEST_AT', label: 'Last vendor test', evidenceKey: 'last_vendor_test_at', type: 'datetime-local' },
+  { key: 'ROLLBACK_OWNER', label: 'Rollback owner', evidenceKey: 'rollback_owner', type: 'text' },
+  { key: 'GO_NO_GO_NOTES', label: 'Go/no-go notes', evidenceKey: 'go_no_go_notes', type: 'text' },
+] as const;
+
 function IntegrationsPage() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -101,6 +108,10 @@ function IntegrationsPage() {
 
   function profileFieldValue(config: IntegrationConfig, field: (typeof VENDOR_PROFILE_FIELDS)[number]) {
     return drafts[config.key]?.[field.key] ?? config.vendor_profile[field.profileKey] ?? '';
+  }
+
+  function cutoverFieldValue(config: IntegrationConfig, field: (typeof CUTOVER_EVIDENCE_FIELDS)[number]) {
+    return drafts[config.key]?.[field.key] ?? toDateTimeLocal(config.cutover_evidence[field.evidenceKey]) ?? '';
   }
 
   function evidenceKey(integration: string, testLabel: string) {
@@ -206,6 +217,36 @@ function IntegrationsPage() {
                           />
                         </label>
                       ))}
+                    </div>
+                  </div>
+                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs font-semibold uppercase text-clinic-600">Cutover rehearsal</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.cutover_evidence.evidence_complete ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        {config.cutover_evidence.evidence_complete ? 'approved' : `${config.cutover_evidence.missing_fields.length} missing`}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      {CUTOVER_EVIDENCE_FIELDS.map((field) => (
+                        <label key={field.key} className={field.key === 'GO_NO_GO_NOTES' ? 'grid gap-1 md:col-span-2' : 'grid gap-1'}>
+                          <span className="text-xs font-medium text-clinic-600">{field.label}</span>
+                          <input
+                            type={field.type}
+                            value={cutoverFieldValue(config, field)}
+                            onChange={(event) => updateDraft(config.key, field.key, event.target.value)}
+                            className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          />
+                        </label>
+                      ))}
+                      <label className="flex items-center gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2 text-sm text-clinic-700 md:col-span-2">
+                        <input
+                          type="checkbox"
+                          checked={(drafts[config.key]?.LIVE_REHEARSAL_APPROVED ?? (config.cutover_evidence.live_rehearsal_approved ? 'true' : '')) === 'true'}
+                          onChange={(event) => updateDraft(config.key, 'LIVE_REHEARSAL_APPROVED', event.target.checked ? 'true' : '')}
+                          className="h-4 w-4 rounded border-clinic-300 text-accent-600 focus:ring-accent-500"
+                        />
+                        Approved for live-use rehearsal
+                      </label>
                     </div>
                   </div>
                   {config.fields.map((field) => (
@@ -455,6 +496,11 @@ function preflightStatusClass(status: CredentialPreflightItem['status']) {
   if (status === 'ready') return 'border-accent-200 bg-accent-50 text-accent-800';
   if (status === 'staged') return 'border-amber-200 bg-amber-50 text-amber-800';
   return 'border-red-200 bg-red-50 text-red-700';
+}
+
+function toDateTimeLocal(value: string) {
+  if (!value) return '';
+  return value.replace(/Z$/, '').slice(0, 16);
 }
 
 function ReadinessModeBadge({
