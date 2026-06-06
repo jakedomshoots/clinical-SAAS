@@ -1955,6 +1955,10 @@ async def update_role_dry_run_session(db: AsyncSession, user: User, session_id: 
 
 async def attest_go_live_packet(db: AsyncSession, user: User, data: dict) -> dict:
     packet = await go_live_packet(db, user)
+    if data["decision"] == "approved" and not packet["go_live_ready"]:
+        raise ValueError(
+            f"Go-live approval requires a ready packet; {packet['blocking_count']} blocking item(s) remain."
+        )
     payload = {
         "decision": data["decision"],
         "note": data.get("note"),

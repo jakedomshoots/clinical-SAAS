@@ -82,5 +82,6 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/policy-approval-sessions` includes a completed policy approval session with approved/needs-changes status and evidence notes for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before the live-use rehearsal.
 - `/api/operations/restore-drill-sessions` includes a completed restore drill session with complete/blocked checklist item status, RTO/RPO evidence, and exportable notes before the live-use rehearsal.
 - `/api/operations/cutover-runbook-sessions` includes a completed cutover session with each timed step assigned, complete/blocked/rollback status captured, rollback readiness reviewed, and go/no-go decision notes exported before production cutover.
+- Manager sign-off can record `needs_changes` or `rejected` at any time, but `approved` go-live attestations are rejected until the go-live packet has no blocking evidence.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

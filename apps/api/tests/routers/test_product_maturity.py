@@ -788,6 +788,18 @@ async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_go_live_packet_rejects_approval_with_blockers(client, auth_headers):
+    attestation = await client.post(
+        "/api/operations/go-live-packet/attestations",
+        json={"decision": "approved", "note": "Go for launch."},
+        headers=auth_headers,
+    )
+
+    assert attestation.status_code == 400
+    assert "blocking" in attestation.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_restore_drill_session_evidence_feeds_go_live_packet(client, auth_headers):
     checklist = await client.get("/api/operations/restore-drill-checklist", headers=auth_headers)
     first_item = checklist.json()["items"][0]

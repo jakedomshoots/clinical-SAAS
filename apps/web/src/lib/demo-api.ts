@@ -1717,6 +1717,9 @@ function liveUseRehearsalCsv(dashboard: LiveUseRehearsal) {
 
 function createGoLiveAttestation(data: GoLiveAttestationCreate): GoLiveAttestation {
   const packet = goLivePacket();
+  if (data.decision === 'approved' && !packet.go_live_ready) {
+    throw new Error(`Go-live approval requires a ready packet; ${packet.blocking_count} blocking item(s) remain.`);
+  }
   const attestation: GoLiveAttestation = {
     id: uuid(1700 + goLiveAttestations.length),
     created_at: new Date().toISOString(),

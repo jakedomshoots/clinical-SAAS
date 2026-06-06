@@ -1027,7 +1027,7 @@ function OperationsPage() {
                   className="w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
                 >
                   <option value="needs_changes">Needs changes</option>
-                  <option value="approved">Approved</option>
+                  <option value="approved" disabled={!goLivePacket.go_live_ready}>Approved</option>
                   <option value="rejected">Rejected</option>
                 </select>
                 <textarea
@@ -1040,7 +1040,7 @@ function OperationsPage() {
                 <button
                   type="button"
                   onClick={() => attestationMutation.mutate({ decision: attestationForm.decision, note: attestationForm.note.trim() || null })}
-                  disabled={attestationMutation.isPending}
+                  disabled={attestationMutation.isPending || (attestationForm.decision === 'approved' && !goLivePacket.go_live_ready)}
                   className="w-full rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
                 >
                   Record sign-off

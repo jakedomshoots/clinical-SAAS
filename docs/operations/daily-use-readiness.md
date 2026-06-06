@@ -120,7 +120,7 @@ An internal clinic pilot is ready when:
 - Managers can export audit data with recorded `audit.exported` evidence, retry failed integration events, and inspect readiness.
 - Managers can use Operator Health to route critical production signals to Operations, Integrations, Staff access, or evidence workflows before a live-use rehearsal.
 - Managers can use Document Storage Readiness to clear metadata-only document gaps, unsigned object handoffs, expired signed handoffs, and object-storage configuration blockers before a live-use rehearsal.
-- Managers can review and sign off the Go-Live Packet, use/export the Live-Use Rehearsal Board, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, policy approval, cutover runbook, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run.
+- Managers can review and sign off the Go-Live Packet, use/export the Live-Use Rehearsal Board, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, policy approval, cutover runbook, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run; `approved` sign-off is only allowed after blocking packet evidence is cleared.
 
 ## Recommended Next Build Items For Production
 

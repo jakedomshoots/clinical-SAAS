@@ -403,8 +403,12 @@ async def update_role_dry_run_session(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_go_live_attestation(data: GoLiveAttestationCreate, db: DbDep, current_user: OpsUserDep):
+    try:
+        attestation = await operations_service.attest_go_live_packet(db, current_user, data.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return GoLiveAttestationOut(
-        **await operations_service.attest_go_live_packet(db, current_user, data.model_dump())
+        **attestation
     )
 
 
