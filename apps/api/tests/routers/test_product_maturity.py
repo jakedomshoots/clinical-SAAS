@@ -960,6 +960,30 @@ async def test_operator_health_rollup_surfaces_production_signals(client, auth_h
 
 
 @pytest.mark.asyncio
+async def test_operations_surfaces_role_access_matrix_gaps(client, auth_headers, db: AsyncSession):
+    await make_user(db, UserRole.manager, "manager-without-mfa-health@example.com")
+    await make_user(db, UserRole.provider, "provider-health@example.com")
+    await db.commit()
+
+    health = await client.get("/api/operations/operator-health", headers=auth_headers)
+    alert_rules = await client.get("/api/operations/alert-rules", headers=auth_headers)
+
+    assert health.status_code == 200
+    data = health.json()
+    assert data["summary"]["role_access_warnings"] >= 1
+    assert data["summary"]["privileged_mfa_gaps"] >= 1
+    role_check = next(item for item in data["checks"] if item["key"] == "role_access_matrix")
+    assert role_check["status"] == "critical"
+    assert role_check["route"] == "/staff"
+    assert "privileged" in role_check["detail"].lower()
+
+    rule = next(item for item in alert_rules.json()["data"] if item["key"] == "role_access_matrix")
+    assert rule["status"] == "triggered"
+    assert rule["severity"] == "critical"
+    assert rule["route"] == "/staff"
+
+
+@pytest.mark.asyncio
 async def test_production_config_audit_flags_launch_settings(client, auth_headers):
     response = await client.get("/api/operations/production-config-audit", headers=auth_headers)
 

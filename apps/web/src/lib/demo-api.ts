@@ -482,6 +482,7 @@ function alertRules(): OperationsAlertRuleList {
   const documentAccess = auditEvents.filter((item) => ['patient_document.accessed', 'patient_document.download_handoff'].includes(item.event_type));
   const recovery = recoverySummary();
   const storage = documentStorageReadiness();
+  const roleMatrix = roleAccessMatrix();
   const rules: OperationsAlertRule[] = [
     demoAlertRule('failed_integrations', 'Failed integrations', failedEvents.length > 0, 'critical', failedEvents.length, failedEvents[0]?.error ?? `${failedEvents.length} failed integration event(s).`, '/operations', failedEvents[0]?.updated_at ?? null),
     demoAlertRule('blocked_logins', 'Blocked logins', blockedLogins.length > 0, 'critical', blockedLogins.length, blockedLogins.length ? `${blockedLogins.length} blocked login event(s).` : 'No blocked login events recorded.', '/staff', blockedLogins[0]?.created_at ?? null),
@@ -489,6 +490,7 @@ function alertRules(): OperationsAlertRuleList {
     demoAlertRule('backup_restore_gap', 'Backup and restore gap', true, 'warning', 1, 'Backup and restore validation evidence is missing in demo mode.', '/operations', null),
     demoAlertRule('document_access_review', 'Document access review', documentAccess.length > 0, 'warning', documentAccess.length, `${documentAccess.length} document access event(s) should be reviewed before closeout.`, '/operations', documentAccess[0]?.created_at ?? null),
     demoAlertRule('document_storage_readiness', 'Document storage readiness', storage.status !== 'ready', storage.status === 'blocked' ? 'critical' : 'warning', storage.summary.config_gaps + storage.summary.metadata_only_documents + storage.summary.unsigned_handoffs + storage.summary.expired_handoffs, `${storage.summary.config_gaps} config gap(s), ${storage.summary.metadata_only_documents} metadata-only document(s), ${storage.summary.unsigned_handoffs} unsigned handoff(s), and ${storage.summary.expired_handoffs} expired handoff(s).`, '/operations', storage.recent_handoffs[0]?.occurred_at ?? null),
+    demoAlertRule('role_access_matrix', 'Role access matrix', roleMatrix.warnings.length > 0, roleMatrix.warnings.some((item) => item.severity === 'critical') ? 'critical' : 'warning', roleMatrix.warnings.length, `${roleMatrix.warnings.length} role access warning(s), ${roleMatrix.summary.privileged_users_without_mfa} privileged MFA gap(s), and ${roleMatrix.summary.roles_without_active_users} role coverage gap(s).`, '/staff', roleMatrix.warnings.length ? roleMatrix.generated_at : null),
   ];
   return {
     data: rules,
@@ -586,9 +588,12 @@ function operatorHealth(): OperatorHealth {
   const failedEvents = integrationEvents.filter((item) => item.status === 'failed');
   const preflight = demoCredentialPreflight();
   const packet = goLivePacket();
+  const roleMatrix = roleAccessMatrix();
   const missingEvidence = packet.evidence.filter((item) => item.status === 'missing').length;
   const blockingEvidence = packet.evidence.filter((item) => item.status === 'blocking').length;
   const warningEvidence = packet.evidence.filter((item) => item.status === 'warning').length;
+  const privilegedMfaGaps = roleMatrix.summary.privileged_users_without_mfa ?? 0;
+  const roleCoverageGaps = roleMatrix.summary.roles_without_active_users ?? 0;
   const checks: OperatorHealthCheck[] = [
     {
       key: 'core_readiness',
@@ -653,6 +658,15 @@ function operatorHealth(): OperatorHealth {
       route: '/operations',
       last_seen_at: new Date().toISOString(),
     },
+    {
+      key: 'role_access_matrix',
+      label: 'Role access matrix',
+      status: privilegedMfaGaps ? 'critical' : roleMatrix.warnings.length ? 'warning' : 'healthy',
+      score: Math.max(0, 100 - privilegedMfaGaps * 25 - roleCoverageGaps * 15),
+      detail: `${roleMatrix.warnings.length} role access warning(s), ${privilegedMfaGaps} privileged MFA gap(s), and ${roleCoverageGaps} role coverage gap(s).`,
+      route: '/staff',
+      last_seen_at: roleMatrix.generated_at,
+    },
   ];
   const critical = checks.filter((item) => item.status === 'critical').length;
   const warning = checks.filter((item) => item.status === 'warning').length;
@@ -675,6 +689,9 @@ function operatorHealth(): OperatorHealth {
       failed_integration_events: failedEvents.length,
       credential_blockers: preflight.blocking_count,
       launch_evidence_missing: missingEvidence,
+      role_access_warnings: roleMatrix.warnings.length,
+      privileged_mfa_gaps: privilegedMfaGaps,
+      roles_without_active_users: roleCoverageGaps,
     },
     checks,
     recommended_actions,

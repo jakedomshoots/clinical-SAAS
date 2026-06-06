@@ -119,6 +119,7 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
     readiness = await check_readiness()
     deployment = readiness.get("deployment", {})
     document_storage = await document_storage_readiness(db, user)
+    role_matrix = await user_service.role_access_matrix(db, user)
     failed_events = (
         await db.execute(
             select(IntegrationEvent)
@@ -219,6 +220,16 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
             document_storage["recent_handoffs"][0]["occurred_at"]
             if document_storage["recent_handoffs"]
             else None,
+        ),
+        _alert_rule(
+            "role_access_matrix",
+            "Role access matrix",
+            bool(role_matrix["warnings"]),
+            _role_access_severity(role_matrix),
+            len(role_matrix["warnings"]),
+            _role_access_detail(role_matrix),
+            "/staff",
+            role_matrix["generated_at"] if role_matrix["warnings"] else None,
         ),
     ]
     return {
@@ -335,6 +346,7 @@ async def operator_health(db: AsyncSession, user: User) -> dict:
     preflight = await integration_config_service.credential_preflight(db, user)
     packet = await go_live_packet(db, user)
     failed_integrations = await _integration_failure_health(db, user)
+    role_matrix = await user_service.role_access_matrix(db, user)
     deployment = readiness.get("deployment", {})
     missing_evidence = sum(1 for item in packet["evidence"] if item["status"] == "missing")
     blocking_evidence = sum(1 for item in packet["evidence"] if item["status"] == "blocking")
@@ -398,6 +410,7 @@ async def operator_health(db: AsyncSession, user: User) -> dict:
             f"{missing_evidence} missing, {blocking_evidence} blocking, and {warning_evidence} warning evidence item(s).",
             "/operations",
         ),
+        _role_access_health(role_matrix),
     ]
     critical = sum(1 for check in checks if check["status"] == "critical")
     warning = sum(1 for check in checks if check["status"] == "warning")
@@ -417,6 +430,9 @@ async def operator_health(db: AsyncSession, user: User) -> dict:
             "failed_integration_events": failed_integrations["failed_count"],
             "credential_blockers": preflight["blocking_count"],
             "launch_evidence_missing": missing_evidence,
+            "role_access_warnings": len(role_matrix["warnings"]),
+            "privileged_mfa_gaps": role_matrix["summary"]["privileged_users_without_mfa"],
+            "roles_without_active_users": role_matrix["summary"]["roles_without_active_users"],
         },
         "checks": checks,
         "recommended_actions": recommended_actions,
@@ -2279,6 +2295,41 @@ def _document_storage_alert_detail(readiness: dict) -> str:
         f"{summary['metadata_only_documents']} metadata-only document(s), "
         f"{summary['unsigned_handoffs']} unsigned handoff(s), and "
         f"{summary['expired_handoffs']} expired handoff(s)."
+    )
+
+
+def _role_access_severity(matrix: dict) -> str:
+    return "critical" if any(item["severity"] == "critical" for item in matrix["warnings"]) else "warning"
+
+
+def _role_access_detail(matrix: dict) -> str:
+    if not matrix["warnings"]:
+        return "Role coverage and privileged access checks are clear."
+    summary = matrix["summary"]
+    return (
+        f"{len(matrix['warnings'])} role access warning(s), "
+        f"{summary['privileged_users_without_mfa']} privileged MFA gap(s), and "
+        f"{summary['roles_without_active_users']} role coverage gap(s)."
+    )
+
+
+def _role_access_health(matrix: dict) -> dict:
+    warnings = len(matrix["warnings"])
+    privileged_gaps = matrix["summary"]["privileged_users_without_mfa"]
+    coverage_gaps = matrix["summary"]["roles_without_active_users"]
+    status = "critical" if privileged_gaps else "warning" if warnings else "healthy"
+    score = max(0, 100 - privileged_gaps * 25 - coverage_gaps * 15 - max(0, warnings - privileged_gaps - coverage_gaps) * 10)
+    return _operator_check(
+        "role_access_matrix",
+        "Role access matrix",
+        status,
+        score,
+        _role_access_detail(matrix),
+        "/staff",
+        matrix["generated_at"],
+        role_access_warnings=warnings,
+        privileged_mfa_gaps=privileged_gaps,
+        roles_without_active_users=coverage_gaps,
     )
 
 
