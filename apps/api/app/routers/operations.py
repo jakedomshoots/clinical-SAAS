@@ -12,6 +12,7 @@ from app.schemas.operations import (
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
     GoLiveAttestationOut,
+    OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
     LaunchWorkplanOut,
@@ -47,6 +48,13 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
         critical_count=result["critical_count"],
         warning_count=result["warning_count"],
         generated_at=result["generated_at"],
+    )
+
+
+@router.get("/operator-health", response_model=OperatorHealthOut)
+async def get_operator_health(db: DbDep, current_user: OpsUserDep):
+    return OperatorHealthOut(
+        **await operations_service.operator_health(db, current_user)
     )
 
 

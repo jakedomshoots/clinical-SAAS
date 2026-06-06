@@ -24,6 +24,33 @@ class OperationsIncidentListOut(BaseModel):
     generated_at: datetime
 
 
+class OperatorHealthCheckOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    score: int
+    detail: str
+    route: str
+    last_seen_at: datetime | str | None = None
+
+
+class OperatorHealthActionOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    severity: str
+    route: str
+
+
+class OperatorHealthOut(BaseModel):
+    status: str
+    score: int
+    generated_at: datetime
+    summary: dict[str, int]
+    checks: list[OperatorHealthCheckOut]
+    recommended_actions: list[OperatorHealthActionOut]
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

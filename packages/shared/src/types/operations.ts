@@ -52,6 +52,33 @@ export interface OperationsIncidentList {
   generated_at: string;
 }
 
+export interface OperatorHealthCheck {
+  key: string;
+  label: string;
+  status: 'healthy' | 'attention' | 'warning' | 'critical';
+  score: number;
+  detail: string;
+  route: string;
+  last_seen_at: string | null;
+}
+
+export interface OperatorHealthAction {
+  key: string;
+  label: string;
+  detail: string;
+  severity: 'attention' | 'warning' | 'critical';
+  route: string;
+}
+
+export interface OperatorHealth {
+  status: 'healthy' | 'attention' | 'critical';
+  score: number;
+  generated_at: string;
+  summary: Record<string, number>;
+  checks: OperatorHealthCheck[];
+  recommended_actions: OperatorHealthAction[];
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;

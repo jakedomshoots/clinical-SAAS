@@ -652,6 +652,51 @@ async def test_role_dry_run_session_evidence_is_audit_backed(client, auth_header
 
 
 @pytest.mark.asyncio
+async def test_operator_health_rollup_surfaces_production_signals(client, auth_headers, db: AsyncSession):
+    db.add(
+        IntegrationEvent(
+            organization_id="default",
+            integration="fax_provider",
+            direction="inbound",
+            action="fax.webhook",
+            status=IntegrationEventStatus.failed,
+            entity_type="fax",
+            entity_id="fax-health-1",
+            attempts=2,
+            error="Webhook signature mismatch",
+            payload={"source": "operator-health-test"},
+        )
+    )
+    await db.commit()
+
+    response = await client.get("/api/operations/operator-health", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in {"healthy", "attention", "critical"}
+    assert data["score"] >= 0
+    assert data["generated_at"]
+    assert data["summary"]["failed_integration_events"] >= 1
+    assert data["summary"]["credential_blockers"] >= 0
+    assert data["summary"]["launch_evidence_missing"] >= 0
+    check_keys = {check["key"] for check in data["checks"]}
+    assert {
+        "core_readiness",
+        "operational_readiness",
+        "backup_freshness",
+        "restore_freshness",
+        "integration_failures",
+        "credential_preflight",
+        "launch_evidence",
+    } <= check_keys
+    assert all(check["route"] for check in data["checks"])
+    assert all(action["route"] for action in data["recommended_actions"])
+    integration_check = next(check for check in data["checks"] if check["key"] == "integration_failures")
+    assert integration_check["status"] == "critical"
+    assert "Webhook signature mismatch" in integration_check["detail"]
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

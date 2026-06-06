@@ -17,7 +17,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
-- Operations includes a go-live packet, role dry-run checklists, dry-run session evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, and backup/restore gates, with owner assignment, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal evidence.
+- Operations includes Operator Health, a go-live packet, role dry-run checklists, dry-run session evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, launch evidence freshness, owner assignment, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -46,7 +46,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 
 ### Manager/Admin
 
-- Use Operations to check production readiness and integration-event failures.
+- Use Operator Health in Operations to check production readiness, backup and restore freshness, integration-event failures, credential blockers, and launch evidence gaps.
 - Use Go-Live Packet for final manager review and sign-off, then use Launch Workplan to review open launch blockers, incident risks, credential preflight gaps, and assigned rehearsal work in one queue; save/export snapshots before and after rehearsal fixes.
 - Use Role Dry-Run Checklists to rehearse front desk, MA/nurse, provider, billing, and manager workflows before live integrations are connected; start a dry-run session, mark each item complete or blocked, and capture evidence notes.
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
@@ -89,6 +89,7 @@ An internal clinic pilot is ready when:
 - Each role can walk through its Operations dry-run checklist with no unroutable workflow items, and the manager can save an audit-backed dry-run session with complete/blocked status and notes for launch review.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
 - Managers can export audit data, retry failed integration events, and inspect readiness.
+- Managers can use Operator Health to route critical production signals to Operations, Integrations, or evidence workflows before a live-use rehearsal.
 - Managers can review and sign off the Go-Live Packet, save and export the Launch Workplan, assign owners to rehearsal blockers, complete a role dry-run session, and save/export the production rehearsal report before scheduling a live-use dry run.
 
 ## Recommended Next Build Items For Production

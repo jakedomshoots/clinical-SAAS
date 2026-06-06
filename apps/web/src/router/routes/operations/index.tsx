@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
+  Activity,
   AlertTriangle,
   CheckSquare,
   CheckCircle2,
@@ -17,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -131,6 +132,10 @@ function OperationsPage() {
   const { data: incidents } = useQuery({
     queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS,
     queryFn: () => api.get<OperationsIncidentList>(ROUTES.OPERATIONS_INCIDENTS),
+  });
+  const { data: operatorHealth } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'operator-health'],
+    queryFn: () => api.get<OperatorHealth>(ROUTES.OPERATIONS_OPERATOR_HEALTH),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -355,6 +360,66 @@ function OperationsPage() {
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
         </div>
       </header>
+
+      {operatorHealth && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <Activity className="h-4 w-4 text-accent-600" />
+                Operator Health
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(operatorHealth.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${operatorHealth.status === 'healthy' ? 'border-accent-200 bg-accent-50 text-accent-800' : operatorHealth.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                {operatorHealth.status}
+              </span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{operatorHealth.score}%</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{operatorHealth.summary.critical_checks ?? 0} critical</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{operatorHealth.summary.warning_checks ?? 0} warning</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {operatorHealth.checks.map((check) => (
+                <Link key={check.key} to={check.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-clinic-900">{check.label}</div>
+                      <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'healthy' ? 'border-accent-200 bg-accent-50 text-accent-800' : check.status === 'warning' || check.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                      {check.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-clinic-400">
+                    <span>{check.score}%</span>
+                    <span>{check.last_seen_at ? new Date(check.last_seen_at).toLocaleString() : 'No evidence'}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Operator actions</div>
+              <div className="divide-y divide-clinic-100">
+                {operatorHealth.recommended_actions.slice(0, 5).map((action) => (
+                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                  </Link>
+                ))}
+                {operatorHealth.recommended_actions.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No operator actions.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
 
       {goLivePacket && (
         <section className="rounded-md border border-clinic-200 bg-white">

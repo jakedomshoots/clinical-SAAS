@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from sqlalchemy import func, select
@@ -38,6 +38,99 @@ async def incident_register(db: AsyncSession, user: User) -> dict:
         "critical_count": sum(1 for item in deduped if item["severity"] == "critical"),
         "warning_count": sum(1 for item in deduped if item["severity"] == "warning"),
         "generated_at": datetime.now(UTC),
+    }
+
+
+async def operator_health(db: AsyncSession, user: User) -> dict:
+    readiness = await check_readiness()
+    preflight = await integration_config_service.credential_preflight(db, user)
+    packet = await go_live_packet(db, user)
+    failed_integrations = await _integration_failure_health(db, user)
+    deployment = readiness.get("deployment", {})
+    missing_evidence = sum(1 for item in packet["evidence"] if item["status"] == "missing")
+    blocking_evidence = sum(1 for item in packet["evidence"] if item["status"] == "blocking")
+    warning_evidence = sum(1 for item in packet["evidence"] if item["status"] == "warning")
+
+    checks = [
+        _operator_check(
+            "core_readiness",
+            "Core readiness",
+            "healthy" if readiness.get("status") == "ok" else "critical",
+            100 if readiness.get("status") == "ok" else 0,
+            f"Core infrastructure status is {readiness.get('status', 'unknown')}.",
+            "/operations",
+        ),
+        _operator_check(
+            "operational_readiness",
+            "Operational readiness",
+            "healthy" if readiness.get("operational_status") == "ok" else "critical",
+            100 if readiness.get("operational_status") == "ok" else 25,
+            f"Operational readiness is {readiness.get('operational_status', 'unknown')}.",
+            "/integrations",
+        ),
+        _freshness_check(
+            "backup_freshness",
+            "Backup freshness",
+            deployment.get("latest_backup", {}),
+            stale_after=timedelta(days=1),
+            missing_status="critical",
+            route="/operations",
+        ),
+        _freshness_check(
+            "restore_freshness",
+            "Restore validation freshness",
+            deployment.get("latest_restore", {}),
+            stale_after=timedelta(days=30),
+            missing_status="warning",
+            route="/operations",
+        ),
+        failed_integrations,
+        _operator_check(
+            "credential_preflight",
+            "Credential preflight",
+            "critical"
+            if preflight["blocking_count"]
+            else "warning"
+            if preflight["staged_count"]
+            else "healthy",
+            max(0, 100 - preflight["blocking_count"] * 20 - preflight["staged_count"] * 8),
+            f"{preflight['blocking_count']} blocking and {preflight['staged_count']} staged integration item(s).",
+            "/integrations",
+        ),
+        _operator_check(
+            "launch_evidence",
+            "Launch evidence",
+            "critical"
+            if blocking_evidence or missing_evidence
+            else "warning"
+            if warning_evidence
+            else "healthy",
+            max(0, 100 - (blocking_evidence + missing_evidence) * 20 - warning_evidence * 10),
+            f"{missing_evidence} missing, {blocking_evidence} blocking, and {warning_evidence} warning evidence item(s).",
+            "/operations",
+        ),
+    ]
+    critical = sum(1 for check in checks if check["status"] == "critical")
+    warning = sum(1 for check in checks if check["status"] == "warning")
+    score = round(sum(check["score"] for check in checks) / len(checks)) if checks else 0
+    recommended_actions = [
+        _operator_action(check)
+        for check in checks
+        if check["status"] != "healthy"
+    ]
+    return {
+        "status": "critical" if critical else "attention" if warning else "healthy",
+        "score": score,
+        "generated_at": datetime.now(UTC),
+        "summary": {
+            "critical_checks": critical,
+            "warning_checks": warning,
+            "failed_integration_events": failed_integrations["failed_count"],
+            "credential_blockers": preflight["blocking_count"],
+            "launch_evidence_missing": missing_evidence,
+        },
+        "checks": checks,
+        "recommended_actions": recommended_actions,
     }
 
 
@@ -799,6 +892,130 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "route": route,
         "captured_at": captured_at,
     }
+
+
+def _operator_check(
+    key: str,
+    label: str,
+    status: str,
+    score: int,
+    detail: str,
+    route: str,
+    last_seen_at=None,
+    **extra,
+) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "score": max(0, min(100, int(score))),
+        "detail": detail,
+        "route": route,
+        "last_seen_at": last_seen_at,
+        **extra,
+    }
+
+
+def _operator_action(check: dict) -> dict:
+    return {
+        "key": f"resolve_{check['key']}",
+        "label": f"Resolve {check['label']}",
+        "detail": check["detail"],
+        "severity": check["status"],
+        "route": check["route"],
+    }
+
+
+def _freshness_check(
+    key: str,
+    label: str,
+    marker: dict,
+    *,
+    stale_after: timedelta,
+    missing_status: str,
+    route: str,
+) -> dict:
+    last_seen = marker.get("last_success_at")
+    parsed = _parse_datetime(last_seen)
+    if not marker.get("ok") or not parsed:
+        return _operator_check(
+            key,
+            label,
+            missing_status,
+            0 if missing_status == "critical" else 45,
+            marker.get("error") or f"{label} evidence is missing.",
+            route,
+            last_seen,
+        )
+    age = datetime.now(UTC) - parsed
+    if age > stale_after:
+        return _operator_check(
+            key,
+            label,
+            "warning",
+            65,
+            f"Last successful {label.lower()} was {age.days} day(s) ago.",
+            route,
+            last_seen,
+        )
+    return _operator_check(
+        key,
+        label,
+        "healthy",
+        100,
+        f"Last successful {label.lower()} is current.",
+        route,
+        last_seen,
+    )
+
+
+async def _integration_failure_health(db: AsyncSession, user: User) -> dict:
+    result = await db.execute(
+        select(
+            func.count(IntegrationEvent.id),
+            func.max(IntegrationEvent.updated_at),
+        ).where(
+            IntegrationEvent.organization_id == user.organization_id,
+            IntegrationEvent.status == IntegrationEventStatus.failed,
+        )
+    )
+    failed_count, latest_at = result.one()
+    latest_error = None
+    if failed_count:
+        latest = await db.execute(
+            select(IntegrationEvent).where(
+                IntegrationEvent.organization_id == user.organization_id,
+                IntegrationEvent.status == IntegrationEventStatus.failed,
+            ).order_by(IntegrationEvent.updated_at.desc()).limit(1)
+        )
+        latest_event = latest.scalar_one_or_none()
+        latest_error = latest_event.error if latest_event else None
+    return _operator_check(
+        "integration_failures",
+        "Integration failures",
+        "critical" if failed_count else "healthy",
+        max(0, 100 - int(failed_count or 0) * 20),
+        f"{failed_count or 0} failed integration event(s)."
+        + (f" Latest: {latest_error}" if latest_error else ""),
+        "/integrations",
+        latest_at,
+        failed_count=int(failed_count or 0),
+    )
+
+
+def _parse_datetime(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _checklist_item(key: str, label: str, detail: str, route: str, status: str) -> dict:

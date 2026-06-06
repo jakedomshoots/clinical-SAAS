@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -230,6 +230,105 @@ function operationsIncidents(): OperationsIncidentList {
     critical_count: incidents.filter((item) => item.severity === 'critical').length,
     warning_count: incidents.filter((item) => item.severity === 'warning').length,
     generated_at: new Date().toISOString(),
+  };
+}
+
+function operatorHealth(): OperatorHealth {
+  const failedEvents = integrationEvents.filter((item) => item.status === 'failed');
+  const preflight = demoCredentialPreflight();
+  const packet = goLivePacket();
+  const missingEvidence = packet.evidence.filter((item) => item.status === 'missing').length;
+  const blockingEvidence = packet.evidence.filter((item) => item.status === 'blocking').length;
+  const warningEvidence = packet.evidence.filter((item) => item.status === 'warning').length;
+  const checks: OperatorHealthCheck[] = [
+    {
+      key: 'core_readiness',
+      label: 'Core readiness',
+      status: 'healthy',
+      score: 100,
+      detail: 'Demo core services are available.',
+      route: '/operations',
+      last_seen_at: new Date().toISOString(),
+    },
+    {
+      key: 'operational_readiness',
+      label: 'Operational readiness',
+      status: preflight.blocking_count ? 'critical' : 'warning',
+      score: preflight.blocking_count ? 25 : 75,
+      detail: `${preflight.blocking_count} blocking integration item(s) remain before live use.`,
+      route: '/integrations',
+      last_seen_at: new Date().toISOString(),
+    },
+    {
+      key: 'backup_freshness',
+      label: 'Backup freshness',
+      status: 'critical',
+      score: 0,
+      detail: 'No backup manifest found in demo mode.',
+      route: '/operations',
+      last_seen_at: null,
+    },
+    {
+      key: 'restore_freshness',
+      label: 'Restore validation freshness',
+      status: 'warning',
+      score: 45,
+      detail: 'No restore marker found in demo mode.',
+      route: '/operations',
+      last_seen_at: null,
+    },
+    {
+      key: 'integration_failures',
+      label: 'Integration failures',
+      status: failedEvents.length ? 'critical' : 'healthy',
+      score: Math.max(0, 100 - failedEvents.length * 20),
+      detail: `${failedEvents.length} failed integration event(s).${failedEvents[0]?.error ? ` Latest: ${failedEvents[0].error}` : ''}`,
+      route: '/integrations',
+      last_seen_at: failedEvents[0]?.updated_at ?? null,
+    },
+    {
+      key: 'credential_preflight',
+      label: 'Credential preflight',
+      status: preflight.blocking_count ? 'critical' : preflight.staged_count ? 'warning' : 'healthy',
+      score: Math.max(0, 100 - preflight.blocking_count * 20 - preflight.staged_count * 8),
+      detail: `${preflight.blocking_count} blocking and ${preflight.staged_count} staged integration item(s).`,
+      route: '/integrations',
+      last_seen_at: new Date().toISOString(),
+    },
+    {
+      key: 'launch_evidence',
+      label: 'Launch evidence',
+      status: missingEvidence || blockingEvidence ? 'critical' : warningEvidence ? 'warning' : 'healthy',
+      score: Math.max(0, 100 - (missingEvidence + blockingEvidence) * 20 - warningEvidence * 10),
+      detail: `${missingEvidence} missing, ${blockingEvidence} blocking, and ${warningEvidence} warning evidence item(s).`,
+      route: '/operations',
+      last_seen_at: new Date().toISOString(),
+    },
+  ];
+  const critical = checks.filter((item) => item.status === 'critical').length;
+  const warning = checks.filter((item) => item.status === 'warning').length;
+  const recommended_actions: OperatorHealthAction[] = checks
+    .filter((item) => item.status !== 'healthy')
+    .map((item) => ({
+      key: `resolve_${item.key}`,
+      label: `Resolve ${item.label}`,
+      detail: item.detail,
+      severity: item.status === 'critical' ? 'critical' : 'warning',
+      route: item.route,
+    }));
+  return {
+    status: critical ? 'critical' : warning ? 'attention' : 'healthy',
+    score: Math.round(checks.reduce((sum, item) => sum + item.score, 0) / checks.length),
+    generated_at: new Date().toISOString(),
+    summary: {
+      critical_checks: critical,
+      warning_checks: warning,
+      failed_integration_events: failedEvents.length,
+      credential_blockers: preflight.blocking_count,
+      launch_evidence_missing: missingEvidence,
+    },
+    checks,
+    recommended_actions,
   };
 }
 
@@ -1467,6 +1566,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/operations/incidents' && method === 'GET') {
     return operationsIncidents() as T;
+  }
+  if (path === '/operations/operator-health' && method === 'GET') {
+    return operatorHealth() as T;
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;
