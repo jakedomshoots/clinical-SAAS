@@ -45,6 +45,8 @@ function TaskListPage() {
   const [priorityFilter, setPriorityFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [page, setPage] = useState(1);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [bulkAssigneeId, setBulkAssigneeId] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
   const [outreachDraft, setOutreachDraft] = useState<TaskPatientOutreachDraft | null>(null);
   const [deliveryResult, setDeliveryResult] = useState<TaskPatientOutreachDelivery | null>(null);
@@ -88,6 +90,17 @@ function TaskListPage() {
       api.patch(ROUTES.TASK(id), update),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS }),
   });
+  const bulkUpdateMutation = useMutation({
+    mutationFn: async ({ tasks: taskRows, update }: { tasks: Task[]; update: Partial<Task> }) => {
+      await Promise.all(taskRows.map((task) => api.patch(ROUTES.TASK(task.id), update)));
+    },
+    onSuccess: () => {
+      setSelectedTaskIds([]);
+      setBulkAssigneeId('');
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: () => api.post<Task>('/tasks', {
@@ -128,6 +141,20 @@ function TaskListPage() {
   function updateTask(id: string, update: Partial<Task>) {
     updateMutation.mutate({ id, update });
   }
+  const selectedTasks = filteredTasks.filter((task) => selectedTaskIds.includes(task.id));
+  const toggleTaskSelection = (taskId: string) => {
+    setSelectedTaskIds((current) => current.includes(taskId)
+      ? current.filter((id) => id !== taskId)
+      : [...current, taskId]);
+  };
+  const visibleTaskIds = filteredTasks.map((task) => task.id);
+  const allVisibleSelected = visibleTaskIds.length > 0 && visibleTaskIds.every((id) => selectedTaskIds.includes(id));
+  const toggleVisibleTasks = () => {
+    setSelectedTaskIds((current) => {
+      if (allVisibleSelected) return current.filter((id) => !visibleTaskIds.includes(id));
+      return Array.from(new Set([...current, ...visibleTaskIds]));
+    });
+  };
 
   return (
     <div>
@@ -288,9 +315,64 @@ function TaskListPage() {
         <ErrorState title="Unable to load tasks" detail={error instanceof Error ? error.message : 'The task queue could not be loaded.'} />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
+          {selectedTaskIds.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-100 bg-clinic-50 px-4 py-2">
+              <div className="text-xs font-medium text-clinic-600">{selectedTaskIds.length} selected</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={bulkAssigneeId}
+                  onChange={(event) => setBulkAssigneeId(event.target.value)}
+                  className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs text-clinic-700"
+                >
+                  <option value="">Choose assignee</option>
+                  {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { assigned_to_id: bulkAssigneeId || null } })}
+                  disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
+                  className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                >
+                  Assign
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'in_progress' } })}
+                  disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
+                  className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60"
+                >
+                  Start selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'completed' } })}
+                  disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
+                  className="rounded-md border border-accent-200 bg-accent-50 px-3 py-1.5 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-60"
+                >
+                  Complete selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTaskIds([])}
+                  className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
           <table className="w-full min-w-[58rem] text-sm">
             <thead className="border-b border-clinic-200 bg-clinic-50">
               <tr>
+                <th className="w-10 px-4 py-3 text-left font-medium text-clinic-500">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleVisibleTasks}
+                    className="h-4 w-4 rounded border-clinic-300 text-accent-600"
+                    aria-label="Select visible tasks"
+                  />
+                </th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Status</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Priority</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Title</th>
@@ -304,6 +386,15 @@ function TaskListPage() {
             <tbody>
               {filteredTasks.map((task) => (
                 <tr key={task.id} className="border-b border-clinic-100 hover:bg-clinic-50">
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedTaskIds.includes(task.id)}
+                      onChange={() => toggleTaskSelection(task.id)}
+                      className="h-4 w-4 rounded border-clinic-300 text-accent-600"
+                      aria-label={`Select ${task.title}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       value={task.status}
@@ -407,7 +498,7 @@ function TaskListPage() {
               ))}
               {filteredTasks.length === 0 && (
                 <tr>
-                  <td colSpan={8}>
+                  <td colSpan={9}>
                     <EmptyState
                       title="No tasks found"
                       detail={statusFilter ? 'Try another status filter or create a new task.' : 'No work is queued for the current filter.'}

@@ -16,7 +16,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
 - Billing supports charge review, case creation, eligibility checks/history, readiness-gated claim submission, denial rework, remittance placeholders, and audit/integration timelines.
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
-- Tasks includes Work Queue Control for open/in-progress work, urgent/high priority counts, overdue/due-today/unassigned work, role buckets, source buckets, and next-action guidance.
+- Tasks includes Work Queue Control for open/in-progress work, urgent/high priority counts, overdue/due-today/unassigned work, role buckets, source buckets, next-action guidance, and bulk assignment/start/complete controls.
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
