@@ -86,6 +86,8 @@ export const ROUTES = {
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_READINESS_SNAPSHOTS: '/api/operations/readiness-snapshots',
   OPERATIONS_PRODUCTION_REHEARSAL: '/api/operations/production-rehearsal',
+  OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS: '/api/operations/production-rehearsal/snapshots',
+  OPERATIONS_PRODUCTION_REHEARSAL_EXPORT: '/api/operations/production-rehearsal/export',
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

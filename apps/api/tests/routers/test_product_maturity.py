@@ -418,6 +418,27 @@ async def test_production_rehearsal_report_contract(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_production_rehearsal_snapshot_and_export(client, auth_headers):
+    snapshot = await client.post("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
+    snapshots = await client.get("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
+    exported = await client.get("/api/operations/production-rehearsal/export", headers=auth_headers)
+
+    assert snapshot.status_code == 201
+    snapshot_data = snapshot.json()
+    assert snapshot_data["score"] >= 0
+    assert snapshot_data["recommended_action_count"] >= 0
+
+    assert snapshots.status_code == 200
+    assert snapshots.json()["total"] == 1
+    assert snapshots.json()["data"][0]["id"] == snapshot_data["id"]
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "section,key,label,status,score,detail,route,severity" in exported.text
+    assert "gate,core_readiness,Core readiness" in exported.text
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

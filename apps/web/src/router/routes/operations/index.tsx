@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -122,6 +122,10 @@ function OperationsPage() {
     queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'],
     queryFn: () => api.get<ProductionRehearsalReport>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL),
   });
+  const { data: rehearsalSnapshots } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'production-rehearsal'],
+    queryFn: () => api.get<ProductionRehearsalSnapshotList>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS),
+  });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
     onSuccess: async () => {
@@ -133,6 +137,13 @@ function OperationsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS_SNAPSHOTS });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const rehearsalSnapshotMutation = useMutation({
+    mutationFn: () => api.post<ProductionRehearsalSnapshot>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'production-rehearsal'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -148,6 +159,13 @@ function OperationsPage() {
     });
     return `/api/audit/export?${params.toString()}`;
   }, [auditExport]);
+  const rehearsalExportHref = useMemo(() => {
+    if (!rehearsal) return ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_EXPORT;
+    const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity']];
+    rehearsal.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '']));
+    rehearsal.recommended_actions.forEach((action) => rows.push(['action', action.key, action.label, '', '', action.detail, action.route, action.severity]));
+    return `data:text/csv;charset=utf-8,${encodeURIComponent(rows.map((row) => row.map(csvCell).join(',')).join('\n'))}`;
+  }, [rehearsal]);
 
   return (
     <div className="space-y-5">
@@ -172,6 +190,22 @@ function OperationsPage() {
             <div className="flex items-center gap-2">
               <StatusBadge ok={rehearsal.rehearsal_ready} label={rehearsal.rehearsal_ready ? 'Ready' : 'Attention'} />
               <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{rehearsal.score}%</span>
+              <a
+                href={rehearsalExportHref}
+                download="concierge-os-production-rehearsal.csv"
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+              <button
+                onClick={() => rehearsalSnapshotMutation.mutate()}
+                disabled={rehearsalSnapshotMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:opacity-60"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Save
+              </button>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -203,6 +237,23 @@ function OperationsPage() {
               </div>
             </aside>
           </div>
+          {(rehearsalSnapshots?.data ?? []).length > 0 && (
+            <div className="border-t border-clinic-200 px-4 py-3">
+              <div className="mb-2 text-xs font-semibold uppercase text-clinic-500">Saved rehearsal evidence</div>
+              <div className="grid gap-2 md:grid-cols-3">
+                {(rehearsalSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
+                  <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-clinic-900">{snapshot.score}%</span>
+                      <StatusBadge ok={snapshot.rehearsal_ready} label={snapshot.status} />
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{snapshot.blocking_count} blocker(s), {snapshot.warning_count} warning(s)</div>
+                    <div className="mt-1 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -525,4 +576,9 @@ function OperationsPage() {
       </button>
     </div>
   );
+}
+
+function csvCell(value: string) {
+  if (!/[",\n]/.test(value)) return value;
+  return `"${value.replace(/"/g, '""')}"`;
 }

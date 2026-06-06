@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -308,6 +308,27 @@ function productionRehearsalReport(): ProductionRehearsalReport {
         severity: gate.status,
       })),
   };
+}
+
+function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
+  const payload = event.payload as Partial<ProductionRehearsalReport>;
+  return {
+    id: event.id,
+    created_at: event.created_at,
+    status: payload.status ?? 'attention',
+    rehearsal_ready: Boolean(payload.rehearsal_ready),
+    score: Number(payload.score ?? 0),
+    blocking_count: Number(payload.blocking_count ?? 0),
+    warning_count: Number(payload.warning_count ?? 0),
+    recommended_action_count: payload.recommended_actions?.length ?? 0,
+  };
+}
+
+function productionRehearsalCsv(report: ProductionRehearsalReport) {
+  const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity']];
+  report.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '']));
+  report.recommended_actions.forEach((action) => rows.push(['action', action.key, action.label, '', '', action.detail, action.route, action.severity]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
 function readinessSnapshotFromEvent(event: AuditEvent): ReadinessSnapshot {
@@ -1029,6 +1050,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/production-rehearsal' && method === 'GET') {
     return productionRehearsalReport() as T;
+  }
+  if (path === '/operations/production-rehearsal/export' && method === 'GET') {
+    return productionRehearsalCsv(productionRehearsalReport()) as T;
+  }
+  if (path === '/operations/production-rehearsal/snapshots' && method === 'POST') {
+    const report = productionRehearsalReport();
+    logDemoEvent({
+      event_type: 'operations.production_rehearsal_snapshot',
+      entity_type: 'operations',
+      entity_id: uuid(901),
+      payload: report as unknown as Record<string, unknown>,
+    });
+    saveDemoData();
+    return productionRehearsalSnapshotFromEvent(auditEvents[0]) as T;
+  }
+  if (path === '/operations/production-rehearsal/snapshots' && method === 'GET') {
+    const data = auditEvents
+      .filter((event) => event.event_type === 'operations.production_rehearsal_snapshot')
+      .map(productionRehearsalSnapshotFromEvent);
+    return { data, total: data.length } satisfies ProductionRehearsalSnapshotList as T;
   }
   if (path === '/operations/readiness-snapshots' && method === 'POST') {
     const incidents = operationsIncidents();
@@ -2612,4 +2653,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   return undefined;
+}
+
+function csvCell(value: string) {
+  if (!/[",\n]/.test(value)) return value;
+  return `"${value.replace(/"/g, '""')}"`;
 }

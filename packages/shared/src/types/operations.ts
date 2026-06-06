@@ -96,6 +96,22 @@ export interface ProductionRehearsalReport {
   recommended_actions: RehearsalAction[];
 }
 
+export interface ProductionRehearsalSnapshot {
+  id: string;
+  created_at: string;
+  status: 'ready' | 'attention';
+  rehearsal_ready: boolean;
+  score: number;
+  blocking_count: number;
+  warning_count: number;
+  recommended_action_count: number;
+}
+
+export interface ProductionRehearsalSnapshotList {
+  data: ProductionRehearsalSnapshot[];
+  total: number;
+}
+
 export interface IntegrationCapabilities {
   [key: string]: {
     label?: string;

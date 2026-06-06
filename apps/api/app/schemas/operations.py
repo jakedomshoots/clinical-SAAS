@@ -66,3 +66,19 @@ class ProductionRehearsalReportOut(BaseModel):
     generated_at: datetime
     gates: list[RehearsalGateOut]
     recommended_actions: list[RehearsalActionOut]
+
+
+class ProductionRehearsalSnapshotOut(BaseModel):
+    id: str
+    created_at: datetime
+    status: str
+    rehearsal_ready: bool
+    score: int
+    blocking_count: int
+    warning_count: int
+    recommended_action_count: int
+
+
+class ProductionRehearsalSnapshotListOut(BaseModel):
+    data: list[ProductionRehearsalSnapshotOut]
+    total: int

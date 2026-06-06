@@ -15,6 +15,7 @@ from app.services.launch_readiness_service import launch_readiness
 from app.services.readiness_service import check_readiness
 
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
+REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -165,6 +166,57 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def create_rehearsal_snapshot(db: AsyncSession, user: User) -> dict:
+    report = await production_rehearsal_report(db, user)
+    event = await log_event(
+        db,
+        REHEARSAL_SNAPSHOT_EVENT_TYPE,
+        "operations",
+        user.organization_id,
+        actor_id=user.id,
+        payload=_serialize_rehearsal_report(report),
+    )
+    return _rehearsal_snapshot_from_audit(event)
+
+
+async def list_rehearsal_snapshots(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == REHEARSAL_SNAPSHOT_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(25))
+    return [_rehearsal_snapshot_from_audit(item) for item in result.scalars().all()], total
+
+
+def rehearsal_report_csv(report: dict) -> str:
+    rows = ["section,key,label,status,score,detail,route,severity"]
+    for gate in report["gates"]:
+        rows.append(_csv_row([
+            "gate",
+            gate["key"],
+            gate["label"],
+            gate["status"],
+            str(gate["score"]),
+            gate["detail"],
+            gate["route"],
+            "",
+        ]))
+    for action in report["recommended_actions"]:
+        rows.append(_csv_row([
+            "action",
+            action["key"],
+            action["label"],
+            "",
+            "",
+            action["detail"],
+            action["route"],
+            action["severity"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
     org = user.organization_id
 
@@ -203,6 +255,37 @@ def _backup_restore_detail(deployment: dict) -> str:
     if backup.get("ok"):
         return "Backup evidence exists, but restore validation is missing."
     return "Backup and restore validation evidence is missing."
+
+
+def _serialize_rehearsal_report(report: dict) -> dict:
+    return {
+        **report,
+        "generated_at": report["generated_at"].isoformat() if hasattr(report["generated_at"], "isoformat") else report["generated_at"],
+    }
+
+
+def _rehearsal_snapshot_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "created_at": event.created_at,
+        "status": payload.get("status", "attention"),
+        "rehearsal_ready": bool(payload.get("rehearsal_ready")),
+        "score": int(payload.get("score", 0)),
+        "blocking_count": int(payload.get("blocking_count", 0)),
+        "warning_count": int(payload.get("warning_count", 0)),
+        "recommended_action_count": len(payload.get("recommended_actions", [])),
+    }
+
+
+def _csv_row(values: list[str]) -> str:
+    escaped = []
+    for value in values:
+        if any(char in value for char in [",", '"', "\n"]):
+            escaped.append('"' + value.replace('"', '""') + '"')
+        else:
+            escaped.append(value)
+    return ",".join(escaped)
 
 
 def _readiness_incidents(readiness: dict) -> list[dict]:
