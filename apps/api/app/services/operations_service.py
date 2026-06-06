@@ -1598,13 +1598,19 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
         if latest_cutover
         else "Start and complete a cutover runbook session with rollback decision evidence."
     )
+    readiness_snapshot_status = _readiness_snapshot_packet_status(latest_readiness)
+    readiness_snapshot_detail = (
+        _readiness_snapshot_packet_detail(latest_readiness)
+        if latest_readiness
+        else "Save a readiness snapshot from Operations."
+    )
 
     evidence = [
         _packet_evidence(
             "readiness_snapshot",
             "Readiness snapshot",
-            "ready" if latest_readiness else "missing",
-            "Latest readiness snapshot is saved." if latest_readiness else "Save a readiness snapshot from Operations.",
+            readiness_snapshot_status,
+            readiness_snapshot_detail,
             "/operations",
             latest_readiness["created_at"] if latest_readiness else None,
         ),
@@ -2627,6 +2633,24 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "route": route,
         "captured_at": captured_at,
     }
+
+
+def _readiness_snapshot_packet_status(snapshot: dict | None) -> str:
+    if not snapshot:
+        return "missing"
+    if snapshot["core_status"] != "ok" or snapshot["critical_count"] > 0:
+        return "blocking"
+    if snapshot["operational_status"] != "ok" or snapshot["warning_count"] > 0:
+        return "warning"
+    return "ready"
+
+
+def _readiness_snapshot_packet_detail(snapshot: dict) -> str:
+    return (
+        f"Core {snapshot['core_status']}, operational {snapshot['operational_status']}, "
+        f"launch score {snapshot['launch_score']}, {snapshot['critical_count']} critical and "
+        f"{snapshot['warning_count']} warning incident(s) captured."
+    )
 
 
 def _config_check(

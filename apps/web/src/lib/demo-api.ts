@@ -1559,12 +1559,22 @@ function goLivePacket(): GoLivePacket {
   const cutoverDetail = latestCutover
     ? `${latestCutover.complete_count} complete, ${latestCutover.blocked_count} blocked, ${latestCutover.rollback_count} rollback, ${latestCutover.pending_count} pending step(s); rollback status ${latestCutover.rollback_status}.`
     : 'Start and complete a cutover runbook session with rollback decision evidence.';
+  const readinessSnapshotStatus = readinessSnapshot
+    ? readinessSnapshot.core_status !== 'ok' || readinessSnapshot.critical_count > 0
+      ? 'blocking' as const
+      : readinessSnapshot.operational_status !== 'ok' || readinessSnapshot.warning_count > 0
+        ? 'warning' as const
+        : 'ready' as const
+    : 'missing' as const;
+  const readinessSnapshotDetail = readinessSnapshot
+    ? `Core ${readinessSnapshot.core_status}, operational ${readinessSnapshot.operational_status}, launch score ${readinessSnapshot.launch_score}, ${readinessSnapshot.critical_count} critical and ${readinessSnapshot.warning_count} warning incident(s) captured.`
+    : 'Save a readiness snapshot from Operations.';
   const evidence = [
     {
       key: 'readiness_snapshot',
       label: 'Readiness snapshot',
-      status: readinessSnapshot ? 'ready' as const : 'missing' as const,
-      detail: readinessSnapshot ? 'Latest readiness snapshot is saved.' : 'Save a readiness snapshot from Operations.',
+      status: readinessSnapshotStatus,
+      detail: readinessSnapshotDetail,
       route: '/operations',
       captured_at: readinessSnapshot?.created_at ?? null,
     },
