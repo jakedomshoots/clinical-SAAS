@@ -20,6 +20,18 @@ class AdapterMethodOut(BaseModel):
     status: str
 
 
+class VendorProfileOut(BaseModel):
+    vendor_name: str = ""
+    environment: str = ""
+    owner_name: str = ""
+    owner_email: str = ""
+    support_contact: str = ""
+    escalation_notes: str = ""
+    contract_reference_url: str = ""
+    profile_complete: bool = False
+    missing_fields: list[str] = Field(default_factory=list)
+
+
 class IntegrationConfigOut(BaseModel):
     key: str
     label: str
@@ -36,6 +48,7 @@ class IntegrationConfigOut(BaseModel):
     mode: str
     status: str
     fields: list[IntegrationConfigFieldOut]
+    vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
     workflows: list[str]
     action: str
     sandbox_tests: list[str] = Field(default_factory=list)
@@ -96,6 +109,7 @@ class CredentialPreflightItemOut(BaseModel):
     sandbox_ready: bool = False
     production_ready: bool = False
     mode: str
+    vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
     missing_fields: list[str]
     configured_fields: list[str]
     workflows: list[str]

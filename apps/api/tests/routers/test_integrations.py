@@ -156,6 +156,50 @@ async def test_update_integration_config_saves_redacted_setup_draft(
 
 
 @pytest.mark.asyncio
+async def test_update_integration_config_saves_vendor_profile_metadata(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+
+    res = await client.patch(
+        "/api/integrations/config/fax",
+        json={
+            "values": {
+                "FAX_PROVIDER_API_KEY": "fax-secret-1234",
+                "VENDOR_NAME": "MetroFax Health",
+                "VENDOR_ENVIRONMENT": "sandbox",
+                "OWNER_NAME": "Avery Ops",
+                "OWNER_EMAIL": "avery@example.test",
+                "SUPPORT_CONTACT": "support@metrofax.example",
+                "ESCALATION_NOTES": "Escalate failed delivery callbacks within 1 business hour.",
+                "CONTRACT_REFERENCE_URL": "https://vendor.example.test/contracts/fax",
+            }
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["vendor_profile"]["vendor_name"] == "MetroFax Health"
+    assert body["vendor_profile"]["environment"] == "sandbox"
+    assert body["vendor_profile"]["owner_name"] == "Avery Ops"
+    assert body["vendor_profile"]["owner_email"] == "avery@example.test"
+    assert body["vendor_profile"]["support_contact"] == "support@metrofax.example"
+    assert body["vendor_profile"]["contract_reference_url"] == "https://vendor.example.test/contracts/fax"
+    assert body["vendor_profile"]["profile_complete"] is True
+    assert body["vendor_profile"]["missing_fields"] == []
+
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+    profile_step = next(step for step in fax["steps"] if step["key"] == "vendor_profile")
+    assert fax["vendor_profile"]["profile_complete"] is True
+    assert profile_step["status"] == "ready"
+    assert "MetroFax Health" in profile_step["detail"]
+
+
+@pytest.mark.asyncio
 async def test_connection_test_records_integration_event(
     client: AsyncClient,
     auth_headers,

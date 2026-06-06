@@ -31,6 +31,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Clearinghouse claim submission, denial, payment, and remittance/ERA callbacks are vendor-tested against the billing work queue.
 - `/api/integrations/credential-preflight` has no missing, blocked, or placeholder-adapter integration items, every required adapter contract method is ready, and every sandbox workflow has recorded passing evidence with a vendor reference URL; empty pass records are rejected.
 - Every live integration reports `readiness_mode: production_vendor` and `production_ready=true`; any `local_sandbox` lane remains rehearsal-only and is not acceptable go-live evidence.
+- Every live integration has a completed vendor profile with vendor name, environment, internal owner, owner email, support contact, escalation notes, and contract/reference link.
 - Failed sandbox evidence is resolved with a new passing evidence record before live-use rehearsal.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.

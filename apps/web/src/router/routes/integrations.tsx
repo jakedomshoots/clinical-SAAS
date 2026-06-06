@@ -22,6 +22,16 @@ export const Route = createFileRoute('/integrations')({
   component: IntegrationsPage,
 });
 
+const VENDOR_PROFILE_FIELDS = [
+  { key: 'VENDOR_NAME', label: 'Vendor name', profileKey: 'vendor_name' },
+  { key: 'VENDOR_ENVIRONMENT', label: 'Environment', profileKey: 'environment' },
+  { key: 'OWNER_NAME', label: 'Owner', profileKey: 'owner_name' },
+  { key: 'OWNER_EMAIL', label: 'Owner email', profileKey: 'owner_email' },
+  { key: 'SUPPORT_CONTACT', label: 'Support contact', profileKey: 'support_contact' },
+  { key: 'CONTRACT_REFERENCE_URL', label: 'Contract/reference URL', profileKey: 'contract_reference_url' },
+  { key: 'ESCALATION_NOTES', label: 'Escalation notes', profileKey: 'escalation_notes' },
+] as const;
+
 function IntegrationsPage() {
   const api = useApi();
   const queryClient = useQueryClient();
@@ -87,6 +97,10 @@ function IntegrationsPage() {
 
   function fieldValue(config: IntegrationConfig, field: string) {
     return drafts[config.key]?.[field] ?? '';
+  }
+
+  function profileFieldValue(config: IntegrationConfig, field: (typeof VENDOR_PROFILE_FIELDS)[number]) {
+    return drafts[config.key]?.[field.key] ?? config.vendor_profile[field.profileKey] ?? '';
   }
 
   function evidenceKey(integration: string, testLabel: string) {
@@ -173,6 +187,27 @@ function IntegrationsPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3">
+                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs font-semibold uppercase text-clinic-600">Vendor profile</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.vendor_profile.profile_complete ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        {config.vendor_profile.profile_complete ? 'complete' : `${config.vendor_profile.missing_fields.length} missing`}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      {VENDOR_PROFILE_FIELDS.map((field) => (
+                        <label key={field.key} className={field.key === 'ESCALATION_NOTES' ? 'grid gap-1 md:col-span-2' : 'grid gap-1'}>
+                          <span className="text-xs font-medium text-clinic-600">{field.label}</span>
+                          <input
+                            type={field.key === 'OWNER_EMAIL' ? 'email' : 'text'}
+                            value={profileFieldValue(config, field)}
+                            onChange={(event) => updateDraft(config.key, field.key, event.target.value)}
+                            className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                   {config.fields.map((field) => (
                     <label key={field.key} className="grid gap-1">
                       <span className="flex items-center justify-between gap-2 text-xs font-medium text-clinic-600">

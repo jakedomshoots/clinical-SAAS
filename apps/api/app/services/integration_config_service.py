@@ -15,6 +15,22 @@ from app.services.integration_event_service import record_event
 _draft_values: dict[str, dict[str, str]] = {}
 _last_tests: dict[str, dict[str, str]] = {}
 SANDBOX_EVIDENCE_EVENT = "integration.sandbox_evidence"
+VENDOR_PROFILE_FIELDS = {
+    "VENDOR_NAME": "vendor_name",
+    "VENDOR_ENVIRONMENT": "environment",
+    "OWNER_NAME": "owner_name",
+    "OWNER_EMAIL": "owner_email",
+    "SUPPORT_CONTACT": "support_contact",
+    "ESCALATION_NOTES": "escalation_notes",
+    "CONTRACT_REFERENCE_URL": "contract_reference_url",
+}
+VENDOR_PROFILE_REQUIRED = {
+    "VENDOR_NAME",
+    "VENDOR_ENVIRONMENT",
+    "OWNER_NAME",
+    "OWNER_EMAIL",
+    "SUPPORT_CONTACT",
+}
 
 
 @dataclass(frozen=True)
@@ -233,7 +249,7 @@ async def update_integration_config(
     spec = _find_spec(integration)
     if not spec:
         return None
-    allowed = {field.key for field in spec.fields}
+    allowed = {field.key for field in spec.fields} | set(VENDOR_PROFILE_FIELDS)
     sanitized = {
         key: value.strip()
         for key, value in values.items()
@@ -331,6 +347,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
     readiness_mode = status.get("readiness_mode") or "production_vendor"
     healthy = bool(status.get("ok"))
     last_test = _last_tests.get(_test_key(organization_id, spec.key), {})
+    vendor_profile = _vendor_profile_out(spec.key, organization_id)
     return {
         "key": spec.key,
         "label": spec.label,
@@ -347,6 +364,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "mode": mode,
         "status": _config_status(configured, healthy, mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
+        "vendor_profile": vendor_profile,
         "workflows": spec.workflows,
         "action": spec.action,
         "sandbox_tests": spec.sandbox_tests,
@@ -497,6 +515,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     adapter_method_ready_count = int(config.get("adapter_method_ready_count") or 0)
     adapter_method_total = int(config.get("adapter_method_total") or len(adapter_methods))
     readiness_mode = config.get("readiness_mode") or "production_vendor"
+    vendor_profile = config.get("vendor_profile") or _empty_vendor_profile()
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
@@ -526,6 +545,11 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     blockers = []
     if missing_fields:
         blockers.append(f"Missing required values: {', '.join(missing_fields)}")
+    if not vendor_profile["profile_complete"]:
+        blockers.append(
+            "Vendor profile is incomplete: "
+            + ", ".join(vendor_profile["missing_fields"])
+        )
     if status == "blocked":
         if not adapter_implemented:
             blockers.append(adapter_detail)
@@ -587,6 +611,16 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             ),
         },
         {
+            "key": "vendor_profile",
+            "label": "Vendor owner and escalation profile",
+            "status": "ready" if vendor_profile["profile_complete"] else "pending",
+            "detail": (
+                f"{vendor_profile['vendor_name']} {vendor_profile['environment']} owned by {vendor_profile['owner_name']}."
+                if vendor_profile["profile_complete"]
+                else "Capture vendor name, environment, owner, owner email, and support contact before live-use rehearsal."
+            ),
+        },
+        {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
             "status": (
@@ -626,6 +660,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "sandbox_ready": sandbox_ready,
         "production_ready": production_ready,
         "mode": config["mode"],
+        "vendor_profile": vendor_profile,
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,
         "workflows": config["workflows"],
@@ -782,6 +817,35 @@ def _field_out(
         "configured": bool(value),
         "source": source,
         "value_preview": _preview_value(value, field.secret) if value else None,
+    }
+
+
+def _vendor_profile_out(integration: str, organization_id: str) -> dict:
+    drafts = _draft_values.get(organization_id, {})
+    values = {
+        output_key: drafts.get(_draft_key(integration, input_key), "")
+        for input_key, output_key in VENDOR_PROFILE_FIELDS.items()
+    }
+    missing = [
+        VENDOR_PROFILE_FIELDS[input_key]
+        for input_key in VENDOR_PROFILE_REQUIRED
+        if not drafts.get(_draft_key(integration, input_key), "")
+    ]
+    return {
+        **values,
+        "profile_complete": len(missing) == 0,
+        "missing_fields": missing,
+    }
+
+
+def _empty_vendor_profile() -> dict:
+    return {
+        **{output_key: "" for output_key in VENDOR_PROFILE_FIELDS.values()},
+        "profile_complete": False,
+        "missing_fields": [
+            VENDOR_PROFILE_FIELDS[input_key]
+            for input_key in VENDOR_PROFILE_REQUIRED
+        ],
     }
 
 

@@ -848,12 +848,25 @@ export interface IntegrationConfig {
   mode: 'environment' | 'setup_draft' | 'demo';
   status: 'healthy' | 'configured' | 'draft' | 'missing';
   fields: IntegrationConfigField[];
+  vendor_profile: VendorProfile;
   workflows: string[];
   action: string;
   sandbox_tests: string[];
   docs: string[];
   last_tested_at: string | null;
   last_test_status: string | null;
+}
+
+export interface VendorProfile {
+  vendor_name: string;
+  environment: string;
+  owner_name: string;
+  owner_email: string;
+  support_contact: string;
+  escalation_notes: string;
+  contract_reference_url: string;
+  profile_complete: boolean;
+  missing_fields: string[];
 }
 
 export interface IntegrationConfigListResponse {
@@ -915,6 +928,7 @@ export interface CredentialPreflightItem {
   sandbox_ready: boolean;
   production_ready: boolean;
   mode: string;
+  vendor_profile: VendorProfile;
   missing_fields: string[];
   configured_fields: string[];
   workflows: string[];

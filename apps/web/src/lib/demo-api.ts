@@ -4,6 +4,16 @@ const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
 const now = new Date('2026-06-03T13:30:00-04:00');
 const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
+const VENDOR_PROFILE_FIELDS = {
+  VENDOR_NAME: 'vendor_name',
+  VENDOR_ENVIRONMENT: 'environment',
+  OWNER_NAME: 'owner_name',
+  OWNER_EMAIL: 'owner_email',
+  SUPPORT_CONTACT: 'support_contact',
+  ESCALATION_NOTES: 'escalation_notes',
+  CONTRACT_REFERENCE_URL: 'contract_reference_url',
+} as const;
+const VENDOR_PROFILE_REQUIRED = ['VENDOR_NAME', 'VENDOR_ENVIRONMENT', 'OWNER_NAME', 'OWNER_EMAIL', 'SUPPORT_CONTACT'] as const;
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'patient_chart_access', label: 'Patient chart access', event_types: ['patient.profile_viewed', 'patient_chart.viewed', 'patient_clinical.medications_viewed', 'patient_clinical.care_plan_viewed', 'patient_clinical.labs_viewed', 'patient_clinical.encounters_viewed', 'patient_checkout_handoff.viewed'], severity: 'critical' as const, route: '/audit?entity_type=patient', action_label: 'Review patient chart access' },
@@ -2535,6 +2545,9 @@ function demoIntegrationConfigs() {
   return specs.map(([key, label, fields, secret, workflows, action, sandboxTests, adapterMethods]) => {
     const draft = integrationDrafts[key] ?? {};
     const configured = fields.every((field) => Boolean(draft[field]));
+    const missingProfileFields = VENDOR_PROFILE_REQUIRED
+      .filter((field) => !draft[field])
+      .map((field) => VENDOR_PROFILE_FIELDS[field]);
     const lastTest = integrationLastTests[key] ?? {};
     const adapterImplemented = key === 'copilotkit';
     const adapterDetail = adapterImplemented
@@ -2571,6 +2584,17 @@ function demoIntegrationConfigs() {
         source: draft[field] ? 'setup_draft' : 'missing',
         value_preview: draft[field] ? (field.includes('KEY') ? `****${draft[field].slice(-4)}` : draft[field]) : null,
       })),
+      vendor_profile: {
+        vendor_name: draft.VENDOR_NAME ?? '',
+        environment: draft.VENDOR_ENVIRONMENT ?? '',
+        owner_name: draft.OWNER_NAME ?? '',
+        owner_email: draft.OWNER_EMAIL ?? '',
+        support_contact: draft.SUPPORT_CONTACT ?? '',
+        escalation_notes: draft.ESCALATION_NOTES ?? '',
+        contract_reference_url: draft.CONTRACT_REFERENCE_URL ?? '',
+        profile_complete: missingProfileFields.length === 0,
+        missing_fields: missingProfileFields,
+      },
       workflows,
       action,
       sandbox_tests: sandboxTests,
@@ -2611,6 +2635,24 @@ function demoCredentialPreflight() {
       : !config.adapter_implemented || failedEvidence.length || config.last_test_status === 'failed'
       ? 'blocked'
       : 'staged';
+    const blockers = missingFields.length
+      ? [`Missing required values: ${missingFields.join(', ')}`]
+      : !config.adapter_implemented
+      ? [config.adapter_detail]
+      : failedEvidence.length
+      ? [`Failed sandbox workflow evidence requires vendor review: ${failedEvidence.map((item) => item.test_label).join(', ')}.`]
+      : status === 'blocked'
+      ? ['Latest connection test failed; vendor adapter or credentials need review.']
+      : status === 'staged' && sandboxReady
+      ? ['Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use.']
+      : status === 'staged' && config.readiness_mode === 'production_vendor' && sandboxComplete && !vendorReferenceComplete
+      ? ['Vendor sandbox reference URLs are required for every passed workflow before production readiness.']
+      : status === 'staged'
+      ? ['Credentials are staged, but sandbox evidence is still pending.']
+      : [];
+    if (!config.vendor_profile.profile_complete) {
+      blockers.push(`Vendor profile is incomplete: ${config.vendor_profile.missing_fields.join(', ')}`);
+    }
     return {
       key: config.key,
       label: config.label,
@@ -2631,21 +2673,7 @@ function demoCredentialPreflight() {
       workflows: config.workflows,
       sandbox_tests: config.sandbox_tests,
       sandbox_evidence: sandboxEvidence,
-      blockers: missingFields.length
-        ? [`Missing required values: ${missingFields.join(', ')}`]
-        : !config.adapter_implemented
-        ? [config.adapter_detail]
-        : failedEvidence.length
-        ? [`Failed sandbox workflow evidence requires vendor review: ${failedEvidence.map((item) => item.test_label).join(', ')}.`]
-        : status === 'blocked'
-        ? ['Latest connection test failed; vendor adapter or credentials need review.']
-        : status === 'staged' && sandboxReady
-        ? ['Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use.']
-        : status === 'staged' && config.readiness_mode === 'production_vendor' && sandboxComplete && !vendorReferenceComplete
-        ? ['Vendor sandbox reference URLs are required for every passed workflow before production readiness.']
-        : status === 'staged'
-        ? ['Credentials are staged, but sandbox evidence is still pending.']
-        : [],
+      blockers,
       steps: [
         {
           key: 'credentials',
@@ -2664,6 +2692,12 @@ function demoCredentialPreflight() {
           label: 'Connection test',
           status: config.healthy ? 'ready' : config.last_test_status === 'failed' ? 'blocked' : 'pending',
           detail: config.healthy ? 'Latest connection test succeeded.' : config.last_test_status === 'failed' ? 'Latest connection test failed.' : 'Run a connection test after credentials are staged.',
+        },
+        {
+          key: 'vendor_profile',
+          label: 'Vendor owner and escalation profile',
+          status: config.vendor_profile.profile_complete ? 'ready' : 'pending',
+          detail: config.vendor_profile.profile_complete ? `${config.vendor_profile.vendor_name} ${config.vendor_profile.environment} owned by ${config.vendor_profile.owner_name}.` : 'Capture vendor name, environment, owner, owner email, and support contact before live-use rehearsal.',
         },
         {
           key: 'sandbox_workflows',
