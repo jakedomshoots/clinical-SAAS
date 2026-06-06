@@ -569,7 +569,7 @@ export interface ProductionRehearsalReport {
 
 export interface LaunchWorkplanItem {
   key: string;
-  source: 'rehearsal' | 'incident' | 'launch_requirement' | 'credential_preflight';
+  source: 'rehearsal' | 'incident' | 'launch_requirement' | 'credential_preflight' | 'vendor_handoff_archive';
   category: string;
   label: string;
   detail: string;

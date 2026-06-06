@@ -695,6 +695,50 @@ async def test_credential_preflight_assignment_owns_workplan_blockers(client, au
 
 
 @pytest.mark.asyncio
+async def test_launch_workplan_tracks_missing_vendor_handoff_archives(monkeypatch):
+    async def fake_production_rehearsal_report(db, user):
+        return {"recommended_actions": []}
+
+    async def fake_incident_register(db, user):
+        return {"data": []}
+
+    async def fake_launch_readiness():
+        return {"requirements": []}
+
+    async def fake_credential_preflight(db, user):
+        return {
+            "data": [
+                {
+                    "key": "fax",
+                    "label": "Fax provider",
+                    "status": "ready",
+                    "readiness_mode": "production_vendor",
+                    "production_ready": True,
+                    "blockers": [],
+                    "steps": [],
+                }
+            ]
+        }
+
+    async def fake_handoff_archives(db, user):
+        return {}
+
+    monkeypatch.setattr(operations_service, "production_rehearsal_report", fake_production_rehearsal_report)
+    monkeypatch.setattr(operations_service, "incident_register", fake_incident_register)
+    monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
+    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives)
+
+    workplan = await operations_service.launch_workplan(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+
+    archive_items = [item for item in workplan["items"] if item["source"] == "vendor_handoff_archive"]
+    assert len(archive_items) == 1
+    assert archive_items[0]["key"] == "handoff_archive_fax"
+    assert archive_items[0]["severity"] == "blocking"
+    assert "Fax provider" in archive_items[0]["detail"]
+
+
+@pytest.mark.asyncio
 async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     snapshot = await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/launch-workplan/snapshots", headers=auth_headers)

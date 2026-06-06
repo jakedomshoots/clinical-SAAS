@@ -1508,6 +1508,8 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
             assignment=credential_assignment,
         ))
 
+    items.extend(await _vendor_handoff_archive_workplan_items(db, user, preflight, credential_assignment))
+
     deduped = _dedupe_workplan_items(items)
     blocking = sum(1 for item in deduped if item["severity"] == "blocking")
     warnings = sum(1 for item in deduped if item["severity"] == "warning")
@@ -1527,6 +1529,48 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
         "unassigned_blocking_count": unassigned_blocking,
         "items": deduped,
     }
+
+
+async def _vendor_handoff_archive_workplan_items(
+    db: AsyncSession | None,
+    user: User,
+    preflight: dict,
+    assignment: dict | None = None,
+) -> list[dict]:
+    required = [
+        item
+        for item in preflight.get("data", [])
+        if item.get("readiness_mode") == "production_vendor"
+        and item.get("production_ready")
+        and item.get("status") == "ready"
+    ]
+    if not required:
+        return []
+
+    archives = await _latest_vendor_handoff_archives(db, user)
+    items: list[dict] = []
+    for integration in required:
+        archive = archives.get(integration["key"])
+        if archive and archive.get("archive_reference_url"):
+            continue
+        has_archive = bool(archive)
+        items.append(_workplan_item(
+            key=f"handoff_archive_{integration['key']}",
+            source="vendor_handoff_archive",
+            category="Integrations",
+            label=f"{integration['label']} handoff archive",
+            detail=(
+                f"{integration['label']} handoff packet is archived but needs a launch evidence reference."
+                if has_archive
+                else f"{integration['label']} is production-vendor ready, but its vendor handoff packet has not been archived for launch review."
+            ),
+            severity="warning" if has_archive else "blocking",
+            route="/integrations",
+            owner_role="operations",
+            recommended_action="Export and archive the vendor handoff packet with a launch evidence reference before live-use rehearsal.",
+            assignment=assignment,
+        ))
+    return items
 
 
 async def go_live_packet(db: AsyncSession, user: User) -> dict:
