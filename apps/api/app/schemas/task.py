@@ -70,6 +70,7 @@ class TaskWorkQueueOut(BaseModel):
     generated_at: str
     open_count: int
     in_progress_count: int
+    blocked_count: int
     urgent_count: int
     high_priority_count: int
     overdue_count: int

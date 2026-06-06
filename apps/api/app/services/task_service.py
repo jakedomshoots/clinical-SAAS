@@ -9,6 +9,7 @@ from app.models.user import User
 from app.services.audit_service import log_event
 
 RETRYABLE_DELIVERY_STATUSES = {"failed", "blocked"}
+ACTIVE_TASK_STATUSES = [TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]
 
 
 async def list_tasks(
@@ -126,7 +127,7 @@ async def work_queue_summary(db: AsyncSession, user: User) -> dict:
             .outerjoin(User, Task.assigned_to_id == User.id)
             .where(
                 Task.organization_id == user.organization_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_(ACTIVE_TASK_STATUSES),
             )
         )
     ).all()
@@ -149,10 +150,12 @@ async def work_queue_summary(db: AsyncSession, user: User) -> dict:
     overdue_count = sum(1 for task in tasks if task.due_date and task.due_date < now)
     due_today_count = sum(1 for task in tasks if task.due_date and now <= task.due_date <= today_end)
     unassigned_count = sum(1 for task in tasks if not task.assigned_to_id)
+    blocked_count = sum(1 for task in tasks if task.status == TaskStatus.blocked)
     return {
         "generated_at": now.isoformat(),
         "open_count": sum(1 for task in tasks if task.status == TaskStatus.open),
         "in_progress_count": sum(1 for task in tasks if task.status == TaskStatus.in_progress),
+        "blocked_count": blocked_count,
         "urgent_count": urgent_count,
         "high_priority_count": high_priority_count,
         "overdue_count": overdue_count,
@@ -160,7 +163,13 @@ async def work_queue_summary(db: AsyncSession, user: User) -> dict:
         "unassigned_count": unassigned_count,
         "role_buckets": role_buckets,
         "source_buckets": source_buckets,
-        "next_actions": _task_work_queue_actions(overdue_count, urgent_count, unassigned_count, due_today_count),
+        "next_actions": _task_work_queue_actions(
+            overdue_count,
+            urgent_count,
+            unassigned_count,
+            due_today_count,
+            blocked_count,
+        ),
     }
 
 
@@ -466,13 +475,27 @@ def _task_source_bucket(source_type: str | None) -> str:
     return source_type
 
 
-def _task_work_queue_actions(overdue_count: int, urgent_count: int, unassigned_count: int, due_today_count: int) -> list[dict]:
+def _task_work_queue_actions(
+    overdue_count: int,
+    urgent_count: int,
+    unassigned_count: int,
+    due_today_count: int,
+    blocked_count: int,
+) -> list[dict]:
     actions = []
+    if blocked_count:
+        actions.append({
+            "key": "blocked",
+            "label": "Resolve blocked work",
+            "detail": f"{blocked_count} task(s) are blocked.",
+            "severity": "critical",
+            "route": "/tasks",
+        })
     if overdue_count:
         actions.append({
             "key": "overdue",
             "label": "Clear overdue work",
-            "detail": f"{overdue_count} open task(s) are past due.",
+            "detail": f"{overdue_count} active task(s) are past due.",
             "severity": "critical",
             "route": "/tasks",
         })
@@ -488,7 +511,7 @@ def _task_work_queue_actions(overdue_count: int, urgent_count: int, unassigned_c
         actions.append({
             "key": "unassigned",
             "label": "Assign open work",
-            "detail": f"{unassigned_count} open task(s) have no owner.",
+            "detail": f"{unassigned_count} active task(s) have no owner.",
             "severity": "warning",
             "route": "/tasks",
         })

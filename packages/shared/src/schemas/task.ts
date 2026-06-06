@@ -15,7 +15,7 @@ export const taskUpdateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().nullable().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
-  status: z.enum(['open', 'in_progress', 'completed', 'cancelled']).optional(),
+  status: z.enum(['open', 'in_progress', 'blocked', 'completed', 'cancelled']).optional(),
   due_date: z.string().datetime().nullable().optional(),
   assigned_to_id: z.string().uuid().nullable().optional(),
   source_type: z.string().max(100).nullable().optional(),

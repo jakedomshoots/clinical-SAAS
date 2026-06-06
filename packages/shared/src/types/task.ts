@@ -68,6 +68,7 @@ export interface TaskWorkQueue {
   generated_at: string;
   open_count: number;
   in_progress_count: number;
+  blocked_count: number;
   urgent_count: number;
   high_priority_count: number;
   overdue_count: number;

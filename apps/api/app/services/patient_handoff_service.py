@@ -170,7 +170,7 @@ async def create_checkout_handoff_task(
                 Task.patient_id == patient_id,
                 Task.source_type == f"checkout_handoff:{source_type}",
                 Task.source_id == source_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
             )
         )
     ).scalar_one_or_none()

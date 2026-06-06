@@ -63,7 +63,7 @@ async def get_patient_chart_summary(
             .where(
                 Task.patient_id == patient_id,
                 Task.organization_id == user.organization_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
             )
             .order_by(Task.due_date.asc().nulls_last(), Task.created_at.desc())
             .limit(5)
@@ -128,7 +128,7 @@ async def get_patient_chart_summary(
             select(func.count(Task.id)).where(
                 Task.patient_id == patient_id,
                 Task.organization_id == user.organization_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
             )
         )
     ).scalar() or 0
@@ -137,7 +137,7 @@ async def get_patient_chart_summary(
             select(func.count(Task.id)).where(
                 Task.patient_id == patient_id,
                 Task.organization_id == user.organization_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
                 Task.priority == TaskPriority.urgent,
             )
         )

@@ -1665,7 +1665,7 @@ async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
         result = await db.execute(select(func.count(model.id)).where(model.organization_id == org, *clauses))
         return result.scalar() or 0
 
-    urgent_tasks = await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress]), Task.priority == TaskPriority.urgent)
+    urgent_tasks = await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]), Task.priority == TaskPriority.urgent)
     documents = await count(PatientDocument, PatientDocument.status == PatientDocumentStatus.needs_review)
     unsigned = await count(PatientEncounter, PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]))
     failed_integrations = await count(IntegrationEvent, IntegrationEvent.status == IntegrationEventStatus.failed)

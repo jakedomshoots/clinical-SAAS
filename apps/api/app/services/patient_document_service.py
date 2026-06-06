@@ -318,7 +318,7 @@ async def process_patient_document(
                     Task.patient_id == patient_id,
                     Task.source_type == "document_processing",
                     Task.source_id == document.id,
-                    Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                    Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
                 )
             )
         ).scalar_one_or_none()

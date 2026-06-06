@@ -161,6 +161,34 @@ async def test_update_task_status(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_blocked_task_is_counted_separately_in_work_queue(client: AsyncClient, auth_headers):
+    blocked = await client.post(
+        "/api/tasks",
+        json={"title": "Blocked records request", "priority": "high"},
+        headers=auth_headers,
+    )
+    open_task = await client.post(
+        "/api/tasks",
+        json={"title": "Open follow-up", "priority": "normal"},
+        headers=auth_headers,
+    )
+
+    blocked_update = await client.patch(
+        f"/api/tasks/{blocked.json()['id']}",
+        json={"status": "blocked"},
+        headers=auth_headers,
+    )
+    queue = await client.get("/api/tasks/work-queue", headers=auth_headers)
+
+    assert blocked_update.status_code == 200
+    assert blocked_update.json()["status"] == "blocked"
+    assert queue.json()["open_count"] == 1
+    assert queue.json()["blocked_count"] == 1
+    assert queue.json()["high_priority_count"] == 1
+    assert open_task.json()["status"] == "open"
+
+
+@pytest.mark.asyncio
 async def test_complete_task(client: AsyncClient, auth_headers):
     res = await client.post("/api/tasks", json={"title": "To complete"}, headers=auth_headers)
     task_id = res.json()["id"]

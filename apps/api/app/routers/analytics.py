@@ -52,7 +52,7 @@ async def summary(db: DbDep, current_user: CurrentUserDep):
             "no_show": await count(Appointment, Appointment.status == AppointmentStatus.no_show),
         },
         "work": {
-            "open_tasks": await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress])),
+            "open_tasks": await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked])),
             "documents_needing_review": await count(PatientDocument, PatientDocument.status == PatientDocumentStatus.needs_review),
             "unsigned_encounters": await count(PatientEncounter, PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review])),
         },
@@ -80,7 +80,7 @@ async def daily_closeout(db: DbDep, current_user: CurrentUserDep):
         result = await db.execute(select(func.count(model.id)).where(model.organization_id == org, *clauses))
         return result.scalar() or 0
 
-    open_task_clause = Task.status.in_([TaskStatus.open, TaskStatus.in_progress])
+    open_task_clause = Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked])
     billing = await billing_service.work_queue(db, current_user)
     totals = {
         "appointments_today": await count(

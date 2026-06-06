@@ -3,6 +3,7 @@ import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQ
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
 const now = new Date('2026-06-03T13:30:00-04:00');
+const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
 
 function iso(offsetHours = 0) {
   return new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
@@ -114,7 +115,7 @@ function taskWorkQueue(): TaskWorkQueue {
   const now = new Date();
   const todayEnd = new Date(now);
   todayEnd.setHours(23, 59, 59, 999);
-  const openTasks = tasks.filter((task) => ['open', 'in_progress'].includes(task.status));
+  const openTasks = tasks.filter((task) => ACTIVE_TASK_STATUSES.includes(task.status));
   const roleBuckets: TaskWorkQueue['role_buckets'] = {};
   const sourceBuckets: Record<string, number> = {};
   openTasks.forEach((task) => {
@@ -135,6 +136,7 @@ function taskWorkQueue(): TaskWorkQueue {
     generated_at: now.toISOString(),
     open_count: openTasks.filter((task) => task.status === 'open').length,
     in_progress_count: openTasks.filter((task) => task.status === 'in_progress').length,
+    blocked_count: openTasks.filter((task) => task.status === 'blocked').length,
     urgent_count: urgentCount,
     high_priority_count: openTasks.filter((task) => ['urgent', 'high'].includes(task.priority)).length,
     overdue_count: overdueCount,
@@ -143,7 +145,8 @@ function taskWorkQueue(): TaskWorkQueue {
     role_buckets: roleBuckets,
     source_buckets: sourceBuckets,
     next_actions: [
-      ...(overdueCount ? [{ key: 'overdue', label: 'Clear overdue work', detail: `${overdueCount} open task(s) are past due.`, severity: 'critical' as const, route: '/tasks' }] : []),
+      ...(overdueCount ? [{ key: 'overdue', label: 'Clear overdue work', detail: `${overdueCount} active task(s) are past due.`, severity: 'critical' as const, route: '/tasks' }] : []),
+      ...(openTasks.some((task) => task.status === 'blocked') ? [{ key: 'blocked', label: 'Resolve blocked work', detail: `${openTasks.filter((task) => task.status === 'blocked').length} task(s) are blocked.`, severity: 'critical' as const, route: '/tasks' }] : []),
       ...(urgentCount ? [{ key: 'urgent', label: 'Review urgent work', detail: `${urgentCount} urgent task(s) need same-day ownership.`, severity: 'critical' as const, route: '/tasks' }] : []),
       ...(unassignedCount ? [{ key: 'unassigned', label: 'Assign open work', detail: `${unassignedCount} open task(s) have no owner.`, severity: 'warning' as const, route: '/tasks' }] : []),
       ...(dueTodayCount ? [{ key: 'due_today', label: "Prepare today's queue", detail: `${dueTodayCount} task(s) are due today.`, severity: 'warning' as const, route: '/tasks' }] : []),
@@ -208,7 +211,7 @@ function dailyCloseout(): DailyCloseout {
   todayStart.setHours(0, 0, 0, 0);
   const tomorrowStart = new Date(todayStart);
   tomorrowStart.setDate(todayStart.getDate() + 1);
-  const openTasks = tasks.filter((item) => ['open', 'in_progress'].includes(item.status));
+  const openTasks = tasks.filter((item) => ACTIVE_TASK_STATUSES.includes(item.status));
   const overdueTasks = openTasks.filter((item) => item.due_date && new Date(item.due_date) < now);
   const urgentTasks = openTasks.filter((item) => item.priority === 'urgent');
   const documentsNeedingReview = patientDocuments.filter((item) => item.status === 'needs_review');
@@ -1708,6 +1711,7 @@ let tasks: Task[] = [
   withDeliveryDefaults({ id: uuid(203), title: 'Prepare referral packet', description: 'Cardiology referral packet for Lena Brooks.', priority: 'normal', status: 'open', due_date: iso(24), assigned_to_id: uuid(4), assigned_to_name: 'Riley Morgan', patient_id: uuid(105), patient_name: 'Lena Brooks', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-20), updated_at: iso(-4) }),
   withDeliveryDefaults({ id: uuid(204), title: 'Scan new patient forms', description: 'Attach intake and privacy forms to chart.', priority: 'normal', status: 'completed', due_date: iso(-1), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(104), patient_name: 'James Patel', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-28), updated_at: iso(-2) }),
   withDeliveryDefaults({ id: uuid(205), title: 'Verify insurance eligibility', description: 'Sofia Nguyen coverage is missing from chart.', priority: 'high', status: 'open', due_date: iso(3), assigned_to_id: uuid(5), assigned_to_name: 'Sam Rivera', patient_id: uuid(103), patient_name: 'Sofia Nguyen', source_type: null, source_id: null, creator_id: uuid(1), created_at: iso(-10), updated_at: iso(-2) }),
+  withDeliveryDefaults({ id: uuid(206), title: 'Resolve outside records blocker', description: 'Waiting on sending office reference before filing cardiology notes.', priority: 'high', status: 'blocked', due_date: iso(-6), assigned_to_id: null, assigned_to_name: null, patient_id: uuid(101), patient_name: 'Mary Collins', source_type: 'document_review', source_id: uuid(430), creator_id: uuid(1), created_at: iso(-30), updated_at: iso(-6) }),
 ];
 
 let appointments: Appointment[] = [
@@ -2230,7 +2234,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/analytics/summary' && method === 'GET') {
     return {
       schedule: { scheduled: appointments.filter((item) => item.status === 'scheduled').length, active: appointments.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout'].includes(item.status)).length, no_show: appointments.filter((item) => item.status === 'no_show').length },
-      work: { open_tasks: tasks.filter((item) => ['open', 'in_progress'].includes(item.status)).length, documents_needing_review: patientDocuments.filter((item) => item.status === 'needs_review').length, unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length },
+      work: { open_tasks: tasks.filter((item) => ACTIVE_TASK_STATUSES.includes(item.status)).length, documents_needing_review: patientDocuments.filter((item) => item.status === 'needs_review').length, unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length },
       front_office: { unmatched_faxes: faxes.filter((item) => !item.patient_id).length, intake_needing_review: portalIntake.filter((item) => ['received', 'needs_review'].includes(item.status)).length },
       billing: { draft_cases: billingCases.filter((item) => item.status === 'draft').length, denied_cases: billingCases.filter((item) => item.status === 'denied').length },
     } as T;
@@ -2955,7 +2959,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       if (item.escalation) bucket.escalated_items += 1;
       buckets.set(key, bucket);
     }
-    const sourceTasks = tasks.filter((task) => task.source_type?.startsWith('checkout_handoff:') && ['open', 'in_progress'].includes(task.status));
+    const sourceTasks = tasks.filter((task) => task.source_type?.startsWith('checkout_handoff:') && ACTIVE_TASK_STATUSES.includes(task.status));
     for (const task of sourceTasks) {
       const key = `Checkout tasks:${task.assigned_to_id ?? 'unassigned'}`;
       const bucket = buckets.get(key) ?? {
@@ -3435,7 +3439,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       .sort((a, b) => b.received_at.localeCompare(a.received_at))
       .slice(0, 5);
     const openTasks = tasks
-      .filter((task) => task.patient_id === patientId && ['open', 'in_progress'].includes(task.status))
+      .filter((task) => task.patient_id === patientId && ACTIVE_TASK_STATUSES.includes(task.status))
       .slice(0, 5);
     const recentFaxes = faxes
       .filter((fax) => fax.patient_id === patientId)
@@ -3446,7 +3450,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       .sort((a, b) => a.start_time.localeCompare(b.start_time))
       .slice(0, 5);
     const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === patientId && document.status === 'needs_review').length;
-    const urgentTasks = tasks.filter((task) => task.patient_id === patientId && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
+    const urgentTasks = tasks.filter((task) => task.patient_id === patientId && task.priority === 'urgent' && ACTIVE_TASK_STATUSES.includes(task.status)).length;
     const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === patientId && ['draft', 'provider_review'].includes(encounter.status)).length;
     const medicationsNeedingReview = patientMedications.filter((medication) => medication.patient_id === patientId && medication.status === 'review').length;
     const labsNeedingReview = patientLabs.filter((lab) => lab.patient_id === patientId && ['new', 'needs_review'].includes(lab.status)).length;
@@ -3513,7 +3517,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       task.patient_id === patientId
       && task.source_type === sourceType
       && task.source_id === incoming.source_id
-      && ['open', 'in_progress'].includes(task.status),
+      && ACTIVE_TASK_STATUSES.includes(task.status),
     );
     if (existing) return existing as T;
     const source = findDemoHandoffSource(patientId, incoming.source_type, incoming.source_id);
@@ -3802,7 +3806,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/schedule/today-queue') {
     const data = appointments.map((appointment) => {
       const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === appointment.patient_id && document.status === 'needs_review').length;
-      const openTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && ['open', 'in_progress'].includes(task.status));
+      const openTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && ACTIVE_TASK_STATUSES.includes(task.status));
       const urgentTasks = openTasks.filter((task) => task.priority === 'urgent').length;
       const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === appointment.patient_id && ['draft', 'provider_review'].includes(encounter.status)).length;
       const medicationsNeedingReview = patientMedications.filter((medication) => medication.patient_id === appointment.patient_id && medication.status === 'review').length;
@@ -3919,7 +3923,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const appointment = appointments.find((item) => item.id === appointmentMatch[1]);
     if (appointment && incoming.status === 'completed') {
       const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === appointment.patient_id && document.status === 'needs_review').length;
-      const urgentTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
+      const urgentTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && task.priority === 'urgent' && ACTIVE_TASK_STATUSES.includes(task.status)).length;
       const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === appointment.patient_id && ['draft', 'provider_review'].includes(encounter.status)).length;
       if (documentsNeedingReview || urgentTasks || unsignedEncounters) {
         throw new Error('Chart blockers must be resolved before completion');

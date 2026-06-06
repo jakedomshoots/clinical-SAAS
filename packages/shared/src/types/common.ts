@@ -23,7 +23,7 @@ export interface PaginationParams {
 export type Role = 'admin' | 'provider' | 'ma' | 'front_desk' | 'manager';
 
 export type TaskPriority = 'low' | 'normal' | 'high' | 'urgent';
-export type TaskStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskStatus = 'open' | 'in_progress' | 'blocked' | 'completed' | 'cancelled';
 
 export type AppointmentStatus =
   | 'scheduled'

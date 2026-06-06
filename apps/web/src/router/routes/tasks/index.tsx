@@ -30,6 +30,7 @@ const PRIORITY_ICONS: Record<string, React.ReactNode> = {
 const STATUS_COLORS: Record<string, string> = {
   open: 'bg-clinic-100 text-clinic-600',
   in_progress: 'bg-sky-100 text-sky-700',
+  blocked: 'bg-red-100 text-red-700',
   completed: 'bg-emerald-100 text-emerald-700',
   cancelled: 'bg-clinic-100 text-clinic-400 line-through',
 };
@@ -167,7 +168,7 @@ function TaskListPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        {['', 'open', 'in_progress', 'completed'].map((s) => (
+        {['', 'open', 'in_progress', 'blocked', 'completed'].map((s) => (
           <button
             key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
@@ -229,15 +230,17 @@ function TaskListPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workQueue.overdue_count} overdue</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workQueue.blocked_count} blocked</span>
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workQueue.unassigned_count} unassigned</span>
               <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workQueue.due_today_count} due today</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="grid gap-2 md:grid-cols-4">
+            <div className="grid gap-2 md:grid-cols-5">
               {[
                 ['Open', workQueue.open_count],
                 ['In progress', workQueue.in_progress_count],
+                ['Blocked', workQueue.blocked_count],
                 ['Urgent', workQueue.urgent_count],
                 ['High priority', workQueue.high_priority_count],
               ].map(([label, value]) => (
@@ -246,7 +249,7 @@ function TaskListPage() {
                   <div className="text-xs text-clinic-500">{label}</div>
                 </div>
               ))}
-              <div className="md:col-span-2">
+              <div className="md:col-span-3">
                 <div className="mb-1 text-xs font-semibold uppercase text-clinic-500">Role buckets</div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {Object.entries(workQueue.role_buckets).map(([role, bucket]) => (
@@ -287,6 +290,8 @@ function TaskListPage() {
                     key={action.key}
                     type="button"
                     onClick={() => {
+                      if (action.key === 'blocked') setStatusFilter('blocked');
+                      if (action.key === 'overdue') setStatusFilter('');
                       if (action.key === 'urgent') setPriorityFilter('urgent');
                       if (action.key === 'unassigned') setStatusFilter('');
                       setPage(1);
@@ -342,6 +347,14 @@ function TaskListPage() {
                   className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60"
                 >
                   Start selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'blocked' } })}
+                  disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
+                  className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+                >
+                  Block selected
                 </button>
                 <button
                   type="button"
@@ -401,7 +414,7 @@ function TaskListPage() {
                       onChange={(event) => updateTask(task.id, { status: event.target.value as Task['status'] })}
                       className={`rounded-md border-0 px-2 py-1 text-xs font-medium ${STATUS_COLORS[task.status]}`}
                     >
-                      {['open', 'in_progress', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}
+                      {['open', 'in_progress', 'blocked', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}
                     </select>
                   </td>
                   <td className="px-4 py-3">
@@ -456,13 +469,22 @@ function TaskListPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      {task.status === 'open' && (
+                      {(task.status === 'open' || task.status === 'blocked') && (
                         <button
                           onClick={() => updateTask(task.id, { status: 'in_progress' })}
                           className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100"
                         >
                           <PlayCircle className="h-3.5 w-3.5" />
-                          Start
+                          {task.status === 'blocked' ? 'Resume' : 'Start'}
+                        </button>
+                      )}
+                      {task.status !== 'blocked' && task.status !== 'completed' && task.status !== 'cancelled' && (
+                        <button
+                          onClick={() => updateTask(task.id, { status: 'blocked' })}
+                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                        >
+                          <AlertCircle className="h-3.5 w-3.5" />
+                          Block
                         </button>
                       )}
                       {task.status !== 'completed' && (

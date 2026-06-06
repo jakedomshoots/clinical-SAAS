@@ -23,7 +23,7 @@ async def checkout_workload(db: AsyncSession, user: User) -> WorkloadSummaryOut:
             select(Task).where(
                 Task.organization_id == user.organization_id,
                 Task.source_type.like("checkout_handoff:%"),
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress]),
+                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
             )
         )
     ).scalars().all()

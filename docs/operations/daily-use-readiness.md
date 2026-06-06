@@ -16,7 +16,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
 - Billing supports charge review, case creation, eligibility checks/history, readiness-gated claim submission, denial rework, remittance placeholders, and audit/integration timelines.
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
-- Tasks includes Work Queue Control for open/in-progress work, urgent/high priority counts, overdue/due-today/unassigned work, role buckets, source buckets, next-action guidance, and bulk assignment/start/complete controls.
+- Tasks includes Work Queue Control for open/in-progress/blocked work, urgent/high priority counts, overdue/due-today/unassigned/blocked work, role buckets, source buckets, next-action guidance, status filtering, and bulk assignment/start/block/complete controls.
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
@@ -33,6 +33,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use the patient chart checkout handoff before the patient leaves.
 - Complete checkout tasks and schedule follow-ups from the Tasks and Scheduling sections.
 - Use Work Queue Control to clear overdue work, assign unowned tasks, and prioritize urgent document, checkout, billing, and outreach work.
+- Mark operational blockers as blocked tasks so they remain visible in work queue control, patient chart summaries, checkout workload, reports, and closeout.
 
 ### Medical Assistant Or Nurse
 
