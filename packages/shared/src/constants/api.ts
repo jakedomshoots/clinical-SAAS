@@ -33,6 +33,8 @@ export const ROUTES = {
   TASK_PATIENT_OUTREACH_DELIVER: (id: string) => `/api/tasks/${id}/patient-outreach/deliver`,
   USERS: '/api/users',
   USER: (id: string) => `/api/users/${id}`,
+  USER_ACCESS_REVIEW: '/api/users/access-review',
+  USER_ACCESS_REVIEW_MARK: (id: string) => `/api/users/${id}/access-review`,
   SETTINGS: '/api/settings',
   SCHEDULE: '/api/schedule',
   TODAY_QUEUE: '/api/schedule/today-queue',

@@ -6,7 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user, manager_write_required
 from app.models.user import User
-from app.schemas.user import UserDirectoryListOut, UserDirectoryOut, UserUpdate
+from app.schemas.user import (
+    UserAccessReviewItemOut,
+    UserAccessReviewSummaryOut,
+    UserAccessReviewUpdate,
+    UserDirectoryListOut,
+    UserDirectoryOut,
+    UserUpdate,
+)
 from app.services import user_service
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -33,6 +40,51 @@ async def list_users(
         data=[UserDirectoryOut.model_validate(item) for item in data],
         total=total,
     )
+
+
+@router.get("/access-review", response_model=UserAccessReviewSummaryOut)
+async def access_review_summary(
+    db: DbDep,
+    current_user: ManagerUserDep,
+):
+    summary = await user_service.access_review_summary(db, current_user)
+    return UserAccessReviewSummaryOut(
+        data=[
+            UserAccessReviewItemOut(
+                user=UserDirectoryOut.model_validate(item["user"]),
+                review_status=item["review_status"],
+                findings=item["findings"],
+                recommended_action=item["recommended_action"],
+            )
+            for item in summary["data"]
+        ],
+        total=summary["total"],
+        due_count=summary["due_count"],
+        privileged_without_mfa_count=summary["privileged_without_mfa_count"],
+        inactive_count=summary["inactive_count"],
+        review_window_days=summary["review_window_days"],
+    )
+
+
+@router.post("/{user_id}/access-review", response_model=UserDirectoryOut)
+async def mark_access_reviewed(
+    user_id: str,
+    data: UserAccessReviewUpdate,
+    db: DbDep,
+    current_user: ManagerUserDep,
+):
+    try:
+        user = await user_service.mark_access_reviewed(
+            db,
+            current_user,
+            user_id,
+            data.model_dump(exclude_unset=True),
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    return UserDirectoryOut.model_validate(user)
 
 
 @router.patch("/{user_id}", response_model=UserDirectoryOut)

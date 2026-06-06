@@ -1,7 +1,9 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.audit import AuditLog
 from app.models.user import UserRole
 from tests.conftest import headers_for, make_user
 
@@ -74,6 +76,24 @@ async def test_manager_can_update_staff_status_and_role(
 
 
 @pytest.mark.asyncio
+async def test_manager_can_update_staff_mfa_status(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-mfa-user@clinic.example.com")
+    staff = await make_user(db, UserRole.ma, "staff-mfa-user@clinic.example.com")
+
+    res = await client.patch(
+        f"/api/users/{staff.id}",
+        json={"mfa_enabled": True},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 200
+    assert res.json()["mfa_enabled"] is True
+
+
+@pytest.mark.asyncio
 async def test_manager_cannot_grant_admin_role(
     client: AsyncClient,
     db: AsyncSession,
@@ -119,5 +139,88 @@ async def test_manager_cannot_change_own_role_or_active_status(
         json={"role": "front_desk", "is_active": False},
         headers=headers_for(manager),
     )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_access_review_summary_flags_privileged_mfa_and_never_reviewed(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await make_user(db, UserRole.manager, "manager-review-gap@clinic.example.com")
+    await make_user(db, UserRole.provider, "provider-review-gap@clinic.example.com")
+
+    res = await client.get("/api/users/access-review", headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["due_count"] >= 2
+    assert data["privileged_without_mfa_count"] >= 1
+    by_email = {item["user"]["email"]: item for item in data["data"]}
+    assert "privileged_mfa_missing" in by_email["manager-review-gap@clinic.example.com"]["findings"]
+    assert "never_reviewed" in by_email["provider-review-gap@clinic.example.com"]["findings"]
+
+
+@pytest.mark.asyncio
+async def test_mark_access_reviewed_sets_review_fields_and_logs_audit(
+    client: AsyncClient,
+    auth_headers,
+    admin_user,
+    db: AsyncSession,
+):
+    staff = await make_user(db, UserRole.manager, "manager-reviewed-user@clinic.example.com")
+
+    res = await client.post(
+        f"/api/users/{staff.id}/access-review",
+        json={"note": "Quarterly access review complete.", "mfa_enabled": True},
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["mfa_enabled"] is True
+    assert data["access_reviewed_at"] is not None
+    assert data["access_reviewed_by_id"] == admin_user.id
+    assert data["access_review_note"] == "Quarterly access review complete."
+
+    audit = (
+        await db.execute(
+            select(AuditLog).where(
+                AuditLog.event_type == "user.access_reviewed",
+                AuditLog.entity_id == staff.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert audit is not None
+    assert audit.actor_id == admin_user.id
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_review_admin_access(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-review-admin@clinic.example.com")
+    admin = await make_user(db, UserRole.admin, "admin-review-protected@clinic.example.com")
+
+    res = await client.post(
+        f"/api/users/{admin.id}/access-review",
+        json={"note": "Attempted review"},
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_provider_cannot_open_access_review(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = await make_user(db, UserRole.provider, "provider-review-forbidden@clinic.example.com")
+
+    res = await client.get("/api/users/access-review", headers=headers_for(provider))
 
     assert res.status_code == 403

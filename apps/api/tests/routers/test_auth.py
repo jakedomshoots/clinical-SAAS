@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
@@ -8,7 +9,7 @@ from tests.conftest import headers_for, make_user
 
 
 @pytest.mark.asyncio
-async def test_login_success(client: AsyncClient, admin_user):
+async def test_login_success(client: AsyncClient, admin_user, db: AsyncSession):
     res = await client.post("/api/auth/login", json={
         "email": "admin@clinic.example.com",
         "password": "admin123!",
@@ -19,6 +20,10 @@ async def test_login_success(client: AsyncClient, admin_user):
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == "admin@clinic.example.com"
     assert data["user"]["role"] == "admin"
+    refreshed = (
+        await db.execute(select(User).where(User.id == admin_user.id))
+    ).scalar_one()
+    assert refreshed.last_login_at is not None
 
 
 @pytest.mark.asyncio

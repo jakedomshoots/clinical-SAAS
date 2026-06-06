@@ -24,6 +24,11 @@ def upgrade() -> None:
         sa.Column('role', sa.Enum('admin', 'provider', 'ma', 'front_desk', 'manager', name='userrole'), nullable=False),
         sa.Column('organization_id', sa.String(36), nullable=False, server_default='default'),
         sa.Column('is_active', sa.Boolean(), default=True),
+        sa.Column('mfa_enabled', sa.Boolean(), nullable=False, server_default=sa.text('false')),
+        sa.Column('last_login_at', sa.DateTime(), nullable=True),
+        sa.Column('access_reviewed_at', sa.DateTime(), nullable=True),
+        sa.Column('access_reviewed_by_id', sa.String(36), nullable=True),
+        sa.Column('access_review_note', sa.String(500), nullable=True),
         sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()')),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.text('now()')),
     )

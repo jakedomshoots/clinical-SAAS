@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_roles
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, utcnow
 from app.schemas.auth import SeedAdminOut, TokenResponse, UserCreate, UserLogin, UserOut
 from app.services.audit_service import log_event
 from app.services.auth_service import (
@@ -70,6 +70,9 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
+    user.last_login_at = utcnow()
+    await db.commit()
+    await db.refresh(user)
     token = create_access_token(user.id, user.role.value)
     return TokenResponse(
         access_token=token,
@@ -94,10 +97,20 @@ async def session_policy(
         "role": current_user.role.value,
         "access_token_expire_minutes": settings.access_token_expire_minutes,
         "mfa_required": settings.is_production,
+        "mfa_enabled": current_user.mfa_enabled,
+        "mfa_provider": "external_idp" if settings.is_production else "local_policy",
+        "access_review_required": True,
+        "access_review_window_days": 90,
+        "last_login_at": current_user.last_login_at.isoformat() if current_user.last_login_at else None,
+        "last_access_reviewed_at": (
+            current_user.access_reviewed_at.isoformat()
+            if current_user.access_reviewed_at
+            else None
+        ),
         "phi_reauth_required": True,
         "phi_reauth_minutes": clinic_settings.phi_reauth_minutes,
         "audit_retention_days": clinic_settings.audit_retention_days,
-        "audit_events": ["auth.login", "patient_document.accessed", "settings.updated"],
+        "audit_events": ["auth.login", "patient_document.accessed", "settings.updated", "user.access_reviewed"],
     }
 
 

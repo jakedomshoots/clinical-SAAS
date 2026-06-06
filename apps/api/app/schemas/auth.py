@@ -12,6 +12,9 @@ class UserOut(BaseModel):
     role: str
     organization_id: str
     is_active: bool
+    mfa_enabled: bool
+    last_login_at: datetime | None
+    access_reviewed_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

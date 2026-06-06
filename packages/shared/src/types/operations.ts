@@ -83,6 +83,12 @@ export interface SessionPolicy {
   role: string;
   access_token_expire_minutes: number;
   mfa_required: boolean;
+  mfa_enabled: boolean;
+  mfa_provider: string;
+  access_review_required: boolean;
+  access_review_window_days: number;
+  last_login_at: string | null;
+  last_access_reviewed_at: string | null;
   phi_reauth_required: boolean;
   phi_reauth_minutes: number;
   audit_retention_days: number;

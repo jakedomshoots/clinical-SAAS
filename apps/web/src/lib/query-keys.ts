@@ -44,6 +44,7 @@ export const QUERY_KEYS = {
   TASKS: ['tasks'] as const,
   TASK: (id: string) => ['tasks', id] as const,
   USERS: ['users'] as const,
+  USER_ACCESS_REVIEW: ['users', 'access-review'] as const,
   APPOINTMENTS: ['appointments'] as const,
   TODAY_QUEUE: ['today-queue'] as const,
   FAXES: ['faxes'] as const,

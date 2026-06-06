@@ -7,6 +7,11 @@ export interface User {
   role: Role;
   organization_id: UUID;
   is_active: boolean;
+  mfa_enabled: boolean;
+  last_login_at: string | null;
+  access_reviewed_at: string | null;
+  access_reviewed_by_id?: UUID | null;
+  access_review_note?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,4 +44,26 @@ export interface UserUpdate {
   display_name?: string;
   role?: Role;
   is_active?: boolean;
+  mfa_enabled?: boolean;
+}
+
+export interface UserAccessReviewItem {
+  user: User;
+  review_status: 'current' | 'needs_review';
+  findings: string[];
+  recommended_action: string;
+}
+
+export interface UserAccessReviewSummary {
+  data: UserAccessReviewItem[];
+  total: number;
+  due_count: number;
+  privileged_without_mfa_count: number;
+  inactive_count: number;
+  review_window_days: number;
+}
+
+export interface UserAccessReviewUpdate {
+  note?: string | null;
+  mfa_enabled?: boolean;
 }

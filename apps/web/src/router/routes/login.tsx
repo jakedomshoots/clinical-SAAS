@@ -27,6 +27,11 @@ function LoginPage() {
       role: 'admin',
       organization_id: 'default',
       is_active: true,
+      mfa_enabled: false,
+      last_login_at: new Date().toISOString(),
+      access_reviewed_at: null,
+      access_reviewed_by_id: null,
+      access_review_note: null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     });
