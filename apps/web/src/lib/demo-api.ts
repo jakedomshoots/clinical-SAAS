@@ -2601,8 +2601,9 @@ function demoCredentialPreflight() {
     const passedEvidenceCount = sandboxEvidence.filter((item) => item.status === 'passed').length;
     const failedEvidence = sandboxEvidence.filter((item) => item.status === 'failed');
     const sandboxComplete = sandboxEvidence.length > 0 && passedEvidenceCount === sandboxEvidence.length;
+    const vendorReferenceComplete = sandboxComplete && sandboxEvidence.every((item) => isVendorReference(item.reference_url));
     const sandboxReady = config.sandbox_ready && sandboxComplete;
-    const productionReady = config.production_ready && sandboxComplete;
+    const productionReady = config.production_ready && sandboxComplete && vendorReferenceComplete;
     const status = productionReady
       ? 'ready'
       : missingFields.length
@@ -2640,6 +2641,8 @@ function demoCredentialPreflight() {
         ? ['Latest connection test failed; vendor adapter or credentials need review.']
         : status === 'staged' && sandboxReady
         ? ['Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use.']
+        : status === 'staged' && config.readiness_mode === 'production_vendor' && sandboxComplete && !vendorReferenceComplete
+        ? ['Vendor sandbox reference URLs are required for every passed workflow before production readiness.']
         : status === 'staged'
         ? ['Credentials are staged, but sandbox evidence is still pending.']
         : [],
@@ -2665,8 +2668,8 @@ function demoCredentialPreflight() {
         {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
-          status: sandboxComplete ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
-          detail: sandboxComplete && config.readiness_mode === 'local_sandbox' ? 'All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live.' : sandboxComplete ? 'All vendor sandbox workflow checks have recorded passing evidence.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
+          status: sandboxComplete && (config.readiness_mode === 'local_sandbox' || vendorReferenceComplete) ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
+          detail: sandboxComplete && config.readiness_mode === 'local_sandbox' ? 'All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live.' : sandboxComplete && vendorReferenceComplete ? 'All vendor sandbox workflow checks have passing evidence with vendor reference URLs.' : sandboxComplete ? 'Passing vendor sandbox evidence needs reference URLs for every workflow before production readiness.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
         },
       ],
       docs: config.docs,
@@ -2686,6 +2689,11 @@ function demoCredentialPreflight() {
 
 function demoSandboxTestKey(testLabel: string) {
   return testLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'sandbox_check';
+}
+
+function isVendorReference(referenceUrl: string | null | undefined) {
+  const normalized = referenceUrl?.trim() ?? '';
+  return Boolean(normalized) && !normalized.toLowerCase().startsWith('sandbox://');
 }
 
 function demoFileName(fileUrl: string) {

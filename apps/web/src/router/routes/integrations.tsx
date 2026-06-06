@@ -389,7 +389,7 @@ function CredentialPreflightPanel({
               <input
                 value={evidenceDraft(evidence.test_label).reference_url ?? ''}
                 onChange={(event) => onDraftChange(evidence.test_label, { reference_url: event.target.value })}
-                placeholder="Reference URL"
+                placeholder={item.readiness_mode === 'production_vendor' ? 'Vendor sandbox reference URL' : 'Reference URL'}
                 className="rounded-md border border-clinic-300 px-3 py-2 text-xs text-clinic-800 placeholder:text-clinic-400 md:col-span-2"
               />
               <button

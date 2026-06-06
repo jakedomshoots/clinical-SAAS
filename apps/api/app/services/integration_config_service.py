@@ -389,7 +389,7 @@ async def record_sandbox_evidence(
     if status not in {"passed", "failed"}:
         status = "passed"
     notes = str(data.get("notes", "")).strip()
-    reference_url = str(data.get("reference_url", "")).strip()
+    reference_url = str(data.get("reference_url") or "").strip()
     if status == "passed" and not notes and not reference_url:
         raise ValueError("Passed sandbox evidence requires notes or reference URL")
     event = await log_event(
@@ -501,8 +501,16 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
     )
+    vendor_reference_complete = (
+        sandbox_complete
+        and all(_is_vendor_reference(item.get("reference_url")) for item in sandbox_evidence)
+    )
     sandbox_ready = bool(config.get("sandbox_ready")) and sandbox_complete
-    production_ready = bool(config.get("production_ready")) and sandbox_complete
+    production_ready = (
+        bool(config.get("production_ready"))
+        and sandbox_complete
+        and vendor_reference_complete
+    )
     if production_ready:
         status = "ready"
     elif missing_fields:
@@ -531,6 +539,8 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             blockers.append(
                 "Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use."
             )
+        elif readiness_mode == "production_vendor" and sandbox_complete and not vendor_reference_complete:
+            blockers.append("Vendor sandbox reference URLs are required for every passed workflow before production readiness.")
         else:
             blockers.append("Credentials are staged, but sandbox evidence is still pending.")
     if not missing_fields and not sandbox_complete:
@@ -579,10 +589,20 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
-            "status": "ready" if sandbox_complete else "blocked" if failed_evidence else "pending",
+            "status": (
+                "ready"
+                if sandbox_complete and (readiness_mode == "local_sandbox" or vendor_reference_complete)
+                else "blocked"
+                if failed_evidence
+                else "pending"
+            ),
             "detail": (
                 "All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live."
                 if sandbox_complete and readiness_mode == "local_sandbox"
+                else "All vendor sandbox workflow checks have passing evidence with vendor reference URLs."
+                if sandbox_complete and vendor_reference_complete
+                else "Passing vendor sandbox evidence needs reference URLs for every workflow before production readiness."
+                if sandbox_complete
                 else "All vendor sandbox workflow checks have recorded passing evidence."
                 if sandbox_complete
                 else f"{len(failed_evidence)} sandbox workflow check(s) failed and need vendor review."
@@ -732,6 +752,12 @@ def _empty_evidence(test_label: str) -> dict:
         "recorded_by": None,
         "recorded_at": None,
     }
+
+
+def _is_vendor_reference(reference_url: str | None) -> bool:
+    if not reference_url:
+        return False
+    return not reference_url.strip().lower().startswith("sandbox://")
 
 
 def _sandbox_test_key(test_label: str) -> str:

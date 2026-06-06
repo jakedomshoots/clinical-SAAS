@@ -6,7 +6,7 @@ The Integration Setup screen and `/api/integrations/credential-preflight` publis
 
 For local contract rehearsal before real credentials are available, `USE_SANDBOX_ADAPTERS=true` swaps the placeholder clients for deterministic sandbox harnesses. Keep this disabled in production; sandbox adapters prove app-side wiring only, not vendor connectivity.
 When sandbox adapters are enabled, Integration Setup can run each sandbox workflow through `/api/integrations/config/{integration}/sandbox-workflows/run`, or all workflows through `/api/integrations/config/{integration}/sandbox-workflows/run-all`, and record passing audit-backed evidence automatically.
-Sandbox harnesses report `readiness_mode: local_sandbox` and can make an item `sandbox_ready`, but they deliberately keep `production_ready=false` and preflight `status: staged`. Treat that as local rehearsal evidence only; production vendor readiness requires the real adapter lane to report `readiness_mode: production_vendor`, `production_ready=true`, and completed vendor sandbox evidence.
+Sandbox harnesses report `readiness_mode: local_sandbox` and can make an item `sandbox_ready`, but they deliberately keep `production_ready=false` and preflight `status: staged`. Treat that as local rehearsal evidence only; production vendor readiness requires the real adapter lane to report `readiness_mode: production_vendor`, every sandbox workflow to pass, and every passed workflow to carry a vendor sandbox reference URL.
 
 ## EHR
 
@@ -84,5 +84,5 @@ Sandbox harnesses report `readiness_mode: local_sandbox` and can make an item `s
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
 - In local sandbox-adapter mode, use the workflow runner to generate evidence directly from the harness before replacing it with real vendor sandbox references.
 - Do not use `local_sandbox` readiness as go-live evidence. Replace it with production vendor credentials, adapter health, and vendor sandbox references before live-use rehearsal.
-- Passing evidence must include a short note or vendor sandbox reference URL/ticket link; empty pass records are rejected.
+- Passing evidence must include a short note or reference URL so the audit trail is never empty. Production vendor readiness additionally requires a vendor sandbox reference URL or ticket link for every passed workflow.
 - Failed sandbox evidence blocks credential preflight until the vendor issue is resolved and a new passing evidence record is captured.

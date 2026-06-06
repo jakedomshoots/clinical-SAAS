@@ -474,6 +474,84 @@ async def test_local_sandbox_success_does_not_claim_production_vendor_readiness(
 
 
 @pytest.mark.asyncio
+async def test_production_vendor_readiness_requires_vendor_reference_urls(
+    client: AsyncClient,
+    db: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    user = await make_user(
+        db,
+        UserRole.admin,
+        "vendor-reference-admin@example.com",
+        organization_id="vendor-reference-org",
+    )
+    auth_headers = headers_for(user)
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234")
+
+    async def fake_health_by_key():
+        return {
+            "fax_provider": {
+                "ok": True,
+                "configured": True,
+                "adapter_implemented": True,
+                "adapter_detail": "Fax adapter is connected to the vendor sandbox.",
+                "readiness_mode": "production_vendor",
+                "sandbox_ready": False,
+                "production_ready": True,
+            }
+        }
+
+    monkeypatch.setattr(integration_config_service, "_health_by_key", fake_health_by_key)
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+
+    for test_label in fax["sandbox_tests"]:
+        evidence = await client.post(
+            "/api/integrations/config/fax/sandbox-evidence",
+            json={
+                "test_label": test_label,
+                "status": "passed",
+                "notes": f"Vendor sandbox proof for {test_label}, reference pending.",
+            },
+            headers=auth_headers,
+        )
+        assert evidence.status_code == 201
+
+    missing_references = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax_without_refs = next(item for item in missing_references.json()["data"] if item["key"] == "fax")
+    sandbox_step = next(step for step in fax_without_refs["steps"] if step["key"] == "sandbox_workflows")
+
+    assert fax_without_refs["readiness_mode"] == "production_vendor"
+    assert fax_without_refs["production_ready"] is False
+    assert fax_without_refs["status"] == "staged"
+    assert sandbox_step["status"] == "pending"
+    assert any("vendor sandbox reference" in blocker.lower() for blocker in fax_without_refs["blockers"])
+
+    for test_label in fax["sandbox_tests"]:
+        evidence = await client.post(
+            "/api/integrations/config/fax/sandbox-evidence",
+            json={
+                "test_label": test_label,
+                "status": "passed",
+                "notes": f"Vendor sandbox proof for {test_label}.",
+                "reference_url": f"https://vendor.example.test/fax/{test_label.replace(' ', '-').lower()}",
+            },
+            headers=auth_headers,
+        )
+        assert evidence.status_code == 201
+
+    ready = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    ready_fax = next(item for item in ready.json()["data"] if item["key"] == "fax")
+    ready_sandbox_step = next(step for step in ready_fax["steps"] if step["key"] == "sandbox_workflows")
+
+    assert ready_fax["production_ready"] is True
+    assert ready_fax["status"] == "ready"
+    assert ready_sandbox_step["status"] == "ready"
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,
