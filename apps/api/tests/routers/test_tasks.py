@@ -199,6 +199,8 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
         "gender": "Unknown",
         "phone": "555-0100",
         "email": "outreach.patient@example.com",
+        "email_consent": True,
+        "preferred_contact_channel": "email",
     }, headers=auth_headers)
     patient_id = patient_res.json()["id"]
     task_res = await client.post(
@@ -216,6 +218,8 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
     draft = res.json()
     assert draft["patient_id"] == patient_id
     assert draft["patient_email"] == "outreach.patient@example.com"
+    assert next(option for option in draft["channel_options"] if option["channel"] == "email")["eligible"] is True
+    assert next(option for option in draft["channel_options"] if option["channel"] == "sms")["eligible"] is False
     assert "Discuss lab follow-up" in draft["subject"]
 
     delivery = await client.post(
@@ -229,6 +233,7 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
     assert delivery.json()["recipient"] == "outreach.patient@example.com"
     assert delivery.json()["provider_message_id"].startswith("pending-")
     assert delivery.json()["attempts"] == 1
+    assert delivery.json()["eligible"] is True
 
     listed = await client.get(f"/api/tasks?patient_id={patient_id}", headers=auth_headers)
     delivered_task = listed.json()["data"][0]
@@ -238,3 +243,40 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
 
     audit = await client.get("/api/audit?entity_type=task", headers=auth_headers)
     assert any(event["event_type"] == "patient_outreach.staged" for event in audit.json()["data"])
+
+
+@pytest.mark.asyncio
+async def test_patient_outreach_blocks_without_channel_consent(client: AsyncClient, auth_headers):
+    patient_res = await client.post("/api/patients", json={
+        "first_name": "No",
+        "last_name": "Consent",
+        "dob": "1990-01-01",
+        "gender": "Unknown",
+        "phone": "555-0100",
+        "email": "no.consent@example.com",
+    }, headers=auth_headers)
+    task_res = await client.post(
+        "/api/tasks",
+        json={"title": "Consent guarded outreach", "patient_id": patient_res.json()["id"]},
+        headers=auth_headers,
+    )
+    draft = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach",
+        headers=auth_headers,
+    )
+
+    delivery = await client.post(
+        f"/api/tasks/{task_res.json()['id']}/patient-outreach/deliver",
+        json={"channel": "sms", "subject": draft.json()["subject"], "body": draft.json()["body"]},
+        headers=auth_headers,
+    )
+    summary = await client.get("/api/tasks/patient-outreach/summary", headers=auth_headers)
+
+    assert delivery.status_code == 200
+    assert delivery.json()["delivery_status"] == "blocked"
+    assert delivery.json()["provider_message_id"] is None
+    assert delivery.json()["eligible"] is False
+    assert "consent" in delivery.json()["blocked_reason"]
+    assert delivery.json()["retryable"] is True
+    assert summary.json()["blocked_count"] == 1
+    assert summary.json()["consent_blocked_count"] == 1

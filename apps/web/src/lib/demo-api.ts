@@ -34,6 +34,15 @@ function normalizeDocument(document: PatientDocument): PatientDocument {
   };
 }
 
+function normalizePatient(patient: Patient): Patient {
+  return {
+    ...patient,
+    sms_consent: patient.sms_consent ?? false,
+    email_consent: patient.email_consent ?? false,
+    preferred_contact_channel: patient.preferred_contact_channel ?? null,
+  };
+}
+
 const ACCESS_REVIEW_WINDOW_DAYS = 90;
 
 function accessReviewSummary(): UserAccessReviewSummary {
@@ -61,6 +70,33 @@ function accessReviewSummary(): UserAccessReviewSummary {
     privileged_without_mfa_count: data.filter((item) => item.findings.includes('privileged_mfa_missing')).length,
     inactive_count: demoUsers.filter((user) => !user.is_active).length,
     review_window_days: ACCESS_REVIEW_WINDOW_DAYS,
+  };
+}
+
+function outreachChannelOption(patient: Patient, channel: 'sms' | 'email') {
+  const recipient = channel === 'sms' ? patient.phone : patient.email;
+  const consent = channel === 'sms' ? patient.sms_consent : patient.email_consent;
+  if (!recipient) {
+    return { channel, recipient: null, eligible: false, blocked_reason: `No ${channel} recipient is available for this patient.` };
+  }
+  if (!consent) {
+    return { channel, recipient, eligible: false, blocked_reason: `Patient has not granted ${channel} outreach consent.` };
+  }
+  return { channel, recipient, eligible: true, blocked_reason: null };
+}
+
+function outreachSummary() {
+  const outreachTasks = tasks.filter((task) => task.delivery_status);
+  return {
+    queued_count: outreachTasks.filter((task) => task.delivery_status === 'queued').length,
+    delivered_count: outreachTasks.filter((task) => task.delivery_status === 'delivered').length,
+    failed_count: outreachTasks.filter((task) => task.delivery_status === 'failed').length,
+    blocked_count: outreachTasks.filter((task) => task.delivery_status === 'blocked').length,
+    retryable_failed_count: outreachTasks.filter((task) => ['failed', 'blocked'].includes(task.delivery_status ?? '')).length,
+    consent_blocked_count: outreachTasks.filter((task) => task.delivery_status === 'blocked' && task.delivery_error?.toLowerCase().includes('consent')).length,
+    no_contact_blocked_count: outreachTasks.filter((task) => task.delivery_status === 'blocked' && task.delivery_error?.toLowerCase().includes('recipient')).length,
+    total_outreach_tasks: outreachTasks.length,
+    consent_required: true,
   };
 }
 
@@ -146,6 +182,9 @@ let patients: Patient[] = [
     gender: 'Female',
     phone: '(312) 555-0184',
     email: 'mary.collins@example.test',
+    sms_consent: true,
+    email_consent: true,
+    preferred_contact_channel: 'sms',
     address: { street: '412 Prairie Ave', city: 'Chicago', state: 'IL', zip: '60616' },
     emergency_contact: { name: 'Evan Collins', relationship: 'Spouse', phone: '(312) 555-0119' },
     insurance: { provider: 'BlueCross', plan: 'PPO', member_id: 'BC-884221', group_number: '1037' },
@@ -164,6 +203,9 @@ let patients: Patient[] = [
     gender: 'Male',
     phone: '(312) 555-0128',
     email: 'andre.miller@example.test',
+    sms_consent: true,
+    email_consent: false,
+    preferred_contact_channel: 'sms',
     address: { street: '88 Lake Shore Dr', city: 'Chicago', state: 'IL', zip: '60611' },
     emergency_contact: null,
     insurance: { provider: 'Aetna', plan: 'HMO', member_id: 'AET-442901', group_number: '8812' },
@@ -182,6 +224,9 @@ let patients: Patient[] = [
     gender: 'Female',
     phone: '(312) 555-0173',
     email: 'sofia.nguyen@example.test',
+    sms_consent: false,
+    email_consent: true,
+    preferred_contact_channel: 'email',
     address: { street: '1700 W Division St', city: 'Chicago', state: 'IL', zip: '60622' },
     emergency_contact: { name: 'Minh Nguyen', relationship: 'Brother', phone: '(312) 555-0144' },
     insurance: null,
@@ -200,6 +245,9 @@ let patients: Patient[] = [
     gender: 'Male',
     phone: '(312) 555-0190',
     email: 'james.patel@example.test',
+    sms_consent: false,
+    email_consent: false,
+    preferred_contact_channel: null,
     address: null,
     emergency_contact: null,
     insurance: { provider: 'United Healthcare', plan: 'Choice Plus', member_id: 'UHC-099321', group_number: '5501' },
@@ -218,6 +266,9 @@ let patients: Patient[] = [
     gender: 'Female',
     phone: '(312) 555-0107',
     email: 'lena.brooks@example.test',
+    sms_consent: true,
+    email_consent: true,
+    preferred_contact_channel: 'email',
     address: { street: '205 Oak St', city: 'Oak Park', state: 'IL', zip: '60302' },
     emergency_contact: { name: 'Theo Brooks', relationship: 'Son', phone: '(312) 555-0133' },
     insurance: { provider: 'Medicare', plan: 'Part B', member_id: 'MCR-72118', group_number: '' },
@@ -518,7 +569,7 @@ function demoSourcePreview(fileUrl: string) {
 
 const storedDemoData = readStoredDemoData();
 if (storedDemoData) {
-  patients = storedDemoData.patients;
+  patients = storedDemoData.patients.map(normalizePatient);
   tasks = storedDemoData.tasks.map((task) => ({
     ...task,
     source_type: task.source_type ?? null,
@@ -1238,6 +1289,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         gender: incoming.gender ?? 'Unknown',
         phone: incoming.phone ?? null,
         email: incoming.email ?? null,
+        sms_consent: incoming.sms_consent ?? false,
+        email_consent: incoming.email_consent ?? false,
+        preferred_contact_channel: incoming.preferred_contact_channel ?? null,
         address: null,
         emergency_contact: null,
         insurance: null,
@@ -1747,9 +1801,15 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       patient_name: `${patient.first_name} ${patient.last_name}`,
       patient_email: patient.email,
       patient_phone: patient.phone,
+      preferred_contact_channel: patient.preferred_contact_channel,
+      channel_options: [outreachChannelOption(patient, 'sms'), outreachChannelOption(patient, 'email')],
       subject: `Follow-up from your care team: ${task.title}`,
       body: `Hi ${patient.first_name},\n\nYour care team is following up on an item from your visit. We are reviewing: ${task.title}.\n\nPlease contact the office if you have new symptoms, medication changes, or questions before we reach you.\n\nThank you,\nYour care team`,
     } as T;
+  }
+
+  if (path === '/tasks/patient-outreach/summary' && method === 'GET') {
+    return outreachSummary() as T;
   }
 
   const taskOutreachDeliverMatch = path.match(/^\/tasks\/([^/]+)\/patient-outreach\/deliver$/);
@@ -1758,8 +1818,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const patient = patients.find((item) => item.id === task?.patient_id);
     if (!task || !patient) throw new Error('Patient task not found');
     const incoming = body as { channel: 'sms' | 'email'; subject: string; body: string };
-    const recipient = incoming.channel === 'sms' ? patient.phone : patient.email;
-    const deliveryStatus = recipient ? 'queued' : 'blocked';
+    const option = outreachChannelOption(patient, incoming.channel);
+    const recipient = option.recipient;
+    const deliveryStatus = option.eligible ? 'queued' : 'blocked';
     tasks = tasks.map((item) =>
       item.id === task.id
         ? {
@@ -1767,8 +1828,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
             delivery_channel: incoming.channel,
             delivery_status: deliveryStatus,
             delivery_recipient: recipient,
-            delivery_provider_message_id: `pending-${task.id}`,
-            delivery_error: recipient ? null : `No ${incoming.channel} recipient is available for this patient.`,
+            delivery_provider_message_id: option.eligible ? `pending-${task.id}` : null,
+            delivery_error: option.blocked_reason,
             delivery_attempts: item.delivery_attempts + 1,
             updated_at: new Date().toISOString(),
           }
@@ -1778,7 +1839,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       event_type: 'patient_outreach.staged',
       entity_type: 'task',
       entity_id: task.id,
-      payload: { patient_id: patient.id, channel: incoming.channel, recipient, subject: incoming.subject, delivery_status: deliveryStatus },
+      payload: { patient_id: patient.id, channel: incoming.channel, recipient, subject: incoming.subject, delivery_status: deliveryStatus, blocked_reason: option.blocked_reason },
     });
     saveDemoData();
     return {
@@ -1788,8 +1849,11 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       delivery_status: deliveryStatus,
       recipient,
       subject: incoming.subject,
-      provider_message_id: `pending-${task.id}`,
+      provider_message_id: option.eligible ? `pending-${task.id}` : null,
       attempts: task.delivery_attempts + 1,
+      eligible: option.eligible,
+      blocked_reason: option.blocked_reason,
+      retryable: deliveryStatus === 'blocked',
     } as T;
   }
 

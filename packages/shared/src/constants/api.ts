@@ -31,6 +31,7 @@ export const ROUTES = {
   TASK: (id: string) => `/api/tasks/${id}`,
   TASK_PATIENT_OUTREACH: (id: string) => `/api/tasks/${id}/patient-outreach`,
   TASK_PATIENT_OUTREACH_DELIVER: (id: string) => `/api/tasks/${id}/patient-outreach/deliver`,
+  TASK_PATIENT_OUTREACH_SUMMARY: '/api/tasks/patient-outreach/summary',
   USERS: '/api/users',
   USER: (id: string) => `/api/users/${id}`,
   USER_ACCESS_REVIEW: '/api/users/access-review',

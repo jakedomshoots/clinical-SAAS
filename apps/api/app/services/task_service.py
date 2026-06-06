@@ -6,6 +6,8 @@ from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.services.audit_service import log_event
 
+RETRYABLE_DELIVERY_STATUSES = {"failed", "blocked"}
+
 
 async def list_tasks(
     db: AsyncSession,
@@ -218,6 +220,13 @@ async def draft_patient_outreach(db: AsyncSession, user: User, task_id: str) -> 
         "patient_name": patient_name,
         "patient_email": patient.email,
         "patient_phone": patient.phone,
+        "sms_consent": patient.sms_consent,
+        "email_consent": patient.email_consent,
+        "preferred_contact_channel": patient.preferred_contact_channel,
+        "channel_options": [
+            _channel_option(patient, "sms"),
+            _channel_option(patient, "email"),
+        ],
         "subject": f"Follow-up from your care team: {task.title}",
         "body": (
             f"Hi {patient.first_name},\n\n"
@@ -251,14 +260,19 @@ async def stage_patient_outreach_delivery(
     if not task:
         return None
     task.delivery_channel = channel
-    task.delivery_status = "queued" if recipient else "blocked"
+    option = _channel_option(draft, channel)
+    is_eligible = bool(option["eligible"])
+    task.delivery_status = "queued" if is_eligible else "blocked"
     task.delivery_recipient = recipient
-    task.delivery_provider_message_id = f"pending-{task.id}"
-    task.delivery_error = None if recipient else f"No {channel} recipient is available for this patient."
+    task.delivery_provider_message_id = f"pending-{task.id}" if is_eligible else None
+    task.delivery_error = None if is_eligible else option["blocked_reason"]
     task.delivery_attempts = (task.delivery_attempts or 0) + 1
     task.delivery_payload = {
         "subject": data["subject"],
         "body": data["body"],
+        "consent_required": True,
+        "eligible": is_eligible,
+        "blocked_reason": option["blocked_reason"],
     }
     await db.commit()
     await db.refresh(task)
@@ -274,6 +288,7 @@ async def stage_patient_outreach_delivery(
             "recipient": recipient,
             "subject": data["subject"],
             "delivery_status": task.delivery_status,
+            "blocked_reason": option["blocked_reason"],
         },
     )
     return {
@@ -285,6 +300,45 @@ async def stage_patient_outreach_delivery(
         "subject": data["subject"],
         "provider_message_id": task.delivery_provider_message_id,
         "attempts": task.delivery_attempts,
+        "eligible": is_eligible,
+        "blocked_reason": option["blocked_reason"],
+        "retryable": task.delivery_status in RETRYABLE_DELIVERY_STATUSES,
+    }
+
+
+async def outreach_summary(db: AsyncSession, user: User) -> dict:
+    rows = (
+        await db.execute(
+            select(Task).where(
+                Task.organization_id == user.organization_id,
+                Task.delivery_status.is_not(None),
+            )
+        )
+    ).scalars().all()
+    return {
+        "queued_count": sum(1 for task in rows if task.delivery_status == "queued"),
+        "delivered_count": sum(1 for task in rows if task.delivery_status == "delivered"),
+        "failed_count": sum(1 for task in rows if task.delivery_status == "failed"),
+        "blocked_count": sum(1 for task in rows if task.delivery_status == "blocked"),
+        "retryable_failed_count": sum(
+            1 for task in rows if task.delivery_status in RETRYABLE_DELIVERY_STATUSES
+        ),
+        "consent_blocked_count": sum(
+            1
+            for task in rows
+            if task.delivery_status == "blocked"
+            and task.delivery_error
+            and "consent" in task.delivery_error.lower()
+        ),
+        "no_contact_blocked_count": sum(
+            1
+            for task in rows
+            if task.delivery_status == "blocked"
+            and task.delivery_error
+            and "recipient" in task.delivery_error.lower()
+        ),
+        "total_outreach_tasks": len(rows),
+        "consent_required": True,
     }
 
 
@@ -314,6 +368,45 @@ async def apply_delivery_callback(
         task.delivered_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     return True
+
+
+def _channel_option(patient: Patient | dict, channel: str) -> dict:
+    if channel == "sms":
+        recipient = _get_value(patient, "phone", "patient_phone")
+        consent = bool(_get_value(patient, "sms_consent", default=False))
+    else:
+        recipient = _get_value(patient, "email", "patient_email")
+        consent = bool(_get_value(patient, "email_consent", default=False))
+    if not recipient:
+        return {
+            "channel": channel,
+            "recipient": None,
+            "eligible": False,
+            "blocked_reason": f"No {channel} recipient is available for this patient.",
+        }
+    if not consent:
+        return {
+            "channel": channel,
+            "recipient": recipient,
+            "eligible": False,
+            "blocked_reason": f"Patient has not granted {channel} outreach consent.",
+        }
+    return {
+        "channel": channel,
+        "recipient": recipient,
+        "eligible": True,
+        "blocked_reason": None,
+    }
+
+
+def _get_value(source: Patient | dict, key: str, fallback: str | None = None, default=None):
+    if isinstance(source, dict):
+        if key in source:
+            return source[key]
+        if fallback and fallback in source:
+            return source[fallback]
+        return default
+    return getattr(source, key, default)
 
 
 async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:

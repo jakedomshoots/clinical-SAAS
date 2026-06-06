@@ -98,6 +98,8 @@ async def test_communications_webhook_updates_task_delivery(
         "dob": "1990-01-01",
         "gender": "Unknown",
         "phone": "555-0100",
+        "sms_consent": True,
+        "preferred_contact_channel": "sms",
     }, headers=auth_headers)
     task_res = await client.post(
         "/api/tasks",

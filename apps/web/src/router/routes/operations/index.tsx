@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type IntegrationCapabilities, type SessionPolicy } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type IntegrationCapabilities, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -100,6 +100,10 @@ function OperationsPage() {
   const { data: sessionPolicy } = useQuery({
     queryKey: [...QUERY_KEYS.USER, 'session-policy'],
     queryFn: () => api.get<SessionPolicy>(ROUTES.SESSION_POLICY),
+  });
+  const { data: outreachSummary } = useQuery({
+    queryKey: QUERY_KEYS.TASK_OUTREACH_SUMMARY,
+    queryFn: () => api.get<TaskOutreachSummary>(ROUTES.TASK_PATIENT_OUTREACH_SUMMARY),
   });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
@@ -194,6 +198,30 @@ function OperationsPage() {
           <ClipboardList className="h-4 w-4 text-accent-700" />
           <div className="mt-3 text-sm font-semibold text-clinic-900">Launch checklist</div>
           <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-clinic-900">Communications Governance</div>
+            <div className="mt-1 text-xs text-clinic-500">Patient outreach requires channel consent and available contact details before delivery is queued</div>
+          </div>
+          <StatusBadge ok={(outreachSummary?.blocked_count ?? 0) === 0} label={`${outreachSummary?.blocked_count ?? 0} blocked`} />
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-5">
+          {[
+            ['Queued', outreachSummary?.queued_count ?? 0],
+            ['Delivered', outreachSummary?.delivered_count ?? 0],
+            ['Failed', outreachSummary?.failed_count ?? 0],
+            ['Consent blocked', outreachSummary?.consent_blocked_count ?? 0],
+            ['No contact', outreachSummary?.no_contact_blocked_count ?? 0],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-md bg-clinic-50 px-3 py-2">
+              <div className="text-xl font-semibold text-clinic-900">{value}</div>
+              <div className="text-xs text-clinic-500">{label}</div>
+            </div>
+          ))}
         </div>
       </section>
 

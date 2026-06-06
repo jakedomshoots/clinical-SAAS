@@ -64,6 +64,8 @@ class TaskPatientOutreachDraftOut(BaseModel):
     patient_name: str
     patient_email: str | None
     patient_phone: str | None
+    preferred_contact_channel: str | None = None
+    channel_options: list[dict]
     subject: str
     body: str
 
@@ -83,3 +85,18 @@ class TaskPatientOutreachDeliveryOut(BaseModel):
     subject: str
     provider_message_id: str | None = None
     attempts: int
+    eligible: bool
+    blocked_reason: str | None = None
+    retryable: bool = False
+
+
+class TaskOutreachSummaryOut(BaseModel):
+    queued_count: int
+    delivered_count: int
+    failed_count: int
+    blocked_count: int
+    retryable_failed_count: int
+    consent_blocked_count: int
+    no_contact_blocked_count: int
+    total_outreach_tasks: int
+    consent_required: bool = True

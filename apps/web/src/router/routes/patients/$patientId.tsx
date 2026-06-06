@@ -298,6 +298,9 @@ function PatientChartPage() {
       last_name: patient.last_name,
       phone: patient.phone || '',
       email: patient.email || '',
+      sms_consent: patient.sms_consent ? 'true' : 'false',
+      email_consent: patient.email_consent ? 'true' : 'false',
+      preferred_contact_channel: patient.preferred_contact_channel || '',
     });
     setEditing(true);
   }
@@ -308,6 +311,11 @@ function PatientChartPage() {
       last_name: editForm.last_name,
       phone: editForm.phone || null,
       email: editForm.email || null,
+      sms_consent: editForm.sms_consent === 'true',
+      email_consent: editForm.email_consent === 'true',
+      preferred_contact_channel: editForm.preferred_contact_channel === 'sms' || editForm.preferred_contact_channel === 'email'
+        ? editForm.preferred_contact_channel
+        : null,
     });
   }
 
@@ -484,6 +492,28 @@ function PatientChartPage() {
                   className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
                 />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-clinic-700">Preferred outreach</label>
+                <select
+                  value={editForm.preferred_contact_channel || ''}
+                  onChange={(e) => setEditForm({ ...editForm, preferred_contact_channel: e.target.value })}
+                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+                >
+                  <option value="">None selected</option>
+                  <option value="sms">SMS</option>
+                  <option value="email">Email</option>
+                </select>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
+                  <input type="checkbox" checked={editForm.sms_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, sms_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                  SMS consent
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
+                  <input type="checkbox" checked={editForm.email_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, email_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                  Email consent
+                </label>
+              </div>
               <div className="flex gap-2 pt-2">
                 <button
                   onClick={saveEdit}
@@ -507,6 +537,8 @@ function PatientChartPage() {
               {[
                 { icon: Phone, label: 'Phone', value: patient.phone || '—' },
                 { icon: Mail, label: 'Email', value: patient.email || '—' },
+                { icon: MessageSquare, label: 'Outreach consent', value: `${patient.sms_consent ? 'SMS' : 'No SMS'} / ${patient.email_consent ? 'Email' : 'No email'}` },
+                { icon: ShieldCheck, label: 'Preferred outreach', value: patient.preferred_contact_channel || '—' },
                 { icon: MapPin, label: 'Address', value: patient.address ? `${patient.address.street}, ${patient.address.city}, ${patient.address.state} ${patient.address.zip}` : '—' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-start gap-2">

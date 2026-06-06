@@ -31,6 +31,13 @@ export interface TaskPatientOutreachDraft {
   patient_name: string;
   patient_email: string | null;
   patient_phone: string | null;
+  preferred_contact_channel: string | null;
+  channel_options: {
+    channel: 'sms' | 'email';
+    recipient: string | null;
+    eligible: boolean;
+    blocked_reason: string | null;
+  }[];
   subject: string;
   body: string;
 }
@@ -44,4 +51,19 @@ export interface TaskPatientOutreachDelivery {
   subject: string;
   provider_message_id: string | null;
   attempts: number;
+  eligible: boolean;
+  blocked_reason: string | null;
+  retryable: boolean;
+}
+
+export interface TaskOutreachSummary {
+  queued_count: number;
+  delivered_count: number;
+  failed_count: number;
+  blocked_count: number;
+  retryable_failed_count: number;
+  consent_blocked_count: number;
+  no_contact_blocked_count: number;
+  total_outreach_tasks: number;
+  consent_required: boolean;
 }

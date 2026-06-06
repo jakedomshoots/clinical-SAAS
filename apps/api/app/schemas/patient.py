@@ -36,6 +36,9 @@ class PatientCreate(BaseModel):
     gender: str
     phone: str | None = None
     email: str | None = None
+    sms_consent: bool = False
+    email_consent: bool = False
+    preferred_contact_channel: str | None = Field(default=None, max_length=20)
     address: AddressSchema | None = None
     emergency_contact: EmergencyContactSchema | None = None
     insurance: InsuranceSchema | None = None
@@ -51,6 +54,9 @@ class PatientUpdate(BaseModel):
     gender: str | None = None
     phone: str | None = None
     email: str | None = None
+    sms_consent: bool | None = None
+    email_consent: bool | None = None
+    preferred_contact_channel: str | None = Field(default=None, max_length=20)
     address: AddressSchema | None = None
     emergency_contact: EmergencyContactSchema | None = None
     insurance: InsuranceSchema | None = None
@@ -70,6 +76,9 @@ class PatientOut(BaseModel):
     gender: str
     phone: str | None
     email: str | None
+    sms_consent: bool
+    email_consent: bool
+    preferred_contact_channel: str | None
     address: dict | None
     emergency_contact: dict | None
     insurance: dict | None

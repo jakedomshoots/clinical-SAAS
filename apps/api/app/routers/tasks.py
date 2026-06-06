@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.task import (
     TaskCreate,
     TaskListOut,
+    TaskOutreachSummaryOut,
     TaskOut,
     TaskPatientOutreachDeliveryOut,
     TaskPatientOutreachDraftOut,
@@ -53,6 +54,14 @@ async def list_tasks(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/patient-outreach/summary", response_model=TaskOutreachSummaryOut)
+async def patient_outreach_summary(
+    db: DbDep,
+    current_user: CurrentUserDep,
+):
+    return TaskOutreachSummaryOut(**await task_service.outreach_summary(db, current_user))
 
 
 @router.get("/{task_id}", response_model=TaskOut)

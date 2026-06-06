@@ -13,6 +13,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Medication and care-plan items are persisted and can be updated from the patient chart.
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
 - Billing supports charge review, case creation, eligibility checks/history, claim submit/deny/payment, and audit/integration timelines.
+- Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
 - Operations and Setup report readiness, integration event state, launch requirements, and demo/pilot readiness scoring.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
@@ -51,6 +52,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Live EHR patient import, encounters, medications, labs, and problem-list sync.
 - Live fax sending, inbound fax download, and delivery status callbacks.
 - Live patient portal message sync with an external portal vendor.
+- Live SMS/email delivery through a production communications vendor.
 - Calendar/provider schedule sync.
 - CopilotKit runtime with production tool authorization.
 - Production object-storage download URLs for document viewing.
@@ -63,6 +65,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Provision admin users through the approved identity workflow and review role assignments.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
 - Configure vendor adapters listed in `docs/integrations/vendor-adapter-plan.md`.
+- Approve patient outreach consent policy and test queued, blocked, failed, and delivered callback states.
 - Confirm `/api/ready` reports `operational_status: ok`.
 - Run `pnpm verify:local`.
 - Test backup and restore on a disposable stack.

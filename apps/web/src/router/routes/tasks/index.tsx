@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Task, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
+import type { Task, TaskOutreachSummary, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, User } from '@concierge-os/shared';
 import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
 interface TaskListResponse {
@@ -73,6 +73,10 @@ function TaskListPage() {
     queryKey: QUERY_KEYS.USERS,
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
   });
+  const { data: outreachSummary } = useQuery({
+    queryKey: QUERY_KEYS.TASK_OUTREACH_SUMMARY,
+    queryFn: () => api.get<TaskOutreachSummary>(ROUTES.TASK_PATIENT_OUTREACH_SUMMARY),
+  });
   const staffRows = staff?.data ?? [];
 
   const updateMutation = useMutation({
@@ -110,7 +114,11 @@ function TaskListPage() {
         subject: draft.subject,
         body: draft.body,
       }),
-    onSuccess: (result) => setDeliveryResult(result),
+    onSuccess: (result) => {
+      setDeliveryResult(result);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASK_OUTREACH_SUMMARY });
+    },
   });
 
   function updateTask(id: string, update: Partial<Task>) {
@@ -167,6 +175,20 @@ function TaskListPage() {
         </button>
       </div>
 
+      <section className="mb-4 grid gap-2 md:grid-cols-4">
+        {[
+          ['Queued', outreachSummary?.queued_count ?? 0],
+          ['Delivered', outreachSummary?.delivered_count ?? 0],
+          ['Blocked', outreachSummary?.blocked_count ?? 0],
+          ['Needs retry', outreachSummary?.retryable_failed_count ?? 0],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-md border border-clinic-200 bg-white px-3 py-2">
+            <div className="text-lg font-semibold text-clinic-900">{value}</div>
+            <div className="text-xs text-clinic-500">{label}</div>
+          </div>
+        ))}
+      </section>
+
       {isLoading ? (
         <LoadingState label="Loading tasks" />
       ) : isError ? (
@@ -181,6 +203,7 @@ function TaskListPage() {
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Title</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Assigned</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Patient</th>
+                <th className="px-4 py-3 text-left font-medium text-clinic-500">Outreach</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500">Due</th>
                 <th className="px-4 py-3 text-left font-medium text-clinic-500"></th>
               </tr>
@@ -228,6 +251,17 @@ function TaskListPage() {
                     </select>
                   </td>
                   <td className="px-4 py-3 text-clinic-600">{task.patient_name || '—'}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {task.delivery_status ? (
+                      <div>
+                        <span className={`inline-flex rounded border px-2 py-0.5 font-medium ${deliveryTone(task.delivery_status)}`}>
+                          {task.delivery_status}
+                        </span>
+                        <div className="mt-1 text-clinic-500">{task.delivery_channel ?? 'outreach'} · {task.delivery_attempts} attempt{task.delivery_attempts === 1 ? '' : 's'}</div>
+                        {task.delivery_error && <div className="mt-1 max-w-48 truncate text-amber-700">{task.delivery_error}</div>}
+                      </div>
+                    ) : '—'}
+                  </td>
                   <td className="px-4 py-3 text-clinic-500 text-xs">
                     <input
                       type="datetime-local"
@@ -280,7 +314,7 @@ function TaskListPage() {
               ))}
               {filteredTasks.length === 0 && (
                 <tr>
-                  <td colSpan={7}>
+                  <td colSpan={8}>
                     <EmptyState
                       title="No tasks found"
                       detail={statusFilter ? 'Try another status filter or create a new task.' : 'No work is queued for the current filter.'}
@@ -366,10 +400,20 @@ function TaskListPage() {
             </div>
             <div className="space-y-3 p-4">
               {deliveryResult && (
-                <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm text-accent-800">
-                  Queued {deliveryResult.channel} delivery to {deliveryResult.recipient ?? 'the available patient contact'}.
+                <div className={`rounded-md border px-3 py-2 text-sm ${deliveryResult.eligible ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  {deliveryResult.eligible
+                    ? `Queued ${deliveryResult.channel} delivery to ${deliveryResult.recipient}.`
+                    : deliveryResult.blocked_reason ?? `${deliveryResult.channel} delivery is blocked.`}
                 </div>
               )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {outreachDraft.channel_options.map((option) => (
+                  <div key={option.channel} className={`rounded-md border px-3 py-2 text-xs ${option.eligible ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <div className="font-semibold uppercase">{option.channel}</div>
+                    <div className="mt-1">{option.eligible ? option.recipient : option.blocked_reason}</div>
+                  </div>
+                ))}
+              </div>
               <div>
                 <div className="text-xs font-medium uppercase text-clinic-500">Subject</div>
                 <div className="mt-1 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm text-clinic-800">{outreachDraft.subject}</div>
@@ -384,7 +428,7 @@ function TaskListPage() {
                 <button
                   type="button"
                   onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'sms' })}
-                  disabled={deliverMutation.isPending}
+                  disabled={deliverMutation.isPending || !outreachDraft.channel_options.find((option) => option.channel === 'sms')?.eligible}
                   className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
                 >
                   Queue SMS
@@ -392,7 +436,7 @@ function TaskListPage() {
                 <button
                   type="button"
                   onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'email' })}
-                  disabled={deliverMutation.isPending}
+                  disabled={deliverMutation.isPending || !outreachDraft.channel_options.find((option) => option.channel === 'email')?.eligible}
                   className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
                 >
                   Queue Email
@@ -422,6 +466,13 @@ function dueTone(task: Task) {
   if (due < now) return `${base} border-red-200 bg-red-50 font-medium text-red-800`;
   if (due - now < 24 * 60 * 60 * 1000) return `${base} border-amber-200 bg-amber-50 font-medium text-amber-800`;
   return `${base} border-clinic-200 bg-white text-clinic-600`;
+}
+
+function deliveryTone(status: string) {
+  if (status === 'delivered') return 'border-accent-200 bg-accent-50 text-accent-800';
+  if (status === 'queued') return 'border-sky-200 bg-sky-50 text-sky-800';
+  if (status === 'failed' || status === 'blocked') return 'border-amber-200 bg-amber-50 text-amber-800';
+  return 'border-clinic-200 bg-clinic-50 text-clinic-600';
 }
 
 function formatRole(role: User['role']) {

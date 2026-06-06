@@ -32,7 +32,18 @@ function PatientListPage() {
     gender: '',
     phone: '',
     email: '',
+    sms_consent: false,
+    email_consent: false,
+    preferred_contact_channel: '',
   });
+  const patientTextFields: { key: 'first_name' | 'last_name' | 'dob' | 'gender' | 'phone' | 'email'; label: string; type: string }[] = [
+    { key: 'first_name', label: 'First name', type: 'text' },
+    { key: 'last_name', label: 'Last name', type: 'text' },
+    { key: 'dob', label: 'Date of birth', type: 'date' },
+    { key: 'gender', label: 'Gender', type: 'text' },
+    { key: 'phone', label: 'Phone', type: 'tel' },
+    { key: 'email', label: 'Email', type: 'email' },
+  ];
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: [...QUERY_KEYS.PATIENTS, search, page],
@@ -44,7 +55,7 @@ function PatientListPage() {
     onSuccess: (patient) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENTS });
       setShowNewPatient(false);
-      setNewPatient({ first_name: '', last_name: '', dob: '', gender: '', phone: '', email: '' });
+      setNewPatient({ first_name: '', last_name: '', dob: '', gender: '', phone: '', email: '', sms_consent: false, email_consent: false, preferred_contact_channel: '' });
       navigate({ to: '/patients/$patientId', params: { patientId: patient.id } });
     },
   });
@@ -159,25 +170,40 @@ function PatientListPage() {
               </button>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
-              {[
-                ['first_name', 'First name', 'text'],
-                ['last_name', 'Last name', 'text'],
-                ['dob', 'Date of birth', 'date'],
-                ['gender', 'Gender', 'text'],
-                ['phone', 'Phone', 'tel'],
-                ['email', 'Email', 'email'],
-              ].map(([key, label, type]) => (
+              {patientTextFields.map(({ key, label, type }) => (
                 <label key={key} className="text-sm font-medium text-clinic-700">
                   {label}
                   <input
                     type={type}
                     required={['first_name', 'last_name', 'dob', 'gender'].includes(key)}
-                    value={newPatient[key as keyof typeof newPatient]}
+                    value={newPatient[key]}
                     onChange={(event) => setNewPatient({ ...newPatient, [key]: event.target.value })}
                     className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
                   />
                 </label>
               ))}
+              <label className="text-sm font-medium text-clinic-700">
+                Preferred outreach
+                <select
+                  value={newPatient.preferred_contact_channel}
+                  onChange={(event) => setNewPatient({ ...newPatient, preferred_contact_channel: event.target.value })}
+                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900"
+                >
+                  <option value="">None selected</option>
+                  <option value="sms">SMS</option>
+                  <option value="email">Email</option>
+                </select>
+              </label>
+              <div className="flex items-end gap-3">
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
+                  <input type="checkbox" checked={newPatient.sms_consent} onChange={(event) => setNewPatient({ ...newPatient, sms_consent: event.target.checked })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                  SMS consent
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
+                  <input type="checkbox" checked={newPatient.email_consent} onChange={(event) => setNewPatient({ ...newPatient, email_consent: event.target.checked })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                  Email consent
+                </label>
+              </div>
             </div>
             <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
               <button type="button" onClick={() => setShowNewPatient(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>

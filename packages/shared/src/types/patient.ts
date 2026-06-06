@@ -36,6 +36,9 @@ export interface Patient {
   gender: string;
   phone: string | null;
   email: string | null;
+  sms_consent: boolean;
+  email_consent: boolean;
+  preferred_contact_channel: string | null;
   address: Address | null;
   emergency_contact: EmergencyContact | null;
   insurance: Insurance | null;
