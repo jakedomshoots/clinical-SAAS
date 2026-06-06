@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, LaunchWorkplan, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -308,6 +308,97 @@ function productionRehearsalReport(): ProductionRehearsalReport {
         severity: gate.status,
         assignment: rehearsalAssignments[gate.key] ?? null,
       })),
+  };
+}
+
+function demoLaunchRequirements() {
+  return [
+    ['Security', 'Unique API signing secret', false, 'critical', 'Generate and store a production SECRET_KEY.', ['SECRET_KEY']],
+    ['Security', 'Seed endpoints disabled', false, 'critical', 'Set ALLOW_SEED_ENDPOINT=false.', ['ALLOW_SEED_ENDPOINT']],
+    ['Security', 'Webhook signing secret', false, 'critical', 'Set WEBHOOK_SHARED_SECRET for vendor callbacks.', ['WEBHOOK_SHARED_SECRET']],
+    ['Integrations', 'EHR sync', false, 'critical', 'Connect demographics, medications, labs, and encounters.', ['EHR_API_BASE_URL']],
+    ['Integrations', 'Fax provider', false, 'critical', 'Connect inbound and outbound fax delivery.', ['FAX_PROVIDER_API_KEY']],
+    ['Integrations', 'External patient portal', false, 'critical', 'Connect messages, intake, appointment requests, and documents.', ['PORTAL_API_BASE_URL']],
+    ['Integrations', 'Calendar system', false, 'critical', 'Connect appointment create/update synchronization.', ['CALENDAR_API_BASE_URL']],
+    ['Integrations', 'SMS/email delivery', false, 'critical', 'Connect patient outreach delivery callbacks.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY']],
+    ['Integrations', 'CopilotKit runtime', false, 'critical', 'Deploy the AI runtime and approve model/tool policy.', ['COPILOTKIT_RUNTIME_URL']],
+    ['Integrations', 'Clearinghouse', false, 'critical', 'Connect claim submission, denial, payment, and ERA/remittance callbacks.', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY']],
+  ].map(([category, label, ready, severity, action, envVars], index) => ({
+    key: `demo-${index}`,
+    category: String(category),
+    label: String(label),
+    ready: Boolean(ready),
+    severity: String(severity),
+    detail: ready ? 'Ready.' : 'Not configured in demo mode.',
+    action: String(action),
+    env_vars: envVars as string[],
+    docs: ['docs/operations/production-launch-checklist.md'],
+  }));
+}
+
+function launchWorkplan(): LaunchWorkplan {
+  const rehearsal = productionRehearsalReport();
+  const incidents = operationsIncidents();
+  const preflight = demoCredentialPreflight();
+  const items = [
+    ...rehearsal.recommended_actions.map((action) => ({
+      key: `rehearsal_${action.key}`,
+      source: 'rehearsal' as const,
+      category: 'Production rehearsal',
+      label: action.label,
+      detail: action.detail,
+      severity: action.severity,
+      route: action.route,
+      owner_role: 'operations',
+      recommended_action: 'Assign an owner, clear the blocker, and save rehearsal evidence.',
+      assignment: action.assignment,
+    })),
+    ...incidents.data.map((incident) => ({
+      key: `incident_${incident.key}`,
+      source: 'incident' as const,
+      category: incident.source,
+      label: incident.title,
+      detail: incident.detail,
+      severity: incident.severity === 'critical' ? 'blocking' as const : 'warning' as const,
+      route: incident.route,
+      owner_role: incident.owner_role,
+      recommended_action: incident.recommended_action,
+      assignment: null,
+    })),
+    ...demoLaunchRequirements().filter((requirement) => !requirement.ready).map((requirement) => ({
+      key: `launch_${requirement.key}`,
+      source: 'launch_requirement' as const,
+      category: requirement.category,
+      label: requirement.label,
+      detail: requirement.detail,
+      severity: requirement.severity === 'critical' ? 'blocking' as const : 'warning' as const,
+      route: '/setup',
+      owner_role: 'operations',
+      recommended_action: requirement.action,
+      assignment: null,
+    })),
+    ...preflight.data.filter((integration) => integration.status !== 'ready').map((integration) => ({
+      key: `credential_${integration.key}`,
+      source: 'credential_preflight' as const,
+      category: 'Integrations',
+      label: `${integration.label} preflight`,
+      detail: (integration.blockers[0] ?? integration.steps.find((step) => step.status !== 'ready')?.detail ?? `${integration.label} needs credential preflight review.`),
+      severity: integration.status === 'blocked' ? 'blocking' as const : 'warning' as const,
+      route: '/integrations',
+      owner_role: 'operations',
+      recommended_action: 'Complete missing credential fields, connection test, and sandbox evidence.',
+      assignment: null,
+    })),
+  ].sort((a, b) => (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1) || a.category.localeCompare(b.category) || a.label.localeCompare(b.label));
+  return {
+    status: items.length ? 'attention' : 'clear',
+    generated_at: new Date().toISOString(),
+    total: items.length,
+    blocking_count: items.filter((item) => item.severity === 'blocking').length,
+    warning_count: items.filter((item) => item.severity === 'warning').length,
+    assigned_count: items.filter((item) => item.assignment).length,
+    unassigned_count: items.filter((item) => !item.assignment).length,
+    items,
   };
 }
 
@@ -1090,6 +1181,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/operations/incidents' && method === 'GET') {
     return operationsIncidents() as T;
   }
+  if (path === '/operations/launch-workplan' && method === 'GET') {
+    return launchWorkplan() as T;
+  }
   if (path === '/operations/production-rehearsal' && method === 'GET') {
     return productionRehearsalReport() as T;
   }
@@ -1251,28 +1345,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     } as T;
   }
   if (path === '/launch-readiness' && method === 'GET') {
-    const requirements = [
-      ['Security', 'Unique API signing secret', false, 'critical', 'Generate and store a production SECRET_KEY.', ['SECRET_KEY']],
-      ['Security', 'Seed endpoints disabled', false, 'critical', 'Set ALLOW_SEED_ENDPOINT=false.', ['ALLOW_SEED_ENDPOINT']],
-      ['Security', 'Webhook signing secret', false, 'critical', 'Set WEBHOOK_SHARED_SECRET for vendor callbacks.', ['WEBHOOK_SHARED_SECRET']],
-      ['Integrations', 'EHR sync', false, 'critical', 'Connect demographics, medications, labs, and encounters.', ['EHR_API_BASE_URL']],
-      ['Integrations', 'Fax provider', false, 'critical', 'Connect inbound and outbound fax delivery.', ['FAX_PROVIDER_API_KEY']],
-      ['Integrations', 'External patient portal', false, 'critical', 'Connect messages, intake, appointment requests, and documents.', ['PORTAL_API_BASE_URL']],
-      ['Integrations', 'Calendar system', false, 'critical', 'Connect appointment create/update synchronization.', ['CALENDAR_API_BASE_URL']],
-      ['Integrations', 'SMS/email delivery', false, 'critical', 'Connect patient outreach delivery callbacks.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY']],
-      ['Integrations', 'CopilotKit runtime', false, 'critical', 'Deploy the AI runtime and approve model/tool policy.', ['COPILOTKIT_RUNTIME_URL']],
-      ['Integrations', 'Clearinghouse', false, 'critical', 'Connect claim submission, denial, payment, and ERA/remittance callbacks.', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY']],
-    ].map(([category, label, ready, severity, action, envVars], index) => ({
-      key: `demo-${index}`,
-      category,
-      label,
-      ready,
-      severity,
-      detail: ready ? 'Ready.' : 'Not configured in demo mode.',
-      action,
-      env_vars: envVars,
-      docs: ['docs/operations/production-launch-checklist.md'],
-    }));
+    const requirements = demoLaunchRequirements();
     return { production_ready: false, score: 0, critical_blockers: requirements.length, warnings: 0, environment: 'demo', requirements } as T;
   }
 

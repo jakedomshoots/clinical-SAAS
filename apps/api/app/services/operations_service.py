@@ -200,6 +200,93 @@ async def assign_rehearsal_action(db: AsyncSession, user: User, action_key: str,
     return _rehearsal_assignment_from_audit(event)
 
 
+async def launch_workplan(db: AsyncSession, user: User) -> dict:
+    rehearsal = await production_rehearsal_report(db, user)
+    incidents = await incident_register(db, user)
+    launch = await launch_readiness()
+    preflight = await integration_config_service.credential_preflight(db, user)
+    items: list[dict] = []
+
+    for action in rehearsal["recommended_actions"]:
+        items.append(_workplan_item(
+            key=f"rehearsal_{action['key']}",
+            source="rehearsal",
+            category="Production rehearsal",
+            label=action["label"],
+            detail=action["detail"],
+            severity=action["severity"],
+            route=action["route"],
+            owner_role="operations",
+            recommended_action="Assign an owner, clear the blocker, and save rehearsal evidence.",
+            assignment=action.get("assignment"),
+        ))
+
+    for incident in incidents["data"]:
+        items.append(_workplan_item(
+            key=f"incident_{incident['key']}",
+            source="incident",
+            category=incident["source"],
+            label=incident["title"],
+            detail=incident["detail"],
+            severity="blocking" if incident["severity"] == "critical" else "warning",
+            route=incident["route"],
+            owner_role=incident["owner_role"],
+            recommended_action=incident["recommended_action"],
+        ))
+
+    for requirement in launch.get("requirements", []):
+        if requirement.get("ready"):
+            continue
+        items.append(_workplan_item(
+            key=f"launch_{requirement['key']}",
+            source="launch_requirement",
+            category=requirement["category"],
+            label=requirement["label"],
+            detail=requirement["detail"],
+            severity="blocking" if requirement["severity"] == "critical" else "warning",
+            route="/setup",
+            owner_role="operations",
+            recommended_action=requirement["action"],
+        ))
+
+    for integration in preflight.get("data", []):
+        if integration["status"] == "ready":
+            continue
+        blockers = integration.get("blockers") or []
+        missing_steps = [
+            step["label"]
+            for step in integration.get("steps", [])
+            if step["status"] != "ready"
+        ]
+        detail = "; ".join(blockers or missing_steps or [f"{integration['label']} needs credential preflight review."])
+        items.append(_workplan_item(
+            key=f"credential_{integration['key']}",
+            source="credential_preflight",
+            category="Integrations",
+            label=f"{integration['label']} preflight",
+            detail=detail,
+            severity="blocking" if integration["status"] == "blocked" else "warning",
+            route="/integrations",
+            owner_role="operations",
+            recommended_action="Complete missing credential fields, connection test, and sandbox evidence.",
+        ))
+
+    deduped = _dedupe_workplan_items(items)
+    blocking = sum(1 for item in deduped if item["severity"] == "blocking")
+    warnings = sum(1 for item in deduped if item["severity"] == "warning")
+    assigned = sum(1 for item in deduped if item.get("assignment"))
+    return {
+        "status": "clear" if not deduped else "attention",
+        "generated_at": datetime.now(UTC),
+        "total": len(deduped),
+        "blocking_count": blocking,
+        "warning_count": warnings,
+        "assigned_count": assigned,
+        "unassigned_count": len(deduped) - assigned,
+        "items": deduped,
+    }
+
+
 async def create_rehearsal_snapshot(db: AsyncSession, user: User) -> dict:
     report = await production_rehearsal_report(db, user)
     event = await log_event(
@@ -312,6 +399,54 @@ def _backup_restore_detail(deployment: dict) -> str:
     if backup.get("ok"):
         return "Backup evidence exists, but restore validation is missing."
     return "Backup and restore validation evidence is missing."
+
+
+def _workplan_item(
+    *,
+    key: str,
+    source: str,
+    category: str,
+    label: str,
+    detail: str,
+    severity: str,
+    route: str,
+    owner_role: str,
+    recommended_action: str,
+    assignment: dict | None = None,
+) -> dict:
+    return {
+        "key": key,
+        "source": source,
+        "category": category,
+        "label": label,
+        "detail": detail,
+        "severity": severity,
+        "route": route,
+        "owner_role": owner_role,
+        "recommended_action": recommended_action,
+        "assignment": assignment,
+    }
+
+
+def _dedupe_workplan_items(items: list[dict]) -> list[dict]:
+    by_key: dict[str, dict] = {}
+    for item in items:
+        existing = by_key.get(item["key"])
+        if not existing:
+            by_key[item["key"]] = item
+            continue
+        if item["severity"] == "blocking":
+            existing["severity"] = "blocking"
+        if item.get("assignment") and not existing.get("assignment"):
+            existing["assignment"] = item["assignment"]
+    return sorted(
+        by_key.values(),
+        key=lambda item: (
+            0 if item["severity"] == "blocking" else 1,
+            item["category"],
+            item["label"],
+        ),
+    )
 
 
 def _serialize_rehearsal_report(report: dict) -> dict:

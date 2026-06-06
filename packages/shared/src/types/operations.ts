@@ -117,6 +117,30 @@ export interface ProductionRehearsalReport {
   recommended_actions: RehearsalAction[];
 }
 
+export interface LaunchWorkplanItem {
+  key: string;
+  source: 'rehearsal' | 'incident' | 'launch_requirement' | 'credential_preflight';
+  category: string;
+  label: string;
+  detail: string;
+  severity: 'warning' | 'blocking';
+  route: string;
+  owner_role: string;
+  recommended_action: string;
+  assignment: RehearsalActionAssignment | null;
+}
+
+export interface LaunchWorkplan {
+  status: 'clear' | 'attention';
+  generated_at: string;
+  total: number;
+  blocking_count: number;
+  warning_count: number;
+  assigned_count: number;
+  unassigned_count: number;
+  items: LaunchWorkplanItem[];
+}
+
 export interface ProductionRehearsalSnapshot {
   id: string;
   created_at: string;

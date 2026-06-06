@@ -10,6 +10,7 @@ from app.models.user import User, UserRole
 from app.schemas.operations import (
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    LaunchWorkplanOut,
     ProductionRehearsalReportOut,
     ProductionRehearsalSnapshotListOut,
     ProductionRehearsalSnapshotOut,
@@ -35,6 +36,13 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
         critical_count=result["critical_count"],
         warning_count=result["warning_count"],
         generated_at=result["generated_at"],
+    )
+
+
+@router.get("/launch-workplan", response_model=LaunchWorkplanOut)
+async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
+    return LaunchWorkplanOut(
+        **await operations_service.launch_workplan(db, current_user)
     )
 
 

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type LaunchWorkplan, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -122,6 +122,10 @@ function OperationsPage() {
     queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS,
     queryFn: () => api.get<OperationsIncidentList>(ROUTES.OPERATIONS_INCIDENTS),
   });
+  const { data: workplan } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'],
+    queryFn: () => api.get<LaunchWorkplan>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN),
+  });
   const { data: snapshots } = useQuery({
     queryKey: QUERY_KEYS.READINESS_SNAPSHOTS,
     queryFn: () => api.get<ReadinessSnapshotList>(ROUTES.OPERATIONS_READINESS_SNAPSHOTS),
@@ -162,6 +166,7 @@ function OperationsPage() {
     ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -235,6 +240,49 @@ function OperationsPage() {
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
         </div>
       </header>
+
+      {workplan && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Launch Workplan</h2>
+              <p className="text-xs text-clinic-500">{workplan.total} open item(s) · {new Date(workplan.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge ok={workplan.status === 'clear'} label={workplan.status === 'clear' ? 'Clear' : 'Attention'} />
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workplan.blocking_count} blocking</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workplan.warning_count} warning</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workplan.assigned_count} assigned</span>
+            </div>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {workplan.items.slice(0, 8).map((item) => (
+              <div key={item.key} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_11rem_8rem]">
+                <Link to={item.route} className="min-w-0 hover:text-accent-700">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium text-clinic-900">{item.label}</span>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.severity === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{item.severity}</span>
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-[11px] font-medium text-clinic-500">{item.category}</span>
+                  </div>
+                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-clinic-400">{item.recommended_action}</div>
+                </Link>
+                <div className="text-xs text-clinic-500">
+                  <div className="font-medium text-clinic-700">{item.assignment?.owner_name ?? item.owner_role}</div>
+                  <div className="mt-1">{item.assignment ? item.assignment.status.replace('_', ' ') : 'Unassigned'}</div>
+                  {item.assignment?.due_date && <div className="mt-1">Due {item.assignment.due_date}</div>}
+                </div>
+                <Link to={item.route} className="inline-flex h-9 items-center justify-center rounded-md border border-clinic-300 px-3 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
+                  Open
+                </Link>
+              </div>
+            ))}
+            {workplan.items.length === 0 && (
+              <div className="px-4 py-6 text-sm text-clinic-400">No launch workplan items.</div>
+            )}
+          </div>
+        </section>
+      )}
 
       {rehearsal && (
         <section className="rounded-md border border-clinic-200 bg-white">

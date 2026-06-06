@@ -89,6 +89,30 @@ class ProductionRehearsalReportOut(BaseModel):
     recommended_actions: list[RehearsalActionOut]
 
 
+class LaunchWorkplanItemOut(BaseModel):
+    key: str
+    source: str
+    category: str
+    label: str
+    detail: str
+    severity: str
+    route: str
+    owner_role: str
+    recommended_action: str
+    assignment: RehearsalActionAssignmentOut | None = None
+
+
+class LaunchWorkplanOut(BaseModel):
+    status: str
+    generated_at: datetime
+    total: int
+    blocking_count: int
+    warning_count: int
+    assigned_count: int
+    unassigned_count: int
+    items: list[LaunchWorkplanItemOut]
+
+
 class ProductionRehearsalSnapshotOut(BaseModel):
     id: str
     created_at: datetime

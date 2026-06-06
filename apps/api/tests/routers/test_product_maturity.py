@@ -474,6 +474,32 @@ async def test_production_rehearsal_action_assignment(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_launch_workplan_aggregates_operational_blockers(client, auth_headers):
+    before = await client.get("/api/operations/launch-workplan", headers=auth_headers)
+    rehearsal = await client.get("/api/operations/production-rehearsal", headers=auth_headers)
+    action = rehearsal.json()["recommended_actions"][0]
+
+    await client.post(
+        f"/api/operations/production-rehearsal/actions/{action['key']}/assignment",
+        json={"owner_name": "Launch Manager", "status": "open"},
+        headers=auth_headers,
+    )
+    after = await client.get("/api/operations/launch-workplan", headers=auth_headers)
+
+    assert before.status_code == 200
+    before_data = before.json()
+    assert before_data["status"] in {"clear", "attention"}
+    assert before_data["total"] >= before_data["blocking_count"]
+    assert any(item["route"] for item in before_data["items"])
+    assert {"rehearsal", "launch_requirement", "credential_preflight"} & {item["source"] for item in before_data["items"]}
+
+    assert after.status_code == 200
+    assert after.json()["assigned_count"] >= 1
+    assigned_items = [item for item in after.json()["items"] if item["assignment"]]
+    assert assigned_items[0]["assignment"]["owner_name"] == "Launch Manager"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200
