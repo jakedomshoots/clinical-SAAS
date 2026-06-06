@@ -36,6 +36,11 @@ from app.schemas.operations import (
     RoleDryRunSessionOut,
     RoleDryRunSessionStart,
     RoleDryRunSessionUpdate,
+    StaffTrainingChecklistOut,
+    StaffTrainingSessionListOut,
+    StaffTrainingSessionOut,
+    StaffTrainingSessionStart,
+    StaffTrainingSessionUpdate,
 )
 from app.services import operations_service
 
@@ -114,6 +119,51 @@ async def update_browser_qa_session(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Browser QA session not found")
     return BrowserQaSessionOut(**session)
+
+
+@router.get("/staff-training-checklist", response_model=StaffTrainingChecklistOut)
+async def get_staff_training_checklist(current_user: OpsUserDep):
+    return StaffTrainingChecklistOut(
+        **operations_service.staff_training_checklist()
+    )
+
+
+@router.post(
+    "/staff-training-sessions",
+    response_model=StaffTrainingSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_staff_training_session(data: StaffTrainingSessionStart, db: DbDep, current_user: OpsUserDep):
+    return StaffTrainingSessionOut(
+        **await operations_service.start_staff_training_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/staff-training-sessions", response_model=StaffTrainingSessionListOut)
+async def list_staff_training_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_staff_training_sessions(db, current_user)
+    return StaffTrainingSessionListOut(
+        data=[StaffTrainingSessionOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.patch("/staff-training-sessions/{session_id}", response_model=StaffTrainingSessionOut)
+async def update_staff_training_session(
+    session_id: str,
+    data: StaffTrainingSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_staff_training_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staff training session not found")
+    return StaffTrainingSessionOut(**session)
 
 
 @router.get("/launch-workplan", response_model=LaunchWorkplanOut)

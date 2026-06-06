@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -78,6 +78,11 @@ type BrowserQaItemFormState = {
   item_note: string;
 };
 
+type StaffTrainingItemFormState = {
+  training_status: NonNullable<StaffTrainingSessionUpdate['training_status']>;
+  item_note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -100,6 +105,8 @@ function OperationsPage() {
   const [dryRunItemForms, setDryRunItemForms] = useState<Record<string, DryRunItemFormState>>({});
   const [browserQaSessionForm, setBrowserQaSessionForm] = useState<BrowserQaSessionStart>({ session_name: 'Browser QA run', browser: 'Chrome', note: '' });
   const [browserQaItemForms, setBrowserQaItemForms] = useState<Record<string, BrowserQaItemFormState>>({});
+  const [staffTrainingSessionForm, setStaffTrainingSessionForm] = useState<StaffTrainingSessionStart>({ session_name: 'Staff training', trainer_name: '', note: '' });
+  const [staffTrainingItemForms, setStaffTrainingItemForms] = useState<Record<string, StaffTrainingItemFormState>>({});
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
@@ -156,6 +163,14 @@ function OperationsPage() {
   const { data: browserQaSessions } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'browser-qa-sessions'],
     queryFn: () => api.get<BrowserQaSessionList>(ROUTES.OPERATIONS_BROWSER_QA_SESSIONS),
+  });
+  const { data: staffTrainingChecklist } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'staff-training-checklist'],
+    queryFn: () => api.get<StaffTrainingChecklist>(ROUTES.OPERATIONS_STAFF_TRAINING_CHECKLIST),
+  });
+  const { data: staffTrainingSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'staff-training-sessions'],
+    queryFn: () => api.get<StaffTrainingSessionList>(ROUTES.OPERATIONS_STAFF_TRAINING_SESSIONS),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -280,6 +295,27 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startStaffTrainingSessionMutation = useMutation({
+    mutationFn: (data: StaffTrainingSessionStart) => api.post<StaffTrainingSession>(ROUTES.OPERATIONS_STAFF_TRAINING_SESSIONS, data),
+    onSuccess: async () => {
+      setStaffTrainingSessionForm({ session_name: 'Staff training', trainer_name: '', note: '' });
+      setStaffTrainingItemForms({});
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'staff-training-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updateStaffTrainingSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: StaffTrainingSessionUpdate }) => api.patch<StaffTrainingSession>(
+      ROUTES.OPERATIONS_STAFF_TRAINING_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'staff-training-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
@@ -287,6 +323,7 @@ function OperationsPage() {
   const failedEvents = events?.data.filter((event) => event.status === 'failed') ?? [];
   const activeDryRunSession = dryRunSessions?.data[0] ?? null;
   const activeBrowserQaSession = browserQaSessions?.data[0] ?? null;
+  const activeStaffTrainingSession = staffTrainingSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(auditExport).forEach(([key, value]) => {
@@ -411,6 +448,35 @@ function OperationsPage() {
       data: {
         item_key: itemKey,
         qa_status: form.qa_status,
+        item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const staffTrainingItemKey = (sessionId: string, roleKey: string, itemKey: string) => `${sessionId}:${roleKey}:${itemKey}`;
+  const formForStaffTrainingItem = (session: StaffTrainingSession, roleKey: string, itemKey: string): StaffTrainingItemFormState => {
+    const key = staffTrainingItemKey(session.session_id, roleKey, itemKey);
+    const role = session.roles.find((item) => item.key === roleKey);
+    const item = role?.items.find((entry) => entry.key === itemKey);
+    return staffTrainingItemForms[key] ?? {
+      training_status: item?.training_status ?? 'pending',
+      item_note: item?.note ?? '',
+    };
+  };
+  const updateStaffTrainingItemForm = (sessionId: string, roleKey: string, itemKey: string, patch: Partial<StaffTrainingItemFormState>) => {
+    const key = staffTrainingItemKey(sessionId, roleKey, itemKey);
+    setStaffTrainingItemForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { training_status: 'pending', item_note: '' }), ...patch },
+    }));
+  };
+  const submitStaffTrainingItem = (session: StaffTrainingSession, roleKey: string, itemKey: string) => {
+    const form = formForStaffTrainingItem(session, roleKey, itemKey);
+    updateStaffTrainingSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        role_key: roleKey,
+        item_key: itemKey,
+        training_status: form.training_status,
         item_note: form.item_note.trim() || null,
       },
     });
@@ -916,6 +982,162 @@ function OperationsPage() {
                   <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
                   <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
                 </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Staff Training Evidence</h2>
+            <p className="text-xs text-clinic-500">{staffTrainingSessions?.total ?? 0} saved session(s) · {staffTrainingChecklist?.total_items ?? 0} training item(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeStaffTrainingSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeStaffTrainingSession.signed_count} signed</span>
+                <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-800">{activeStaffTrainingSession.reviewed_count} reviewed</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeStaffTrainingSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start training</div>
+              <input
+                value={staffTrainingSessionForm.session_name ?? ''}
+                onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={staffTrainingSessionForm.trainer_name ?? ''}
+                onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, trainer_name: event.target.value }))}
+                placeholder="Trainer"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={staffTrainingSessionForm.note ?? ''}
+                onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="Training note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startStaffTrainingSessionMutation.mutate({
+                  session_name: staffTrainingSessionForm.session_name?.trim() || 'Staff training',
+                  trainer_name: staffTrainingSessionForm.trainer_name?.trim() || null,
+                  note: staffTrainingSessionForm.note?.trim() || null,
+                })}
+                disabled={startStaffTrainingSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start training
+              </button>
+            </div>
+            {activeStaffTrainingSession && (
+              <div className="rounded-md border border-clinic-200 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-clinic-900">{activeStaffTrainingSession.session_name}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{activeStaffTrainingSession.trainer_name ?? activeStaffTrainingSession.started_by ?? 'Trainer'} · {new Date(activeStaffTrainingSession.started_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeStaffTrainingSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {activeStaffTrainingSession.status.replace('_', ' ')}
+                  </span>
+                </div>
+                {activeStaffTrainingSession.note && <div className="mt-2 text-xs text-clinic-500">{activeStaffTrainingSession.note}</div>}
+                <button
+                  type="button"
+                  onClick={() => updateStaffTrainingSessionMutation.mutate({
+                    sessionId: activeStaffTrainingSession.session_id,
+                    data: { session_status: 'completed', note: activeStaffTrainingSession.note },
+                  })}
+                  disabled={activeStaffTrainingSession.status === 'completed' || updateStaffTrainingSessionMutation.isPending}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Complete training
+                </button>
+              </div>
+            )}
+          </div>
+          {activeStaffTrainingSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activeStaffTrainingSession.roles.map((role) => (
+                <div key={role.key} className="rounded-md border border-clinic-200">
+                  <div className="border-b border-clinic-200 px-3 py-2">
+                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                  </div>
+                  <div className="divide-y divide-clinic-100">
+                    {role.items.map((item) => {
+                      const itemForm = formForStaffTrainingItem(activeStaffTrainingSession, role.key, item.key);
+                      return (
+                        <div key={item.key} className="space-y-2 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <Link to={item.route} className="text-xs font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
+                              <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                              <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                            </div>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.training_status === 'signed' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.training_status === 'reviewed' ? 'border-sky-200 bg-sky-50 text-sky-800' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.training_status}</span>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
+                            <select
+                              value={itemForm.training_status}
+                              onChange={(event) => updateStaffTrainingItemForm(activeStaffTrainingSession.session_id, role.key, item.key, { training_status: event.target.value as StaffTrainingItemFormState['training_status'] })}
+                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="reviewed">Reviewed</option>
+                              <option value="signed">Signed</option>
+                            </select>
+                            <input
+                              value={itemForm.item_note}
+                              onChange={(event) => updateStaffTrainingItemForm(activeStaffTrainingSession.session_id, role.key, item.key, { item_note: event.target.value })}
+                              placeholder="Training evidence"
+                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => submitStaffTrainingItem(activeStaffTrainingSession, role.key, item.key)}
+                              disabled={updateStaffTrainingSessionMutation.isPending}
+                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {(staffTrainingChecklist?.roles ?? []).map((role) => (
+                <div key={role.key} className="rounded-md border border-clinic-200 bg-clinic-50">
+                  <div className="border-b border-clinic-200 px-3 py-2">
+                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                  </div>
+                  <div className="divide-y divide-clinic-100">
+                    {role.items.map((item) => (
+                      <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-white">
+                        <div className="text-xs font-medium text-clinic-900">{item.label}</div>
+                        <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

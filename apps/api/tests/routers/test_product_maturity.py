@@ -802,6 +802,78 @@ async def test_browser_qa_session_evidence_is_audit_backed(client, auth_headers)
 
 
 @pytest.mark.asyncio
+async def test_staff_training_session_evidence_is_audit_backed(client, auth_headers):
+    checklist = await client.get("/api/operations/staff-training-checklist", headers=auth_headers)
+    first_role = checklist.json()["roles"][0]
+    first_item = first_role["items"][0]
+
+    created = await client.post(
+        "/api/operations/staff-training-sessions",
+        json={"session_name": "Launch staff training", "trainer_name": "Operations Lead", "note": "Pre-live workflow review."},
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/staff-training-sessions/{session['session_id']}",
+        json={
+            "role_key": first_role["key"],
+            "item_key": first_item["key"],
+            "training_status": "signed",
+            "item_note": "Front desk reviewed daily workflow and escalation expectations.",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/operations/staff-training-sessions/{session['session_id']}",
+        json={"session_status": "completed", "note": "Staff training packet complete."},
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/staff-training-sessions", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.staff_training_session",
+        headers=auth_headers,
+    )
+
+    assert checklist.status_code == 200
+    checklist_data = checklist.json()
+    role_keys = {role["key"] for role in checklist_data["roles"]}
+    assert {"front_desk", "ma_nurse", "provider", "billing", "manager"} <= role_keys
+    assert checklist_data["total_roles"] == len(checklist_data["roles"])
+    assert all(role["items"] for role in checklist_data["roles"])
+    assert all(item["route"] for role in checklist_data["roles"] for item in role["items"])
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Launch staff training"
+    assert session["trainer_name"] == "Operations Lead"
+    assert session["pending_count"] == session["item_count"]
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["signed_count"] == 1
+    updated_item = next(
+        item
+        for role in updated_data["roles"]
+        if role["key"] == first_role["key"]
+        for item in role["items"]
+        if item["key"] == first_item["key"]
+    )
+    assert updated_item["training_status"] == "signed"
+    assert updated_item["note"] == "Front desk reviewed daily workflow and escalation expectations."
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"]
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.staff_training_session"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

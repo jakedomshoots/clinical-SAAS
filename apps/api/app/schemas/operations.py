@@ -132,6 +132,79 @@ class BrowserQaSessionListOut(BaseModel):
     total: int
 
 
+class StaffTrainingChecklistItemOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    category: str
+
+
+class StaffTrainingChecklistRoleOut(BaseModel):
+    key: str
+    label: str
+    summary: str
+    items: list[StaffTrainingChecklistItemOut]
+
+
+class StaffTrainingChecklistOut(BaseModel):
+    generated_at: datetime
+    roles: list[StaffTrainingChecklistRoleOut]
+    total_roles: int
+    total_items: int
+
+
+class StaffTrainingSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    trainer_name: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class StaffTrainingSessionUpdate(BaseModel):
+    role_key: str | None = None
+    item_key: str | None = None
+    training_status: str | None = Field(default=None, pattern="^(pending|reviewed|signed)$")
+    item_note: str | None = Field(default=None, max_length=1000)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class StaffTrainingSessionItemOut(StaffTrainingChecklistItemOut):
+    training_status: str
+    note: str | None = None
+
+
+class StaffTrainingSessionRoleOut(BaseModel):
+    key: str
+    label: str
+    summary: str
+    items: list[StaffTrainingSessionItemOut]
+
+
+class StaffTrainingSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    trainer_name: str | None = None
+    status: str
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    item_count: int
+    signed_count: int
+    reviewed_count: int
+    pending_count: int
+    roles: list[StaffTrainingSessionRoleOut]
+
+
+class StaffTrainingSessionListOut(BaseModel):
+    data: list[StaffTrainingSessionOut]
+    total: int
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

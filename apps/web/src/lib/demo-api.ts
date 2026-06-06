@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -394,6 +394,134 @@ function browserQaChecklist(): BrowserQaChecklist {
   return { generated_at: new Date().toISOString(), items, total: items.length };
 }
 
+function demoTrainingItem(key: string, label: string, detail: string, route: string, category: string): StaffTrainingChecklistItem {
+  return { key, label, detail, route, category };
+}
+
+function demoTrainingRole(key: string, label: string, summary: string, items: StaffTrainingChecklistItem[]): StaffTrainingChecklistRole {
+  return { key, label, summary, items };
+}
+
+function staffTrainingChecklist(): StaffTrainingChecklist {
+  const roles = [
+    demoTrainingRole('front_desk', 'Front desk', 'Patient access, check-in, checkout, communication consent, and escalation expectations.', [
+      demoTrainingItem('daily_flow', 'Daily flow', 'Review Command Center, patient search, scheduling, portal intake, and checkout handoff.', '/', 'Workflow'),
+      demoTrainingItem('access_phi', 'PHI access', 'Review minimum-necessary chart access, document handling, audit visibility, and patient communication consent.', '/patients', 'Compliance'),
+      demoTrainingItem('escalation', 'Escalation', 'Practice routing urgent tasks, blocked intake, and failed patient outreach to the right owner.', '/tasks', 'Operations'),
+    ]),
+    demoTrainingRole('ma_nurse', 'MA / nurse', 'Clinical rooming, document triage, medication/lab review, and incident response expectations.', [
+      demoTrainingItem('clinical_rooming', 'Clinical rooming', 'Review documents, meds, labs, care-plan items, and checkout blockers from the patient profile.', '/patients', 'Clinical'),
+      demoTrainingItem('phi_audit', 'PHI audit', 'Review patient document access, source-document handling, and audit expectations for clinical users.', '/operations', 'Compliance'),
+      demoTrainingItem('incident_response', 'Incident response', 'Practice escalation for wrong-patient documents, urgent labs, failed faxes, and suspected PHI exposure.', '/reports', 'Safety'),
+    ]),
+    demoTrainingRole('provider', 'Provider', 'Provider chart workflow, assistant policy, clinical closeout, and documentation ownership.', [
+      demoTrainingItem('provider_workflow', 'Provider workflow', 'Review chart summary, outside documents, labs, meds, encounters, and checkout tasks.', '/patients', 'Clinical'),
+      demoTrainingItem('assistant_policy', 'Assistant policy', 'Review confirmation-gated assistant actions, tool limits, and clinical responsibility boundaries.', '/assistant-review', 'AI safety'),
+      demoTrainingItem('clinical_closeout', 'Clinical closeout', 'Review unsigned encounters, clinical blockers, and handoff completion before the patient leaves.', '/reports', 'Closeout'),
+    ]),
+    demoTrainingRole('billing', 'Billing', 'Charge capture, claim readiness, payer data handling, and clearinghouse incident routing.', [
+      demoTrainingItem('billing_workflow', 'Billing workflow', 'Review charge review, claim readiness, eligibility history, denial rework, and remittance placeholders.', '/billing', 'Revenue'),
+      demoTrainingItem('payer_data_phi', 'Payer data PHI', 'Review payer identifiers, coverage data, billing notes, and minimum-necessary handling.', '/billing', 'Compliance'),
+      demoTrainingItem('clearinghouse_incidents', 'Clearinghouse incidents', 'Practice routing claim submission failures, eligibility failures, and remittance gaps.', '/integrations', 'Vendor'),
+    ]),
+    demoTrainingRole('manager', 'Manager', 'Launch evidence, access review, backup/restore, incident ownership, and sign-off responsibility.', [
+      demoTrainingItem('launch_evidence', 'Launch evidence', 'Review go-live packet, browser QA, role dry-runs, production rehearsal, and training evidence.', '/operations', 'Launch'),
+      demoTrainingItem('access_review', 'Access review', 'Review role assignments, MFA gaps, inactive accounts, stale access reviews, and audit export.', '/staff', 'Security'),
+      demoTrainingItem('incident_backup', 'Incident and backup', 'Review incident response, backup/restore validation, deployment runbook, and owner assignment.', '/operations', 'Resilience'),
+    ]),
+  ];
+  return {
+    generated_at: new Date().toISOString(),
+    roles,
+    total_roles: roles.length,
+    total_items: roles.reduce((sum, role) => sum + role.items.length, 0),
+  };
+}
+
+function recalculateStaffTrainingSession(session: StaffTrainingSession): StaffTrainingSession {
+  const itemCount = session.roles.reduce((sum, role) => sum + role.items.length, 0);
+  const signedCount = session.roles.reduce((sum, role) => sum + role.items.filter((item) => item.training_status === 'signed').length, 0);
+  const reviewedCount = session.roles.reduce((sum, role) => sum + role.items.filter((item) => item.training_status === 'reviewed').length, 0);
+  return {
+    ...session,
+    item_count: itemCount,
+    signed_count: signedCount,
+    reviewed_count: reviewedCount,
+    pending_count: itemCount - signedCount - reviewedCount,
+  };
+}
+
+function createStaffTrainingSession(data: StaffTrainingSessionStart): StaffTrainingSession {
+  const checklist = staffTrainingChecklist();
+  const createdAt = new Date().toISOString();
+  const session = recalculateStaffTrainingSession({
+    id: uuid(2200 + staffTrainingSessions.length),
+    session_id: uuid(2300 + staffTrainingSessions.length),
+    session_name: data.session_name || 'Staff training',
+    trainer_name: data.trainer_name ?? null,
+    status: 'in_progress',
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    item_count: 0,
+    signed_count: 0,
+    reviewed_count: 0,
+    pending_count: 0,
+    roles: checklist.roles.map((role) => ({
+      ...role,
+      items: role.items.map((item) => ({ ...item, training_status: 'pending' as const, note: null })),
+    })),
+  });
+  staffTrainingSessions = [session, ...staffTrainingSessions];
+  logDemoEvent({
+    event_type: 'operations.staff_training_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updateStaffTrainingSession(sessionId: string, data: StaffTrainingSessionUpdate): StaffTrainingSession | null {
+  const session = staffTrainingSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated = recalculateStaffTrainingSession({
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status === 'completed' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status === 'completed' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    roles: session.roles.map((role) => {
+      if (role.key !== data.role_key) return role;
+      return {
+        ...role,
+        items: role.items.map((item) => {
+          if (item.key !== data.item_key) return item;
+          return {
+            ...item,
+            training_status: data.training_status ?? item.training_status,
+            note: data.item_note !== undefined ? data.item_note : item.note,
+          };
+        }),
+      };
+    }),
+  });
+  staffTrainingSessions = [updated, ...staffTrainingSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.staff_training_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: updated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return updated;
+}
+
 function recalculateBrowserQaSession(session: BrowserQaSession): BrowserQaSession {
   const passedCount = session.items.filter((item) => item.qa_status === 'passed').length;
   const failedCount = session.items.filter((item) => item.qa_status === 'failed').length;
@@ -677,6 +805,7 @@ function goLivePacket(): GoLivePacket {
   const latestReadiness = auditEvents.find((event) => event.event_type === 'operations.readiness_snapshot');
   const latestWorkplan = auditEvents.find((event) => event.event_type === 'operations.launch_workplan_snapshot');
   const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
+  const latestTraining = staffTrainingSessions[0] ?? null;
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
@@ -712,6 +841,14 @@ function goLivePacket(): GoLivePacket {
       detail: `${preflight.blocking_count} blocking integration item(s), ${preflight.staged_count} staged.`,
       route: '/integrations',
       captured_at: null,
+    },
+    {
+      key: 'staff_training_session',
+      label: 'Staff training session',
+      status: latestTraining?.status === 'completed' && latestTraining.pending_count === 0 ? 'ready' as const : latestTraining ? 'warning' as const : 'missing' as const,
+      detail: latestTraining ? `${latestTraining.signed_count} signed, ${latestTraining.reviewed_count} reviewed, ${latestTraining.pending_count} pending training item(s).` : 'Record a staff training session before live-use rehearsal.',
+      route: '/operations',
+      captured_at: latestTraining?.updated_at ?? null,
     },
     {
       key: 'backup_restore',
@@ -1015,6 +1152,7 @@ interface DemoStore {
   goLiveAttestations?: GoLiveAttestation[];
   roleDryRunSessions?: RoleDryRunSession[];
   browserQaSessions?: BrowserQaSession[];
+  staffTrainingSessions?: StaffTrainingSession[];
 }
 
 interface IntegrationEvent {
@@ -1068,6 +1206,7 @@ let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
 let goLiveAttestations: GoLiveAttestation[] = [];
 let roleDryRunSessions: RoleDryRunSession[] = [];
 let browserQaSessions: BrowserQaSession[] = [];
+let staffTrainingSessions: StaffTrainingSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -1393,7 +1532,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions }),
   );
 }
 
@@ -1585,6 +1724,7 @@ if (storedDemoData) {
   goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
   roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
   browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
+  staffTrainingSessions = storedDemoData.staffTrainingSessions ?? staffTrainingSessions;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1729,6 +1869,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     if (!session) {
       throw new Error('Browser QA session not found');
+    }
+    return session as T;
+  }
+  if (path === '/operations/staff-training-checklist' && method === 'GET') {
+    return staffTrainingChecklist() as T;
+  }
+  if (path === '/operations/staff-training-sessions' && method === 'POST') {
+    return createStaffTrainingSession((body ?? {}) as StaffTrainingSessionStart) as T;
+  }
+  if (path === '/operations/staff-training-sessions' && method === 'GET') {
+    return { data: staffTrainingSessions, total: staffTrainingSessions.length } satisfies StaffTrainingSessionList as T;
+  }
+  const staffTrainingSessionMatch = path.match(/^\/operations\/staff-training-sessions\/([^/]+)$/);
+  if (staffTrainingSessionMatch && method === 'PATCH') {
+    const session = updateStaffTrainingSession(
+      decodeURIComponent(staffTrainingSessionMatch[1]),
+      (body ?? {}) as StaffTrainingSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Staff training session not found');
     }
     return session as T;
   }

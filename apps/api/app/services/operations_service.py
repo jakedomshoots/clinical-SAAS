@@ -29,6 +29,7 @@ LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
 GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
 ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
 BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
+STAFF_TRAINING_SESSION_EVENT_TYPE = "operations.staff_training_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -370,6 +371,141 @@ async def update_browser_qa_session(db: AsyncSession, user: User, session_id: st
     return _browser_qa_session_from_audit(event)
 
 
+def staff_training_checklist() -> dict:
+    roles = [
+        _training_role("front_desk", "Front desk", "Patient access, intake, scheduling, communications, and checkout expectations.", [
+            _training_item("daily_flow", "Daily workflow", "Review command center, patient lookup, scheduling, portal intake, and checkout handoff.", "/", "Workflow"),
+            _training_item("access_phi", "Access and PHI", "Review patient privacy expectations, minimum necessary access, and screen discipline.", "/roles", "Compliance"),
+            _training_item("escalation", "Escalation", "Review how to route patient blockers, failed outreach, and urgent front-office issues.", "/tasks", "Operations"),
+        ]),
+        _training_role("ma_nurse", "MA / nurse", "Clinical intake, documents, medication review, labs, care plan, and escalation expectations.", [
+            _training_item("clinical_rooming", "Clinical rooming", "Review documents, medications, labs, and care-plan workflow in the patient chart.", "/patients", "Workflow"),
+            _training_item("phi_audit", "PHI and audit trail", "Review audit-visible patient chart access and documentation expectations.", "/operations", "Compliance"),
+            _training_item("incident_response", "Incident response", "Review escalation steps for privacy, safety, document, and integration incidents.", "/operations", "Operations"),
+        ]),
+        _training_role("provider", "Provider", "Clinical review, assistant confirmation, encounter signing, and checkout ownership.", [
+            _training_item("provider_workflow", "Provider workflow", "Review chart blockers, documents, labs, medications, encounters, and checkout tasks.", "/patients", "Workflow"),
+            _training_item("assistant_policy", "Assistant policy", "Review confirmation-gated assistant actions and safe-use expectations.", "/assistant-review", "AI safety"),
+            _training_item("clinical_closeout", "Clinical closeout", "Review signed encounters, follow-up tasks, and patient handoff expectations.", "/reports", "Operations"),
+        ]),
+        _training_role("billing", "Billing", "Charge capture, eligibility, claim readiness, denial rework, payment, and audit expectations.", [
+            _training_item("billing_workflow", "Billing workflow", "Review charge review, claim readiness, eligibility history, denial rework, and payment recording.", "/billing", "Workflow"),
+            _training_item("payer_data_phi", "Payer data and PHI", "Review payer data handling, minimum necessary access, and billing audit expectations.", "/roles", "Compliance"),
+            _training_item("clearinghouse_incidents", "Clearinghouse incidents", "Review failed integration events, retries, and vendor escalation.", "/integrations", "Operations"),
+        ]),
+        _training_role("manager", "Manager", "Launch evidence, access review, audit export, readiness, incidents, and go-live sign-off.", [
+            _training_item("launch_evidence", "Launch evidence", "Review go-live packet, operator health, config audit, QA evidence, and dry-run sessions.", "/operations", "Launch"),
+            _training_item("access_review", "Access review", "Review staff roles, MFA gaps, stale access reviews, and offboarding expectations.", "/staff", "Compliance"),
+            _training_item("incident_backup", "Incident and backup response", "Review incident-response steps, backup/restore validation, and audit export ownership.", "/operations", "Operations"),
+        ]),
+    ]
+    return {
+        "generated_at": datetime.now(UTC),
+        "roles": roles,
+        "total_roles": len(roles),
+        "total_items": sum(len(role["items"]) for role in roles),
+    }
+
+
+async def start_staff_training_session(db: AsyncSession, user: User, data: dict) -> dict:
+    checklist = staff_training_checklist()
+    session_id = str(uuid4())
+    payload = _recalculate_staff_training_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Staff training",
+        "trainer_name": data.get("trainer_name"),
+        "status": "in_progress",
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "completed_by": None,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_at": None,
+        "roles": [
+            {
+                **role,
+                "items": [
+                    {
+                        **item,
+                        "training_status": "pending",
+                        "note": None,
+                    }
+                    for item in role["items"]
+                ],
+            }
+            for role in checklist["roles"]
+        ],
+    })
+    event = await log_event(
+        db,
+        STAFF_TRAINING_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _staff_training_session_from_audit(event)
+
+
+async def list_staff_training_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == STAFF_TRAINING_SESSION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    sessions: dict[str, dict] = {}
+    for event in result.scalars().all():
+        session = _staff_training_session_from_audit(event)
+        sessions.setdefault(session["session_id"], session)
+    return list(sessions.values())[:25], len(sessions)
+
+
+async def update_staff_training_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_staff_training_session_event(db, user, session_id)
+    if not latest:
+        return None
+
+    payload = deepcopy(latest.payload or {})
+    if data.get("note") is not None:
+        payload["note"] = data["note"]
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] == "completed" and not payload.get("completed_at"):
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+            payload["completed_by"] = user.display_name
+
+    role_key = data.get("role_key")
+    item_key = data.get("item_key")
+    if role_key or item_key:
+        updated = False
+        for role in payload.get("roles", []):
+            if role.get("key") != role_key:
+                continue
+            for item in role.get("items", []):
+                if item.get("key") != item_key:
+                    continue
+                if data.get("training_status"):
+                    item["training_status"] = data["training_status"]
+                if data.get("item_note") is not None:
+                    item["note"] = data["item_note"]
+                updated = True
+                break
+            break
+        if not updated:
+            return None
+
+    payload = _recalculate_staff_training_totals(payload)
+    event = await log_event(
+        db,
+        STAFF_TRAINING_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _staff_training_session_from_audit(event)
+
+
 async def create_readiness_snapshot(db: AsyncSession, user: User) -> dict:
     readiness = await check_readiness()
     launch = await launch_readiness()
@@ -632,6 +768,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     attestations, _ = await list_go_live_attestations(db, user)
     dry_run_sessions, _ = await list_role_dry_run_sessions(db, user)
     browser_qa_sessions, _ = await list_browser_qa_sessions(db, user)
+    staff_training_sessions, _ = await list_staff_training_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
@@ -639,6 +776,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
     latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
     latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
+    latest_training = staff_training_sessions[0] if staff_training_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -698,6 +836,20 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Complete a browser QA session for major staff workflows.",
             "/operations",
             latest_browser_qa["updated_at"] if latest_browser_qa else None,
+        ),
+        _packet_evidence(
+            "staff_training_session",
+            "Staff training session",
+            "ready"
+            if latest_training and latest_training["status"] == "completed" and latest_training["pending_count"] == 0
+            else "warning"
+            if latest_training
+            else "missing",
+            f"{latest_training['signed_count']} signed, {latest_training['reviewed_count']} reviewed, {latest_training['pending_count']} pending item(s)."
+            if latest_training
+            else "Complete staff training sign-off for all clinic roles.",
+            "/operations",
+            latest_training["updated_at"] if latest_training else None,
         ),
         _packet_evidence(
             "credential_preflight",
@@ -1180,6 +1332,25 @@ def _browser_qa_item(key: str, label: str, detail: str, route: str, category: st
     }
 
 
+def _training_item(key: str, label: str, detail: str, route: str, category: str) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "route": route,
+        "category": category,
+    }
+
+
+def _training_role(key: str, label: str, summary: str, items: list[dict]) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "summary": summary,
+        "items": items,
+    }
+
+
 def _cors_origins_are_production_safe() -> bool:
     origins = settings.cors_origin_list
     if not origins:
@@ -1392,6 +1563,62 @@ def _browser_qa_session_from_audit(event: AuditLog) -> dict:
         "failed_count": int(payload.get("failed_count", 0)),
         "pending_count": int(payload.get("pending_count", 0)),
         "items": payload.get("items", []),
+    }
+
+
+async def _latest_staff_training_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == STAFF_TRAINING_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_staff_training_totals(payload: dict) -> dict:
+    item_count = 0
+    signed_count = 0
+    reviewed_count = 0
+    pending_count = 0
+    for role in payload.get("roles", []):
+        for item in role.get("items", []):
+            item_count += 1
+            status = item.get("training_status") or "pending"
+            if status == "signed":
+                signed_count += 1
+            elif status == "reviewed":
+                reviewed_count += 1
+            else:
+                pending_count += 1
+    payload["item_count"] = item_count
+    payload["signed_count"] = signed_count
+    payload["reviewed_count"] = reviewed_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _staff_training_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_staff_training_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Staff training",
+        "trainer_name": payload.get("trainer_name"),
+        "status": payload.get("status", "in_progress"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "item_count": int(payload.get("item_count", 0)),
+        "signed_count": int(payload.get("signed_count", 0)),
+        "reviewed_count": int(payload.get("reviewed_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "roles": payload.get("roles", []),
     }
 
 

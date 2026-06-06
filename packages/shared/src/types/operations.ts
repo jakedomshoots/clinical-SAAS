@@ -160,6 +160,76 @@ export interface BrowserQaSessionList {
   total: number;
 }
 
+export interface StaffTrainingChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  category: string;
+}
+
+export interface StaffTrainingChecklistRole {
+  key: string;
+  label: string;
+  summary: string;
+  items: StaffTrainingChecklistItem[];
+}
+
+export interface StaffTrainingChecklist {
+  generated_at: string;
+  roles: StaffTrainingChecklistRole[];
+  total_roles: number;
+  total_items: number;
+}
+
+export interface StaffTrainingSessionStart {
+  session_name?: string | null;
+  trainer_name?: string | null;
+  note?: string | null;
+}
+
+export interface StaffTrainingSessionUpdate {
+  role_key?: string | null;
+  item_key?: string | null;
+  training_status?: 'pending' | 'reviewed' | 'signed' | null;
+  item_note?: string | null;
+  session_status?: 'in_progress' | 'completed' | null;
+  note?: string | null;
+}
+
+export interface StaffTrainingSessionItem extends StaffTrainingChecklistItem {
+  training_status: 'pending' | 'reviewed' | 'signed';
+  note: string | null;
+}
+
+export interface StaffTrainingSessionRole extends Omit<StaffTrainingChecklistRole, 'items'> {
+  items: StaffTrainingSessionItem[];
+}
+
+export interface StaffTrainingSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  trainer_name: string | null;
+  status: 'in_progress' | 'completed';
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  item_count: number;
+  signed_count: number;
+  reviewed_count: number;
+  pending_count: number;
+  roles: StaffTrainingSessionRole[];
+}
+
+export interface StaffTrainingSessionList {
+  data: StaffTrainingSession[];
+  total: number;
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;
