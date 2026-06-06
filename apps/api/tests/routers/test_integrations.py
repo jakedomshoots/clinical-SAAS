@@ -237,6 +237,38 @@ async def test_sandbox_evidence_updates_credential_preflight(
 
 
 @pytest.mark.asyncio
+async def test_passed_sandbox_evidence_requires_note_or_reference(
+    client: AsyncClient,
+    auth_headers,
+):
+    passed_without_evidence = await client.post(
+        "/api/integrations/config/fax/sandbox-evidence",
+        json={
+            "test_label": "Send a sandbox outbound fax",
+            "status": "passed",
+            "notes": "",
+            "reference_url": "",
+        },
+        headers=auth_headers,
+    )
+    failed_without_evidence = await client.post(
+        "/api/integrations/config/fax/sandbox-evidence",
+        json={
+            "test_label": "Send a sandbox outbound fax",
+            "status": "failed",
+            "notes": "",
+            "reference_url": "",
+        },
+        headers=auth_headers,
+    )
+
+    assert passed_without_evidence.status_code == 400
+    assert "notes or reference" in passed_without_evidence.json()["detail"]
+    assert failed_without_evidence.status_code == 201
+    assert failed_without_evidence.json()["status"] == "failed"
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,

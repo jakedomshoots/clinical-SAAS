@@ -2516,7 +2516,7 @@ function demoCredentialPreflight() {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
           status: sandboxComplete ? 'ready' : 'pending',
-          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence.`,
+          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
         },
       ],
       docs: config.docs,
@@ -2985,6 +2985,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const config = demoIntegrationConfigs().find((item) => item.key === integration);
     const incoming = body as { test_label: string; status?: 'passed' | 'failed'; notes?: string; reference_url?: string | null };
     if (!config || !(config.sandbox_tests as readonly string[]).includes(incoming.test_label)) throw new Error('Integration sandbox test not found');
+    if ((incoming.status ?? 'passed') === 'passed' && !incoming.notes?.trim() && !incoming.reference_url?.trim()) {
+      throw new Error('Passed sandbox evidence requires notes or reference URL');
+    }
     const evidence: SandboxEvidence = {
       id: uuid(3900 + Object.values(integrationSandboxEvidence).reduce((total, items) => total + Object.keys(items).length, 0)),
       integration,

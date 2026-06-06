@@ -336,6 +336,10 @@ async def record_sandbox_evidence(
     status = str(data.get("status", "passed")).strip().lower()
     if status not in {"passed", "failed"}:
         status = "passed"
+    notes = str(data.get("notes", "")).strip()
+    reference_url = str(data.get("reference_url", "")).strip()
+    if status == "passed" and not notes and not reference_url:
+        raise ValueError("Passed sandbox evidence requires notes or reference URL")
     event = await log_event(
         db,
         SANDBOX_EVIDENCE_EVENT,
@@ -347,8 +351,8 @@ async def record_sandbox_evidence(
             "test_key": _sandbox_test_key(test_label),
             "test_label": test_label,
             "status": status,
-            "notes": str(data.get("notes", "")).strip(),
-            "reference_url": str(data.get("reference_url", "")).strip() or None,
+            "notes": notes,
+            "reference_url": reference_url or None,
             "recorded_by": user.display_name,
         },
     )
@@ -432,7 +436,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             "detail": (
                 "All sandbox workflow checks have recorded passing evidence."
                 if sandbox_complete
-                else f"{passed_evidence_count} of {len(sandbox_evidence)} sandbox checks have passing evidence."
+                else f"{passed_evidence_count} of {len(sandbox_evidence)} sandbox checks have passing evidence with notes or reference."
             ),
         },
     ]

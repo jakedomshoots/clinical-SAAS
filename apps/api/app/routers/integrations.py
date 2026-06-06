@@ -95,12 +95,18 @@ async def create_sandbox_evidence(
     db: DbDep,
     current_user: OpsUserDep,
 ):
-    result = await integration_config_service.record_sandbox_evidence(
-        db,
-        current_user,
-        integration,
-        data.model_dump(),
-    )
+    try:
+        result = await integration_config_service.record_sandbox_evidence(
+            db,
+            current_user,
+            integration,
+            data.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
