@@ -81,6 +81,7 @@ export interface PatientDocumentDownloadHandoff {
   storage_status: string;
   source_uri_preview: string;
   presigned_url: string | null;
+  expires_at: string | null;
   message: string;
 }
 

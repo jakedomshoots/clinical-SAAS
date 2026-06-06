@@ -187,7 +187,7 @@ function PatientChartPage() {
           if (handoff.presigned_url) {
             window.open(handoff.presigned_url, '_blank', 'noopener,noreferrer');
           }
-          setDocumentAccessMessage(`${handoff.file_name}: ${handoff.message} Source ${handoff.source_uri_preview}. Access expires at ${access.expires_at ?? 'the configured expiry time'}.`);
+          setDocumentAccessMessage(`${handoff.file_name}: ${handoff.message} Source ${handoff.source_uri_preview}. Access expires at ${handoff.expires_at ?? access.expires_at ?? 'the configured expiry time'}.`);
           return;
         }
         window.open(access.url, '_blank', 'noopener,noreferrer');

@@ -177,7 +177,8 @@ async def prepare_document_upload(
     object_key = f"patients/{patient_id}/documents/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{safe_filename}"
     file_url = f"s3://{settings.minio_bucket}/{object_key}"
     upload_url = _presigned_put_url(file_url) or file_url
-    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    expires_ts = int((datetime.now(UTC) + timedelta(minutes=15)).timestamp())
+    expires_at = datetime.fromtimestamp(expires_ts, tz=UTC).replace(tzinfo=None)
     upload_token = _make_upload_token(patient_id, file_url, data["content_type"], expires_at)
     await log_event(
         db,
@@ -451,7 +452,8 @@ async def get_document_access(
             "file_name": None,
             "source_uri_preview": None,
         }
-    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
+    expires_ts = int((datetime.now(UTC) + timedelta(minutes=15)).timestamp())
+    expires_at = datetime.fromtimestamp(expires_ts, tz=UTC).replace(tzinfo=None)
     content_type = _infer_content_type(document.file_url)
     viewer_mode = (
         "inline"
@@ -462,7 +464,7 @@ async def get_document_access(
         patient_id,
         document.id,
         document.file_url,
-        int(expires_at.replace(tzinfo=UTC).timestamp()),
+        expires_ts,
     )
     access_url = (
         f"/api/patients/{patient_id}/documents/{document.id}/download"
@@ -555,6 +557,7 @@ async def get_document_download_handoff(
         "storage_status": "signed_handoff",
         "source_uri_preview": _storage_uri_preview(document.file_url),
         "presigned_url": presigned_url,
+        "expires_at": expires_at.isoformat() if expires_at else None,
         "message": (
             "Signed object-storage access is ready."
             if presigned_url

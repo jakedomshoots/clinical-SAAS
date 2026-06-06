@@ -424,6 +424,7 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert handoff.json()["file_name"] == "file-backed.pdf"
     assert handoff.json()["storage_status"] == "signed_handoff"
     assert handoff.json()["presigned_url"] is None
+    assert handoff.json()["expires_at"] == file_access.json()["expires_at"]
     assert invalid_handoff.status_code == 404
 
     readiness = await client.get("/api/operations/document-storage-readiness", headers=auth_headers)

@@ -3958,6 +3958,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       storage_status: 'signed_handoff',
       source_uri_preview: demoSourcePreview(document.file_url),
       presigned_url: null,
+      expires_at: expiresAt,
       message: 'Signed document access is prepared. Configure object-storage signing to stream or redirect the file.',
     } as T;
   }
