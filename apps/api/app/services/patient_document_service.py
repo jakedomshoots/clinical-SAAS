@@ -7,8 +7,10 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from urllib3.exceptions import HTTPError
 
 from app.config import settings
+from app.minio_client import minio
 from app.models.patient import Patient
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
@@ -119,6 +121,7 @@ async def prepare_document_upload(
     safe_filename = data["filename"].replace("/", "_").replace("\\", "_")
     object_key = f"patients/{patient_id}/documents/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{safe_filename}"
     file_url = f"s3://{settings.minio_bucket}/{object_key}"
+    upload_url = _presigned_put_url(file_url) or file_url
     expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=15)
     upload_token = _make_upload_token(patient_id, file_url, data["content_type"], expires_at)
     await log_event(
@@ -134,7 +137,7 @@ async def prepare_document_upload(
         },
     )
     return {
-        "upload_url": file_url,
+        "upload_url": upload_url,
         "file_url": file_url,
         "upload_token": upload_token,
         "method": "PUT",
@@ -453,6 +456,7 @@ async def get_document_download_handoff(
     if not _verify_document_access_token(token, patient_id, document_id, document.file_url):
         return None
     content_type = _infer_content_type(document.file_url)
+    presigned_url = _presigned_get_url(document.file_url)
     return {
         "document_id": document.id,
         "title": document.title,
@@ -465,7 +469,12 @@ async def get_document_download_handoff(
         ),
         "storage_status": "signed_handoff",
         "source_uri_preview": _storage_uri_preview(document.file_url),
-        "message": "Signed document access is prepared. Configure object-storage signing to stream or redirect the file.",
+        "presigned_url": presigned_url,
+        "message": (
+            "Signed object-storage access is ready."
+            if presigned_url
+            else "Signed document access is prepared. Configure object-storage signing to stream or redirect the file."
+        ),
     }
 
 
@@ -495,6 +504,45 @@ def _storage_uri_preview(file_url: str) -> str:
     if len(file_url) <= 80:
         return file_url
     return f"{file_url[:42]}...{file_url[-24:]}"
+
+
+def _parse_s3_url(file_url: str) -> tuple[str, str] | None:
+    if not file_url.startswith("s3://"):
+        return None
+    bucket_and_key = file_url.removeprefix("s3://").split("/", 1)
+    if len(bucket_and_key) != 2 or not bucket_and_key[0] or not bucket_and_key[1]:
+        return None
+    return bucket_and_key[0], bucket_and_key[1]
+
+
+def _presigned_get_url(file_url: str) -> str | None:
+    parsed = _parse_s3_url(file_url)
+    if not parsed:
+        return None
+    bucket, object_key = parsed
+    try:
+        return minio.presigned_get_object(
+            bucket,
+            object_key,
+            expires=timedelta(minutes=15),
+        )
+    except HTTPError:
+        return None
+
+
+def _presigned_put_url(file_url: str) -> str | None:
+    parsed = _parse_s3_url(file_url)
+    if not parsed:
+        return None
+    bucket, object_key = parsed
+    try:
+        return minio.presigned_put_object(
+            bucket,
+            object_key,
+            expires=timedelta(minutes=15),
+        )
+    except HTTPError:
+        return None
 
 
 def _document_access_token_message(

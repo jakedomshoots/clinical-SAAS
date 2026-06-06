@@ -5,7 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, BillingTimelineResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
+import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, BillingTimelineResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentDownloadHandoff, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
   Pencil,
@@ -174,7 +174,10 @@ function PatientChartPage() {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.AUDIT, 'patient-access-history', patientId] });
       if (access.available && access.url) {
         if (access.url.startsWith('/api/')) {
-          const handoff = await api.get<{ message: string; source_uri_preview: string; file_name: string }>(access.url);
+          const handoff = await api.get<PatientDocumentDownloadHandoff>(access.url);
+          if (handoff.presigned_url) {
+            window.open(handoff.presigned_url, '_blank', 'noopener,noreferrer');
+          }
           setDocumentAccessMessage(`${handoff.file_name}: ${handoff.message} Source ${handoff.source_uri_preview}. Access expires at ${access.expires_at ?? 'the configured expiry time'}.`);
           return;
         }

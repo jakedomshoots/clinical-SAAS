@@ -48,6 +48,18 @@ export interface PatientDocumentAccess {
   source_uri_preview: string | null;
 }
 
+export interface PatientDocumentDownloadHandoff {
+  document_id: UUID;
+  title: string;
+  file_name: string;
+  content_type: string;
+  viewer_mode: 'inline' | 'download';
+  storage_status: string;
+  source_uri_preview: string;
+  presigned_url: string | null;
+  message: string;
+}
+
 export interface PatientDocumentProcessResult {
   document: PatientDocument;
   created_task_id: UUID | null;

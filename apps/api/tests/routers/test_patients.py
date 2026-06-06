@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import UserRole
+from app.services import patient_document_service
 from tests.conftest import headers_for, make_user
 
 
@@ -317,6 +318,7 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert handoff.status_code == 200
     assert handoff.json()["file_name"] == "file-backed.pdf"
     assert handoff.json()["storage_status"] == "signed_handoff"
+    assert handoff.json()["presigned_url"] is None
     assert invalid_handoff.status_code == 404
 
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
@@ -343,9 +345,57 @@ async def test_patient_document_upload_prepare_returns_signed_target(client: Asy
     assert res.status_code == 200
     data = res.json()
     assert data["method"] == "PUT"
+    assert data["upload_url"] == data["file_url"]
     assert data["file_url"].endswith("outside-lab.pdf")
     assert data["upload_token"]
     assert data["headers"]["Content-Type"] == "application/pdf"
+
+
+@pytest.mark.asyncio
+async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_available(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        patient_document_service,
+        "_presigned_put_url",
+        lambda file_url: f"https://storage.example.test/upload?target={file_url}",
+    )
+    monkeypatch.setattr(
+        patient_document_service,
+        "_presigned_get_url",
+        lambda file_url: f"https://storage.example.test/download?target={file_url}&X-Amz-Signature=test",
+    )
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Signed", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    prepared = await client.post(
+        f"/api/patients/{patient_id}/documents/upload",
+        json={"filename": "signed-note.pdf", "content_type": "application/pdf"},
+        headers=auth_headers,
+    )
+    assert prepared.status_code == 200
+    assert prepared.json()["upload_url"].startswith("https://storage.example.test/upload?")
+
+    file_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Signed file backed",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+        "file_url": "s3://concierge-os/documents/signed-file-backed.pdf",
+    }, headers=auth_headers)
+    file_access = await client.get(
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access?reason=Chart%20review",
+        headers=auth_headers,
+    )
+    handoff = await client.get(file_access.json()["url"])
+
+    assert handoff.status_code == 200
+    assert handoff.json()["presigned_url"].startswith("https://storage.example.test/download?")
+    assert "X-Amz-Signature=test" in handoff.json()["presigned_url"]
+    assert handoff.json()["message"] == "Signed object-storage access is ready."
 
 
 @pytest.mark.asyncio

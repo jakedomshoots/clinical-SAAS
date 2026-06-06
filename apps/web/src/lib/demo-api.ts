@@ -1739,6 +1739,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       viewer_mode: document.file_url.toLowerCase().endsWith('.pdf') ? 'inline' : 'download',
       storage_status: 'signed_handoff',
       source_uri_preview: demoSourcePreview(document.file_url),
+      presigned_url: null,
       message: 'Signed document access is prepared. Configure object-storage signing to stream or redirect the file.',
     } as T;
   }

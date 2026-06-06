@@ -58,7 +58,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Live SMS/email delivery through a production communications vendor.
 - Calendar/provider schedule sync.
 - CopilotKit runtime with production tool authorization.
-- Production object-storage download URLs for document viewing.
+- Production object-storage credentials, bucket policy, and network access for document viewing.
 
 ## Required Before Real Patients
 
@@ -88,7 +88,7 @@ An internal clinic pilot is ready when:
 ## Recommended Next Build Items For Production
 
 - Vendor-backed EHR, fax, portal, calendar, communications, clearinghouse, and object-storage adapters.
-- Signed production download URLs for document viewing.
+- Production validation of signed document upload and download URLs.
 - Production MFA and identity-provider integration.
 - Real remittance/ERA import and claim reconciliation.
 - Compliance owner approval of PHI retention, incident response, backups, and access review.
