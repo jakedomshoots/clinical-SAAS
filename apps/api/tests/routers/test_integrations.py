@@ -348,6 +348,53 @@ async def test_vendor_handoff_packet_combines_preflight_sections(
 
 
 @pytest.mark.asyncio
+async def test_vendor_handoff_packet_archive_is_audit_backed(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    await client.patch(
+        "/api/integrations/config/fax",
+        json={
+            "values": {
+                "FAX_PROVIDER_API_KEY": "fax-secret-1234",
+                "VENDOR_NAME": "MetroFax Health",
+                "VENDOR_ENVIRONMENT": "sandbox",
+                "OWNER_NAME": "Avery Ops",
+                "OWNER_EMAIL": "avery@example.test",
+                "SUPPORT_CONTACT": "support@metrofax.example",
+            }
+        },
+        headers=auth_headers,
+    )
+
+    archived = await client.post(
+        "/api/integrations/config/fax/handoff-packet/archive",
+        json={
+            "archive_note": "Archived for July launch review.",
+            "archive_reference_url": "s3://launch-evidence/fax-vendor-handoff-packet.json",
+        },
+        headers=auth_headers,
+    )
+    packet = await client.get("/api/integrations/config/fax/handoff-packet", headers=auth_headers)
+
+    assert archived.status_code == 201
+    assert archived.json()["integration"] == "fax"
+    assert archived.json()["archive_reference_url"] == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+    assert archived.json()["packet_status"] == packet.json()["status"]
+    assert packet.json()["latest_archive"]["archive_note"] == "Archived for July launch review."
+    assert packet.json()["latest_archive"]["archive_reference_url"] == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+
+    events = await client.get(
+        "/api/audit?event_type=integration.handoff_packet_archived",
+        headers=auth_headers,
+    )
+    assert events.status_code == 200
+    assert events.json()["total"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_connection_test_records_integration_event(
     client: AsyncClient,
     auth_headers,

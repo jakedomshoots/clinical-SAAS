@@ -6,6 +6,7 @@ import {
   ROUTES,
   type CredentialPreflight,
   type CredentialPreflightItem,
+  type HandoffPacketArchive,
   type IntegrationConfig,
   type IntegrationConfigListResponse,
   type IntegrationConnectionTestResult,
@@ -98,6 +99,19 @@ function IntegrationsPage() {
       api.get<VendorHandoffPacket>(ROUTES.INTEGRATION_HANDOFF_PACKET(integration)),
     onSuccess: (packet) => {
       downloadJson(packet.export_filename, packet);
+    },
+  });
+  const archivePacketMutation = useMutation({
+    mutationFn: async (integration: string) => {
+      const packet = await api.get<VendorHandoffPacket>(ROUTES.INTEGRATION_HANDOFF_PACKET(integration));
+      return api.post<HandoffPacketArchive>(ROUTES.INTEGRATION_HANDOFF_PACKET_ARCHIVE(integration), {
+        archive_note: 'Archived from Integration Setup for launch review.',
+        archive_reference_url: `local://${packet.export_filename}`,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
   const configs = data?.data ?? [];
@@ -203,6 +217,15 @@ function IntegrationsPage() {
                     >
                       <ClipboardCheck className="h-3.5 w-3.5" />
                       Export packet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => archivePacketMutation.mutate(config.key)}
+                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      disabled={archivePacketMutation.isPending}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      Archive
                     </button>
                     <button
                       type="button"

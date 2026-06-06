@@ -9,6 +9,8 @@ from app.models.user import User, UserRole
 from app.schemas.integration_config import (
     CredentialPreflightItemOut,
     CredentialPreflightOut,
+    HandoffPacketArchiveCreate,
+    HandoffPacketArchiveOut,
     IntegrationConfigListOut,
     IntegrationConfigOut,
     IntegrationConfigUpdate,
@@ -64,6 +66,31 @@ async def get_vendor_handoff_packet(
             detail="Integration handoff packet not found",
         )
     return VendorHandoffPacketOut(**result)
+
+
+@router.post(
+    "/config/{integration}/handoff-packet/archive",
+    response_model=HandoffPacketArchiveOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def archive_vendor_handoff_packet(
+    integration: str,
+    data: HandoffPacketArchiveCreate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    result = await integration_config_service.archive_vendor_handoff_packet(
+        db,
+        current_user,
+        integration,
+        data.model_dump(),
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration handoff packet not found",
+        )
+    return HandoffPacketArchiveOut(**result)
 
 
 @router.patch("/config/{integration}", response_model=IntegrationConfigOut)

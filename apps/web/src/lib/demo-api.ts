@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -2052,6 +2052,7 @@ interface DemoStore {
   integrationDrafts?: Record<string, Record<string, string>>;
   integrationLastTests?: Record<string, { last_tested_at: string; last_test_status: string }>;
   integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
+  integrationHandoffArchives?: Record<string, HandoffPacketArchive>;
   rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
   goLiveAttestations?: GoLiveAttestation[];
   roleDryRunSessions?: RoleDryRunSession[];
@@ -2109,6 +2110,7 @@ const preparedUploadTokens = new Map<string, { patientId: string; fileUrl: strin
 let integrationDrafts: Record<string, Record<string, string>> = {};
 let integrationLastTests: Record<string, { last_tested_at: string; last_test_status: string }> = {};
 let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
+let integrationHandoffArchives: Record<string, HandoffPacketArchive> = {};
 let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
 let goLiveAttestations: GoLiveAttestation[] = [];
 let roleDryRunSessions: RoleDryRunSession[] = [];
@@ -2477,7 +2479,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, restoreDrillSessions, cutoverRunbookSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, integrationHandoffArchives, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, restoreDrillSessions, cutoverRunbookSessions }),
   );
 }
 
@@ -2852,6 +2854,7 @@ if (storedDemoData) {
   integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
+  integrationHandoffArchives = storedDemoData.integrationHandoffArchives ?? integrationHandoffArchives;
   rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
   goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
   roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
@@ -3259,7 +3262,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       generated_at: new Date().toISOString(),
       export_filename: `${config.key}-vendor-handoff-packet.json`,
       status: preflight.status,
-      readiness_mode: preflight.readiness_mode,
+      readiness_mode: preflight.readiness_mode === 'local_sandbox' ? 'local_sandbox' : 'production_vendor',
       production_ready: preflight.production_ready,
       sandbox_ready: preflight.sandbox_ready,
       mode: config.mode,
@@ -3276,8 +3279,43 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       preflight_steps: preflight.steps,
       blockers: preflight.blockers,
       docs: preflight.docs,
+      latest_archive: integrationHandoffArchives[integration] ?? null,
       sections: ['Vendor profile', 'Cutover evidence', 'Vendor risks', 'Adapter contract', 'Sandbox evidence', 'Preflight blockers'],
     } as T;
+  }
+  const handoffArchiveMatch = path.match(/^\/integrations\/config\/([^/]+)\/handoff-packet\/archive$/);
+  if (handoffArchiveMatch && method === 'POST') {
+    const integration = handoffArchiveMatch[1];
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    const preflight = demoCredentialPreflight().data.find((item) => item.key === integration);
+    if (!config || !preflight) throw new Error('Integration handoff packet not found');
+    const incoming = body as { archive_note?: string; archive_reference_url?: string | null };
+    const archive: HandoffPacketArchive = {
+      id: uuid(4550 + Object.keys(integrationHandoffArchives).length),
+      integration,
+      label: config.label,
+      export_filename: `${config.key}-vendor-handoff-packet.json`,
+      packet_status: preflight.status,
+      readiness_mode: preflight.readiness_mode === 'local_sandbox' ? 'local_sandbox' : 'production_vendor',
+      production_ready: preflight.production_ready,
+      sandbox_ready: preflight.sandbox_ready,
+      archive_note: incoming.archive_note ?? '',
+      archive_reference_url: incoming.archive_reference_url ?? null,
+      archived_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+      archived_at: new Date().toISOString(),
+    };
+    integrationHandoffArchives = { ...integrationHandoffArchives, [integration]: archive };
+    auditEvents.unshift({
+      id: archive.id,
+      actor_id: demoUsers[0]?.id ?? null,
+      event_type: 'integration.handoff_packet_archived',
+      entity_type: 'integration_config',
+      entity_id: integration,
+      payload: { ...archive },
+      created_at: archive.archived_at ?? new Date().toISOString(),
+    });
+    saveDemoData();
+    return archive as T;
   }
   const sandboxEvidenceMatch = path.match(/^\/integrations\/config\/([^/]+)\/sandbox-evidence$/);
   if (sandboxEvidenceMatch && method === 'POST') {

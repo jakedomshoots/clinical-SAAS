@@ -81,6 +81,7 @@ Sandbox harnesses report `readiness_mode: local_sandbox` and can make an item `s
 - Every integration should have cutover rehearsal evidence captured with planned cutover date, last vendor test date, rollback owner, go/no-go notes, and explicit live-use rehearsal approval.
 - Every integration should track vendor risks with severity, mitigation owner, mitigation status, and whether the risk blocks live-use rehearsal.
 - Export the vendor handoff packet from Integration Setup before launch review so vendor profile, risks, cutover evidence, sandbox evidence, adapter contract, and blockers are archived together.
+- Archive the exported handoff packet from Integration Setup so the latest packet reference appears in the vendor lane and audit evidence.
 - Credential preflight blocks integrations whose Python client is still a placeholder adapter, even when credentials and sandbox notes are present.
 - Credential preflight shows the adapter method checklist and ready/blocked counts for each vendor lane.
 - Inbound callbacks must send `X-Concierge-Webhook-Secret`, `X-Concierge-Webhook-Timestamp`, `X-Concierge-Webhook-Signature`, and a stable vendor `event_id`; sign `timestamp.raw_body` with `WEBHOOK_SHARED_SECRET` as `sha256=<hmac>`. Stale timestamps outside the replay window, invalid signatures, and callbacks without `event_id` are rejected.

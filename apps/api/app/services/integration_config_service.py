@@ -15,6 +15,7 @@ from app.services.integration_event_service import record_event
 _draft_values: dict[str, dict[str, str]] = {}
 _last_tests: dict[str, dict[str, str]] = {}
 SANDBOX_EVIDENCE_EVENT = "integration.sandbox_evidence"
+HANDOFF_PACKET_ARCHIVE_EVENT = "integration.handoff_packet_archived"
 VENDOR_PROFILE_FIELDS = {
     "VENDOR_NAME": "vendor_name",
     "VENDOR_ENVIRONMENT": "environment",
@@ -431,6 +432,7 @@ async def vendor_handoff_packet(db: AsyncSession, user: User, integration: str) 
         return None
     evidence = await _sandbox_evidence_by_integration(db, user)
     preflight = _preflight_item(config, evidence.get(config["key"], {}))
+    latest_archive = await _latest_handoff_packet_archive(db, user, config["key"])
     return {
         "integration": config["key"],
         "label": config["label"],
@@ -454,6 +456,7 @@ async def vendor_handoff_packet(db: AsyncSession, user: User, integration: str) 
         "preflight_steps": preflight["steps"],
         "blockers": preflight["blockers"],
         "docs": preflight["docs"],
+        "latest_archive": latest_archive,
         "sections": [
             "Vendor profile",
             "Cutover evidence",
@@ -463,6 +466,39 @@ async def vendor_handoff_packet(db: AsyncSession, user: User, integration: str) 
             "Preflight blockers",
         ],
     }
+
+
+async def archive_vendor_handoff_packet(
+    db: AsyncSession,
+    user: User,
+    integration: str,
+    data: dict,
+) -> dict | None:
+    packet = await vendor_handoff_packet(db, user, integration)
+    if not packet:
+        return None
+    archive_note = str(data.get("archive_note", "")).strip()
+    archive_reference_url = str(data.get("archive_reference_url", "")).strip()
+    event = await log_event(
+        db,
+        HANDOFF_PACKET_ARCHIVE_EVENT,
+        "integration_config",
+        integration,
+        actor_id=user.id,
+        payload={
+            "integration": integration,
+            "label": packet["label"],
+            "export_filename": packet["export_filename"],
+            "packet_status": packet["status"],
+            "readiness_mode": packet["readiness_mode"],
+            "production_ready": packet["production_ready"],
+            "sandbox_ready": packet["sandbox_ready"],
+            "archive_note": archive_note,
+            "archive_reference_url": archive_reference_url or None,
+            "archived_by": user.display_name,
+        },
+    )
+    return _handoff_archive_from_audit(event)
 
 
 async def record_sandbox_evidence(
@@ -796,6 +832,37 @@ async def _sandbox_evidence_by_integration(db: AsyncSession, user: User) -> dict
         test_key = item["test_key"]
         evidence.setdefault(integration, {}).setdefault(test_key, item)
     return evidence
+
+
+async def _latest_handoff_packet_archive(db: AsyncSession, user: User, integration: str) -> dict | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == HANDOFF_PACKET_ARCHIVE_EVENT,
+            AuditLog.entity_type == "integration_config",
+            AuditLog.entity_id == integration,
+        ).order_by(AuditLog.created_at.desc())
+    )
+    event = result.scalars().first()
+    return _handoff_archive_from_audit(event) if event else None
+
+
+def _handoff_archive_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "integration": payload.get("integration") or event.entity_id,
+        "label": payload.get("label", ""),
+        "export_filename": payload.get("export_filename", ""),
+        "packet_status": payload.get("packet_status", ""),
+        "readiness_mode": payload.get("readiness_mode", "production_vendor"),
+        "production_ready": bool(payload.get("production_ready")),
+        "sandbox_ready": bool(payload.get("sandbox_ready")),
+        "archive_note": payload.get("archive_note", ""),
+        "archive_reference_url": payload.get("archive_reference_url"),
+        "archived_by": payload.get("archived_by"),
+        "archived_at": event.created_at,
+    }
 
 
 def _evidence_from_audit(event: AuditLog) -> dict:

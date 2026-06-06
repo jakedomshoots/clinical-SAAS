@@ -88,6 +88,7 @@ export const ROUTES = {
   INTEGRATION_CONFIG: '/api/integrations/config',
   INTEGRATION_CONFIG_ITEM: (integration: string) => `/api/integrations/config/${integration}`,
   INTEGRATION_HANDOFF_PACKET: (integration: string) => `/api/integrations/config/${integration}/handoff-packet`,
+  INTEGRATION_HANDOFF_PACKET_ARCHIVE: (integration: string) => `/api/integrations/config/${integration}/handoff-packet/archive`,
   INTEGRATION_CONFIG_TEST: (integration: string) => `/api/integrations/config/${integration}/test`,
   INTEGRATION_SANDBOX_EVIDENCE: (integration: string) => `/api/integrations/config/${integration}/sandbox-evidence`,
   INTEGRATION_SANDBOX_WORKFLOW_RUN: (integration: string) => `/api/integrations/config/${integration}/sandbox-workflows/run`,

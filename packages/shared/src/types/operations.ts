@@ -1010,7 +1010,28 @@ export interface VendorHandoffPacket {
   preflight_steps: CredentialPreflightStep[];
   blockers: string[];
   docs: string[];
+  latest_archive: HandoffPacketArchive | null;
   sections: string[];
+}
+
+export interface HandoffPacketArchive {
+  id: string;
+  integration: string;
+  label: string;
+  export_filename: string;
+  packet_status: string;
+  readiness_mode: IntegrationConfig['readiness_mode'];
+  production_ready: boolean;
+  sandbox_ready: boolean;
+  archive_note: string;
+  archive_reference_url: string | null;
+  archived_by: string | null;
+  archived_at: string | null;
+}
+
+export interface HandoffPacketArchiveCreate {
+  archive_note?: string;
+  archive_reference_url?: string | null;
 }
 
 export interface SessionPolicy {

@@ -58,6 +58,21 @@ class VendorRiskRegisterOut(BaseModel):
     blocking_count: int = 0
 
 
+class HandoffPacketArchiveOut(BaseModel):
+    id: str
+    integration: str
+    label: str = ""
+    export_filename: str = ""
+    packet_status: str = ""
+    readiness_mode: str = "production_vendor"
+    production_ready: bool = False
+    sandbox_ready: bool = False
+    archive_note: str = ""
+    archive_reference_url: str | None = None
+    archived_by: str | None = None
+    archived_at: datetime | None = None
+
+
 class IntegrationConfigOut(BaseModel):
     key: str
     label: str
@@ -184,7 +199,13 @@ class VendorHandoffPacketOut(BaseModel):
     preflight_steps: list[CredentialPreflightStepOut]
     blockers: list[str]
     docs: list[str]
+    latest_archive: HandoffPacketArchiveOut | None = None
     sections: list[str]
+
+
+class HandoffPacketArchiveCreate(BaseModel):
+    archive_note: str = ""
+    archive_reference_url: str | None = None
 
 
 class SandboxEvidenceCreate(BaseModel):
