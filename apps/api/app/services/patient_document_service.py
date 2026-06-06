@@ -5,6 +5,7 @@ import hmac
 import json
 from datetime import UTC, datetime, timedelta
 
+from minio.error import S3Error
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from urllib3.exceptions import HTTPError
@@ -29,6 +30,55 @@ async def _patient_exists(db: AsyncSession, user: User, patient_id: str) -> bool
         )
     ).scalar_one_or_none()
     return patient is not None
+
+
+def _patient_document_prefix(patient_id: str) -> str:
+    return f"patients/{patient_id}/documents/"
+
+
+def _validated_patient_storage_location(file_url: str, patient_id: str) -> tuple[str, str]:
+    parsed = _parse_s3_url(file_url)
+    if not parsed:
+        raise ValueError("Document file URL must reference object storage")
+    bucket, object_key = parsed
+    if bucket != settings.minio_bucket or not object_key.startswith(_patient_document_prefix(patient_id)):
+        raise ValueError("Document file URL must reference the prepared patient document upload path")
+    path_parts = object_key.split("/")
+    if any(part in {"", ".", ".."} for part in path_parts):
+        raise ValueError("Document file URL contains an invalid storage path")
+    return bucket, object_key
+
+
+def _document_upload_verification_required() -> bool:
+    return settings.is_production or settings.document_upload_verification_required
+
+
+def _verify_uploaded_object(
+    file_url: str,
+    patient_id: str,
+    content_type: str,
+    checksum: str | None,
+) -> None:
+    bucket, object_key = _validated_patient_storage_location(file_url, patient_id)
+    if not _document_upload_verification_required():
+        return
+    try:
+        stat = minio.stat_object(bucket, object_key)
+    except (HTTPError, S3Error) as exc:
+        raise ValueError("Uploaded object was not found in object storage") from exc
+
+    recorded_content_type = getattr(stat, "content_type", None)
+    if recorded_content_type and recorded_content_type != content_type:
+        raise ValueError("Uploaded object content type does not match the prepared upload")
+
+    metadata = getattr(stat, "metadata", {}) or {}
+    recorded_checksum = (
+        metadata.get("checksum")
+        or metadata.get("x-amz-meta-checksum")
+        or metadata.get("X-Amz-Meta-Checksum")
+    )
+    if checksum and recorded_checksum and not hmac.compare_digest(str(recorded_checksum), checksum):
+        raise ValueError("Uploaded object checksum does not match the confirmation payload")
 
 
 async def list_patient_documents(
@@ -117,6 +167,10 @@ async def create_patient_document(
     if not await _patient_exists(db, user, patient_id):
         return None
 
+    file_url = data.get("file_url")
+    if file_url:
+        _validated_patient_storage_location(file_url, patient_id)
+
     document = PatientDocument(
         organization_id=user.organization_id,
         patient_id=patient_id,
@@ -136,7 +190,7 @@ async def create_patient_document(
         reviewed_by=data.get("reviewed_by"),
         reviewed_at=data.get("reviewed_at"),
         pages=data.get("pages", 1),
-        file_url=data.get("file_url"),
+        file_url=file_url,
         upload_status=data.get("upload_status") or ("uploaded" if data.get("file_url") else "metadata_only"),
         ocr_status=data.get("ocr_status") or "not_started",
         classification=data.get("classification"),
@@ -153,6 +207,7 @@ async def create_patient_document(
         "patient_document",
         document.id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "title": document.title,
@@ -176,7 +231,7 @@ async def prepare_document_upload(
     safe_filename = data["filename"].replace("/", "_").replace("\\", "_")
     object_key = f"patients/{patient_id}/documents/{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}-{safe_filename}"
     file_url = f"s3://{settings.minio_bucket}/{object_key}"
-    upload_url = _presigned_put_url(file_url) or file_url
+    upload_url = _presigned_put_url(file_url, patient_id) or file_url
     expires_ts = int((datetime.now(UTC) + timedelta(minutes=15)).timestamp())
     expires_at = datetime.fromtimestamp(expires_ts, tz=UTC).replace(tzinfo=None)
     upload_token = _make_upload_token(patient_id, file_url, data["content_type"], expires_at)
@@ -186,6 +241,7 @@ async def prepare_document_upload(
         "patient",
         patient_id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "filename": safe_filename,
             "content_type": data["content_type"],
@@ -217,6 +273,7 @@ async def confirm_document_upload(
         raise ValueError("Upload confirmation does not match a prepared upload")
 
     checksum = data.get("checksum")
+    _verify_uploaded_object(data["file_url"], patient_id, data["content_type"], checksum)
     duplicate = None
     if checksum:
         duplicate = (
@@ -245,6 +302,7 @@ async def confirm_document_upload(
             "patient_document",
             duplicate.id,
             actor_id=user.id,
+            organization_id=user.organization_id,
             payload={
                 "patient_id": patient_id,
                 "file_url": data["file_url"],
@@ -274,6 +332,7 @@ async def confirm_document_upload(
         "patient_document",
         document["id"],
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "file_url": data["file_url"],
@@ -348,6 +407,7 @@ async def process_patient_document(
         "patient_document",
         document.id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "classification": document.classification,
@@ -379,6 +439,9 @@ async def update_patient_document(
     if not document:
         return None
 
+    if "file_url" in data and data["file_url"]:
+        _validated_patient_storage_location(data["file_url"], patient_id)
+
     for field, value in data.items():
         if field == "status" and value is not None:
             document.status = PatientDocumentStatus(value)
@@ -396,6 +459,7 @@ async def update_patient_document(
         "patient_document",
         document.id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "updated_fields": list(data.keys()),
@@ -431,6 +495,7 @@ async def get_document_access(
             "patient_document",
             document.id,
             actor_id=user.id,
+            organization_id=user.organization_id,
             payload={
                 "patient_id": patient_id,
                 "reason": reason,
@@ -454,6 +519,37 @@ async def get_document_access(
         }
     expires_ts = int((datetime.now(UTC) + timedelta(minutes=15)).timestamp())
     expires_at = datetime.fromtimestamp(expires_ts, tz=UTC).replace(tzinfo=None)
+    try:
+        _validated_patient_storage_location(document.file_url, patient_id)
+    except ValueError:
+        await log_event(
+            db,
+            "patient_document.accessed",
+            "patient_document",
+            document.id,
+            actor_id=user.id,
+            organization_id=user.organization_id,
+            payload={
+                "patient_id": patient_id,
+                "reason": reason,
+                "has_file": True,
+                "storage_status": "invalid_storage_reference",
+            },
+        )
+        return {
+            "document_id": document.id,
+            "available": False,
+            "url": None,
+            "expires_at": None,
+            "reason": "Document storage reference is invalid.",
+            "preview_supported": False,
+            "content_type": None,
+            "viewer_mode": "metadata",
+            "access_token": None,
+            "storage_status": "invalid_storage_reference",
+            "file_name": _file_name(document.file_url),
+            "source_uri_preview": _storage_uri_preview(document.file_url),
+        }
     content_type = _infer_content_type(document.file_url)
     viewer_mode = (
         "inline"
@@ -476,6 +572,7 @@ async def get_document_access(
         "patient_document",
         document.id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "reason": reason,
@@ -522,8 +619,12 @@ async def get_document_download_handoff(
         return None
     if not _verify_document_access_token(token, patient_id, document_id, document.file_url):
         return None
+    try:
+        _validated_patient_storage_location(document.file_url, patient_id)
+    except ValueError:
+        return None
     content_type = _infer_content_type(document.file_url)
-    presigned_url = _presigned_get_url(document.file_url)
+    presigned_url = _presigned_get_url(document.file_url, patient_id)
     expires_at = _document_access_token_expires_at(token)
     await log_event(
         db,
@@ -531,6 +632,7 @@ async def get_document_download_handoff(
         "patient_document",
         document.id,
         actor_id=user.id,
+        organization_id=user.organization_id,
         payload={
             "patient_id": patient_id,
             "storage_status": "signed_handoff",
@@ -603,33 +705,33 @@ def _parse_s3_url(file_url: str) -> tuple[str, str] | None:
     return bucket_and_key[0], bucket_and_key[1]
 
 
-def _presigned_get_url(file_url: str) -> str | None:
-    parsed = _parse_s3_url(file_url)
-    if not parsed:
+def _presigned_get_url(file_url: str, patient_id: str) -> str | None:
+    try:
+        bucket, object_key = _validated_patient_storage_location(file_url, patient_id)
+    except ValueError:
         return None
-    bucket, object_key = parsed
     try:
         return minio.presigned_get_object(
             bucket,
             object_key,
             expires=timedelta(minutes=15),
         )
-    except HTTPError:
+    except (HTTPError, S3Error):
         return None
 
 
-def _presigned_put_url(file_url: str) -> str | None:
-    parsed = _parse_s3_url(file_url)
-    if not parsed:
+def _presigned_put_url(file_url: str, patient_id: str) -> str | None:
+    try:
+        bucket, object_key = _validated_patient_storage_location(file_url, patient_id)
+    except ValueError:
         return None
-    bucket, object_key = parsed
     try:
         return minio.presigned_put_object(
             bucket,
             object_key,
             expires=timedelta(minutes=15),
         )
-    except HTTPError:
+    except (HTTPError, S3Error):
         return None
 
 

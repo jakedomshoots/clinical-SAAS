@@ -54,7 +54,9 @@ class ConnectionManager:
                 if organization_id and connection.organization_id != organization_id:
                     continue
                 try:
-                    await connection.websocket.send_text(message)
+                    await connection.websocket.send_text(
+                        message if isinstance(message, str) else message.decode("utf-8", errors="ignore")
+                    )
                 except Exception:
                     pass
 
@@ -79,9 +81,19 @@ def _channel_name(channel: str | bytes) -> str:
     return channel
 
 
+def _bearer_token_from_websocket(websocket: WebSocket) -> str | None:
+    authorization = websocket.headers.get("authorization")
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+    return token
+
+
 @router.websocket("/api/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    token = websocket.query_params.get("token")
+    token = _bearer_token_from_websocket(websocket)
     if not token:
         await websocket.close(code=4001, reason="Missing token")
         return
@@ -89,10 +101,11 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
         user_id: str = payload.get("sub")
+        session_version = int(payload.get("session_version", 0))
         if user_id is None:
             await websocket.close(code=4001, reason="Invalid token")
             return
-    except JWTError:
+    except (JWTError, TypeError, ValueError):
         await websocket.close(code=4001, reason="Invalid token")
         return
 
@@ -106,6 +119,9 @@ async def websocket_endpoint(websocket: WebSocket):
             )
         ).scalar_one_or_none()
     if not user:
+        await websocket.close(code=4001, reason="Invalid token")
+        return
+    if user.session_version != session_version:
         await websocket.close(code=4001, reason="Invalid token")
         return
 

@@ -37,11 +37,12 @@ def temporary_password_is_expired(user: User) -> bool:
     return user.temporary_password_expires_at < datetime.now(UTC).replace(tzinfo=None)
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: str, session_version: int = 0) -> str:
     expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": user_id,
         "role": role,
+        "session_version": session_version,
         "exp": expire,
         "iat": datetime.now(UTC),
     }
@@ -108,6 +109,8 @@ async def complete_password_rotation(
     user.hashed_password = hash_password(new_password)
     user.password_must_change = False
     user.temporary_password_expires_at = None
+    user.session_version += 1
+    user.password_changed_at = datetime.now(UTC).replace(tzinfo=None)
     await db.commit()
     await db.refresh(user)
     return user

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -14,6 +14,11 @@ from app.services.auth_service import (
     create_user,
     seed_admin,
     temporary_password_is_expired,
+)
+from app.services.rate_limit_service import (
+    auth_rate_limit_exceeded,
+    clear_auth_failures,
+    record_auth_failure,
 )
 from app.services.settings_service import get_or_create_settings
 
@@ -42,7 +47,7 @@ async def register(
         )
 
     organization_id = data.organization_id or current_user.organization_id
-    if current_user.role != UserRole.admin and organization_id != current_user.organization_id:
+    if organization_id != current_user.organization_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot create users outside your organization",
@@ -67,10 +72,19 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B008
+async def login(
+    data: UserLogin,
+    request: Request,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+):
+    rate_key = f"{request.client.host if request.client else 'unknown'}:{data.email}"
+    if await auth_rate_limit_exceeded("staff-login", rate_key):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
     user = await authenticate_user(db, data.email, data.password)
     if not user:
+        await record_auth_failure("staff-login", rate_key)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    await clear_auth_failures("staff-login", rate_key)
     if user.password_must_change:
         await log_event(
             db,
@@ -90,18 +104,18 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
             else "Password change required before login"
         )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-    if settings.is_production and not user.mfa_enabled:
+    if settings.is_production and settings.require_external_mfa_in_production:
         await log_event(
             db,
             "auth.login_blocked",
             "user",
             user.id,
             actor_id=user.id,
-            payload={"reason": "mfa_required", "role": user.role.value},
+            payload={"reason": "external_mfa_required", "role": user.role.value},
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="MFA enrollment required before production login",
+            detail="Production staff login requires external MFA provider handoff",
         )
 
     user.last_login_at = utcnow()
@@ -115,7 +129,7 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
         actor_id=user.id,
         payload={"role": user.role.value, "mfa_enabled": user.mfa_enabled},
     )
-    token = create_access_token(user.id, user.role.value)
+    token = create_access_token(user.id, user.role.value, user.session_version)
     return TokenResponse(
         access_token=token,
         token_type="bearer",
@@ -139,6 +153,19 @@ async def complete_password_rotation_route(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if settings.is_production and settings.require_external_mfa_in_production:
+        await log_event(
+            db,
+            "auth.login_blocked",
+            "user",
+            user.id,
+            actor_id=user.id,
+            payload={"reason": "external_mfa_required_after_rotation", "role": user.role.value},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password rotated; production staff login requires external MFA provider handoff",
+        )
 
     user.last_login_at = utcnow()
     await db.commit()
@@ -151,7 +178,7 @@ async def complete_password_rotation_route(
         actor_id=user.id,
         payload={"role": user.role.value},
     )
-    token = create_access_token(user.id, user.role.value)
+    token = create_access_token(user.id, user.role.value, user.session_version)
     return TokenResponse(
         access_token=token,
         token_type="bearer",

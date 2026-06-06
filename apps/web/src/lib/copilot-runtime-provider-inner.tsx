@@ -13,19 +13,16 @@ export default function CopilotRuntimeProviderInner({
   runtimeUrl?: string;
   publicApiKey?: string;
 }) {
-  const { token, user } = useAuth();
-  const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+  const { user } = useAuth();
 
   return (
     <CopilotKitProvider
       runtimeUrl={runtimeUrl}
       publicApiKey={publicApiKey}
-      headers={headers}
       showDevConsole="auto"
       properties={{
         product: 'Concierge OS',
         role: user?.role ?? 'anonymous',
-        userId: user?.id ?? null,
       }}
     >
       <CopilotClinicalToolRegistry />

@@ -5663,6 +5663,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 }
 
 function csvCell(value: string) {
+  if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
   if (!/[",\n]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
 }

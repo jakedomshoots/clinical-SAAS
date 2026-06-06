@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, String
+from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +34,8 @@ class User(Base):
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     password_must_change: Mapped[bool] = mapped_column(Boolean, default=False)
     temporary_password_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    session_version: Mapped[int] = mapped_column(Integer, default=0)
+    password_changed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     access_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     access_reviewed_by_id: Mapped[str | None] = mapped_column(String(36), nullable=True)

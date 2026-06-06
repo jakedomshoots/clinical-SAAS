@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, manager_write_required
+from app.deps import manager_write_required
 from app.models.user import User
 from app.schemas.user import (
     UserAccessReviewItemOut,
@@ -25,14 +25,13 @@ from app.services import user_service
 router = APIRouter(prefix="/api/users", tags=["users"])
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
-CurrentUserDep = Annotated[User, Depends(get_current_user)]
 ManagerUserDep = Annotated[User, Depends(manager_write_required)]
 
 
 @router.get("", response_model=UserDirectoryListOut)
 async def list_users(
     db: DbDep,
-    current_user: CurrentUserDep,
+    current_user: ManagerUserDep,
     role: str | None = Query(None),
     is_active: bool | None = Query(True),
 ):

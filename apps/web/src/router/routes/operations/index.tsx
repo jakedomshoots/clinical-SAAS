@@ -3126,6 +3126,7 @@ function OperationsPage() {
 }
 
 function csvCell(value: string) {
+  if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
   if (!/[",\n]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
 }

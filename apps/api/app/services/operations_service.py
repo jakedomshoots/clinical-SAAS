@@ -19,6 +19,7 @@ from app.config import (
 )
 from app.services import integration_config_service, user_service
 from app.services.audit_service import log_event
+from app.services.csv_safety import neutralize_csv_formula
 from app.services.launch_readiness_service import launch_readiness
 from app.services import patient_document_service
 from app.services.readiness_service import check_readiness
@@ -2776,10 +2777,11 @@ def _document_storage_config_gap_count() -> int:
 
 
 def _document_storage_signing_gap_count() -> int:
-    probe_url = f"s3://{settings.minio_bucket}/readiness/probe-document.pdf"
+    probe_patient_id = "readiness-probe"
+    probe_url = f"s3://{settings.minio_bucket}/patients/{probe_patient_id}/documents/probe-document.pdf"
     checks = [
-        bool(patient_document_service._presigned_put_url(probe_url)),
-        bool(patient_document_service._presigned_get_url(probe_url)),
+        bool(patient_document_service._presigned_put_url(probe_url, probe_patient_id)),
+        bool(patient_document_service._presigned_get_url(probe_url, probe_patient_id)),
     ]
     return sum(1 for ready in checks if not ready)
 
@@ -4333,6 +4335,7 @@ def _rehearsal_assignment_from_audit(event: AuditLog) -> dict:
 def _csv_row(values: list[str]) -> str:
     escaped = []
     for value in values:
+        value = neutralize_csv_formula(value)
         if any(char in value for char in [",", '"', "\n"]):
             escaped.append('"' + value.replace('"', '""') + '"')
         else:

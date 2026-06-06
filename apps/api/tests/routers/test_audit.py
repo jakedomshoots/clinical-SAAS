@@ -47,6 +47,28 @@ async def test_export_audit_events_csv(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_audit_export_neutralizes_formula_values(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await log_event(
+        db,
+        "=HYPERLINK(\"https://example.test\")",
+        "task",
+        "+formula-event",
+        payload={"patient_id": "+patient"},
+        organization_id="default",
+    )
+
+    res = await client.get("/api/audit/export", headers=auth_headers)
+
+    assert res.status_code == 200
+    assert "\"'=HYPERLINK(\"\"https://example.test\"\")\"" in res.text
+    assert "'+formula-event" in res.text
+
+
+@pytest.mark.asyncio
 async def test_export_audit_events_logs_export_evidence(client: AsyncClient, auth_headers):
     await client.post("/api/tasks", json={"title": "Export evidence task"}, headers=auth_headers)
 
@@ -109,6 +131,25 @@ async def test_export_audit_events_requires_admin_or_manager(
     token = create_access_token(provider.id, provider.role.value)
 
     res = await client.get("/api/audit/export", headers={"Authorization": f"Bearer {token}"})
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_patient_access_history_requires_admin_or_manager(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = await make_user(
+        db,
+        UserRole.provider,
+        "audit-access-history-provider@clinic.example.com",
+    )
+
+    res = await client.get(
+        "/api/audit/patients/patient-1/access-history",
+        headers=headers_for(provider),
+    )
 
     assert res.status_code == 403
 

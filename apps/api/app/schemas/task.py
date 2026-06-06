@@ -20,6 +20,7 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     due_date: datetime | None = None
     assigned_to_id: str | None = None
+    patient_id: str | None = None
     source_type: str | None = Field(default=None, max_length=100)
     source_id: str | None = None
 

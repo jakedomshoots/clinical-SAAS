@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
-from app.models.user import User, UserRole
+from app.models.user import UserRole
 from app.services.auth_service import authenticate_user
 from tests.conftest import headers_for, make_user
 
@@ -103,6 +103,7 @@ async def test_admin_can_issue_temporary_password_reset_and_recovery_summary(
     db: AsyncSession,
 ):
     staff = await make_user(db, UserRole.provider, "provider-reset@clinic.example.com")
+    old_staff_headers = headers_for(staff)
     expired = await make_user(db, UserRole.ma, "ma-expired-reset@clinic.example.com")
     expired.password_must_change = True
     expired.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
@@ -116,6 +117,8 @@ async def test_admin_can_issue_temporary_password_reset_and_recovery_summary(
     assert payload["temporary_password"]
     assert payload["temporary_password_expires_at"] is not None
     assert await authenticate_user(db, staff.email, payload["temporary_password"]) is not None
+    old_session = await client.get("/api/auth/me", headers=old_staff_headers)
+    assert old_session.status_code == 401
 
     summary = await client.get("/api/users/recovery-summary", headers=auth_headers)
     assert summary.status_code == 200

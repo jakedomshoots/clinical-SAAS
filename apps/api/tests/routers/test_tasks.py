@@ -55,7 +55,7 @@ async def test_task_work_queue_summarizes_daily_operations(
     provider = await make_user(db, UserRole.provider, "task-queue-provider@clinic.example.com")
     now = datetime.now(UTC)
     overdue = (now - timedelta(days=1)).isoformat()
-    due_today = (now + timedelta(hours=2)).isoformat()
+    due_today = now.replace(hour=23, minute=59, second=0, microsecond=0).isoformat()
     tomorrow = (now + timedelta(days=1)).isoformat()
     await client.post(
         "/api/tasks",
@@ -250,6 +250,75 @@ async def test_task_get_is_scoped_to_user_organization(
     )
 
     res = await client.get(f"/api/tasks/{task_id}", headers=headers_for(other_user))
+
+    assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_task_create_rejects_cross_org_patient(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-task-patient-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Other",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=headers_for(other_user),
+    )
+
+    res = await client.post(
+        "/api/tasks",
+        json={"title": "Cross-org patient task", "patient_id": other_patient.json()["id"]},
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_task_update_rejects_cross_org_patient(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    task = await client.post(
+        "/api/tasks",
+        json={"title": "Default task"},
+        headers=auth_headers,
+    )
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-task-update-patient-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Other",
+            "last_name": "Update",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=headers_for(other_user),
+    )
+
+    res = await client.patch(
+        f"/api/tasks/{task.json()['id']}",
+        json={"patient_id": other_patient.json()["id"]},
+        headers=auth_headers,
+    )
 
     assert res.status_code == 404
 

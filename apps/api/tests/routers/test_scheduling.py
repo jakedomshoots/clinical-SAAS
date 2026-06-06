@@ -220,6 +220,16 @@ async def test_set_and_get_provider_availability(client: AsyncClient, auth_heade
 @pytest.mark.asyncio
 async def test_queue_appointment_reminders_records_communication_events(client: AsyncClient, auth_headers, admin_user):
     patient_id = await create_patient(client, auth_headers)
+    await client.patch(
+        f"/api/patients/{patient_id}",
+        json={
+            "phone": "555-0111",
+            "email": "schedule.patient@example.com",
+            "sms_consent": True,
+            "email_consent": True,
+        },
+        headers=auth_headers,
+    )
     start = datetime(2026, 6, 5, 15, 0)
     end = start + timedelta(minutes=30)
     created = await client.post(
@@ -247,6 +257,39 @@ async def test_queue_appointment_reminders_records_communication_events(client: 
     assert "appointment.reminder.email" in actions
     offsets = {event["payload"]["offset_minutes"] for event in events.json()["data"] if event["action"].startswith("appointment.reminder")}
     assert offsets == {1440, 120}
+
+
+@pytest.mark.asyncio
+async def test_queue_appointment_reminders_skips_channels_without_consent(
+    client: AsyncClient,
+    auth_headers,
+    admin_user,
+):
+    patient_id = await create_patient(client, auth_headers)
+    start = datetime(2026, 6, 5, 16, 0)
+    end = start + timedelta(minutes=30)
+    created = await client.post(
+        "/api/schedule/appointments",
+        json={
+            "patient_id": patient_id,
+            "provider_id": admin_user.id,
+            "start_time": start.isoformat(),
+            "end_time": end.isoformat(),
+        },
+        headers=auth_headers,
+    )
+
+    reminders = await client.post(
+        f"/api/schedule/appointments/{created.json()['id']}/reminders",
+        headers=auth_headers,
+    )
+
+    assert reminders.status_code == 200
+    assert reminders.json()["queued"] == 0
+    events = await client.get("/api/integrations/events?integration=communications", headers=auth_headers)
+    assert events.json()["total"] == 0
+    audit = await client.get("/api/audit?event_type=appointment.reminders_queued", headers=auth_headers)
+    assert audit.json()["data"][0]["payload"]["blocked_channels"]
 
 
 @pytest.mark.asyncio

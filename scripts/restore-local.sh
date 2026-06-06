@@ -25,6 +25,8 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+sh "$ROOT_DIR/scripts/validate-backup.sh" "$BACKUP_DIR"
+
 echo "Restoring local backup from $BACKUP_DIR"
 echo "This will replace the local Postgres database and concierge-os MinIO bucket data."
 

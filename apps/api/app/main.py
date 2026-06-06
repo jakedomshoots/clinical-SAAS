@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
+from app.deps import require_roles
 from app.minio_client import ensure_bucket
+from app.models.user import User, UserRole
 from app.redis_client import redis
 from app.routers import (
     analytics,
@@ -67,7 +69,9 @@ async def health_check():
 
 
 @app.get("/api/ready")
-async def readiness_check():
+async def readiness_check(
+    _current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
+):
     return await check_readiness()
 
 

@@ -111,6 +111,25 @@ async def test_portal_intake_conversions(client, auth_headers, admin_user):
     assert document.status_code == 200
     assert document.json()["title"] == "Insurance card"
 
+    unsafe_document_intake = await client.post(
+        "/api/portal-intake",
+        json={
+            "patient_id": patient_id,
+            "request_type": "document_upload",
+            "submitted_payload": {
+                "title": "Unsafe portal document",
+                "document_type": "Insurance",
+                "file_url": "s3://concierge-os/patients/other-patient/documents/card.pdf",
+            },
+        },
+        headers=auth_headers,
+    )
+    unsafe_document = await client.post(
+        f"/api/portal-intake/{unsafe_document_intake.json()['id']}/convert-document",
+        headers=auth_headers,
+    )
+    assert unsafe_document.status_code == 400
+
     appt_intake = await client.post(
         "/api/portal-intake",
         json={
@@ -507,7 +526,7 @@ async def test_document_storage_readiness_surfaces_handoff_and_storage_gaps(
             "source": "Referral office",
             "document_type": "Referral",
             "status": "needs_review",
-            "file_url": "s3://concierge-documents/patients/p-1/referral.pdf",
+            "file_url": f"s3://concierge-os/patients/{patient_id}/documents/referral.pdf",
         },
         headers=auth_headers,
     )

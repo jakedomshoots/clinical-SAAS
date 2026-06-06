@@ -132,6 +132,8 @@ async def issue_password_reset(
     user.hashed_password = hash_password(temporary_password)
     user.password_must_change = True
     user.temporary_password_expires_at = temporary_password_expires_at()
+    user.session_version += 1
+    user.password_changed_at = _utcnow()
     await db.commit()
     await db.refresh(user)
     await log_event(

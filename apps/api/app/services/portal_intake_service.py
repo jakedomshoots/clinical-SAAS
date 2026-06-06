@@ -28,7 +28,15 @@ async def create_submission(db: AsyncSession, user: User, data: dict) -> PortalI
     db.add(submission)
     await db.commit()
     await db.refresh(submission)
-    await log_event(db, "portal_intake.received", "portal_intake", submission.id, actor_id=user.id, payload={"patient_id": patient_id})
+    await log_event(
+        db,
+        "portal_intake.received",
+        "portal_intake",
+        submission.id,
+        actor_id=user.id,
+        organization_id=user.organization_id,
+        payload={"patient_id": patient_id},
+    )
     return submission
 
 
@@ -41,7 +49,15 @@ async def update_submission(db: AsyncSession, user: User, submission_id: str, da
             setattr(submission, field, PortalIntakeStatus(value) if field == "status" else value)
     await db.commit()
     await db.refresh(submission)
-    await log_event(db, f"portal_intake.{submission.status.value}", "portal_intake", submission.id, actor_id=user.id, payload={"updated_fields": list(data.keys())})
+    await log_event(
+        db,
+        f"portal_intake.{submission.status.value}",
+        "portal_intake",
+        submission.id,
+        actor_id=user.id,
+        organization_id=user.organization_id,
+        payload={"updated_fields": list(data.keys())},
+    )
     return submission
 
 

@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fax import Fax
@@ -70,13 +70,30 @@ async def draft_portal_reply(db: AsyncSession, user: User, data: dict) -> dict:
     if not recipient:
         return {}
 
+    thread_id = data.get("thread_id") or None
+    if thread_id:
+        existing_thread = (
+            await db.execute(
+                select(Message.id)
+                .where(
+                    Message.organization_id == user.organization_id,
+                    Message.thread_id == thread_id,
+                    or_(Message.sender_id == user.id, Message.recipient_id == user.id),
+                    or_(Message.sender_id == recipient.id, Message.recipient_id == recipient.id),
+                )
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if not existing_thread:
+            return {}
+
     message = Message(
         organization_id=user.organization_id,
         sender_id=user.id,
         recipient_id=data["recipient_id"],
         subject=data["subject"],
         body=data["body"],
-        thread_id=data.get("thread_id") or None,
+        thread_id=thread_id,
         is_read=True,
     )
     db.add(message)

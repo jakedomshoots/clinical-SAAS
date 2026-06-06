@@ -56,7 +56,7 @@ VITE_COPILOTKIT_RUNTIME_URL=/api/copilotkit
 VITE_COPILOTKIT_PUBLIC_API_KEY=
 ```
 
-Use a runtime URL for a self-managed CopilotKit runtime, or a public API key for CopilotKit Cloud. The frontend forwards the logged-in bearer token to the CopilotKit provider when enabled.
+Use a runtime URL for a self-managed CopilotKit runtime, or a public API key for CopilotKit Cloud. The frontend does not forward internal API bearer tokens to the CopilotKit provider.
 
 The API readiness endpoint reports external integration configuration under `integrations`.
 Populate these when moving beyond demo/local operation:

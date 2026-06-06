@@ -1,13 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.config import settings
+from app.deps import require_roles
+from app.models.user import User, UserRole
 from app.services.readiness_service import check_external_integrations
 
 router = APIRouter(prefix="/api/integration-capabilities", tags=["integration-capabilities"])
 
 
 @router.get("")
-async def capabilities():
+async def capabilities(
+    _current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
+):
     health = await check_external_integrations()
     return {
         "ehr": _capability(

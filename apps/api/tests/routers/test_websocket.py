@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from app.routers.websocket import ConnectionManager
+from app.routers.websocket import ConnectionManager, _bearer_token_from_websocket
 
 
 class FakeWebSocket:
@@ -16,6 +16,14 @@ class FakeWebSocket:
 
     async def send_text(self, message: str):
         self.sent.append(message)
+
+
+def test_websocket_bearer_token_is_read_from_header_not_query():
+    header_socket = SimpleNamespace(headers={"authorization": "Bearer header-token"}, query_params={"token": "query-token"})
+    query_only_socket = SimpleNamespace(headers={}, query_params={"token": "query-token"})
+
+    assert _bearer_token_from_websocket(header_socket) == "header-token"
+    assert _bearer_token_from_websocket(query_only_socket) is None
 
 
 @pytest.mark.asyncio

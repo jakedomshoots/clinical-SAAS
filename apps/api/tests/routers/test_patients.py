@@ -1,4 +1,5 @@
 import pytest
+from types import SimpleNamespace
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -370,6 +371,47 @@ async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, aut
 
 
 @pytest.mark.asyncio
+async def test_patient_document_upload_verification_rejects_content_type_mismatch(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Verify", "last_name": "Upload", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    prepared = await client.post(
+        f"/api/patients/{patient_id}/documents/upload",
+        json={"filename": "outside-note.pdf", "content_type": "application/pdf"},
+        headers=auth_headers,
+    )
+    monkeypatch.setattr(patient_document_service.settings, "document_upload_verification_required", True)
+    monkeypatch.setattr(
+        patient_document_service.minio,
+        "stat_object",
+        lambda bucket, object_key: SimpleNamespace(content_type="text/plain", metadata={"checksum": "demo-checksum"}),
+    )
+
+    confirmed = await client.post(
+        f"/api/patients/{patient_id}/documents/upload/confirm",
+        json={
+            "title": "Outside note",
+            "source": "Outside Office",
+            "document_type": "Consult note",
+            "file_url": prepared.json()["file_url"],
+            "filename": "outside-note.pdf",
+            "content_type": "application/pdf",
+            "checksum": "demo-checksum",
+            "upload_token": prepared.json()["upload_token"],
+        },
+        headers=auth_headers,
+    )
+
+    assert confirmed.status_code == 400
+    assert "content type" in confirmed.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
 async def test_patient_document_access_reports_availability(client: AsyncClient, auth_headers):
     create_res = await client.post("/api/patients", json={
         "first_name": "Access", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
@@ -384,7 +426,7 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
         "title": "File backed",
         "source": "Outside Office",
         "document_type": "Clinical record",
-        "file_url": "s3://concierge-os/documents/file-backed.pdf",
+        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/file-backed.pdf",
     }, headers=auth_headers)
 
     metadata_access = await client.get(
@@ -477,12 +519,12 @@ async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_a
     monkeypatch.setattr(
         patient_document_service,
         "_presigned_put_url",
-        lambda file_url: f"https://storage.example.test/upload?target={file_url}",
+        lambda file_url, patient_id: f"https://storage.example.test/upload?target={file_url}",
     )
     monkeypatch.setattr(
         patient_document_service,
         "_presigned_get_url",
-        lambda file_url: f"https://storage.example.test/download?target={file_url}&X-Amz-Signature=test",
+        lambda file_url, patient_id: f"https://storage.example.test/download?target={file_url}&X-Amz-Signature=test",
     )
     create_res = await client.post("/api/patients", json={
         "first_name": "Signed", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
@@ -501,7 +543,7 @@ async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_a
         "title": "Signed file backed",
         "source": "Outside Office",
         "document_type": "Clinical record",
-        "file_url": "s3://concierge-os/documents/signed-file-backed.pdf",
+        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/signed-file-backed.pdf",
     }, headers=auth_headers)
     file_access = await client.get(
         f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access?reason=Chart%20review",
@@ -551,6 +593,37 @@ async def test_patient_document_upload_confirm_rejects_unprepared_target(
 
 
 @pytest.mark.asyncio
+async def test_patient_document_create_and_update_reject_unscoped_file_urls(
+    client: AsyncClient,
+    auth_headers,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Storage", "last_name": "Guard", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+
+    unsafe_create = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Unsafe file backed",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+        "file_url": "s3://concierge-os/other-patient/file.pdf",
+    }, headers=auth_headers)
+    safe_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Safe metadata",
+        "source": "Outside Office",
+        "document_type": "Clinical record",
+    }, headers=auth_headers)
+    unsafe_update = await client.patch(
+        f"/api/patients/{patient_id}/documents/{safe_doc.json()['id']}",
+        json={"file_url": "s3://concierge-os/patients/other/documents/file.pdf"},
+        headers=auth_headers,
+    )
+
+    assert unsafe_create.status_code == 400
+    assert unsafe_update.status_code == 400
+
+
+@pytest.mark.asyncio
 async def test_patient_document_processing_classifies_and_creates_review_task(client: AsyncClient, auth_headers):
     create_res = await client.post("/api/patients", json={
         "first_name": "Process", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
@@ -560,7 +633,7 @@ async def test_patient_document_processing_classifies_and_creates_review_task(cl
         "title": "Outside CMP lab",
         "source": "Outside Lab",
         "document_type": "Lab result",
-        "file_url": "s3://concierge-os/documents/cmp.pdf",
+        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/cmp.pdf",
     }, headers=auth_headers)
 
     processed = await client.post(

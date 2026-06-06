@@ -82,6 +82,69 @@ async def test_webhook_idempotency_returns_duplicate(client: AsyncClient, monkey
 
 
 @pytest.mark.asyncio
+async def test_webhook_rejects_unconfigured_organization(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_default_organization_id", "default")
+    payload = {
+        "organization_id": "other-org",
+        "event_id": "portal-cross-org",
+        "action": "message.received",
+        "entity_type": "message",
+        "entity_id": "message-123",
+        "payload": {"subject": "Hello"},
+    }
+
+    body = webhook_body(payload)
+    res = await client.post(
+        "/api/webhooks/portal",
+        content=body,
+        headers={**webhook_headers(body), "Content-Type": "application/json"},
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_webhook_idempotency_is_scoped_by_integration(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+    shared_event_id = "shared-vendor-event"
+    fax_payload = {
+        "organization_id": "default",
+        "event_id": shared_event_id,
+        "action": "status.received",
+        "entity_type": "fax",
+        "entity_id": "fax-123",
+        "payload": {"status": "received"},
+    }
+    portal_payload = {
+        "organization_id": "default",
+        "event_id": shared_event_id,
+        "action": "message.received",
+        "entity_type": "message",
+        "entity_id": "message-123",
+        "payload": {"subject": "Hello"},
+    }
+
+    fax_body = webhook_body(fax_payload)
+    portal_body = webhook_body(portal_payload)
+    fax = await client.post(
+        "/api/webhooks/fax",
+        content=fax_body,
+        headers={**webhook_headers(fax_body), "Content-Type": "application/json"},
+    )
+    portal = await client.post(
+        "/api/webhooks/portal",
+        content=portal_body,
+        headers={**webhook_headers(portal_body), "Content-Type": "application/json"},
+    )
+
+    assert fax.status_code == 202
+    assert portal.status_code == 202
+    assert portal.json()["duplicate"] is False
+    assert portal.json()["id"] != fax.json()["id"]
+
+
+@pytest.mark.asyncio
 async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
     monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
 

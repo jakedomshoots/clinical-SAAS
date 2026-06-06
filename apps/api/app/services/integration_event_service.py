@@ -80,11 +80,13 @@ async def list_events(
 async def find_by_idempotency_key(
     db: AsyncSession,
     organization_id: str,
+    integration: str,
     idempotency_key: str,
 ) -> IntegrationEvent | None:
     result = await db.execute(
         select(IntegrationEvent).where(
             IntegrationEvent.organization_id == organization_id,
+            IntegrationEvent.integration == integration,
             IntegrationEvent.idempotency_key == idempotency_key,
         )
     )

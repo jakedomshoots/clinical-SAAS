@@ -61,7 +61,10 @@ async def convert_to_appointment(submission_id: str, db: DbDep, current_user: Cl
 
 @router.post("/{submission_id}/convert-document")
 async def convert_to_document(submission_id: str, db: DbDep, current_user: ClinicalUserDep):
-    document = await portal_intake_service.convert_to_document(db, current_user, submission_id)
+    try:
+        document = await portal_intake_service.convert_to_document(db, current_user, submission_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Portal intake submission not found")
     return document

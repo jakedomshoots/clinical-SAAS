@@ -101,15 +101,16 @@ async def log_event(
     entity_id: str,
     actor_id: str | None = None,
     payload: dict | None = None,
+    organization_id: str | None = None,
 ) -> AuditLog:
-    organization_id = "default"
+    resolved_organization_id = organization_id or "default"
     if actor_id:
         actor = await db.get(User, actor_id)
         if actor:
-            organization_id = actor.organization_id
+            resolved_organization_id = actor.organization_id
 
     log_entry = AuditLog(
-        organization_id=organization_id,
+        organization_id=resolved_organization_id,
         actor_id=actor_id,
         event_type=event_type,
         entity_type=entity_type,

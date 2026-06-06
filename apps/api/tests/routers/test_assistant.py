@@ -76,6 +76,39 @@ async def test_assistant_drafts_portal_reply(
 
 
 @pytest.mark.asyncio
+async def test_assistant_portal_reply_rejects_thread_for_different_recipient(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    thread_recipient = await make_user(db, UserRole.provider, "assistant-thread-recipient@clinic.example.com")
+    other_recipient = await make_user(db, UserRole.provider, "assistant-other-recipient@clinic.example.com")
+    thread = await client.post(
+        "/api/messages",
+        json={
+            "recipient_id": thread_recipient.id,
+            "subject": "Existing thread",
+            "body": "This belongs to the first recipient.",
+        },
+        headers=auth_headers,
+    )
+
+    res = await client.post(
+        "/api/assistant/actions/portal-reply-draft",
+        json={
+            "context": "Portal inbox",
+            "recipient_id": other_recipient.id,
+            "thread_id": thread.json()["thread_id"],
+            "subject": "Cross-thread draft",
+            "body": "This should not attach to the other recipient thread.",
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_assistant_stages_fax_match(
     client: AsyncClient,
     auth_headers,

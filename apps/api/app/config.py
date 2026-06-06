@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     auto_create_schema: bool = True
     ensure_object_storage_on_startup: bool = True
     allow_seed_endpoint: bool = True
+    require_external_mfa_in_production: bool = True
+    auth_rate_limit_attempts: int = 5
+    auth_rate_limit_window_seconds: int = 900
+    document_upload_verification_required: bool = False
+    webhook_default_organization_id: str = "default"
 
     ehr_api_base_url: str = ""
     fax_provider_api_key: str = ""
@@ -78,6 +83,8 @@ class Settings(BaseSettings):
             failures.append("ENSURE_OBJECT_STORAGE_ON_STARTUP must be true in production")
         if self.allow_seed_endpoint:
             failures.append("ALLOW_SEED_ENDPOINT must be false in production")
+        if not self.require_external_mfa_in_production:
+            failures.append("REQUIRE_EXTERNAL_MFA_IN_PRODUCTION must be true in production")
         if not self.webhook_shared_secret or len(self.webhook_shared_secret) < 16:
             failures.append(
                 "WEBHOOK_SHARED_SECRET must be configured with at least 16 characters in production"

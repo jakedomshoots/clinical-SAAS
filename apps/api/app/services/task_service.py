@@ -177,6 +177,9 @@ async def create_task(db: AsyncSession, user: User, data: dict) -> dict | None:
     assigned_to_id = data.get("assigned_to_id")
     if assigned_to_id and not await _user_in_org(db, user, assigned_to_id):
         return None
+    patient_id = data.get("patient_id")
+    if patient_id and not await _patient_in_org(db, user, patient_id):
+        return None
     task = Task(
         organization_id=user.organization_id,
         title=data["title"],
@@ -185,7 +188,7 @@ async def create_task(db: AsyncSession, user: User, data: dict) -> dict | None:
         status=TaskStatus.open,
         due_date=data.get("due_date"),
         assigned_to_id=assigned_to_id,
-        patient_id=data.get("patient_id"),
+        patient_id=patient_id,
         source_type=data.get("source_type"),
         source_id=data.get("source_id"),
         creator_id=user.id,
@@ -218,6 +221,12 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
         db,
         user,
         data["assigned_to_id"],
+    ):
+        return None
+    if "patient_id" in data and data["patient_id"] and not await _patient_in_org(
+        db,
+        user,
+        data["patient_id"],
     ):
         return None
     before = {
@@ -532,6 +541,16 @@ async def _user_in_org(db: AsyncSession, user: User, user_id: str) -> bool:
             User.id == user_id,
             User.organization_id == user.organization_id,
             User.is_active.is_(True),
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _patient_in_org(db: AsyncSession, user: User, patient_id: str) -> bool:
+    result = await db.execute(
+        select(Patient.id).where(
+            Patient.id == patient_id,
+            Patient.organization_id == user.organization_id,
         )
     )
     return result.scalar_one_or_none() is not None

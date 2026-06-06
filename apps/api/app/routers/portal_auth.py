@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 from types import SimpleNamespace
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,16 +21,21 @@ from app.schemas.portal_intake import PortalIntakeCreate, PortalIntakeOut
 from app.services import patient_document_service, portal_intake_service
 from app.services.audit_service import log_event
 from app.services.auth_service import create_patient_portal_token, verify_password
+from app.services.rate_limit_service import auth_rate_limit_exceeded, clear_auth_failures, record_auth_failure
 
 router = APIRouter(prefix="/api/portal/auth", tags=["portal-auth"])
 
 
 @router.post("/login", response_model=PatientPortalTokenResponse)
-async def portal_login(data: PatientPortalLogin, db: AsyncSession = Depends(get_db)):
+async def portal_login(data: PatientPortalLogin, request: Request, db: AsyncSession = Depends(get_db)):
     try:
         dob = date.fromisoformat(data.dob)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date of birth") from exc
+    client_host = request.client.host if request.client else "unknown"
+    rate_limit_key = f"portal:{client_host}:{data.email.lower()}:{data.dob}"
+    if await auth_rate_limit_exceeded("portal-login", rate_limit_key):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many portal login attempts")
     patient = (
         await db.execute(
             select(Patient).where(
@@ -41,6 +46,7 @@ async def portal_login(data: PatientPortalLogin, db: AsyncSession = Depends(get_
         )
     ).scalar_one_or_none()
     if not patient:
+        await record_auth_failure("portal-login", rate_limit_key)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials")
     if (
         not patient.portal_access_code_hash
@@ -48,9 +54,18 @@ async def portal_login(data: PatientPortalLogin, db: AsyncSession = Depends(get_
         or patient.portal_access_code_expires_at < datetime.now(UTC).replace(tzinfo=None)
         or not verify_password(data.access_code, patient.portal_access_code_hash)
     ):
+        await record_auth_failure("portal-login", rate_limit_key)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials")
+    await clear_auth_failures("portal-login", rate_limit_key)
     token = create_patient_portal_token(patient.id, patient.organization_id)
-    await log_event(db, "portal_auth.login", "patient", patient.id, payload={"patient_id": patient.id})
+    await log_event(
+        db,
+        "portal_auth.login",
+        "patient",
+        patient.id,
+        payload={"patient_id": patient.id},
+        organization_id=patient.organization_id,
+    )
     return PatientPortalTokenResponse(access_token=token, patient=PatientPortalPatientOut.model_validate(patient))
 
 

@@ -314,16 +314,35 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
     appointment = await get_appointment(db, user, appt_id)
     if not appointment:
         return None
+    patient = (
+        await db.execute(
+            select(Patient).where(
+                Patient.id == appointment["patient_id"],
+                Patient.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not patient:
+        return None
     from app.services.settings_service import get_or_create_settings
 
     settings = await get_or_create_settings(db, user)
 
     event_ids: list[str] = []
+    blocked_channels: list[dict] = []
     for offset_minutes in settings.reminder_offsets_minutes:
         for channel, template in (
             ("sms", settings.reminder_sms_template),
             ("email", settings.reminder_email_template),
         ):
+            option = _reminder_channel_option(patient, channel)
+            if not option["eligible"]:
+                blocked_channels.append({
+                    "channel": channel,
+                    "offset_minutes": offset_minutes,
+                    "blocked_reason": option["blocked_reason"],
+                })
+                continue
             event = await record_event(
                 db,
                 user,
@@ -339,9 +358,11 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
                     "provider_id": appointment["provider_id"],
                     "appointment_start": appointment["start_time"],
                     "channel": channel,
+                    "recipient": option["recipient"],
                     "offset_minutes": offset_minutes,
                     "sender_identity": settings.sender_identity,
                     "template": template,
+                    "consent_required": True,
                 },
             )
             event_ids.append(event.id)
@@ -352,7 +373,12 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
         "appointment",
         appt_id,
         actor_id=user.id,
-        payload={"event_ids": event_ids, "channels": ["sms", "email"], "offsets": settings.reminder_offsets_minutes},
+        payload={
+            "event_ids": event_ids,
+            "channels": ["sms", "email"],
+            "offsets": settings.reminder_offsets_minutes,
+            "blocked_channels": blocked_channels,
+        },
     )
     return {"appointment_id": appt_id, "queued": len(event_ids), "event_ids": event_ids}
 
@@ -420,6 +446,35 @@ async def _patient_exists(db: AsyncSession, user: User, patient_id: str) -> bool
         )
     )
     return result.scalar_one_or_none() is not None
+
+
+def _reminder_channel_option(patient: Patient, channel: str) -> dict:
+    if channel == "sms":
+        recipient = patient.phone
+        consent = bool(patient.sms_consent)
+    else:
+        recipient = patient.email
+        consent = bool(patient.email_consent)
+    if not recipient:
+        return {
+            "channel": channel,
+            "recipient": None,
+            "eligible": False,
+            "blocked_reason": f"No {channel} recipient is available for this patient.",
+        }
+    if not consent:
+        return {
+            "channel": channel,
+            "recipient": recipient,
+            "eligible": False,
+            "blocked_reason": f"Patient has not granted {channel} reminder consent.",
+        }
+    return {
+        "channel": channel,
+        "recipient": recipient,
+        "eligible": True,
+        "blocked_reason": None,
+    }
 
 
 async def _provider_exists(db: AsyncSession, user: User, provider_id: str) -> bool:

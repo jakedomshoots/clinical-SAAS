@@ -30,7 +30,7 @@ async def test_login_success(client: AsyncClient, admin_user, db: AsyncSession):
 
 
 @pytest.mark.asyncio
-async def test_production_login_requires_mfa_enrollment_for_staff(
+async def test_production_login_requires_external_mfa_handoff_for_staff(
     client: AsyncClient,
     admin_user,
     db: AsyncSession,
@@ -44,7 +44,7 @@ async def test_production_login_requires_mfa_enrollment_for_staff(
     })
 
     assert res.status_code == 403
-    assert res.json()["detail"] == "MFA enrollment required before production login"
+    assert res.json()["detail"] == "Production staff login requires external MFA provider handoff"
     audit = (
         await db.execute(
             select(AuditLog).where(
@@ -54,11 +54,11 @@ async def test_production_login_requires_mfa_enrollment_for_staff(
         )
     ).scalar_one_or_none()
     assert audit is not None
-    assert audit.payload["reason"] == "mfa_required"
+    assert audit.payload["reason"] == "external_mfa_required"
 
 
 @pytest.mark.asyncio
-async def test_production_login_allows_mfa_enrolled_staff_and_logs_success(
+async def test_production_login_blocks_local_token_even_when_staff_has_local_mfa_flag(
     client: AsyncClient,
     admin_user,
     db: AsyncSession,
@@ -73,17 +73,17 @@ async def test_production_login_allows_mfa_enrolled_staff_and_logs_success(
         "password": "admin123!",
     })
 
-    assert res.status_code == 200
+    assert res.status_code == 403
     audit = (
         await db.execute(
             select(AuditLog).where(
-                AuditLog.event_type == "auth.login",
+                AuditLog.event_type == "auth.login_blocked",
                 AuditLog.entity_id == admin_user.id,
             )
         )
     ).scalar_one_or_none()
     assert audit is not None
-    assert audit.payload["mfa_enabled"] is True
+    assert audit.payload["reason"] == "external_mfa_required"
 
 
 @pytest.mark.asyncio
@@ -421,6 +421,26 @@ async def test_manager_cannot_register_user_in_other_organization(
             "organization_id": "other-org",
         },
         headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_cannot_register_user_in_other_organization(
+    client: AsyncClient,
+    auth_headers,
+):
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "new-admin-cross-org-user@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Cross Org User",
+            "role": "provider",
+            "organization_id": "other-org",
+        },
+        headers=auth_headers,
     )
 
     assert res.status_code == 403

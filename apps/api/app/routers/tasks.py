@@ -96,7 +96,7 @@ async def create_task(
 ):
     task = await task_service.create_task(db, current_user, data.model_dump())
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignee not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignee or patient not found")
     return TaskOut(**task)
 
 

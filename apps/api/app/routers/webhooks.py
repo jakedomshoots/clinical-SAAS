@@ -42,8 +42,9 @@ def _verify_webhook_secret(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid webhook secret",
         )
+    timestamp_value = timestamp or ""
     try:
-        occurred_at = datetime.fromtimestamp(int(timestamp or ""), tz=UTC)
+        occurred_at = datetime.fromtimestamp(int(timestamp_value), tz=UTC)
     except (TypeError, ValueError, OSError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -57,7 +58,7 @@ def _verify_webhook_secret(
         )
     expected_signature = hmac.new(
         expected.encode("utf-8"),
-        timestamp.encode("utf-8") + b"." + body,
+        timestamp_value.encode("utf-8") + b"." + body,
         hashlib.sha256,
     ).hexdigest()
     expected_header = f"sha256={expected_signature}"
@@ -79,13 +80,19 @@ async def _receive_webhook(
 ) -> WebhookOut:
     _verify_webhook_secret(secret, timestamp, signature, body)
     integration = INTEGRATION_BY_SOURCE[source]
+    organization_id = settings.webhook_default_organization_id
+    if data.organization_id != organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Webhook organization is not configured for this endpoint",
+        )
     if not data.event_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Webhook event_id is required for idempotency",
         )
     idempotency_key = data.event_id
-    existing = await find_by_idempotency_key(db, data.organization_id, idempotency_key)
+    existing = await find_by_idempotency_key(db, organization_id, integration, idempotency_key)
     if existing:
         return WebhookOut(
             id=existing.id,
@@ -100,7 +107,7 @@ async def _receive_webhook(
         hashed_password="",
         display_name="Webhook",
         role=UserRole.admin,
-        organization_id=data.organization_id,
+        organization_id=organization_id,
         is_active=True,
     )
     event = await record_event(
@@ -122,7 +129,7 @@ async def _receive_webhook(
         if provider_message_id and delivery_status:
             applied = await task_service.apply_delivery_callback(
                 db,
-                organization_id=data.organization_id,
+                organization_id=organization_id,
                 provider_message_id=str(provider_message_id),
                 status=str(delivery_status),
                 error=data.payload.get("error"),

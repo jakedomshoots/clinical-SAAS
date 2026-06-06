@@ -132,3 +132,22 @@ async def test_role_access_matrix_is_manager_only_and_reports_capabilities(
     assert front_desk_role["can_manage_front_office"] is True
     assert front_desk_role["can_manage_clinical"] is False
     assert any(item["key"] == "privileged_mfa_required" for item in data["warnings"])
+
+
+@pytest.mark.asyncio
+async def test_operational_readiness_endpoints_require_manager(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-readiness@example.com")
+    provider = await make_user(db, UserRole.provider, "provider-readiness@example.com")
+
+    ready_blocked = await client.get("/api/ready", headers=headers_for(provider))
+    ready_allowed = await client.get("/api/ready", headers=headers_for(manager))
+    capabilities_blocked = await client.get("/api/integration-capabilities", headers=headers_for(provider))
+    capabilities_allowed = await client.get("/api/integration-capabilities", headers=headers_for(manager))
+
+    assert ready_blocked.status_code == 403
+    assert ready_allowed.status_code == 200
+    assert capabilities_blocked.status_code == 403
+    assert capabilities_allowed.status_code == 200

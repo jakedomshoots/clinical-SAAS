@@ -7,7 +7,7 @@ from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.deps import get_current_user, require_roles
+from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.audit import (
     AuditEventListOut,
@@ -22,6 +22,7 @@ from app.services.audit_service import (
     patient_access_history,
     review_summary,
 )
+from app.services.csv_safety import neutralize_csv_formula
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
@@ -108,14 +109,14 @@ async def export_audit_events(
     ])
     for event in events:
         writer.writerow([
-            event.id,
-            event.organization_id,
-            event.created_at.isoformat(),
-            event.actor_id or "",
-            event.event_type,
-            event.entity_type,
-            event.entity_id,
-            json.dumps(event.payload or {}, sort_keys=True),
+            neutralize_csv_formula(event.id),
+            neutralize_csv_formula(event.organization_id),
+            neutralize_csv_formula(event.created_at.isoformat()),
+            neutralize_csv_formula(event.actor_id or ""),
+            neutralize_csv_formula(event.event_type),
+            neutralize_csv_formula(event.entity_type),
+            neutralize_csv_formula(event.entity_id),
+            neutralize_csv_formula(json.dumps(event.payload or {}, sort_keys=True)),
         ])
 
     return Response(
@@ -129,7 +130,7 @@ async def export_audit_events(
 async def get_patient_access_history(
     patient_id: str,
     db: AsyncSession = Depends(get_db),  # noqa: B008
-    current_user: User = Depends(get_current_user),  # noqa: B008
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
 ):
     data, total = await patient_access_history(db, current_user, patient_id)
     return PatientAccessHistoryOut(

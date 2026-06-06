@@ -263,12 +263,15 @@ async def create_patient_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(clinical_write_required),
 ):
-    document = await patient_document_service.create_patient_document(
-        db,
-        current_user,
-        patient_id,
-        data.model_dump(),
-    )
+    try:
+        document = await patient_document_service.create_patient_document(
+            db,
+            current_user,
+            patient_id,
+            data.model_dump(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientDocumentOut(**document)
@@ -324,13 +327,16 @@ async def update_patient_document(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    document = await patient_document_service.update_patient_document(
-        db,
-        current_user,
-        patient_id,
-        document_id,
-        update_data,
-    )
+    try:
+        document = await patient_document_service.update_patient_document(
+            db,
+            current_user,
+            patient_id,
+            document_id,
+            update_data,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return PatientDocumentOut(**document)
