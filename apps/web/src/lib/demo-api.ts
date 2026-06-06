@@ -173,6 +173,9 @@ function dailyCloseout(): DailyCloseout {
     urgent_tasks: urgentTasks.length,
     documents_needing_review: documentsNeedingReview.length,
     unsigned_encounters: patientEncounters.filter((item) => ['draft', 'provider_review'].includes(item.status)).length,
+    medications_needing_review: patientMedications.filter((item) => item.status === 'review').length,
+    labs_needing_review: patientLabs.filter((item) => ['new', 'needs_review'].includes(item.status)).length,
+    care_plan_blockers: patientCarePlan.filter((item) => item.status === 'blocked').length,
     intake_needing_review: portalIntake.filter((item) => ['received', 'needs_review'].includes(item.status)).length,
     unmatched_faxes: faxes.filter((item) => !item.patient_id).length,
     failed_integrations: integrationEvents.filter((item) => item.status === 'failed').length,
@@ -190,6 +193,7 @@ function dailyCloseout(): DailyCloseout {
     { label: 'Overdue work', category: 'operations', count: totals.overdue_tasks, severity: 'warning' as const, detail: 'Overdue tasks remain unresolved.' },
     { label: 'Aging documents', category: 'clinical', count: aging.documents_over_72h, severity: 'critical' as const, detail: 'Outside documents have waited more than 72 hours for review.' },
     { label: 'Unsigned encounters', category: 'clinical', count: totals.unsigned_encounters, severity: 'critical' as const, detail: 'Draft or provider-review encounters are blocking downstream work.' },
+    { label: 'Clinical review blockers', category: 'clinical', count: totals.medications_needing_review + totals.labs_needing_review + totals.care_plan_blockers, severity: 'critical' as const, detail: 'Medication, lab, or care-plan items still need provider/nursing resolution.' },
     { label: 'Billing coding gaps', category: 'revenue', count: billing.missing_coding_count, severity: 'warning' as const, detail: 'Claims are missing CPT or diagnosis coding.' },
     { label: 'Integration failures', category: 'vendor', count: totals.failed_integrations, severity: 'critical' as const, detail: 'Failed integration events need retry or vendor follow-up.' },
   ].filter((item) => item.count > 0);
@@ -197,6 +201,7 @@ function dailyCloseout(): DailyCloseout {
     ...(totals.urgent_tasks > 0 ? [{ key: 'urgent_tasks', severity: 'critical' as const, label: 'Assign or complete urgent tasks', detail: `${totals.urgent_tasks} urgent task(s) are still open.`, route: '/tasks' }] : []),
     ...(aging.documents_over_72h > 0 ? [{ key: 'documents_over_72h', severity: 'critical' as const, label: 'Review aging outside documents', detail: `${aging.documents_over_72h} document(s) have aged past 72 hours.`, route: '/patients' }] : []),
     ...(totals.unsigned_encounters > 0 ? [{ key: 'unsigned_encounters', severity: 'warning' as const, label: 'Close unsigned encounters', detail: `${totals.unsigned_encounters} encounter(s) remain draft or in provider review.`, route: '/patients' }] : []),
+    ...(totals.medications_needing_review + totals.labs_needing_review + totals.care_plan_blockers > 0 ? [{ key: 'clinical_review', severity: 'critical' as const, label: 'Resolve clinical review blockers', detail: `${totals.medications_needing_review + totals.labs_needing_review + totals.care_plan_blockers} medication, lab, or care-plan item(s) need resolution before closeout.`, route: '/patients' }] : []),
     ...(billing.missing_coding_count > 0 ? [{ key: 'billing_coding', severity: 'warning' as const, label: 'Resolve billing coding gaps', detail: `${billing.missing_coding_count} claim(s) are missing coding before submission.`, route: '/billing' }] : []),
     ...(totals.failed_integrations > 0 ? [{ key: 'failed_integrations', severity: 'warning' as const, label: 'Retry failed integration events', detail: `${totals.failed_integrations} vendor event(s) failed.`, route: '/operations' }] : []),
     ...(totals.intake_needing_review > 0 ? [{ key: 'portal_intake', severity: 'normal' as const, label: 'Clear portal intake review', detail: `${totals.intake_needing_review} intake submission(s) need review.`, route: '/portal-intake' }] : []),
@@ -1725,13 +1730,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const documentsNeedingReview = patientDocuments.filter((document) => document.patient_id === patientId && document.status === 'needs_review').length;
     const urgentTasks = tasks.filter((task) => task.patient_id === patientId && task.priority === 'urgent' && ['open', 'in_progress'].includes(task.status)).length;
     const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === patientId && ['draft', 'provider_review'].includes(encounter.status)).length;
+    const medicationsNeedingReview = patientMedications.filter((medication) => medication.patient_id === patientId && medication.status === 'review').length;
+    const labsNeedingReview = patientLabs.filter((lab) => lab.patient_id === patientId && ['new', 'needs_review'].includes(lab.status)).length;
+    const carePlanBlockers = patientCarePlan.filter((item) => item.patient_id === patientId && item.status === 'blocked').length;
     const summary: PatientChartSummary = {
       patient_id: patientId,
-      checkout_readiness: documentsNeedingReview || urgentTasks || unsignedEncounters ? 'blocked' : 'ready',
+      checkout_readiness: documentsNeedingReview || urgentTasks || unsignedEncounters || medicationsNeedingReview || labsNeedingReview || carePlanBlockers ? 'blocked' : 'ready',
       blockers: [
         ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
         ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
         ...(unsignedEncounters ? [`${unsignedEncounters} encounter note needs sign-off`] : []),
+        ...(medicationsNeedingReview ? [`${medicationsNeedingReview} medication needs reconciliation`] : []),
+        ...(labsNeedingReview ? [`${labsNeedingReview} lab result needs review`] : []),
+        ...(carePlanBlockers ? [`${carePlanBlockers} care plan item is blocked`] : []),
       ],
       counts: {
         documents_total: patientDocuments.filter((document) => document.patient_id === patientId).length,
@@ -1741,6 +1752,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         recent_faxes: recentFaxes.length,
         upcoming_appointments: upcomingAppointments.length,
         unsigned_encounters: unsignedEncounters,
+        medications_needing_review: medicationsNeedingReview,
+        labs_needing_review: labsNeedingReview,
+        care_plan_blockers: carePlanBlockers,
       },
       documents,
       open_tasks: openTasks,
@@ -2069,18 +2083,27 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       const openTasks = tasks.filter((task) => task.patient_id === appointment.patient_id && ['open', 'in_progress'].includes(task.status));
       const urgentTasks = openTasks.filter((task) => task.priority === 'urgent').length;
       const unsignedEncounters = patientEncounters.filter((encounter) => encounter.patient_id === appointment.patient_id && ['draft', 'provider_review'].includes(encounter.status)).length;
+      const medicationsNeedingReview = patientMedications.filter((medication) => medication.patient_id === appointment.patient_id && medication.status === 'review').length;
+      const labsNeedingReview = patientLabs.filter((lab) => lab.patient_id === appointment.patient_id && ['new', 'needs_review'].includes(lab.status)).length;
+      const carePlanBlockers = patientCarePlan.filter((item) => item.patient_id === appointment.patient_id && item.status === 'blocked').length;
       return {
         appointment,
-        checkout_readiness: (documentsNeedingReview || urgentTasks || unsignedEncounters ? 'blocked' : 'ready') as TodayQueue['data'][number]['checkout_readiness'],
+        checkout_readiness: (documentsNeedingReview || urgentTasks || unsignedEncounters || medicationsNeedingReview || labsNeedingReview || carePlanBlockers ? 'blocked' : 'ready') as TodayQueue['data'][number]['checkout_readiness'],
         blockers: [
           ...(documentsNeedingReview ? [`${documentsNeedingReview} outside document needs review`] : []),
           ...(urgentTasks ? [`${urgentTasks} urgent task is still open`] : []),
           ...(unsignedEncounters ? [`${unsignedEncounters} encounter note needs sign-off`] : []),
+          ...(medicationsNeedingReview ? [`${medicationsNeedingReview} medication needs reconciliation`] : []),
+          ...(labsNeedingReview ? [`${labsNeedingReview} lab result needs review`] : []),
+          ...(carePlanBlockers ? [`${carePlanBlockers} care plan item is blocked`] : []),
         ],
         documents_needing_review: documentsNeedingReview,
         open_tasks: openTasks.length,
         urgent_tasks: urgentTasks,
         unsigned_encounters: unsignedEncounters,
+        medications_needing_review: medicationsNeedingReview,
+        labs_needing_review: labsNeedingReview,
+        care_plan_blockers: carePlanBlockers,
       };
     });
     return {

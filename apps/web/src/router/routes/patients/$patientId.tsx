@@ -388,12 +388,13 @@ function PatientChartPage() {
 
       {activeTab === 'summary' && (
         <div className="space-y-5">
-          <section className="grid gap-3 lg:grid-cols-4">
+          <section className="grid gap-3 lg:grid-cols-5">
             {[
               { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
               { label: 'Documents', value: String(chartSummary?.counts.documents_total ?? documentRows.length), detail: `${chartSummary?.counts.documents_needing_review ?? documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
               { label: 'Open tasks', value: String(chartSummary?.counts.open_tasks ?? openTasks.length), detail: `${chartSummary?.counts.urgent_tasks ?? 0} urgent`, icon: ClipboardList, tone: 'text-red-700' },
-              { label: 'Care plan', value: String(carePlanItems.length), detail: `${chartSummary?.counts.unsigned_encounters ?? 0} unsigned notes`, icon: ShieldCheck, tone: 'text-clinic-700' },
+              { label: 'Clinical review', value: String((chartSummary?.counts.medications_needing_review ?? 0) + (chartSummary?.counts.labs_needing_review ?? 0)), detail: `${chartSummary?.counts.medications_needing_review ?? 0} meds, ${chartSummary?.counts.labs_needing_review ?? 0} labs`, icon: AlertTriangle, tone: 'text-amber-700' },
+              { label: 'Care plan', value: String(carePlanItems.length), detail: `${chartSummary?.counts.care_plan_blockers ?? 0} blocked, ${chartSummary?.counts.unsigned_encounters ?? 0} unsigned`, icon: ShieldCheck, tone: 'text-clinic-700' },
             ].map(({ label, value, detail, icon: Icon, tone }) => (
               <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
                 <div className="flex items-center justify-between">

@@ -12,7 +12,16 @@ from app.models.billing import BillingCase, BillingStatus
 from app.models.fax import Fax
 from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
 from app.models.patient import Patient
-from app.models.patient_clinical import EncounterStatus, PatientEncounter
+from app.models.patient_clinical import (
+    CarePlanStatus,
+    EncounterStatus,
+    LabResultStatus,
+    MedicationStatus,
+    PatientCarePlanItem,
+    PatientEncounter,
+    PatientLabResult,
+    PatientMedication,
+)
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.portal_intake import PortalIntakeStatus, PortalIntakeSubmission
 from app.models.schedule import Appointment, AppointmentStatus
@@ -99,6 +108,18 @@ async def daily_closeout(db: DbDep, current_user: CurrentUserDep):
             PatientEncounter,
             PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
         ),
+        "medications_needing_review": await count(
+            PatientMedication,
+            PatientMedication.status == MedicationStatus.review,
+        ),
+        "labs_needing_review": await count(
+            PatientLabResult,
+            PatientLabResult.status.in_([LabResultStatus.new, LabResultStatus.needs_review]),
+        ),
+        "care_plan_blockers": await count(
+            PatientCarePlanItem,
+            PatientCarePlanItem.status == CarePlanStatus.blocked,
+        ),
         "intake_needing_review": await count(
             PortalIntakeSubmission,
             PortalIntakeSubmission.status.in_([
@@ -134,6 +155,12 @@ async def daily_closeout(db: DbDep, current_user: CurrentUserDep):
         _risk("Overdue work", totals["overdue_tasks"], "operations", "Overdue tasks remain unresolved."),
         _risk("Aging documents", aging["documents_over_72h"], "clinical", "Outside documents have waited more than 72 hours for review."),
         _risk("Unsigned encounters", totals["unsigned_encounters"], "clinical", "Draft or provider-review encounters are blocking downstream work."),
+        _risk(
+            "Clinical review blockers",
+            totals["medications_needing_review"] + totals["labs_needing_review"] + totals["care_plan_blockers"],
+            "clinical",
+            "Medication, lab, or care-plan items still need provider/nursing resolution.",
+        ),
         _risk("Billing coding gaps", billing["missing_coding_count"], "revenue", "Claims are missing CPT or diagnosis coding."),
         _risk("Integration failures", totals["failed_integrations"], "vendor", "Failed integration events need retry or vendor follow-up."),
     ]
@@ -248,6 +275,22 @@ def _daily_closeout_actions(totals: dict, aging: dict, billing: dict) -> list[di
             "severity": "warning",
             "label": "Close unsigned encounters",
             "detail": f"{totals['unsigned_encounters']} encounter(s) remain draft or in provider review.",
+            "route": "/patients",
+        })
+    clinical_review_count = (
+        totals["medications_needing_review"]
+        + totals["labs_needing_review"]
+        + totals["care_plan_blockers"]
+    )
+    if clinical_review_count > 0:
+        actions.append({
+            "key": "clinical_review",
+            "severity": "critical",
+            "label": "Resolve clinical review blockers",
+            "detail": (
+                f"{clinical_review_count} medication, lab, or care-plan item(s) "
+                "need resolution before closeout."
+            ),
             "route": "/patients",
         })
     if billing["missing_coding_count"] > 0:

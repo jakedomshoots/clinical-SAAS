@@ -49,6 +49,9 @@ class TodayQueueItemOut(BaseModel):
     open_tasks: int
     urgent_tasks: int
     unsigned_encounters: int
+    medications_needing_review: int
+    labs_needing_review: int
+    care_plan_blockers: int
 
 
 class TodayQueueOut(BaseModel):

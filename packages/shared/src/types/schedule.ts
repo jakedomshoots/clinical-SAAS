@@ -23,6 +23,9 @@ export interface TodayQueueItem {
   open_tasks: number;
   urgent_tasks: number;
   unsigned_encounters: number;
+  medications_needing_review: number;
+  labs_needing_review: number;
+  care_plan_blockers: number;
 }
 
 export interface TodayQueue {

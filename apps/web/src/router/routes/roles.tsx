@@ -124,6 +124,7 @@ function RoleViewsPage() {
       summary: `${providerReady.length} charts need review`,
       metrics: [
         ['Doc reviews', String(queueItems.reduce((sum, item) => sum + item.documents_needing_review, 0))],
+        ['Clinical review', String(queueItems.reduce((sum, item) => sum + item.medications_needing_review + item.labs_needing_review + item.care_plan_blockers, 0))],
         ['Unsigned notes', String(queueItems.reduce((sum, item) => sum + item.unsigned_encounters, 0))],
         ['Urgent tasks', String(queueItems.reduce((sum, item) => sum + item.urgent_tasks, 0))],
       ],

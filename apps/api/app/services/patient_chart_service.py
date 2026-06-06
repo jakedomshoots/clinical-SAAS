@@ -5,7 +5,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.fax import Fax
 from app.models.patient import Patient
-from app.models.patient_clinical import EncounterStatus, PatientEncounter
+from app.models.patient_clinical import (
+    CarePlanStatus,
+    EncounterStatus,
+    LabResultStatus,
+    MedicationStatus,
+    PatientCarePlanItem,
+    PatientEncounter,
+    PatientLabResult,
+    PatientMedication,
+)
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.schedule import Appointment, AppointmentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
@@ -142,6 +151,33 @@ async def get_patient_chart_summary(
             )
         )
     ).scalar() or 0
+    medications_needing_review = (
+        await db.execute(
+            select(func.count(PatientMedication.id)).where(
+                PatientMedication.patient_id == patient_id,
+                PatientMedication.organization_id == user.organization_id,
+                PatientMedication.status == MedicationStatus.review,
+            )
+        )
+    ).scalar() or 0
+    labs_needing_review = (
+        await db.execute(
+            select(func.count(PatientLabResult.id)).where(
+                PatientLabResult.patient_id == patient_id,
+                PatientLabResult.organization_id == user.organization_id,
+                PatientLabResult.status.in_([LabResultStatus.new, LabResultStatus.needs_review]),
+            )
+        )
+    ).scalar() or 0
+    care_plan_blockers = (
+        await db.execute(
+            select(func.count(PatientCarePlanItem.id)).where(
+                PatientCarePlanItem.patient_id == patient_id,
+                PatientCarePlanItem.organization_id == user.organization_id,
+                PatientCarePlanItem.status == CarePlanStatus.blocked,
+            )
+        )
+    ).scalar() or 0
 
     blockers: list[str] = []
     if documents_needing_review:
@@ -150,10 +186,27 @@ async def get_patient_chart_summary(
         blockers.append(f"{urgent_tasks} urgent task is still open")
     if unsigned_encounters:
         blockers.append(f"{unsigned_encounters} encounter note needs sign-off")
+    if medications_needing_review:
+        blockers.append(f"{medications_needing_review} medication needs reconciliation")
+    if labs_needing_review:
+        blockers.append(f"{labs_needing_review} lab result needs review")
+    if care_plan_blockers:
+        blockers.append(f"{care_plan_blockers} care plan item is blocked")
     if not blockers and open_tasks:
         blockers.append(f"{open_tasks} open task remains for checkout")
 
-    checkout_readiness = "blocked" if documents_needing_review or urgent_tasks or unsigned_encounters else "ready"
+    checkout_readiness = (
+        "blocked"
+        if (
+            documents_needing_review
+            or urgent_tasks
+            or unsigned_encounters
+            or medications_needing_review
+            or labs_needing_review
+            or care_plan_blockers
+        )
+        else "ready"
+    )
 
     return PatientChartSummaryOut(
         patient_id=patient_id,
@@ -167,6 +220,9 @@ async def get_patient_chart_summary(
             recent_faxes=len(fax_rows),
             upcoming_appointments=len(appointment_rows),
             unsigned_encounters=unsigned_encounters,
+            medications_needing_review=medications_needing_review,
+            labs_needing_review=labs_needing_review,
+            care_plan_blockers=care_plan_blockers,
         ),
         documents=[PatientDocumentOut.model_validate(document) for document in document_rows],
         open_tasks=[_make_task_dict(task) for task in open_task_rows],

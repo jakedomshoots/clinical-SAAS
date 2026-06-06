@@ -238,6 +238,40 @@ async def test_daily_closeout_reports_operational_aging_and_actions(
         },
         headers=auth_headers,
     )
+    medication = await client.post(
+        f"/api/patients/{patient_id}/medications",
+        json={
+            "name": "Warfarin",
+            "dose": "5 mg",
+            "directions": "Daily",
+            "source": "Outside med list",
+            "status": "review",
+        },
+        headers=auth_headers,
+    )
+    lab = await client.post(
+        f"/api/patients/{patient_id}/labs",
+        json={
+            "collected_at": "2026-06-03T08:00:00",
+            "panel": "INR",
+            "result": "INR 5.2",
+            "flag": "Critical",
+            "status": "needs_review",
+            "source": "Outside Lab",
+        },
+        headers=auth_headers,
+    )
+    care_plan = await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "owner_role": "Provider",
+            "item": "Adjust anticoagulation plan before checkout.",
+            "due": "Today",
+            "status": "blocked",
+            "escalation": "Provider",
+        },
+        headers=auth_headers,
+    )
     billing = await client.post(
         "/api/billing/cases",
         json={"patient_id": patient_id, "cpt_codes": ["99213"], "diagnosis_codes": []},
@@ -262,6 +296,9 @@ async def test_daily_closeout_reports_operational_aging_and_actions(
 
     assert task.status_code == 201
     assert document.status_code == 201
+    assert medication.status_code == 201
+    assert lab.status_code == 201
+    assert care_plan.status_code == 201
     assert billing.status_code == 201
     assert closeout.status_code == 200
     data = closeout.json()
@@ -271,12 +308,17 @@ async def test_daily_closeout_reports_operational_aging_and_actions(
     assert data["totals"]["urgent_tasks"] == 1
     assert data["totals"]["documents_needing_review"] == 1
     assert data["totals"]["failed_integrations"] == 1
+    assert data["totals"]["medications_needing_review"] == 1
+    assert data["totals"]["labs_needing_review"] == 1
+    assert data["totals"]["care_plan_blockers"] == 1
     assert data["aging"]["tasks_over_48h"] == 1
     assert data["aging"]["documents_over_72h"] == 1
     assert data["billing"]["missing_coding_count"] == 1
     assert any(action["key"] == "urgent_tasks" for action in data["recommended_actions"])
     assert any(action["key"] == "documents_over_72h" for action in data["recommended_actions"])
+    assert any(action["key"] == "clinical_review" for action in data["recommended_actions"])
     assert any(item["label"] == "Billing coding gaps" for item in data["risk_register"])
+    assert any(item["label"] == "Clinical review blockers" for item in data["risk_register"])
     assert data["generated_at"]
 
 

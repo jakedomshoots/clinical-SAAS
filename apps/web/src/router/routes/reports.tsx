@@ -42,6 +42,7 @@ function ReportsPage() {
   const closeoutMetrics = closeout ? [
     ['Open tasks', closeout.totals.open_tasks ?? 0, `${closeout.totals.urgent_tasks ?? 0} urgent`],
     ['Documents', closeout.totals.documents_needing_review ?? 0, `${closeout.aging.documents_over_72h ?? 0} over 72h`],
+    ['Clinical review', (closeout.totals.medications_needing_review ?? 0) + (closeout.totals.labs_needing_review ?? 0) + (closeout.totals.care_plan_blockers ?? 0), `${closeout.totals.labs_needing_review ?? 0} labs`],
     ['Unsigned encounters', closeout.totals.unsigned_encounters ?? 0, 'provider closeout'],
     ['Billing gaps', closeout.billing.missing_coding_count ?? 0, `${closeout.billing.remittance_pending_count ?? 0} remittance pending`],
     ['Integration failures', closeout.totals.failed_integrations ?? 0, 'retry queue'],

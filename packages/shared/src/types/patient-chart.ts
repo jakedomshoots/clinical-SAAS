@@ -12,6 +12,9 @@ export interface PatientChartSummaryCounts {
   recent_faxes: number;
   upcoming_appointments: number;
   unsigned_encounters: number;
+  medications_needing_review: number;
+  labs_needing_review: number;
+  care_plan_blockers: number;
 }
 
 export interface PatientChartSummary {

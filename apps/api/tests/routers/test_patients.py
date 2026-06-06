@@ -583,6 +583,51 @@ async def test_patient_labs_are_persisted_and_reviewable(client: AsyncClient, au
 
 
 @pytest.mark.asyncio
+async def test_patient_chart_summary_blocks_checkout_for_unresolved_clinical_items(
+    client: AsyncClient,
+    auth_headers,
+):
+    create_res = await client.post("/api/patients", json={
+        "first_name": "Safety", "last_name": "Closeout", "dob": "1990-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    patient_id = create_res.json()["id"]
+    await client.post(f"/api/patients/{patient_id}/medications", json={
+        "name": "Warfarin",
+        "dose": "5 mg",
+        "directions": "Daily",
+        "source": "Outside med list",
+        "status": "review",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/labs", json={
+        "collected_at": "2026-06-03T08:00:00",
+        "panel": "INR",
+        "result": "INR 5.2",
+        "flag": "Critical",
+        "status": "needs_review",
+        "source": "Outside Lab",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/care-plan", json={
+        "owner_role": "Provider",
+        "item": "Adjust anticoagulation plan before checkout.",
+        "due": "Today",
+        "status": "blocked",
+        "escalation": "Provider",
+    }, headers=auth_headers)
+
+    summary = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
+
+    assert summary.status_code == 200
+    data = summary.json()
+    assert data["checkout_readiness"] == "blocked"
+    assert data["counts"]["medications_needing_review"] == 1
+    assert data["counts"]["labs_needing_review"] == 1
+    assert data["counts"]["care_plan_blockers"] == 1
+    assert "1 medication needs reconciliation" in data["blockers"]
+    assert "1 lab result needs review" in data["blockers"]
+    assert "1 care plan item is blocked" in data["blockers"]
+
+
+@pytest.mark.asyncio
 async def test_patient_encounters_can_be_created_and_signed(client: AsyncClient, auth_headers, admin_user):
     create_res = await client.post("/api/patients", json={
         "first_name": "Encounter", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
