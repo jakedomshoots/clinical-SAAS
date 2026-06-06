@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
+import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type IntegrationCutoverReadinessPacket, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -254,6 +254,10 @@ function OperationsPage() {
   const { data: adapterPacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'adapter-implementation-packet'],
     queryFn: () => api.get<AdapterImplementationPacket>(ROUTES.OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET),
+  });
+  const { data: cutoverReadinessPacket } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'integration-cutover-readiness-packet'],
+    queryFn: () => api.get<IntegrationCutoverReadinessPacket>(ROUTES.OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET),
   });
   const { data: credentialBinderSnapshots } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'credential-dry-run-binder'],
@@ -992,6 +996,68 @@ function OperationsPage() {
                   ))}
                 </div>
                 <div className="mt-3 text-xs text-clinic-500">{item.blockers[0] || item.docs[0] || 'Adapter implementation tracked.'}</div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {cutoverReadinessPacket && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <ShieldCheck className="h-4 w-4 text-accent-600" />
+                Integration Cutover Readiness Packet
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(cutoverReadinessPacket.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${cutoverReadinessPacket.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : cutoverReadinessPacket.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                {cutoverReadinessPacket.status}
+              </span>
+              <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{cutoverReadinessPacket.go_count} go</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{cutoverReadinessPacket.hold_count} hold</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{cutoverReadinessPacket.no_go_count} no-go</span>
+              <a
+                href={ROUTES.OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET_EXPORT}
+                download={cutoverReadinessPacket.export_filename}
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-2">
+            {cutoverReadinessPacket.items.map((item) => (
+              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{item.readiness_mode} · {item.adapter.implementation_status} adapter · {item.credential_request.request_status} credential request</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.go_no_go === 'go' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.go_no_go === 'no_go' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      {item.go_no_go}
+                    </span>
+                    <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] text-clinic-500">{item.cutover_status}</span>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {item.gates.slice(0, 4).map((gate) => (
+                    <div key={gate.key} className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-clinic-800">{gate.label}</span>
+                        <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                          {gate.status}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-clinic-500">{gate.detail}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-clinic-500">{item.next_actions[0] || item.blockers[0] || 'Cutover lane is ready for go/no-go review.'}</div>
               </Link>
             ))}
           </div>

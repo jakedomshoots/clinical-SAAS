@@ -27,6 +27,7 @@ from app.schemas.operations import (
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
     GoLiveAttestationOut,
+    IntegrationCutoverReadinessPacketOut,
     OperationsAlertRuleListOut,
     OperationsAlertRuleOut,
     OperationsIncidentTimelineOut,
@@ -379,6 +380,23 @@ async def export_adapter_implementation_packet(db: DbDep, current_user: OpsUserD
     packet = await operations_service.adapter_implementation_packet(db, current_user)
     return Response(
         content=operations_service.adapter_implementation_packet_csv(packet),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
+    )
+
+
+@router.get("/integration-cutover-readiness-packet", response_model=IntegrationCutoverReadinessPacketOut)
+async def get_integration_cutover_readiness_packet(db: DbDep, current_user: OpsUserDep):
+    return IntegrationCutoverReadinessPacketOut(
+        **await operations_service.integration_cutover_readiness_packet(db, current_user)
+    )
+
+
+@router.get("/integration-cutover-readiness-packet/export")
+async def export_integration_cutover_readiness_packet(db: DbDep, current_user: OpsUserDep):
+    packet = await operations_service.integration_cutover_readiness_packet(db, current_user)
+    return Response(
+        content=operations_service.integration_cutover_readiness_packet_csv(packet),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
     )

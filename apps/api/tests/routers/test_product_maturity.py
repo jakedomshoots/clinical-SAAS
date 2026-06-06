@@ -839,6 +839,41 @@ async def test_adapter_implementation_packet_maps_placeholder_work(client, auth_
 
 
 @pytest.mark.asyncio
+async def test_integration_cutover_readiness_packet_combines_vendor_gates(client, auth_headers):
+    packet = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
+    exported = await client.get("/api/operations/integration-cutover-readiness-packet/export", headers=auth_headers)
+
+    assert packet.status_code == 200
+    data = packet.json()
+    assert data["total"] >= 6
+    assert data["export_filename"] == "concierge-os-integration-cutover-readiness-packet.csv"
+    assert data["summary"]["total"] == data["total"]
+    assert data["ready_count"] + data["attention_count"] + data["blocked_count"] == data["total"]
+    assert data["generated_at"]
+
+    fax = next(item for item in data["items"] if item["integration"] == "fax")
+    assert fax["label"] == "Fax provider"
+    assert fax["cutover_status"] in {"ready", "attention", "blocked"}
+    assert fax["go_no_go"] in {"go", "hold", "no_go"}
+    assert fax["readiness_mode"] in {"production_vendor", "local_sandbox"}
+    assert fax["adapter"]["implementation_status"] in {"implemented", "placeholder", "sandbox_only"}
+    assert fax["credential_request"]["request_status"] in {"ready", "attention", "blocked"}
+    assert fax["handoff_archive"]["status"] in {"ready", "warning", "missing"}
+    assert fax["cutover_evidence"]["evidence_complete"] in {True, False}
+    assert isinstance(fax["gates"], list)
+    assert any(gate["key"] == "adapter" for gate in fax["gates"])
+    assert isinstance(fax["blockers"], list)
+    assert isinstance(fax["next_actions"], list)
+    assert fax["route"] == "/integrations"
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-integration-cutover-readiness-packet.csv" in exported.headers["content-disposition"]
+    assert "integration,label,cutover_status,go_no_go" in exported.text
+    assert "fax,Fax provider" in exported.text
+
+
+@pytest.mark.asyncio
 async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
     snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)

@@ -717,6 +717,46 @@ class AdapterImplementationPacketOut(BaseModel):
     items: list[AdapterImplementationItemOut]
 
 
+class IntegrationCutoverReadinessGateOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    detail: str
+    route: str
+
+
+class IntegrationCutoverReadinessItemOut(BaseModel):
+    integration: str
+    label: str
+    cutover_status: str
+    go_no_go: str
+    readiness_mode: str
+    adapter: AdapterImplementationItemOut
+    credential_request: VendorCredentialRequestItemOut
+    handoff_archive: VendorCredentialRequestArchiveOut
+    cutover_evidence: dict
+    risk_register: dict
+    gates: list[IntegrationCutoverReadinessGateOut]
+    blockers: list[str]
+    next_actions: list[str]
+    route: str
+
+
+class IntegrationCutoverReadinessPacketOut(BaseModel):
+    status: str
+    generated_at: datetime
+    export_filename: str
+    ready_count: int
+    attention_count: int
+    blocked_count: int
+    go_count: int
+    hold_count: int
+    no_go_count: int
+    total: int
+    summary: dict[str, int]
+    items: list[IntegrationCutoverReadinessItemOut]
+
+
 class CredentialBinderSnapshotOut(BaseModel):
     id: str
     created_at: datetime

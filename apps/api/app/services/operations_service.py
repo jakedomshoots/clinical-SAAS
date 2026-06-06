@@ -1647,6 +1647,59 @@ async def adapter_implementation_packet(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> dict:
+    preflight = await integration_config_service.credential_preflight(db, user)
+    archives = await _latest_vendor_handoff_archives(db, user)
+    adapter_items = {
+        item["integration"]: item
+        for item in [_adapter_implementation_item(item) for item in preflight.get("data", [])]
+    }
+    credential_items = {
+        item["integration"]: item
+        for item in [
+            _vendor_credential_request_item(item, archives.get(item["key"]))
+            for item in preflight.get("data", [])
+        ]
+    }
+    items = [
+        _integration_cutover_readiness_item(
+            item,
+            adapter_items[item["key"]],
+            credential_items[item["key"]],
+        )
+        for item in preflight.get("data", [])
+    ]
+    ready_count = sum(1 for item in items if item["cutover_status"] == "ready")
+    attention_count = sum(1 for item in items if item["cutover_status"] == "attention")
+    blocked_count = sum(1 for item in items if item["cutover_status"] == "blocked")
+    go_count = sum(1 for item in items if item["go_no_go"] == "go")
+    hold_count = sum(1 for item in items if item["go_no_go"] == "hold")
+    no_go_count = sum(1 for item in items if item["go_no_go"] == "no_go")
+    status = "ready" if blocked_count == 0 and attention_count == 0 else "blocked" if blocked_count else "attention"
+    return {
+        "status": status,
+        "generated_at": datetime.now(UTC),
+        "export_filename": "concierge-os-integration-cutover-readiness-packet.csv",
+        "ready_count": ready_count,
+        "attention_count": attention_count,
+        "blocked_count": blocked_count,
+        "go_count": go_count,
+        "hold_count": hold_count,
+        "no_go_count": no_go_count,
+        "total": len(items),
+        "summary": {
+            "total": len(items),
+            "ready": ready_count,
+            "attention": attention_count,
+            "blocked": blocked_count,
+            "go": go_count,
+            "hold": hold_count,
+            "no_go": no_go_count,
+        },
+        "items": items,
+    }
+
+
 async def _vendor_handoff_archive_workplan_items(
     db: AsyncSession | None,
     user: User,
@@ -2436,6 +2489,29 @@ def adapter_implementation_packet_csv(packet: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def integration_cutover_readiness_packet_csv(packet: dict) -> str:
+    rows = [
+        "integration,label,cutover_status,go_no_go,readiness_mode,adapter_status,credential_request_status,handoff_archive_status,cutover_evidence_complete,blocking_risks,blockers,next_actions,route"
+    ]
+    for item in packet["items"]:
+        rows.append(_csv_row([
+            item["integration"],
+            item["label"],
+            item["cutover_status"],
+            item["go_no_go"],
+            item["readiness_mode"],
+            item["adapter"]["implementation_status"],
+            item["credential_request"]["request_status"],
+            item["handoff_archive"]["status"],
+            str(bool(item["cutover_evidence"].get("evidence_complete"))).lower(),
+            str(item["risk_register"].get("blocking_count", 0)),
+            "; ".join(item["blockers"]),
+            "; ".join(item["next_actions"]),
+            item["route"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 def live_use_rehearsal_csv(dashboard: dict) -> str:
     rows = ["section,key,label,status,detail,route"]
     for gate in dashboard["gates"]:
@@ -3212,6 +3288,141 @@ def _adapter_implementation_phases(item: dict, implementation_status: str) -> li
             ),
         },
     ]
+
+
+def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: dict) -> dict:
+    cutover_evidence = item.get("cutover_evidence") or {}
+    risk_register = item.get("risk_register") or {}
+    gates = [
+        _integration_cutover_gate(
+            "adapter",
+            "Adapter implementation",
+            "ready" if adapter["implementation_status"] == "implemented" else "blocked",
+            (
+                f"{adapter['adapter_method_ready_count']} of {adapter['adapter_method_total']} adapter method(s) ready."
+                if adapter["implementation_status"] == "implemented"
+                else f"{item['label']} adapter is {adapter['implementation_status']}."
+            ),
+        ),
+        _integration_cutover_gate(
+            "credential_request",
+            "Credential request",
+            "ready" if credential["request_status"] == "ready" else "blocked" if credential["request_status"] == "blocked" else "attention",
+            (
+                "Vendor credential request is ready to send."
+                if credential["request_status"] == "ready"
+                else f"Vendor credential request needs {credential['request_status']} review."
+            ),
+        ),
+        _integration_cutover_gate(
+            "handoff_archive",
+            "Vendor handoff archive",
+            "ready" if credential["handoff_archive"]["status"] == "ready" else "blocked" if credential["handoff_archive"]["status"] == "missing" else "attention",
+            credential["handoff_archive"]["detail"],
+        ),
+        _integration_cutover_gate(
+            "cutover_evidence",
+            "Cutover rehearsal evidence",
+            "ready" if cutover_evidence.get("evidence_complete") else "attention",
+            (
+                f"Cutover planned for {cutover_evidence.get('planned_cutover_at')}; rollback owner {cutover_evidence.get('rollback_owner')}."
+                if cutover_evidence.get("evidence_complete")
+                else "Cutover date, last vendor test, rollback owner, go/no-go notes, and rehearsal approval need review."
+            ),
+        ),
+        _integration_cutover_gate(
+            "sandbox_references",
+            "Vendor sandbox references",
+            "ready" if credential["sandbox_reference_total"] and credential["sandbox_reference_count"] == credential["sandbox_reference_total"] else "attention",
+            f"{credential['sandbox_reference_count']} of {credential['sandbox_reference_total']} sandbox workflow(s) have vendor reference URLs.",
+        ),
+        _integration_cutover_gate(
+            "vendor_risks",
+            "Vendor risk register",
+            "blocked" if risk_register.get("blocking_count", 0) else "ready",
+            (
+                f"{risk_register.get('blocking_count', 0)} unresolved blocking risk(s) remain."
+                if risk_register.get("blocking_count", 0)
+                else f"{risk_register.get('risk_count', 0)} vendor risk(s) tracked with no unresolved blocking risk."
+            ),
+        ),
+    ]
+    blockers = [gate["detail"] for gate in gates if gate["status"] == "blocked"]
+    blockers.extend(adapter.get("blockers") or [])
+    blockers.extend(credential.get("blockers") or [])
+    blockers = _dedupe_strings(blockers)
+    next_actions = _integration_cutover_next_actions(gates, adapter, credential, cutover_evidence, risk_register)
+    if any(gate["status"] == "blocked" for gate in gates):
+        cutover_status = "blocked"
+        go_no_go = "no_go"
+    elif any(gate["status"] == "attention" for gate in gates):
+        cutover_status = "attention"
+        go_no_go = "hold"
+    else:
+        cutover_status = "ready"
+        go_no_go = "go"
+    return {
+        "integration": item["key"],
+        "label": item["label"],
+        "cutover_status": cutover_status,
+        "go_no_go": go_no_go,
+        "readiness_mode": item["readiness_mode"],
+        "adapter": adapter,
+        "credential_request": credential,
+        "handoff_archive": credential["handoff_archive"],
+        "cutover_evidence": cutover_evidence,
+        "risk_register": risk_register,
+        "gates": gates,
+        "blockers": blockers,
+        "next_actions": next_actions,
+        "route": "/integrations",
+    }
+
+
+def _integration_cutover_gate(key: str, label: str, status: str, detail: str) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "detail": detail,
+        "route": "/integrations",
+    }
+
+
+def _integration_cutover_next_actions(
+    gates: list[dict],
+    adapter: dict,
+    credential: dict,
+    cutover_evidence: dict,
+    risk_register: dict,
+) -> list[str]:
+    actions: list[str] = []
+    if adapter["implementation_status"] != "implemented":
+        actions.append("Assign production adapter implementation and contract-method verification.")
+    if credential["request_status"] != "ready":
+        actions.append("Complete vendor credential request owner/contact, missing values, and archive context.")
+    if credential["handoff_archive"]["status"] != "ready":
+        actions.append("Export and archive the vendor handoff packet with launch evidence reference.")
+    if not cutover_evidence.get("evidence_complete"):
+        actions.append("Complete cutover rehearsal date, last vendor test, rollback owner, go/no-go notes, and approval.")
+    if credential["sandbox_reference_total"] and credential["sandbox_reference_count"] < credential["sandbox_reference_total"]:
+        actions.append("Collect vendor sandbox reference URLs for every workflow.")
+    if risk_register.get("blocking_count", 0):
+        actions.append("Mitigate or explicitly accept blocking vendor risks before cutover.")
+    for gate in gates:
+        if gate["status"] == "attention" and gate["key"] not in {"cutover_evidence", "sandbox_references"}:
+            actions.append(f"Review {gate['label'].lower()} before cutover.")
+    return _dedupe_strings(actions)
+
+
+def _dedupe_strings(values: list[str]) -> list[str]:
+    seen = set()
+    out = []
+    for value in values:
+        if value and value not in seen:
+            out.append(value)
+            seen.add(value)
+    return out
 
 
 def _credential_binder_archive(item: dict, archive: dict | None) -> dict:

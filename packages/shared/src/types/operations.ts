@@ -782,6 +782,46 @@ export interface AdapterImplementationPacket {
   items: AdapterImplementationItem[];
 }
 
+export interface IntegrationCutoverReadinessGate {
+  key: string;
+  label: string;
+  status: 'ready' | 'attention' | 'blocked';
+  detail: string;
+  route: string;
+}
+
+export interface IntegrationCutoverReadinessItem {
+  integration: string;
+  label: string;
+  cutover_status: 'ready' | 'attention' | 'blocked';
+  go_no_go: 'go' | 'hold' | 'no_go';
+  readiness_mode: CredentialPreflightItem['readiness_mode'];
+  adapter: AdapterImplementationItem;
+  credential_request: VendorCredentialRequestItem;
+  handoff_archive: CredentialBinderArchive;
+  cutover_evidence: CutoverEvidence;
+  risk_register: VendorRiskRegister;
+  gates: IntegrationCutoverReadinessGate[];
+  blockers: string[];
+  next_actions: string[];
+  route: string;
+}
+
+export interface IntegrationCutoverReadinessPacket {
+  status: 'ready' | 'attention' | 'blocked';
+  generated_at: string;
+  export_filename: string;
+  ready_count: number;
+  attention_count: number;
+  blocked_count: number;
+  go_count: number;
+  hold_count: number;
+  no_go_count: number;
+  total: number;
+  summary: Record<string, number>;
+  items: IntegrationCutoverReadinessItem[];
+}
+
 export interface CredentialBinderSnapshot {
   id: string;
   created_at: string;

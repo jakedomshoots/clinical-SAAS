@@ -1,4 +1,4 @@
-import type { AdapterImplementationItem, AdapterImplementationPacket, Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
+import type { AdapterImplementationItem, AdapterImplementationPacket, Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, IntegrationCutoverReadinessItem, IntegrationCutoverReadinessPacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -1903,6 +1903,143 @@ function adapterImplementationPacketCsv(packet: AdapterImplementationPacket) {
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
+function integrationCutoverReadinessPacket(): IntegrationCutoverReadinessPacket {
+  const preflight = demoCredentialPreflight();
+  const adapterItems = new Map(adapterImplementationPacket().items.map((item) => [item.integration, item]));
+  const credentialItems = new Map(vendorCredentialRequestPacket().items.map((item) => [item.integration, item]));
+  const items = preflight.data.map((preflightItem): IntegrationCutoverReadinessItem => {
+    const adapter = adapterItems.get(preflightItem.key)!;
+    const credential = credentialItems.get(preflightItem.key)!;
+    const cutover = preflightItem.cutover_evidence;
+    const riskRegister = preflightItem.risk_register;
+    const gates = [
+      {
+        key: 'adapter',
+        label: 'Adapter implementation',
+        status: adapter.implementation_status === 'implemented' ? 'ready' as const : 'blocked' as const,
+        detail: adapter.implementation_status === 'implemented'
+          ? `${adapter.adapter_method_ready_count} of ${adapter.adapter_method_total} adapter method(s) ready.`
+          : `${preflightItem.label} adapter is ${adapter.implementation_status}.`,
+        route: '/integrations',
+      },
+      {
+        key: 'credential_request',
+        label: 'Credential request',
+        status: credential.request_status === 'ready' ? 'ready' as const : credential.request_status === 'blocked' ? 'blocked' as const : 'attention' as const,
+        detail: credential.request_status === 'ready' ? 'Vendor credential request is ready to send.' : `Vendor credential request needs ${credential.request_status} review.`,
+        route: '/integrations',
+      },
+      {
+        key: 'handoff_archive',
+        label: 'Vendor handoff archive',
+        status: credential.handoff_archive.status === 'ready' ? 'ready' as const : credential.handoff_archive.status === 'missing' ? 'blocked' as const : 'attention' as const,
+        detail: credential.handoff_archive.detail,
+        route: '/integrations',
+      },
+      {
+        key: 'cutover_evidence',
+        label: 'Cutover rehearsal evidence',
+        status: cutover.evidence_complete ? 'ready' as const : 'attention' as const,
+        detail: cutover.evidence_complete ? `Cutover planned for ${cutover.planned_cutover_at}; rollback owner ${cutover.rollback_owner}.` : 'Cutover date, last vendor test, rollback owner, go/no-go notes, and rehearsal approval need review.',
+        route: '/integrations',
+      },
+      {
+        key: 'sandbox_references',
+        label: 'Vendor sandbox references',
+        status: credential.sandbox_reference_total && credential.sandbox_reference_count === credential.sandbox_reference_total ? 'ready' as const : 'attention' as const,
+        detail: `${credential.sandbox_reference_count} of ${credential.sandbox_reference_total} sandbox workflow(s) have vendor reference URLs.`,
+        route: '/integrations',
+      },
+      {
+        key: 'vendor_risks',
+        label: 'Vendor risk register',
+        status: riskRegister.blocking_count ? 'blocked' as const : 'ready' as const,
+        detail: riskRegister.blocking_count ? `${riskRegister.blocking_count} unresolved blocking risk(s) remain.` : `${riskRegister.risk_count} vendor risk(s) tracked with no unresolved blocking risk.`,
+        route: '/integrations',
+      },
+    ];
+    const blockers = Array.from(new Set([
+      ...gates.filter((gate) => gate.status === 'blocked').map((gate) => gate.detail),
+      ...adapter.blockers,
+      ...credential.blockers,
+    ].filter(Boolean)));
+    const nextActions = Array.from(new Set([
+      ...(adapter.implementation_status !== 'implemented' ? ['Assign production adapter implementation and contract-method verification.'] : []),
+      ...(credential.request_status !== 'ready' ? ['Complete vendor credential request owner/contact, missing values, and archive context.'] : []),
+      ...(credential.handoff_archive.status !== 'ready' ? ['Export and archive the vendor handoff packet with launch evidence reference.'] : []),
+      ...(!cutover.evidence_complete ? ['Complete cutover rehearsal date, last vendor test, rollback owner, go/no-go notes, and approval.'] : []),
+      ...(credential.sandbox_reference_total && credential.sandbox_reference_count < credential.sandbox_reference_total ? ['Collect vendor sandbox reference URLs for every workflow.'] : []),
+      ...(riskRegister.blocking_count ? ['Mitigate or explicitly accept blocking vendor risks before cutover.'] : []),
+    ]));
+    const blocked = gates.some((gate) => gate.status === 'blocked');
+    const attention = gates.some((gate) => gate.status === 'attention');
+    return {
+      integration: preflightItem.key,
+      label: preflightItem.label,
+      cutover_status: blocked ? 'blocked' : attention ? 'attention' : 'ready',
+      go_no_go: blocked ? 'no_go' : attention ? 'hold' : 'go',
+      readiness_mode: preflightItem.readiness_mode,
+      adapter,
+      credential_request: credential,
+      handoff_archive: credential.handoff_archive,
+      cutover_evidence: cutover,
+      risk_register: riskRegister,
+      gates,
+      blockers,
+      next_actions: nextActions,
+      route: '/integrations',
+    };
+  });
+  const readyCount = items.filter((item) => item.cutover_status === 'ready').length;
+  const attentionCount = items.filter((item) => item.cutover_status === 'attention').length;
+  const blockedCount = items.filter((item) => item.cutover_status === 'blocked').length;
+  const goCount = items.filter((item) => item.go_no_go === 'go').length;
+  const holdCount = items.filter((item) => item.go_no_go === 'hold').length;
+  const noGoCount = items.filter((item) => item.go_no_go === 'no_go').length;
+  return {
+    status: blockedCount ? 'blocked' : attentionCount ? 'attention' : 'ready',
+    generated_at: new Date().toISOString(),
+    export_filename: 'concierge-os-integration-cutover-readiness-packet.csv',
+    ready_count: readyCount,
+    attention_count: attentionCount,
+    blocked_count: blockedCount,
+    go_count: goCount,
+    hold_count: holdCount,
+    no_go_count: noGoCount,
+    total: items.length,
+    summary: {
+      total: items.length,
+      ready: readyCount,
+      attention: attentionCount,
+      blocked: blockedCount,
+      go: goCount,
+      hold: holdCount,
+      no_go: noGoCount,
+    },
+    items,
+  };
+}
+
+function integrationCutoverReadinessPacketCsv(packet: IntegrationCutoverReadinessPacket) {
+  const rows = [['integration', 'label', 'cutover_status', 'go_no_go', 'readiness_mode', 'adapter_status', 'credential_request_status', 'handoff_archive_status', 'cutover_evidence_complete', 'blocking_risks', 'blockers', 'next_actions', 'route']];
+  packet.items.forEach((item) => rows.push([
+    item.integration,
+    item.label,
+    item.cutover_status,
+    item.go_no_go,
+    item.readiness_mode,
+    item.adapter.implementation_status,
+    item.credential_request.request_status,
+    item.handoff_archive.status,
+    String(item.cutover_evidence.evidence_complete),
+    String(item.risk_register.blocking_count),
+    item.blockers.join('; '),
+    item.next_actions.join('; '),
+    item.route,
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 function credentialBinderSnapshotFromEvent(event: AuditEvent): CredentialBinderSnapshot {
   const payload = event.payload as Partial<CredentialDryRunBinder>;
   return {
@@ -3520,6 +3657,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/adapter-implementation-packet/export' && method === 'GET') {
     return adapterImplementationPacketCsv(adapterImplementationPacket()) as T;
+  }
+  if (path === '/operations/integration-cutover-readiness-packet' && method === 'GET') {
+    return integrationCutoverReadinessPacket() as T;
+  }
+  if (path === '/operations/integration-cutover-readiness-packet/export' && method === 'GET') {
+    return integrationCutoverReadinessPacketCsv(integrationCutoverReadinessPacket()) as T;
   }
   if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'POST') {
     const binder = credentialDryRunBinder();
