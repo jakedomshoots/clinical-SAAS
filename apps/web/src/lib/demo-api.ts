@@ -1579,7 +1579,7 @@ function goLivePacket(): GoLivePacket {
     {
       key: 'production_rehearsal_snapshot',
       label: 'Production rehearsal snapshot',
-      status: rehearsalSnapshot?.rehearsal_ready ? 'ready' as const : rehearsalSnapshot ? 'warning' as const : 'missing' as const,
+      status: rehearsalSnapshot?.rehearsal_ready ? 'ready' as const : rehearsalSnapshot?.blocking_count ? 'blocking' as const : rehearsalSnapshot ? 'warning' as const : 'missing' as const,
       detail: rehearsalSnapshot ? `${rehearsalSnapshot.blocking_count} blocker(s), ${rehearsalSnapshot.warning_count} warning(s) captured.` : 'Save the production rehearsal report.',
       route: '/operations',
       captured_at: rehearsalSnapshot?.created_at ?? null,

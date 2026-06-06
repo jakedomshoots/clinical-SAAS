@@ -1619,7 +1619,13 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
         _packet_evidence(
             "production_rehearsal_snapshot",
             "Production rehearsal snapshot",
-            "ready" if latest_rehearsal and latest_rehearsal["rehearsal_ready"] else "warning" if latest_rehearsal else "missing",
+            "ready"
+            if latest_rehearsal and latest_rehearsal["rehearsal_ready"]
+            else "blocking"
+            if latest_rehearsal and latest_rehearsal["blocking_count"] > 0
+            else "warning"
+            if latest_rehearsal
+            else "missing",
             f"{latest_rehearsal['blocking_count']} blocker(s), {latest_rehearsal['warning_count']} warning(s) captured."
             if latest_rehearsal
             else "Save the production rehearsal report.",

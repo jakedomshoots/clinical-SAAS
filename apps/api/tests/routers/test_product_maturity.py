@@ -751,7 +751,12 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
         item for item in data["evidence"]
         if item["key"] == "launch_workplan_snapshot"
     )
+    rehearsal_evidence = next(
+        item for item in data["evidence"]
+        if item["key"] == "production_rehearsal_snapshot"
+    )
     assert workplan_evidence["status"] == "blocking"
+    assert rehearsal_evidence["status"] == "blocking"
     assert data["open_workplan_items"]
     assert all(item["route"] for item in data["open_workplan_items"])
 
