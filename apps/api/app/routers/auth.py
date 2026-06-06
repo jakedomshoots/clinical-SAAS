@@ -5,13 +5,15 @@ from app.config import settings
 from app.database import get_db
 from app.deps import get_current_user, require_roles
 from app.models.user import User, UserRole, utcnow
-from app.schemas.auth import SeedAdminOut, TokenResponse, UserCreate, UserLogin, UserOut
+from app.schemas.auth import PasswordRotationComplete, SeedAdminOut, TokenResponse, UserCreate, UserLogin, UserOut
 from app.services.audit_service import log_event
 from app.services.auth_service import (
     authenticate_user,
+    complete_password_rotation,
     create_access_token,
     create_user,
     seed_admin,
+    temporary_password_is_expired,
 )
 from app.services.settings_service import get_or_create_settings
 
@@ -69,6 +71,25 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
     user = await authenticate_user(db, data.email, data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if user.password_must_change:
+        await log_event(
+            db,
+            "auth.login_blocked",
+            "user",
+            user.id,
+            actor_id=user.id,
+            payload={
+                "reason": "password_rotation_required",
+                "role": user.role.value,
+                "temporary_password_expired": temporary_password_is_expired(user),
+            },
+        )
+        detail = (
+            "Temporary password expired"
+            if temporary_password_is_expired(user)
+            else "Password change required before login"
+        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
     if settings.is_production and not user.mfa_enabled:
         await log_event(
             db,
@@ -93,6 +114,42 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
         user.id,
         actor_id=user.id,
         payload={"role": user.role.value, "mfa_enabled": user.mfa_enabled},
+    )
+    token = create_access_token(user.id, user.role.value)
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        user=UserOut.model_validate(user),
+    )
+
+
+@router.post("/complete-password-rotation", response_model=TokenResponse)
+async def complete_password_rotation_route(
+    data: PasswordRotationComplete,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+):
+    try:
+        user = await complete_password_rotation(
+            db,
+            str(data.email),
+            data.current_password,
+            data.new_password,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    user.last_login_at = utcnow()
+    await db.commit()
+    await db.refresh(user)
+    await log_event(
+        db,
+        "auth.password_rotated",
+        "user",
+        user.id,
+        actor_id=user.id,
+        payload={"role": user.role.value},
     )
     token = create_access_token(user.id, user.role.value)
     return TokenResponse(
@@ -134,6 +191,7 @@ async def session_policy(
         "audit_events": [
             "auth.login",
             "auth.login_blocked",
+            "auth.password_rotated",
             "patient_document.accessed",
             "settings.updated",
             "user.access_reviewed",

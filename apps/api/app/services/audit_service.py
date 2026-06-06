@@ -39,6 +39,7 @@ AUDIT_REVIEW_CATEGORIES = [
             "user.access_reviewed",
             "auth.login",
             "auth.login_blocked",
+            "auth.password_rotated",
         ],
         "severity": "critical",
         "route": "/staff",

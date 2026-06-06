@@ -1,4 +1,5 @@
 import pytest
+from datetime import UTC, datetime, timedelta
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -239,6 +240,79 @@ async def test_register_new_user(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_registered_user_must_rotate_temporary_password_before_login(
+    client: AsyncClient,
+    auth_headers,
+):
+    created = await client.post("/api/auth/register", json={
+        "email": "rotate-provider@clinic.example.com",
+        "password": "provider123!",
+        "display_name": "Rotate Provider",
+        "role": "provider",
+    }, headers=auth_headers)
+    assert created.status_code == 201
+    assert created.json()["password_must_change"] is True
+    assert created.json()["temporary_password_expires_at"] is not None
+
+    blocked_login = await client.post("/api/auth/login", json={
+        "email": "rotate-provider@clinic.example.com",
+        "password": "provider123!",
+    })
+    assert blocked_login.status_code == 403
+    assert blocked_login.json()["detail"] == "Password change required before login"
+
+    rotated = await client.post("/api/auth/complete-password-rotation", json={
+        "email": "rotate-provider@clinic.example.com",
+        "current_password": "provider123!",
+        "new_password": "provider456!!",
+    })
+    assert rotated.status_code == 200
+    assert rotated.json()["user"]["password_must_change"] is False
+    assert rotated.json()["user"]["temporary_password_expires_at"] is None
+    assert rotated.json()["access_token"]
+
+    old_login = await client.post("/api/auth/login", json={
+        "email": "rotate-provider@clinic.example.com",
+        "password": "provider123!",
+    })
+    normal_login = await client.post("/api/auth/login", json={
+        "email": "rotate-provider@clinic.example.com",
+        "password": "provider456!!",
+    })
+    assert old_login.status_code == 401
+    assert normal_login.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_expired_temporary_password_cannot_be_rotated(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    created = await client.post("/api/auth/register", json={
+        "email": "expired-temp@clinic.example.com",
+        "password": "provider123!",
+        "display_name": "Expired Temp",
+        "role": "provider",
+    }, headers=auth_headers)
+    assert created.status_code == 201
+    user = (
+        await db.execute(select(User).where(User.email == "expired-temp@clinic.example.com"))
+    ).scalar_one()
+    user.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+    await db.commit()
+
+    rotated = await client.post("/api/auth/complete-password-rotation", json={
+        "email": "expired-temp@clinic.example.com",
+        "current_password": "provider123!",
+        "new_password": "provider456!!",
+    })
+
+    assert rotated.status_code == 403
+    assert rotated.json()["detail"] == "Temporary password expired"
+
+
+@pytest.mark.asyncio
 async def test_register_requires_authentication(client: AsyncClient):
     res = await client.post("/api/auth/register", json={
         "email": "noauth@clinic.example.com",
@@ -408,7 +482,8 @@ async def test_seed_endpoint_returns_temporary_password(client: AsyncClient):
     )
 
     assert default_login.status_code == 401
-    assert temp_login.status_code == 200
+    assert temp_login.status_code == 403
+    assert temp_login.json()["detail"] == "Password change required before login"
 
 
 @pytest.mark.asyncio

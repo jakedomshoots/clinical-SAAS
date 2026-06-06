@@ -84,6 +84,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Run `pnpm migrate:api` with `AUTO_CREATE_SCHEMA=false`.
 - Set `ALLOW_SEED_ENDPOINT=false`.
 - Provision admin users through the approved identity workflow and review role assignments.
+- Rotate all temporary passwords before staff begin live-patient work; expired temporary credentials cannot be used to start a session.
 - Confirm staff MFA enrollment is recorded; production login blocks session issuance for accounts without MFA.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
 - Confirm `/api/operations/production-config-audit` reports zero critical checks.

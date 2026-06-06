@@ -12,6 +12,8 @@ class UserDirectoryOut(BaseModel):
     role: str
     is_active: bool
     mfa_enabled: bool
+    password_must_change: bool
+    temporary_password_expires_at: datetime | None
     last_login_at: datetime | None
     access_reviewed_at: datetime | None
     access_reviewed_by_id: str | None

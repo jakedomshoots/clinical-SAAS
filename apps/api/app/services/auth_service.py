@@ -10,6 +10,7 @@ from app.config import settings
 from app.models.user import User, UserRole
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+TEMPORARY_PASSWORD_EXPIRE_HOURS = 72
 
 
 def hash_password(password: str) -> str:
@@ -22,6 +23,18 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def generate_temporary_password() -> str:
     return f"{secrets.token_urlsafe(18)}Aa1!"
+
+
+def temporary_password_expires_at() -> datetime:
+    return (datetime.now(UTC) + timedelta(hours=TEMPORARY_PASSWORD_EXPIRE_HOURS)).replace(tzinfo=None)
+
+
+def temporary_password_is_expired(user: User) -> bool:
+    if not user.password_must_change:
+        return False
+    if user.temporary_password_expires_at is None:
+        return True
+    return user.temporary_password_expires_at < datetime.now(UTC).replace(tzinfo=None)
 
 
 def create_access_token(user_id: str, role: str) -> str:
@@ -60,6 +73,7 @@ async def create_user(
     display_name: str,
     role: str,
     organization_id: str = "default",
+    password_must_change: bool = True,
 ) -> User:
     user = User(
         email=email,
@@ -67,8 +81,33 @@ async def create_user(
         display_name=display_name,
         role=UserRole(role),
         organization_id=organization_id,
+        password_must_change=password_must_change,
+        temporary_password_expires_at=temporary_password_expires_at()
+        if password_must_change
+        else None,
     )
     db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def complete_password_rotation(
+    db: AsyncSession,
+    email: str,
+    current_password: str,
+    new_password: str,
+) -> User | None:
+    user = await get_user_by_email(db, email)
+    if user is None or not user.is_active or not verify_password(current_password, user.hashed_password):
+        return None
+    if not user.password_must_change:
+        return user
+    if temporary_password_is_expired(user):
+        raise PermissionError("Temporary password expired")
+    user.hashed_password = hash_password(new_password)
+    user.password_must_change = False
+    user.temporary_password_expires_at = None
     await db.commit()
     await db.refresh(user)
     return user

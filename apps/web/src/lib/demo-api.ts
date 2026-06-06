@@ -7,7 +7,7 @@ const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'assistant_actions', label: 'Assistant actions', event_types: ['assistant.task_created', 'assistant.message_drafted', 'assistant.fax_match_staged'], severity: 'warning' as const, route: '/assistant-review', action_label: 'Review assistant-confirmed actions' },
-  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'auth.login', 'auth.login_blocked'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
+  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'auth.login', 'auth.login_blocked', 'auth.password_rotated'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
   { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },
   { key: 'integration_operations', label: 'Integration operations', event_types: ['integration_event.retry', 'integration_config.updated', 'integration_config.connection_test', 'integration_config.sandbox_evidence'], severity: 'warning' as const, route: '/integrations', action_label: 'Review integration changes' },
 ];
@@ -58,6 +58,16 @@ function normalizePatient(patient: Patient): Patient {
     sms_consent: patient.sms_consent ?? false,
     email_consent: patient.email_consent ?? false,
     preferred_contact_channel: patient.preferred_contact_channel ?? null,
+  };
+}
+
+function normalizeDemoUser(
+  user: Omit<User, 'password_must_change' | 'temporary_password_expires_at'> & Partial<Pick<User, 'password_must_change' | 'temporary_password_expires_at'>>,
+): User {
+  return {
+    ...user,
+    password_must_change: user.password_must_change ?? false,
+    temporary_password_expires_at: user.temporary_password_expires_at ?? null,
   };
 }
 
@@ -1719,12 +1729,12 @@ interface IntegrationEvent {
 }
 
 let demoUsers: User[] = [
-  { id: uuid(1), email: 'admin@clinic.example.com', display_name: 'Clinic Admin', role: 'admin', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-1), access_reviewed_at: null, access_reviewed_by_id: null, access_review_note: null, created_at: iso(-720), updated_at: iso(-24) },
-  { id: uuid(2), email: 'nora.ellis@clinic.example.com', display_name: 'Dr. Nora Ellis', role: 'provider', organization_id: uuid(900), is_active: true, mfa_enabled: true, last_login_at: iso(-2), access_reviewed_at: iso(-30), access_reviewed_by_id: uuid(1), access_review_note: 'Provider access confirmed for pilot.', created_at: iso(-720), updated_at: iso(-24) },
-  { id: uuid(3), email: 'maya.chen@clinic.example.com', display_name: 'Maya Chen, MA', role: 'ma', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-3), access_reviewed_at: iso(-25), access_reviewed_by_id: uuid(1), access_review_note: 'MA role confirmed.', created_at: iso(-720), updated_at: iso(-24) },
-  { id: uuid(4), email: 'riley.morgan@clinic.example.com', display_name: 'Riley Morgan', role: 'manager', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-6), access_reviewed_at: iso(-120), access_reviewed_by_id: uuid(1), access_review_note: 'Review is stale for production launch.', created_at: iso(-720), updated_at: iso(-24) },
-  { id: uuid(5), email: 'sam.rivera@clinic.example.com', display_name: 'Sam Rivera', role: 'front_desk', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-4), access_reviewed_at: iso(-20), access_reviewed_by_id: uuid(4), access_review_note: 'Front desk access confirmed.', created_at: iso(-720), updated_at: iso(-24) },
-  { id: uuid(6), email: 'omar.singh@clinic.example.com', display_name: 'Dr. Omar Singh', role: 'provider', organization_id: uuid(900), is_active: true, mfa_enabled: true, last_login_at: null, access_reviewed_at: null, access_reviewed_by_id: null, access_review_note: null, created_at: iso(-720), updated_at: iso(-24) },
+  normalizeDemoUser({ id: uuid(1), email: 'admin@clinic.example.com', display_name: 'Clinic Admin', role: 'admin', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-1), access_reviewed_at: null, access_reviewed_by_id: null, access_review_note: null, created_at: iso(-720), updated_at: iso(-24) }),
+  normalizeDemoUser({ id: uuid(2), email: 'nora.ellis@clinic.example.com', display_name: 'Dr. Nora Ellis', role: 'provider', organization_id: uuid(900), is_active: true, mfa_enabled: true, last_login_at: iso(-2), access_reviewed_at: iso(-30), access_reviewed_by_id: uuid(1), access_review_note: 'Provider access confirmed for pilot.', created_at: iso(-720), updated_at: iso(-24) }),
+  normalizeDemoUser({ id: uuid(3), email: 'maya.chen@clinic.example.com', display_name: 'Maya Chen, MA', role: 'ma', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-3), access_reviewed_at: iso(-25), access_reviewed_by_id: uuid(1), access_review_note: 'MA role confirmed.', created_at: iso(-720), updated_at: iso(-24) }),
+  normalizeDemoUser({ id: uuid(4), email: 'riley.morgan@clinic.example.com', display_name: 'Riley Morgan', role: 'manager', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-6), access_reviewed_at: iso(-120), access_reviewed_by_id: uuid(1), access_review_note: 'Review is stale for production launch.', created_at: iso(-720), updated_at: iso(-24) }),
+  normalizeDemoUser({ id: uuid(5), email: 'sam.rivera@clinic.example.com', display_name: 'Sam Rivera', role: 'front_desk', organization_id: uuid(900), is_active: true, mfa_enabled: false, last_login_at: iso(-4), access_reviewed_at: iso(-20), access_reviewed_by_id: uuid(4), access_review_note: 'Front desk access confirmed.', created_at: iso(-720), updated_at: iso(-24) }),
+  normalizeDemoUser({ id: uuid(6), email: 'omar.singh@clinic.example.com', display_name: 'Dr. Omar Singh', role: 'provider', organization_id: uuid(900), is_active: true, mfa_enabled: true, last_login_at: null, access_reviewed_at: null, access_reviewed_by_id: null, access_review_note: null, created_at: iso(-720), updated_at: iso(-24) }),
 ];
 
 let providerAvailability: ProviderAvailability[] = [
@@ -2301,6 +2311,7 @@ if (storedDemoData) {
   clinicSettings = storedDemoData.clinicSettings ?? clinicSettings;
   billingCases = (storedDemoData.billingCases ?? billingCases).map(normalizeBillingCase);
   portalIntake = storedDemoData.portalIntake ?? portalIntake;
+  demoUsers = demoUsers.map(normalizeDemoUser);
   integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
@@ -2780,7 +2791,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/auth/session-policy' && method === 'GET') {
     const user = demoUsers[0];
-    return { user_id: user.id, role: user.role, access_token_expire_minutes: 480, mfa_required: false, mfa_enabled: user.mfa_enabled, mfa_provider: 'local_policy', access_review_required: true, access_review_window_days: ACCESS_REVIEW_WINDOW_DAYS, last_login_at: user.last_login_at, last_access_reviewed_at: user.access_reviewed_at, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'auth.login_blocked', 'patient_document.accessed', 'settings.updated', 'user.access_reviewed'] } as T;
+    return { user_id: user.id, role: user.role, access_token_expire_minutes: 480, mfa_required: false, mfa_enabled: user.mfa_enabled, mfa_provider: 'local_policy', access_review_required: true, access_review_window_days: ACCESS_REVIEW_WINDOW_DAYS, last_login_at: user.last_login_at, last_access_reviewed_at: user.access_reviewed_at, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'auth.login_blocked', 'auth.password_rotated', 'patient_document.accessed', 'settings.updated', 'user.access_reviewed'] } as T;
   }
   if (path === '/auth/register' && method === 'POST') {
     const incoming = body as Partial<User> & { password?: string };
@@ -2792,6 +2803,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       organization_id: uuid(900),
       is_active: true,
       mfa_enabled: false,
+      password_must_change: true,
+      temporary_password_expires_at: new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString(),
       last_login_at: null,
       access_reviewed_at: null,
       access_reviewed_by_id: null,

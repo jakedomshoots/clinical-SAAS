@@ -32,6 +32,8 @@ class User(Base):
     organization_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    password_must_change: Mapped[bool] = mapped_column(Boolean, default=False)
+    temporary_password_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     access_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     access_reviewed_by_id: Mapped[str | None] = mapped_column(String(36), nullable=True)

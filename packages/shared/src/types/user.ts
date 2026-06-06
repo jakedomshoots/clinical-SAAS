@@ -8,6 +8,8 @@ export interface User {
   organization_id: UUID;
   is_active: boolean;
   mfa_enabled: boolean;
+  password_must_change: boolean;
+  temporary_password_expires_at: string | null;
   last_login_at: string | null;
   access_reviewed_at: string | null;
   access_reviewed_by_id?: UUID | null;
@@ -19,6 +21,12 @@ export interface User {
 export interface LoginRequest {
   email: string;
   password: string;
+}
+
+export interface PasswordRotationCompleteRequest {
+  email: string;
+  current_password: string;
+  new_password: string;
 }
 
 export interface RegisterRequest {

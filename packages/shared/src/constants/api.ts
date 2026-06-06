@@ -3,6 +3,7 @@ export const API_PREFIX = '/api';
 export const ROUTES = {
   AUTH: {
     LOGIN: '/api/auth/login',
+    COMPLETE_PASSWORD_ROTATION: '/api/auth/complete-password-rotation',
     REGISTER: '/api/auth/register',
     ME: '/api/auth/me',
   },

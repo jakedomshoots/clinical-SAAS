@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { DEMO_MODE_ENABLED, createApiClient } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
-import type { TokenResponse } from '@concierge-os/shared';
+import type { PasswordRotationCompleteRequest, TokenResponse } from '@concierge-os/shared';
 import { Activity, Loader2 } from 'lucide-react';
 
 export const Route = createFileRoute('/login')({
@@ -15,6 +15,8 @@ function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState(DEMO_MODE_ENABLED ? 'admin@clinic.example.com' : '');
   const [password, setPassword] = useState(DEMO_MODE_ENABLED ? 'admin123!' : '');
+  const [newPassword, setNewPassword] = useState('');
+  const [showRotation, setShowRotation] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,6 +30,8 @@ function LoginPage() {
       organization_id: 'default',
       is_active: true,
       mfa_enabled: false,
+      password_must_change: false,
+      temporary_password_expires_at: null,
       last_login_at: new Date().toISOString(),
       access_reviewed_at: null,
       access_reviewed_by_id: null,
@@ -53,7 +57,31 @@ function LoginPage() {
         loginDemo();
         return;
       }
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const message = err instanceof Error ? err.message : 'Login failed';
+      setShowRotation(message === 'Password change required before login');
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePasswordRotation(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const api = createApiClient(null);
+      const payload: PasswordRotationCompleteRequest = {
+        email,
+        current_password: password,
+        new_password: newPassword,
+      };
+      const res = await api.post<TokenResponse>(ROUTES.AUTH.COMPLETE_PASSWORD_ROTATION, payload);
+      login(res.access_token, res.user);
+      router.navigate({ to: '/' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Password change failed');
     } finally {
       setLoading(false);
     }
@@ -123,6 +151,32 @@ function LoginPage() {
             Open patient portal
           </Link>
         </form>
+        {showRotation && (
+          <form onSubmit={handlePasswordRotation} className="mt-4 rounded-lg border border-amber-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-semibold text-clinic-900">Set a permanent password</h2>
+            <p className="mt-1 text-xs text-clinic-500">Temporary passwords must be changed before a clinic session starts.</p>
+            <div className="mt-4">
+              <label htmlFor="new-password" className="mb-1 block text-sm font-medium text-clinic-700">New password</label>
+              <input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+                minLength={12}
+                className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading || !newPassword}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-md bg-clinic-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-clinic-800 disabled:opacity-50"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Change password and sign in
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

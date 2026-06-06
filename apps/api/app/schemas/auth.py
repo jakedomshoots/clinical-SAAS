@@ -13,6 +13,8 @@ class UserOut(BaseModel):
     organization_id: str
     is_active: bool
     mfa_enabled: bool
+    password_must_change: bool
+    temporary_password_expires_at: datetime | None
     last_login_at: datetime | None
     access_reviewed_at: datetime | None
     created_at: datetime
@@ -41,6 +43,17 @@ class UserCreate(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+
+class PasswordRotationComplete(BaseModel):
+    email: EmailStr
+    current_password: str
+    new_password: str = Field(min_length=12)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password_strength(cls, value: str) -> str:
+        return UserCreate.validate_password_strength(value)
 
 
 class PatientPortalLogin(BaseModel):
