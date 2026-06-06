@@ -567,6 +567,7 @@ class LaunchWorkplanOut(BaseModel):
     warning_count: int
     assigned_count: int
     unassigned_count: int
+    unassigned_blocking_count: int
     items: list[LaunchWorkplanItemOut]
 
 
@@ -579,6 +580,7 @@ class LaunchWorkplanSnapshotOut(BaseModel):
     warning_count: int
     assigned_count: int
     unassigned_count: int
+    unassigned_blocking_count: int
 
 
 class LaunchWorkplanSnapshotListOut(BaseModel):

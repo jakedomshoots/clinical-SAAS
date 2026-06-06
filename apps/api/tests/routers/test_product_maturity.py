@@ -703,6 +703,7 @@ async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     snapshot_data = snapshot.json()
     assert snapshot_data["total"] >= snapshot_data["blocking_count"]
     assert snapshot_data["unassigned_count"] >= 0
+    assert snapshot_data["unassigned_blocking_count"] >= 0
 
     assert snapshots.status_code == 200
     assert snapshots.json()["total"] == 1
@@ -711,6 +712,23 @@ async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
     assert "key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note" in exported.text
+
+
+@pytest.mark.asyncio
+async def test_go_live_packet_blocks_unassigned_launch_workplan_snapshot(client, auth_headers):
+    snapshot = await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
+
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+
+    assert snapshot.status_code == 201
+    assert snapshot.json()["unassigned_blocking_count"] > 0
+    assert packet.status_code == 200
+    workplan_evidence = next(
+        item for item in packet.json()["evidence"]
+        if item["key"] == "launch_workplan_snapshot"
+    )
+    assert workplan_evidence["status"] == "blocking"
+    assert "unassigned blocking" in workplan_evidence["detail"]
 
 
 @pytest.mark.asyncio
@@ -726,9 +744,14 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
     assert data["status"] in {"ready", "attention"}
     assert data["go_live_ready"] is False
     assert data["evidence_total"] >= 5
-    assert data["evidence_ready_count"] >= 2
+    assert data["evidence_ready_count"] >= 1
     evidence_keys = {item["key"] for item in data["evidence"]}
     assert {"readiness_snapshot", "launch_workplan_snapshot", "production_rehearsal_snapshot", "credential_preflight", "backup_restore"} <= evidence_keys
+    workplan_evidence = next(
+        item for item in data["evidence"]
+        if item["key"] == "launch_workplan_snapshot"
+    )
+    assert workplan_evidence["status"] == "blocking"
     assert data["open_workplan_items"]
     assert all(item["route"] for item in data["open_workplan_items"])
 

@@ -56,7 +56,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 
 - Use Operator Health and Production Config Audit in Operations to check production readiness, unsafe launch settings, backup and restore freshness, integration-event failures, credential blockers, staff role/access warnings, and launch evidence gaps.
 - Use the Live-Use Rehearsal Board as the manager's top-level launch view for go-live packet status, production rehearsal gates, workplan blockers, credential blockers, browser QA, staff training, policy approval, and role dry-run evidence.
-- Use Go-Live Packet for final manager review and sign-off, then use Launch Workplan to review open launch blockers, incident risks, credential preflight gaps, and assigned rehearsal work in one queue; save/export snapshots before and after rehearsal fixes.
+- Use Go-Live Packet for final manager review and sign-off, then use Launch Workplan to review open launch blockers, incident risks, credential preflight gaps, and assigned rehearsal work in one queue; save/export snapshots before and after rehearsal fixes, and clear unassigned blocking items before treating the snapshot as ready evidence.
 - Assign the credential-preflight rehearsal action to the integration owner so every vendor preflight blocker carries an owner in the Launch Workplan.
 - Use Role Dry-Run Checklists to rehearse front desk, MA/nurse, provider, billing, and manager workflows before live integrations are connected; start a dry-run session, mark each item complete or blocked, and capture evidence notes.
 - Use Browser QA Evidence to record manual smoke coverage for login, patients, scheduling, documents, faxes, billing, audit, assistant actions, portal intake, and reports before live-use rehearsal.

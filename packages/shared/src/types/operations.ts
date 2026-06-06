@@ -588,6 +588,7 @@ export interface LaunchWorkplan {
   warning_count: number;
   assigned_count: number;
   unassigned_count: number;
+  unassigned_blocking_count: number;
   items: LaunchWorkplanItem[];
 }
 
@@ -600,6 +601,7 @@ export interface LaunchWorkplanSnapshot {
   warning_count: number;
   assigned_count: number;
   unassigned_count: number;
+  unassigned_blocking_count: number;
 }
 
 export interface LaunchWorkplanSnapshotList {

@@ -1484,6 +1484,7 @@ function launchWorkplan(): LaunchWorkplan {
     warning_count: items.filter((item) => item.severity === 'warning').length,
     assigned_count: items.filter((item) => item.assignment).length,
     unassigned_count: items.filter((item) => !item.assignment).length,
+    unassigned_blocking_count: items.filter((item) => item.severity === 'blocking' && !item.assignment).length,
     items,
   };
 }
@@ -1499,6 +1500,7 @@ function launchWorkplanSnapshotFromEvent(event: AuditEvent): LaunchWorkplanSnaps
     warning_count: Number(payload.warning_count ?? 0),
     assigned_count: Number(payload.assigned_count ?? 0),
     unassigned_count: Number(payload.unassigned_count ?? 0),
+    unassigned_blocking_count: Number(payload.unassigned_blocking_count ?? 0),
   };
 }
 
@@ -1534,6 +1536,16 @@ function goLivePacket(): GoLivePacket {
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
+  const workplanSnapshotStatus = workplanSnapshot?.unassigned_blocking_count
+    ? 'blocking' as const
+    : workplanSnapshot
+      ? 'ready' as const
+      : 'missing' as const;
+  const workplanSnapshotDetail = workplanSnapshot?.unassigned_blocking_count
+    ? `${workplanSnapshot.blocking_count} blocking and ${workplanSnapshot.unassigned_count} unassigned item(s) captured; ${workplanSnapshot.unassigned_blocking_count} unassigned blocking item(s) require ownership.`
+    : workplanSnapshot
+      ? `${workplanSnapshot.blocking_count} blocking and ${workplanSnapshot.unassigned_count} unassigned item(s) captured.`
+      : 'Save the Launch Workplan before the rehearsal.';
   const evidence = [
     {
       key: 'readiness_snapshot',
@@ -1546,8 +1558,8 @@ function goLivePacket(): GoLivePacket {
     {
       key: 'launch_workplan_snapshot',
       label: 'Launch workplan snapshot',
-      status: workplanSnapshot ? 'ready' as const : 'missing' as const,
-      detail: workplanSnapshot ? `${workplanSnapshot.blocking_count} blocking and ${workplanSnapshot.unassigned_count} unassigned item(s) captured.` : 'Save the Launch Workplan before the rehearsal.',
+      status: workplanSnapshotStatus,
+      detail: workplanSnapshotDetail,
       route: '/operations',
       captured_at: workplanSnapshot?.created_at ?? null,
     },

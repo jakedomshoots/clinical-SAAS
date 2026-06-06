@@ -1512,6 +1512,10 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     blocking = sum(1 for item in deduped if item["severity"] == "blocking")
     warnings = sum(1 for item in deduped if item["severity"] == "warning")
     assigned = sum(1 for item in deduped if item.get("assignment"))
+    unassigned_blocking = sum(
+        1 for item in deduped
+        if item["severity"] == "blocking" and not item.get("assignment")
+    )
     return {
         "status": "clear" if not deduped else "attention",
         "generated_at": datetime.now(UTC),
@@ -1520,6 +1524,7 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
         "warning_count": warnings,
         "assigned_count": assigned,
         "unassigned_count": len(deduped) - assigned,
+        "unassigned_blocking_count": unassigned_blocking,
         "items": deduped,
     }
 
@@ -1551,6 +1556,23 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
+    workplan_unassigned_blocking = latest_workplan["unassigned_blocking_count"] if latest_workplan else 0
+    workplan_snapshot_status = (
+        "blocking"
+        if workplan_unassigned_blocking
+        else "ready"
+        if latest_workplan
+        else "missing"
+    )
+    workplan_snapshot_detail = (
+        f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured; "
+        f"{workplan_unassigned_blocking} unassigned blocking item(s) require ownership."
+        if latest_workplan and workplan_unassigned_blocking
+        else f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured."
+        if latest_workplan
+        else "Save the Launch Workplan before the rehearsal."
+    )
+
     evidence = [
         _packet_evidence(
             "readiness_snapshot",
@@ -1563,10 +1585,8 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
         _packet_evidence(
             "launch_workplan_snapshot",
             "Launch workplan snapshot",
-            "ready" if latest_workplan else "missing",
-            f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured."
-            if latest_workplan
-            else "Save the Launch Workplan before the rehearsal.",
+            workplan_snapshot_status,
+            workplan_snapshot_detail,
             "/operations",
             latest_workplan["created_at"] if latest_workplan else None,
         ),
@@ -3216,6 +3236,7 @@ def _launch_workplan_snapshot_from_audit(event: AuditLog) -> dict:
         "warning_count": int(payload.get("warning_count", 0)),
         "assigned_count": int(payload.get("assigned_count", 0)),
         "unassigned_count": int(payload.get("unassigned_count", 0)),
+        "unassigned_blocking_count": int(payload.get("unassigned_blocking_count", 0)),
     }
 
 
