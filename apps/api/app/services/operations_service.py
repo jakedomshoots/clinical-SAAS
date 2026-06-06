@@ -30,6 +30,7 @@ GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
 ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
 BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
 STAFF_TRAINING_SESSION_EVENT_TYPE = "operations.staff_training_session"
+POLICY_APPROVAL_SESSION_EVENT_TYPE = "operations.policy_approval_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -506,6 +507,152 @@ async def update_staff_training_session(db: AsyncSession, user: User, session_id
     return _staff_training_session_from_audit(event)
 
 
+def policy_approval_checklist() -> dict:
+    items = [
+        _policy_item(
+            "phi_retention",
+            "PHI retention",
+            "Review patient record, audit log, document, backup, and demo-data retention expectations.",
+            "/operations",
+            "Compliance",
+            ["docs/compliance/phi-retention-and-incident-response.md"],
+        ),
+        _policy_item(
+            "incident_response",
+            "Incident response",
+            "Review breach triage, account/credential containment, evidence preservation, notification, and corrective-action ownership.",
+            "/operations",
+            "Security",
+            ["docs/compliance/phi-retention-and-incident-response.md"],
+        ),
+        _policy_item(
+            "access_review",
+            "Access review",
+            "Review monthly access review, offboarding, privileged-account MFA, and audit export responsibilities.",
+            "/staff",
+            "Security",
+            ["docs/compliance/phi-retention-and-incident-response.md", "docs/operations/production-launch-checklist.md"],
+        ),
+        _policy_item(
+            "backup_restore",
+            "Backup and restore",
+            "Review backup validation, restore drills, retention location, access controls, RTO, and RPO approval.",
+            "/operations",
+            "Resilience",
+            ["docs/operations/production-launch-checklist.md", "docs/operations/deployment-runbook.md"],
+        ),
+        _policy_item(
+            "patient_outreach",
+            "Patient outreach consent",
+            "Review consent-gated SMS/email/portal outreach, blocked states, retries, and delivery callback responsibilities.",
+            "/tasks",
+            "Communications",
+            ["docs/operations/daily-use-readiness.md", "docs/operations/production-launch-checklist.md"],
+        ),
+        _policy_item(
+            "assistant_policy",
+            "Assistant policy",
+            "Review confirmation-gated assistant actions, tool authorization, audit visibility, and clinical responsibility boundaries.",
+            "/assistant-review",
+            "AI safety",
+            ["docs/operations/daily-use-readiness.md", "docs/integrations/vendor-adapter-plan.md"],
+        ),
+    ]
+    return {
+        "generated_at": datetime.now(UTC),
+        "items": items,
+        "total": len(items),
+    }
+
+
+async def start_policy_approval_session(db: AsyncSession, user: User, data: dict) -> dict:
+    checklist = policy_approval_checklist()
+    session_id = str(uuid4())
+    payload = _recalculate_policy_approval_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Policy approval",
+        "reviewer_name": data.get("reviewer_name"),
+        "status": "in_progress",
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "completed_by": None,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_at": None,
+        "items": [
+            {
+                **item,
+                "approval_status": "pending",
+                "note": None,
+            }
+            for item in checklist["items"]
+        ],
+    })
+    event = await log_event(
+        db,
+        POLICY_APPROVAL_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _policy_approval_session_from_audit(event)
+
+
+async def list_policy_approval_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == POLICY_APPROVAL_SESSION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    sessions: dict[str, dict] = {}
+    for event in result.scalars().all():
+        session = _policy_approval_session_from_audit(event)
+        sessions.setdefault(session["session_id"], session)
+    return list(sessions.values())[:25], len(sessions)
+
+
+async def update_policy_approval_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_policy_approval_session_event(db, user, session_id)
+    if not latest:
+        return None
+
+    payload = deepcopy(latest.payload or {})
+    if data.get("note") is not None:
+        payload["note"] = data["note"]
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] == "completed" and not payload.get("completed_at"):
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+            payload["completed_by"] = user.display_name
+
+    item_key = data.get("item_key")
+    if item_key:
+        updated = False
+        for item in payload.get("items", []):
+            if item.get("key") != item_key:
+                continue
+            if data.get("approval_status"):
+                item["approval_status"] = data["approval_status"]
+            if data.get("item_note") is not None:
+                item["note"] = data["item_note"]
+            updated = True
+            break
+        if not updated:
+            return None
+
+    payload = _recalculate_policy_approval_totals(payload)
+    event = await log_event(
+        db,
+        POLICY_APPROVAL_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _policy_approval_session_from_audit(event)
+
+
 async def create_readiness_snapshot(db: AsyncSession, user: User) -> dict:
     readiness = await check_readiness()
     launch = await launch_readiness()
@@ -769,6 +916,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     dry_run_sessions, _ = await list_role_dry_run_sessions(db, user)
     browser_qa_sessions, _ = await list_browser_qa_sessions(db, user)
     staff_training_sessions, _ = await list_staff_training_sessions(db, user)
+    policy_approval_sessions, _ = await list_policy_approval_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
@@ -777,6 +925,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
     latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
     latest_training = staff_training_sessions[0] if staff_training_sessions else None
+    latest_policy_approval = policy_approval_sessions[0] if policy_approval_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -850,6 +999,20 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Complete staff training sign-off for all clinic roles.",
             "/operations",
             latest_training["updated_at"] if latest_training else None,
+        ),
+        _packet_evidence(
+            "policy_approval_session",
+            "Policy approval session",
+            "ready"
+            if latest_policy_approval and latest_policy_approval["status"] == "completed" and latest_policy_approval["pending_count"] == 0 and latest_policy_approval["needs_changes_count"] == 0
+            else "warning"
+            if latest_policy_approval
+            else "missing",
+            f"{latest_policy_approval['approved_count']} approved, {latest_policy_approval['needs_changes_count']} needs changes, {latest_policy_approval['pending_count']} pending item(s)."
+            if latest_policy_approval
+            else "Complete compliance policy approval before live-use rehearsal.",
+            "/operations",
+            latest_policy_approval["updated_at"] if latest_policy_approval else None,
         ),
         _packet_evidence(
             "credential_preflight",
@@ -1351,6 +1514,17 @@ def _training_role(key: str, label: str, summary: str, items: list[dict]) -> dic
     }
 
 
+def _policy_item(key: str, label: str, detail: str, route: str, category: str, docs: list[str]) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "route": route,
+        "category": category,
+        "docs": docs,
+    }
+
+
 def _cors_origins_are_production_safe() -> bool:
     origins = settings.cors_origin_list
     if not origins:
@@ -1619,6 +1793,61 @@ def _staff_training_session_from_audit(event: AuditLog) -> dict:
         "reviewed_count": int(payload.get("reviewed_count", 0)),
         "pending_count": int(payload.get("pending_count", 0)),
         "roles": payload.get("roles", []),
+    }
+
+
+async def _latest_policy_approval_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == POLICY_APPROVAL_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_policy_approval_totals(payload: dict) -> dict:
+    item_count = 0
+    approved_count = 0
+    needs_changes_count = 0
+    pending_count = 0
+    for item in payload.get("items", []):
+        item_count += 1
+        status = item.get("approval_status") or "pending"
+        if status == "approved":
+            approved_count += 1
+        elif status == "needs_changes":
+            needs_changes_count += 1
+        else:
+            pending_count += 1
+    payload["item_count"] = item_count
+    payload["approved_count"] = approved_count
+    payload["needs_changes_count"] = needs_changes_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _policy_approval_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_policy_approval_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Policy approval",
+        "reviewer_name": payload.get("reviewer_name"),
+        "status": payload.get("status", "in_progress"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "item_count": int(payload.get("item_count", 0)),
+        "approved_count": int(payload.get("approved_count", 0)),
+        "needs_changes_count": int(payload.get("needs_changes_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "items": payload.get("items", []),
     }
 
 

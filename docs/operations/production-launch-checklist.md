@@ -68,5 +68,6 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/role-dry-run-checklists` has been reviewed with front desk, MA/nurse, provider, billing, and manager staff.
 - `/api/operations/role-dry-run-sessions` includes a completed dry-run session with complete/blocked status and evidence notes for each role before the live-use rehearsal.
 - `/api/operations/staff-training-sessions` includes a completed staff training session with reviewed/signed status and evidence notes for front desk, MA/nurse, provider, billing, and manager responsibilities before the live-use rehearsal.
+- `/api/operations/policy-approval-sessions` includes a completed policy approval session with approved/needs-changes status and evidence notes for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before the live-use rehearsal.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -83,6 +83,11 @@ type StaffTrainingItemFormState = {
   item_note: string;
 };
 
+type PolicyApprovalItemFormState = {
+  approval_status: NonNullable<PolicyApprovalSessionUpdate['approval_status']>;
+  item_note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -107,6 +112,8 @@ function OperationsPage() {
   const [browserQaItemForms, setBrowserQaItemForms] = useState<Record<string, BrowserQaItemFormState>>({});
   const [staffTrainingSessionForm, setStaffTrainingSessionForm] = useState<StaffTrainingSessionStart>({ session_name: 'Staff training', trainer_name: '', note: '' });
   const [staffTrainingItemForms, setStaffTrainingItemForms] = useState<Record<string, StaffTrainingItemFormState>>({});
+  const [policyApprovalSessionForm, setPolicyApprovalSessionForm] = useState<PolicyApprovalSessionStart>({ session_name: 'Policy approval', reviewer_name: '', note: '' });
+  const [policyApprovalItemForms, setPolicyApprovalItemForms] = useState<Record<string, PolicyApprovalItemFormState>>({});
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
@@ -171,6 +178,14 @@ function OperationsPage() {
   const { data: staffTrainingSessions } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'staff-training-sessions'],
     queryFn: () => api.get<StaffTrainingSessionList>(ROUTES.OPERATIONS_STAFF_TRAINING_SESSIONS),
+  });
+  const { data: policyApprovalChecklist } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-checklist'],
+    queryFn: () => api.get<PolicyApprovalChecklist>(ROUTES.OPERATIONS_POLICY_APPROVAL_CHECKLIST),
+  });
+  const { data: policyApprovalSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-sessions'],
+    queryFn: () => api.get<PolicyApprovalSessionList>(ROUTES.OPERATIONS_POLICY_APPROVAL_SESSIONS),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -316,6 +331,27 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startPolicyApprovalSessionMutation = useMutation({
+    mutationFn: (data: PolicyApprovalSessionStart) => api.post<PolicyApprovalSession>(ROUTES.OPERATIONS_POLICY_APPROVAL_SESSIONS, data),
+    onSuccess: async () => {
+      setPolicyApprovalSessionForm({ session_name: 'Policy approval', reviewer_name: '', note: '' });
+      setPolicyApprovalItemForms({});
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updatePolicyApprovalSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: PolicyApprovalSessionUpdate }) => api.patch<PolicyApprovalSession>(
+      ROUTES.OPERATIONS_POLICY_APPROVAL_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
@@ -324,6 +360,7 @@ function OperationsPage() {
   const activeDryRunSession = dryRunSessions?.data[0] ?? null;
   const activeBrowserQaSession = browserQaSessions?.data[0] ?? null;
   const activeStaffTrainingSession = staffTrainingSessions?.data[0] ?? null;
+  const activePolicyApprovalSession = policyApprovalSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(auditExport).forEach(([key, value]) => {
@@ -477,6 +514,33 @@ function OperationsPage() {
         role_key: roleKey,
         item_key: itemKey,
         training_status: form.training_status,
+        item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const policyApprovalItemKey = (sessionId: string, itemKey: string) => `${sessionId}:${itemKey}`;
+  const formForPolicyApprovalItem = (session: PolicyApprovalSession, itemKey: string): PolicyApprovalItemFormState => {
+    const key = policyApprovalItemKey(session.session_id, itemKey);
+    const item = session.items.find((entry) => entry.key === itemKey);
+    return policyApprovalItemForms[key] ?? {
+      approval_status: item?.approval_status ?? 'pending',
+      item_note: item?.note ?? '',
+    };
+  };
+  const updatePolicyApprovalItemForm = (sessionId: string, itemKey: string, patch: Partial<PolicyApprovalItemFormState>) => {
+    const key = policyApprovalItemKey(sessionId, itemKey);
+    setPolicyApprovalItemForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { approval_status: 'pending', item_note: '' }), ...patch },
+    }));
+  };
+  const submitPolicyApprovalItem = (session: PolicyApprovalSession, itemKey: string) => {
+    const form = formForPolicyApprovalItem(session, itemKey);
+    updatePolicyApprovalSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        item_key: itemKey,
+        approval_status: form.approval_status,
         item_note: form.item_note.trim() || null,
       },
     });
@@ -1138,6 +1202,142 @@ function OperationsPage() {
                     ))}
                   </div>
                 </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Policy Approval Evidence</h2>
+            <p className="text-xs text-clinic-500">{policyApprovalSessions?.total ?? 0} saved session(s) · {policyApprovalChecklist?.total ?? 0} policy item(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activePolicyApprovalSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activePolicyApprovalSession.approved_count} approved</span>
+                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activePolicyApprovalSession.needs_changes_count} needs changes</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activePolicyApprovalSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start policy review</div>
+              <input
+                value={policyApprovalSessionForm.session_name ?? ''}
+                onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={policyApprovalSessionForm.reviewer_name ?? ''}
+                onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, reviewer_name: event.target.value }))}
+                placeholder="Reviewer"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={policyApprovalSessionForm.note ?? ''}
+                onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="Policy review note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startPolicyApprovalSessionMutation.mutate({
+                  session_name: policyApprovalSessionForm.session_name?.trim() || 'Policy approval',
+                  reviewer_name: policyApprovalSessionForm.reviewer_name?.trim() || null,
+                  note: policyApprovalSessionForm.note?.trim() || null,
+                })}
+                disabled={startPolicyApprovalSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start review
+              </button>
+            </div>
+            {activePolicyApprovalSession && (
+              <div className="rounded-md border border-clinic-200 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-clinic-900">{activePolicyApprovalSession.session_name}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{activePolicyApprovalSession.reviewer_name ?? activePolicyApprovalSession.started_by ?? 'Reviewer'} · {new Date(activePolicyApprovalSession.started_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activePolicyApprovalSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {activePolicyApprovalSession.status.replace('_', ' ')}
+                  </span>
+                </div>
+                {activePolicyApprovalSession.note && <div className="mt-2 text-xs text-clinic-500">{activePolicyApprovalSession.note}</div>}
+                <button
+                  type="button"
+                  onClick={() => updatePolicyApprovalSessionMutation.mutate({
+                    sessionId: activePolicyApprovalSession.session_id,
+                    data: { session_status: 'completed', note: activePolicyApprovalSession.note },
+                  })}
+                  disabled={activePolicyApprovalSession.status === 'completed' || updatePolicyApprovalSessionMutation.isPending}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Complete review
+                </button>
+              </div>
+            )}
+          </div>
+          {activePolicyApprovalSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activePolicyApprovalSession.items.map((item) => {
+                const itemForm = formForPolicyApprovalItem(activePolicyApprovalSession, item.key);
+                return (
+                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Link to={item.route} className="text-sm font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
+                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-clinic-400">{item.category} · {item.docs.join(', ')}</div>
+                      </div>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.approval_status === 'approved' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.approval_status === 'needs_changes' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.approval_status.replace('_', ' ')}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
+                      <select
+                        value={itemForm.approval_status}
+                        onChange={(event) => updatePolicyApprovalItemForm(activePolicyApprovalSession.session_id, item.key, { approval_status: event.target.value as PolicyApprovalItemFormState['approval_status'] })}
+                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="needs_changes">Needs changes</option>
+                      </select>
+                      <input
+                        value={itemForm.item_note}
+                        onChange={(event) => updatePolicyApprovalItemForm(activePolicyApprovalSession.session_id, item.key, { item_note: event.target.value })}
+                        placeholder="Approval evidence"
+                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => submitPolicyApprovalItem(activePolicyApprovalSession, item.key)}
+                        disabled={updatePolicyApprovalSessionMutation.isPending}
+                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {(policyApprovalChecklist?.items ?? []).map((item) => (
+                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-clinic-400">{item.category} · {item.docs.join(', ')}</div>
+                </Link>
               ))}
             </div>
           )}

@@ -20,6 +20,11 @@ from app.schemas.operations import (
     OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    PolicyApprovalChecklistOut,
+    PolicyApprovalSessionListOut,
+    PolicyApprovalSessionOut,
+    PolicyApprovalSessionStart,
+    PolicyApprovalSessionUpdate,
     ProductionConfigAuditOut,
     LaunchWorkplanOut,
     LaunchWorkplanSnapshotListOut,
@@ -164,6 +169,51 @@ async def update_staff_training_session(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staff training session not found")
     return StaffTrainingSessionOut(**session)
+
+
+@router.get("/policy-approval-checklist", response_model=PolicyApprovalChecklistOut)
+async def get_policy_approval_checklist(current_user: OpsUserDep):
+    return PolicyApprovalChecklistOut(
+        **operations_service.policy_approval_checklist()
+    )
+
+
+@router.post(
+    "/policy-approval-sessions",
+    response_model=PolicyApprovalSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_policy_approval_session(data: PolicyApprovalSessionStart, db: DbDep, current_user: OpsUserDep):
+    return PolicyApprovalSessionOut(
+        **await operations_service.start_policy_approval_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/policy-approval-sessions", response_model=PolicyApprovalSessionListOut)
+async def list_policy_approval_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_policy_approval_sessions(db, current_user)
+    return PolicyApprovalSessionListOut(
+        data=[PolicyApprovalSessionOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.patch("/policy-approval-sessions/{session_id}", response_model=PolicyApprovalSessionOut)
+async def update_policy_approval_session(
+    session_id: str,
+    data: PolicyApprovalSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_policy_approval_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy approval session not found")
+    return PolicyApprovalSessionOut(**session)
 
 
 @router.get("/launch-workplan", response_model=LaunchWorkplanOut)

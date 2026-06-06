@@ -230,6 +230,64 @@ export interface StaffTrainingSessionList {
   total: number;
 }
 
+export interface PolicyApprovalChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  category: string;
+  docs: string[];
+}
+
+export interface PolicyApprovalChecklist {
+  generated_at: string;
+  items: PolicyApprovalChecklistItem[];
+  total: number;
+}
+
+export interface PolicyApprovalSessionStart {
+  session_name?: string | null;
+  reviewer_name?: string | null;
+  note?: string | null;
+}
+
+export interface PolicyApprovalSessionUpdate {
+  item_key?: string | null;
+  approval_status?: 'pending' | 'approved' | 'needs_changes' | null;
+  item_note?: string | null;
+  session_status?: 'in_progress' | 'completed' | null;
+  note?: string | null;
+}
+
+export interface PolicyApprovalSessionItem extends PolicyApprovalChecklistItem {
+  approval_status: 'pending' | 'approved' | 'needs_changes';
+  note: string | null;
+}
+
+export interface PolicyApprovalSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  reviewer_name: string | null;
+  status: 'in_progress' | 'completed';
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  item_count: number;
+  approved_count: number;
+  needs_changes_count: number;
+  pending_count: number;
+  items: PolicyApprovalSessionItem[];
+}
+
+export interface PolicyApprovalSessionList {
+  data: PolicyApprovalSession[];
+  total: number;
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;

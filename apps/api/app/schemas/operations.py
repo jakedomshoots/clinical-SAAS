@@ -205,6 +205,64 @@ class StaffTrainingSessionListOut(BaseModel):
     total: int
 
 
+class PolicyApprovalChecklistItemOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    category: str
+    docs: list[str]
+
+
+class PolicyApprovalChecklistOut(BaseModel):
+    generated_at: datetime
+    items: list[PolicyApprovalChecklistItemOut]
+    total: int
+
+
+class PolicyApprovalSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    reviewer_name: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class PolicyApprovalSessionUpdate(BaseModel):
+    item_key: str | None = None
+    approval_status: str | None = Field(default=None, pattern="^(pending|approved|needs_changes)$")
+    item_note: str | None = Field(default=None, max_length=1000)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class PolicyApprovalSessionItemOut(PolicyApprovalChecklistItemOut):
+    approval_status: str
+    note: str | None = None
+
+
+class PolicyApprovalSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    reviewer_name: str | None = None
+    status: str
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    item_count: int
+    approved_count: int
+    needs_changes_count: int
+    pending_count: int
+    items: list[PolicyApprovalSessionItemOut]
+
+
+class PolicyApprovalSessionListOut(BaseModel):
+    data: list[PolicyApprovalSessionOut]
+    total: int
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

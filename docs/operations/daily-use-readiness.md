@@ -17,7 +17,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
-- Operations includes Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, launch evidence freshness, owner assignment, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training evidence.
+- Operations includes Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, launch evidence freshness, owner assignment, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -51,6 +51,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Role Dry-Run Checklists to rehearse front desk, MA/nurse, provider, billing, and manager workflows before live integrations are connected; start a dry-run session, mark each item complete or blocked, and capture evidence notes.
 - Use Browser QA Evidence to record manual smoke coverage for login, patients, scheduling, documents, faxes, billing, audit, assistant actions, portal intake, and reports before live-use rehearsal.
 - Use Staff Training Evidence to record front desk, MA/nurse, provider, billing, and manager training sign-off for workflow usage, PHI handling, assistant policy, incident response, access review, and launch responsibilities.
+- Use Policy Approval Evidence to record clinic-owner or compliance-owner approval for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before live-use rehearsal.
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
@@ -91,10 +92,11 @@ An internal clinic pilot is ready when:
 - Staff can complete a dry-run day from Command Center through checkout, documents, messaging, faxes, billing, operations, and reports.
 - Each role can walk through its Operations dry-run checklist with no unroutable workflow items, and the manager can save an audit-backed dry-run session with complete/blocked status and notes for launch review.
 - Staff training is recorded in Operations with reviewed/signed evidence for front desk, MA/nurse, provider, billing, and manager roles before live-use rehearsal.
+- Policy approval is recorded in Operations with approved/needs-changes evidence for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
 - Managers can export audit data, retry failed integration events, and inspect readiness.
 - Managers can use Operator Health to route critical production signals to Operations, Integrations, or evidence workflows before a live-use rehearsal.
-- Managers can review and sign off the Go-Live Packet, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run.
+- Managers can review and sign off the Go-Live Packet, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, policy approval, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run.
 
 ## Recommended Next Build Items For Production
 

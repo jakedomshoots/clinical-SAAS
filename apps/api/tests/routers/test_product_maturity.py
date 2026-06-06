@@ -874,6 +874,82 @@ async def test_staff_training_session_evidence_is_audit_backed(client, auth_head
 
 
 @pytest.mark.asyncio
+async def test_policy_approval_session_evidence_feeds_go_live_packet(client, auth_headers):
+    checklist = await client.get("/api/operations/policy-approval-checklist", headers=auth_headers)
+    first_item = checklist.json()["items"][0]
+
+    created = await client.post(
+        "/api/operations/policy-approval-sessions",
+        json={"session_name": "Compliance policy review", "reviewer_name": "Clinic Owner", "note": "Pre-live compliance review."},
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/policy-approval-sessions/{session['session_id']}",
+        json={
+            "item_key": first_item["key"],
+            "approval_status": "approved",
+            "item_note": "Clinic owner approved this policy for launch rehearsal.",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/operations/policy-approval-sessions/{session['session_id']}",
+        json={"session_status": "completed", "note": "Policy review completed."},
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/policy-approval-sessions", headers=auth_headers)
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.policy_approval_session",
+        headers=auth_headers,
+    )
+
+    assert checklist.status_code == 200
+    checklist_data = checklist.json()
+    item_keys = {item["key"] for item in checklist_data["items"]}
+    assert {
+        "phi_retention",
+        "incident_response",
+        "access_review",
+        "backup_restore",
+        "patient_outreach",
+        "assistant_policy",
+    } <= item_keys
+    assert checklist_data["total"] == len(checklist_data["items"])
+    assert all(item["docs"] for item in checklist_data["items"])
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Compliance policy review"
+    assert session["reviewer_name"] == "Clinic Owner"
+    assert session["pending_count"] == session["item_count"]
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["approved_count"] == 1
+    updated_item = next(item for item in updated_data["items"] if item["key"] == first_item["key"])
+    assert updated_item["approval_status"] == "approved"
+    assert updated_item["note"] == "Clinic owner approved this policy for launch rehearsal."
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"]
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert packet.status_code == 200
+    evidence = {item["key"]: item for item in packet.json()["evidence"]}
+    assert "policy_approval_session" in evidence
+    assert evidence["policy_approval_session"]["status"] in {"warning", "ready"}
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.policy_approval_session"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

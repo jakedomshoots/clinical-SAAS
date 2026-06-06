@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -522,6 +522,96 @@ function updateStaffTrainingSession(sessionId: string, data: StaffTrainingSessio
   return updated;
 }
 
+function demoPolicyItem(key: string, label: string, detail: string, route: string, category: string, docs: string[]): PolicyApprovalChecklistItem {
+  return { key, label, detail, route, category, docs };
+}
+
+function policyApprovalChecklist(): PolicyApprovalChecklist {
+  const items = [
+    demoPolicyItem('phi_retention', 'PHI retention', 'Review patient record, audit log, document, backup, and demo-data retention expectations.', '/operations', 'Compliance', ['docs/compliance/phi-retention-and-incident-response.md']),
+    demoPolicyItem('incident_response', 'Incident response', 'Review breach triage, account containment, evidence preservation, notification, and corrective-action ownership.', '/operations', 'Security', ['docs/compliance/phi-retention-and-incident-response.md']),
+    demoPolicyItem('access_review', 'Access review', 'Review monthly access review, offboarding, privileged MFA, and audit export responsibilities.', '/staff', 'Security', ['docs/compliance/phi-retention-and-incident-response.md', 'docs/operations/production-launch-checklist.md']),
+    demoPolicyItem('backup_restore', 'Backup and restore', 'Review backup validation, restore drills, retention location, access controls, RTO, and RPO approval.', '/operations', 'Resilience', ['docs/operations/production-launch-checklist.md', 'docs/operations/deployment-runbook.md']),
+    demoPolicyItem('patient_outreach', 'Patient outreach consent', 'Review consent-gated SMS/email/portal outreach, blocked states, retries, and callback responsibilities.', '/tasks', 'Communications', ['docs/operations/daily-use-readiness.md', 'docs/operations/production-launch-checklist.md']),
+    demoPolicyItem('assistant_policy', 'Assistant policy', 'Review confirmation-gated assistant actions, tool authorization, audit visibility, and clinical responsibility boundaries.', '/assistant-review', 'AI safety', ['docs/operations/daily-use-readiness.md', 'docs/integrations/vendor-adapter-plan.md']),
+  ];
+  return { generated_at: new Date().toISOString(), items, total: items.length };
+}
+
+function recalculatePolicyApprovalSession(session: PolicyApprovalSession): PolicyApprovalSession {
+  const approvedCount = session.items.filter((item) => item.approval_status === 'approved').length;
+  const needsChangesCount = session.items.filter((item) => item.approval_status === 'needs_changes').length;
+  return {
+    ...session,
+    item_count: session.items.length,
+    approved_count: approvedCount,
+    needs_changes_count: needsChangesCount,
+    pending_count: session.items.length - approvedCount - needsChangesCount,
+  };
+}
+
+function createPolicyApprovalSession(data: PolicyApprovalSessionStart): PolicyApprovalSession {
+  const checklist = policyApprovalChecklist();
+  const createdAt = new Date().toISOString();
+  const session = recalculatePolicyApprovalSession({
+    id: uuid(2400 + policyApprovalSessions.length),
+    session_id: uuid(2500 + policyApprovalSessions.length),
+    session_name: data.session_name || 'Policy approval',
+    reviewer_name: data.reviewer_name ?? null,
+    status: 'in_progress',
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    item_count: 0,
+    approved_count: 0,
+    needs_changes_count: 0,
+    pending_count: 0,
+    items: checklist.items.map((item) => ({ ...item, approval_status: 'pending' as const, note: null })),
+  });
+  policyApprovalSessions = [session, ...policyApprovalSessions];
+  logDemoEvent({
+    event_type: 'operations.policy_approval_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updatePolicyApprovalSession(sessionId: string, data: PolicyApprovalSessionUpdate): PolicyApprovalSession | null {
+  const session = policyApprovalSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated = recalculatePolicyApprovalSession({
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status === 'completed' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status === 'completed' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    items: session.items.map((item) => {
+      if (item.key !== data.item_key) return item;
+      return {
+        ...item,
+        approval_status: data.approval_status ?? item.approval_status,
+        note: data.item_note !== undefined ? data.item_note : item.note,
+      };
+    }),
+  });
+  policyApprovalSessions = [updated, ...policyApprovalSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.policy_approval_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: updated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return updated;
+}
+
 function recalculateBrowserQaSession(session: BrowserQaSession): BrowserQaSession {
   const passedCount = session.items.filter((item) => item.qa_status === 'passed').length;
   const failedCount = session.items.filter((item) => item.qa_status === 'failed').length;
@@ -806,6 +896,7 @@ function goLivePacket(): GoLivePacket {
   const latestWorkplan = auditEvents.find((event) => event.event_type === 'operations.launch_workplan_snapshot');
   const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
   const latestTraining = staffTrainingSessions[0] ?? null;
+  const latestPolicyApproval = policyApprovalSessions[0] ?? null;
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
@@ -849,6 +940,14 @@ function goLivePacket(): GoLivePacket {
       detail: latestTraining ? `${latestTraining.signed_count} signed, ${latestTraining.reviewed_count} reviewed, ${latestTraining.pending_count} pending training item(s).` : 'Record a staff training session before live-use rehearsal.',
       route: '/operations',
       captured_at: latestTraining?.updated_at ?? null,
+    },
+    {
+      key: 'policy_approval_session',
+      label: 'Policy approval session',
+      status: latestPolicyApproval?.status === 'completed' && latestPolicyApproval.pending_count === 0 && latestPolicyApproval.needs_changes_count === 0 ? 'ready' as const : latestPolicyApproval ? 'warning' as const : 'missing' as const,
+      detail: latestPolicyApproval ? `${latestPolicyApproval.approved_count} approved, ${latestPolicyApproval.needs_changes_count} needs changes, ${latestPolicyApproval.pending_count} pending policy item(s).` : 'Record compliance policy approval before live-use rehearsal.',
+      route: '/operations',
+      captured_at: latestPolicyApproval?.updated_at ?? null,
     },
     {
       key: 'backup_restore',
@@ -1153,6 +1252,7 @@ interface DemoStore {
   roleDryRunSessions?: RoleDryRunSession[];
   browserQaSessions?: BrowserQaSession[];
   staffTrainingSessions?: StaffTrainingSession[];
+  policyApprovalSessions?: PolicyApprovalSession[];
 }
 
 interface IntegrationEvent {
@@ -1207,6 +1307,7 @@ let goLiveAttestations: GoLiveAttestation[] = [];
 let roleDryRunSessions: RoleDryRunSession[] = [];
 let browserQaSessions: BrowserQaSession[] = [];
 let staffTrainingSessions: StaffTrainingSession[] = [];
+let policyApprovalSessions: PolicyApprovalSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -1532,7 +1633,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions }),
   );
 }
 
@@ -1725,6 +1826,7 @@ if (storedDemoData) {
   roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
   browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
   staffTrainingSessions = storedDemoData.staffTrainingSessions ?? staffTrainingSessions;
+  policyApprovalSessions = storedDemoData.policyApprovalSessions ?? policyApprovalSessions;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1889,6 +1991,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     if (!session) {
       throw new Error('Staff training session not found');
+    }
+    return session as T;
+  }
+  if (path === '/operations/policy-approval-checklist' && method === 'GET') {
+    return policyApprovalChecklist() as T;
+  }
+  if (path === '/operations/policy-approval-sessions' && method === 'POST') {
+    return createPolicyApprovalSession((body ?? {}) as PolicyApprovalSessionStart) as T;
+  }
+  if (path === '/operations/policy-approval-sessions' && method === 'GET') {
+    return { data: policyApprovalSessions, total: policyApprovalSessions.length } satisfies PolicyApprovalSessionList as T;
+  }
+  const policyApprovalSessionMatch = path.match(/^\/operations\/policy-approval-sessions\/([^/]+)$/);
+  if (policyApprovalSessionMatch && method === 'PATCH') {
+    const session = updatePolicyApprovalSession(
+      decodeURIComponent(policyApprovalSessionMatch[1]),
+      (body ?? {}) as PolicyApprovalSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Policy approval session not found');
     }
     return session as T;
   }

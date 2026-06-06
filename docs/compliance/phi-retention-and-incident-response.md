@@ -2,6 +2,8 @@
 
 This document is an operational template. A compliance owner should review and approve it before live clinical use.
 
+Policy approval should be recorded in Operations before any live-use rehearsal. Use the policy approval evidence workflow to mark PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy as approved or needing changes, with reviewer notes.
+
 ## PHI Retention
 
 - Patient records: retain according to clinic, state, and payer requirements.
