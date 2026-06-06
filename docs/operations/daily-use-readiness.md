@@ -6,7 +6,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 
 - Command Center shows today's operational queue, active clinic patients, blockers, open work, unread messages, and fax inbox risk.
 - Command Center includes a clinic-wide Document Review Queue for outside records that need staff review before filing or reconciliation.
-- Patients includes a Document Intake Workbench with status, role, and priority filters plus inline routing, reviewer, review-note, filing, and review-task creation actions.
+- Patients includes a Document Intake Workbench with status, role, and priority filters plus inline routing, reviewer, review-note, filing, reconciliation, bulk filing/reconciliation, and review-task creation actions.
 - Patient charts include demographics, outside documents, medication reconciliation, care-plan/checkout items, encounters, labs, tasks, and messages.
 - Patient Portal supports patient-scoped login, intake updates, appointment requests, and upload confirmation.
 - Portal Intake supports chart application, appointment conversion with conflict checks, alternate slot selection, document conversion, and rejection.

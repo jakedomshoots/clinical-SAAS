@@ -34,6 +34,7 @@ function PatientListPage() {
   const [page, setPage] = useState(1);
   const [documentFilters, setDocumentFilters] = useState({ status: 'needs_review', routed_to_role: '', review_priority: '' });
   const [documentQueueForms, setDocumentQueueForms] = useState<Record<string, DocumentQueueFormState>>({});
+  const [selectedDocumentIds, setSelectedDocumentIds] = useState<string[]>([]);
   const [showNewPatient, setShowNewPatient] = useState(false);
   const [newPatient, setNewPatient] = useState({
     first_name: '',
@@ -93,6 +94,20 @@ function PatientListPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const bulkUpdateDocumentsMutation = useMutation({
+    mutationFn: async ({ documents, status }: { documents: PatientDocumentQueueItem[]; status: PatientDocument['status'] }) => {
+      await Promise.all(documents.map((document) => api.patch<PatientDocument>(
+        ROUTES.PATIENT_DOCUMENT(document.patient_id, document.id),
+        { status },
+      )));
+    },
+    onSuccess: () => {
+      setSelectedDocumentIds([]);
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue-workbench') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
   const processDocumentMutation = useMutation({
     mutationFn: (document: PatientDocumentQueueItem) =>
       api.post<PatientDocumentProcessResult>(ROUTES.PATIENT_DOCUMENT_PROCESS(document.patient_id, document.id), {}),
@@ -131,6 +146,12 @@ function PatientListPage() {
     });
   };
   const documentRows = documentQueue?.data ?? [];
+  const selectedDocuments = documentRows.filter((document) => selectedDocumentIds.includes(document.id));
+  const toggleDocumentSelection = (documentId: string) => {
+    setSelectedDocumentIds((current) => current.includes(documentId)
+      ? current.filter((id) => id !== documentId)
+      : [...current, documentId]);
+  };
 
   return (
     <div className="space-y-5">
@@ -188,6 +209,36 @@ function PatientListPage() {
             </select>
           </div>
         </div>
+        {selectedDocumentIds.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-100 bg-clinic-50 px-4 py-2">
+            <div className="text-xs font-medium text-clinic-600">{selectedDocumentIds.length} selected</div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => bulkUpdateDocumentsMutation.mutate({ documents: selectedDocuments, status: 'filed' })}
+                disabled={bulkUpdateDocumentsMutation.isPending || selectedDocuments.length === 0}
+                className="rounded-md border border-accent-200 bg-accent-50 px-3 py-1.5 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-60"
+              >
+                File selected
+              </button>
+              <button
+                type="button"
+                onClick={() => bulkUpdateDocumentsMutation.mutate({ documents: selectedDocuments, status: 'reconciled' })}
+                disabled={bulkUpdateDocumentsMutation.isPending || selectedDocuments.length === 0}
+                className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+              >
+                Reconcile selected
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedDocumentIds([])}
+                className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
         <div className="divide-y divide-clinic-100">
           {documentsLoading && <div className="px-4 py-6 text-sm text-clinic-500">Loading document queue...</div>}
           {documentsError && <div className="px-4 py-6 text-sm text-red-700">Unable to load document queue.</div>}
@@ -200,6 +251,13 @@ function PatientListPage() {
               <div key={document.id} className="grid gap-3 px-4 py-3 xl:grid-cols-[minmax(0,1fr)_32rem]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedDocumentIds.includes(document.id)}
+                      onChange={() => toggleDocumentSelection(document.id)}
+                      className="h-4 w-4 rounded border-clinic-300 text-accent-600"
+                      aria-label={`Select ${document.title}`}
+                    />
                     <button
                       type="button"
                       onClick={() => navigate({ to: '/patients/$patientId', params: { patientId: document.patient_id } })}
