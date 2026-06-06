@@ -98,3 +98,35 @@ export interface UserRecoverySummary {
   temporary_password_count: number;
   expired_temporary_password_count: number;
 }
+
+export interface RoleAccessMatrixRole {
+  role: Role;
+  label: string;
+  active_users: number;
+  can_view_patients: boolean;
+  can_manage_clinical: boolean;
+  can_manage_front_office: boolean;
+  can_manage_staff: boolean;
+  can_manage_operations: boolean;
+  can_manage_integrations: boolean;
+  can_export_audit: boolean;
+  mfa_required: boolean;
+  access_review_required: boolean;
+  summary: string;
+}
+
+export interface RoleAccessMatrixWarning {
+  key: string;
+  label: string;
+  severity: 'critical' | 'warning';
+  role: Role | null;
+  detail: string;
+}
+
+export interface RoleAccessMatrix {
+  generated_at: string;
+  total_roles: number;
+  summary: Record<string, number>;
+  roles: RoleAccessMatrixRole[];
+  warnings: RoleAccessMatrixWarning[];
+}

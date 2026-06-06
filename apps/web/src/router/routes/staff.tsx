@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ROUTES, type Role, type SessionPolicy, type User, type UserAccessReviewSummary, type UserListResponse, type UserPasswordResetResponse, type UserRecoverySummary, type UserUpdate } from '@concierge-os/shared';
+import { ROUTES, type Role, type RoleAccessMatrix, type SessionPolicy, type User, type UserAccessReviewSummary, type UserListResponse, type UserPasswordResetResponse, type UserRecoverySummary, type UserUpdate } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
@@ -30,6 +30,10 @@ function StaffPage() {
   const { data: recoverySummary } = useQuery({
     queryKey: [...QUERY_KEYS.USERS, 'recovery-summary'],
     queryFn: () => api.get<UserRecoverySummary>(ROUTES.USER_RECOVERY_SUMMARY),
+  });
+  const { data: roleMatrix } = useQuery({
+    queryKey: [...QUERY_KEYS.USERS, 'role-access-matrix'],
+    queryFn: () => api.get<RoleAccessMatrix>(ROUTES.USER_ROLE_ACCESS_MATRIX),
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, update }: { id: string; update: UserUpdate }) =>
@@ -101,6 +105,50 @@ function StaffPage() {
               <PolicyLine label="Review cadence" value={`${accessReview?.review_window_days ?? sessionPolicy?.access_review_window_days ?? 90} days`} />
             </div>
           </section>
+
+          {roleMatrix && (
+            <section className="rounded-md border border-clinic-200 bg-white">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-100 px-4 py-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-clinic-900">Role Access Matrix</h2>
+                  <p className="mt-1 text-xs text-clinic-500">{roleMatrix.total_roles} roles · {roleMatrix.summary.active_users ?? 0} active staff · {roleMatrix.summary.privileged_users_without_mfa ?? 0} privileged MFA gaps</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {roleMatrix.warnings.slice(0, 3).map((warning) => (
+                    <span key={warning.key} className={`rounded-md border px-2 py-1 text-xs font-medium ${warning.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      {warning.label}
+                    </span>
+                  ))}
+                  {roleMatrix.warnings.length === 0 && (
+                    <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">Access clear</span>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-px bg-clinic-100 md:grid-cols-5">
+                {roleMatrix.roles.map((role) => (
+                  <div key={role.role} className="bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
+                      <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-[11px] font-medium text-clinic-700">{role.active_users}</span>
+                    </div>
+                    <p className="mt-2 min-h-10 text-xs text-clinic-500">{role.summary}</p>
+                    <div className="mt-3 grid gap-1 text-[11px]">
+                      <AccessFlag enabled={role.can_manage_clinical} label="Clinical" />
+                      <AccessFlag enabled={role.can_manage_front_office} label="Front office" />
+                      <AccessFlag enabled={role.can_manage_staff} label="Staff/admin" />
+                      <AccessFlag enabled={role.can_manage_operations} label="Operations" />
+                      <AccessFlag enabled={role.can_export_audit} label="Audit export" />
+                    </div>
+                    {role.mfa_required && (
+                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                        MFA required
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
             <div className="grid gap-px border-b border-clinic-100 bg-clinic-100 md:grid-cols-3">
@@ -202,6 +250,15 @@ function StaffPage() {
           </section>
         </>
       )}
+    </div>
+  );
+}
+
+function AccessFlag({ enabled, label }: { enabled: boolean; label: string }) {
+  return (
+    <div className={`flex items-center justify-between gap-2 rounded border px-2 py-1 ${enabled ? 'border-accent-100 bg-accent-50 text-accent-800' : 'border-clinic-100 bg-clinic-50 text-clinic-400'}`}>
+      <span>{label}</span>
+      <span>{enabled ? 'yes' : 'no'}</span>
     </div>
   );
 }

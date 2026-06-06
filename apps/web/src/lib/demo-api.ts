@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -99,6 +99,77 @@ function accessReviewSummary(): UserAccessReviewSummary {
     inactive_count: demoUsers.filter((user) => !user.is_active).length,
     review_window_days: ACCESS_REVIEW_WINDOW_DAYS,
   };
+}
+
+function roleAccessMatrix(): RoleAccessMatrix {
+  const roles: Role[] = ['admin', 'manager', 'provider', 'ma', 'front_desk'];
+  const privilegedRoles = new Set<Role>(['admin', 'manager']);
+  const clinicalRoles = new Set<Role>(['admin', 'manager', 'provider', 'ma']);
+  const frontOfficeRoles = new Set<Role>(['admin', 'manager', 'front_desk']);
+  const managerRoles = new Set<Role>(['admin', 'manager']);
+  const rows = roles.map((role) => ({
+    role,
+    label: role === 'ma' ? 'MA / nurse' : role.replace('_', ' ').replace(/\b\w/g, (match) => match.toUpperCase()),
+    active_users: demoUsers.filter((user) => user.is_active && user.role === role).length,
+    can_view_patients: true,
+    can_manage_clinical: clinicalRoles.has(role),
+    can_manage_front_office: frontOfficeRoles.has(role),
+    can_manage_staff: managerRoles.has(role),
+    can_manage_operations: managerRoles.has(role),
+    can_manage_integrations: managerRoles.has(role),
+    can_export_audit: managerRoles.has(role),
+    mfa_required: privilegedRoles.has(role),
+    access_review_required: true,
+    summary: roleSummary(role),
+  }));
+  const warnings: RoleAccessMatrix['warnings'] = [];
+  const privilegedMfaGaps = demoUsers.filter((user) => user.is_active && privilegedRoles.has(user.role) && !user.mfa_enabled).length;
+  if (privilegedMfaGaps) {
+    warnings.push({
+      key: 'privileged_mfa_required',
+      label: 'Privileged MFA required',
+      severity: 'critical',
+      role: null,
+      detail: `${privilegedMfaGaps} privileged active user(s) need MFA before production login.`,
+    });
+  }
+  for (const role of roles) {
+    if (!demoUsers.some((user) => user.is_active && user.role === role)) {
+      warnings.push({
+        key: `role_without_active_user:${role}`,
+        label: 'No active staff assigned',
+        severity: 'warning',
+        role,
+        detail: `No active ${role.replace('_', ' ')} user is assigned.`,
+      });
+    }
+  }
+  const accessReview = accessReviewSummary();
+  return {
+    generated_at: new Date().toISOString(),
+    total_roles: rows.length,
+    summary: {
+      active_users: demoUsers.filter((user) => user.is_active).length,
+      inactive_users: demoUsers.filter((user) => !user.is_active).length,
+      privileged_roles: privilegedRoles.size,
+      privileged_users_without_mfa: privilegedMfaGaps,
+      roles_without_active_users: rows.filter((row) => row.active_users === 0).length,
+      access_review_due: accessReview.due_count,
+    },
+    roles: rows,
+    warnings,
+  };
+}
+
+function roleSummary(role: Role) {
+  const summaries: Record<Role, string> = {
+    admin: 'Full system administration, staff access, integrations, operations, and audit evidence.',
+    manager: 'Clinic operations, staff review, launch evidence, integrations, and audit evidence without admin elevation.',
+    provider: 'Clinical chart review, documents, medications, labs, encounters, and clinical task work.',
+    ma: 'Clinical support workflows, document review, medication/lab prep, care plan, and checkout tasks.',
+    front_desk: 'Scheduling, faxes, messages, patient access, outreach, and front-office task work.',
+  };
+  return summaries[role];
 }
 
 function auditReviewSummary(): AuditReviewSummary {
@@ -3414,6 +3485,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (method === 'GET' && path === '/users/recovery-summary') {
     return recoverySummary() as T;
+  }
+
+  if (method === 'GET' && path === '/users/role-access-matrix') {
+    return roleAccessMatrix() as T;
   }
 
   const userPasswordResetMatch = path.match(/^\/users\/([^/]+)\/password-reset$/);

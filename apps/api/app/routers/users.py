@@ -10,6 +10,9 @@ from app.schemas.user import (
     UserAccessReviewItemOut,
     UserAccessReviewSummaryOut,
     UserAccessReviewUpdate,
+    RoleAccessMatrixOut,
+    RoleAccessMatrixRoleOut,
+    RoleAccessMatrixWarningOut,
     UserDirectoryListOut,
     UserDirectoryOut,
     UserPasswordResetOut,
@@ -80,6 +83,21 @@ async def recovery_summary(
         total=summary["total"],
         temporary_password_count=summary["temporary_password_count"],
         expired_temporary_password_count=summary["expired_temporary_password_count"],
+    )
+
+
+@router.get("/role-access-matrix", response_model=RoleAccessMatrixOut)
+async def get_role_access_matrix(
+    db: DbDep,
+    current_user: ManagerUserDep,
+):
+    matrix = await user_service.role_access_matrix(db, current_user)
+    return RoleAccessMatrixOut(
+        generated_at=matrix["generated_at"],
+        total_roles=matrix["total_roles"],
+        summary=matrix["summary"],
+        roles=[RoleAccessMatrixRoleOut(**item) for item in matrix["roles"]],
+        warnings=[RoleAccessMatrixWarningOut(**item) for item in matrix["warnings"]],
     )
 
 

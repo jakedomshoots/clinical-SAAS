@@ -76,3 +76,35 @@ class UserRecoverySummaryOut(BaseModel):
     total: int
     temporary_password_count: int
     expired_temporary_password_count: int
+
+
+class RoleAccessMatrixRoleOut(BaseModel):
+    role: str
+    label: str
+    active_users: int
+    can_view_patients: bool
+    can_manage_clinical: bool
+    can_manage_front_office: bool
+    can_manage_staff: bool
+    can_manage_operations: bool
+    can_manage_integrations: bool
+    can_export_audit: bool
+    mfa_required: bool
+    access_review_required: bool
+    summary: str
+
+
+class RoleAccessMatrixWarningOut(BaseModel):
+    key: str
+    label: str
+    severity: str
+    role: str | None = None
+    detail: str
+
+
+class RoleAccessMatrixOut(BaseModel):
+    generated_at: datetime
+    total_roles: int
+    summary: dict[str, int]
+    roles: list[RoleAccessMatrixRoleOut]
+    warnings: list[RoleAccessMatrixWarningOut]

@@ -41,6 +41,7 @@ export const ROUTES = {
   USER_ACCESS_REVIEW_MARK: (id: string) => `/api/users/${id}/access-review`,
   USER_PASSWORD_RESET: (id: string) => `/api/users/${id}/password-reset`,
   USER_RECOVERY_SUMMARY: '/api/users/recovery-summary',
+  USER_ROLE_ACCESS_MATRIX: '/api/users/role-access-matrix',
   SETTINGS: '/api/settings',
   SCHEDULE: '/api/schedule',
   TODAY_QUEUE: '/api/schedule/today-queue',

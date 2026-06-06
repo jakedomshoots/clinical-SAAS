@@ -100,3 +100,35 @@ async def test_front_desk_cannot_set_provider_availability(
     )
 
     assert res.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_role_access_matrix_is_manager_only_and_reports_capabilities(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-role-matrix@example.com")
+    provider = await make_user(db, UserRole.provider, "provider-role-matrix@example.com")
+    front_desk = await make_user(db, UserRole.front_desk, "front-desk-role-matrix@example.com")
+    front_desk_headers = headers_for(front_desk)
+
+    blocked = await client.get("/api/users/role-access-matrix", headers=front_desk_headers)
+    allowed = await client.get("/api/users/role-access-matrix", headers=headers_for(manager))
+
+    assert blocked.status_code == 403
+    assert allowed.status_code == 200
+    data = allowed.json()
+    assert data["total_roles"] == 5
+    assert data["generated_at"]
+    assert data["summary"]["active_users"] >= 3
+    assert data["summary"]["privileged_roles"] == 2
+    role_keys = {role["role"] for role in data["roles"]}
+    assert {"admin", "manager", "provider", "ma", "front_desk"} <= role_keys
+    provider_role = next(role for role in data["roles"] if role["role"] == provider.role.value)
+    front_desk_role = next(role for role in data["roles"] if role["role"] == front_desk.role.value)
+    assert provider_role["can_manage_staff"] is False
+    assert provider_role["can_manage_clinical"] is True
+    assert front_desk_role["can_manage_front_office"] is True
+    assert front_desk_role["can_manage_clinical"] is False
+    assert any(item["key"] == "privileged_mfa_required" for item in data["warnings"])

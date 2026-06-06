@@ -21,6 +21,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
 - Operations includes a live-use rehearsal board, Operator Health, document storage readiness, a go-live packet, incident timeline, local alert rules, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, document handoff/storage gaps, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
+- Staff includes a Role Access Matrix so managers can review active staff counts, clinical/front-office/staff/operations/audit capabilities, MFA-required roles, and role coverage warnings before production use.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -89,6 +90,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Rotate all temporary passwords before staff begin live-patient work; expired temporary credentials cannot be used to start a session.
 - Use Staff recovery controls for password resets and review `user.password_reset_issued` audit events before live-patient work.
 - Confirm staff MFA enrollment is recorded; production login blocks session issuance for accounts without MFA.
+- Review the Staff Role Access Matrix and resolve privileged MFA or missing-role coverage warnings.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
 - Confirm `/api/operations/production-config-audit` reports zero critical checks.
 - Confirm `/api/operations/document-storage-readiness` reports `ready` before relying on document preview/download behavior for real patients.
@@ -109,6 +111,7 @@ An internal clinic pilot is ready when:
 - Staff can complete a dry-run day from Command Center through checkout, documents, messaging, faxes, billing, operations, and reports.
 - Each role can walk through its Operations dry-run checklist with no unroutable workflow items, and the manager can save an audit-backed dry-run session with complete/blocked status and notes for launch review.
 - Staff training is recorded in Operations with reviewed/signed evidence for front desk, MA/nurse, provider, billing, and manager roles before live-use rehearsal.
+- Staff Role Access Matrix is reviewed by a manager and privileged MFA/missing-role warnings are resolved or assigned before live-use rehearsal.
 - Policy approval is recorded in Operations with approved/needs-changes evidence for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy.
 - Restore drill evidence is recorded in Operations with backup reference, complete/blocked checklist item status, RTO/RPO minutes, and exported evidence before live-use rehearsal.
 - Cutover runbook evidence is recorded in Operations with timed step owners, complete/blocked/rollback statuses, rollback readiness, and exportable go/no-go notes.

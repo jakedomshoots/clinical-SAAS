@@ -14,6 +14,9 @@ from app.services.auth_service import (
 
 ACCESS_REVIEW_WINDOW_DAYS = 90
 PRIVILEGED_ROLES = {UserRole.admin, UserRole.manager}
+CLINICAL_WRITE_ROLES = {UserRole.admin, UserRole.manager, UserRole.provider, UserRole.ma}
+FRONT_OFFICE_WRITE_ROLES = {UserRole.admin, UserRole.manager, UserRole.front_desk}
+MANAGER_ROLES = {UserRole.admin, UserRole.manager}
 
 
 def _utcnow() -> datetime:
@@ -193,6 +196,44 @@ async def access_review_summary(
     }
 
 
+async def role_access_matrix(db: AsyncSession, current_user: User) -> dict:
+    rows = (
+        await db.execute(
+            select(User)
+            .where(User.organization_id == current_user.organization_id)
+            .order_by(User.role.asc(), User.display_name.asc())
+        )
+    ).scalars().all()
+    active_by_role = {
+        role: sum(1 for user in rows if user.is_active and user.role == role)
+        for role in UserRole
+    }
+    roles = [_role_matrix_item(role, active_by_role[role]) for role in UserRole]
+    warnings = _role_matrix_warnings(rows)
+    return {
+        "generated_at": _utcnow(),
+        "total_roles": len(roles),
+        "summary": {
+            "active_users": sum(1 for user in rows if user.is_active),
+            "inactive_users": sum(1 for user in rows if not user.is_active),
+            "privileged_roles": len(PRIVILEGED_ROLES),
+            "privileged_users_without_mfa": sum(
+                1
+                for user in rows
+                if user.is_active and user.role in PRIVILEGED_ROLES and not user.mfa_enabled
+            ),
+            "roles_without_active_users": sum(1 for count in active_by_role.values() if count == 0),
+            "access_review_due": sum(
+                1
+                for item in [_access_review_item(user) for user in rows]
+                if item["review_status"] == "needs_review"
+            ),
+        },
+        "roles": roles,
+        "warnings": warnings,
+    }
+
+
 async def mark_access_reviewed(
     db: AsyncSession,
     current_user: User,
@@ -241,6 +282,75 @@ async def mark_access_reviewed(
         },
     )
     return user
+
+
+def _role_matrix_item(role: UserRole, active_users: int) -> dict:
+    label_map = {
+        UserRole.admin: "Admin",
+        UserRole.manager: "Manager",
+        UserRole.provider: "Provider",
+        UserRole.ma: "MA / nurse",
+        UserRole.front_desk: "Front desk",
+    }
+    return {
+        "role": role.value,
+        "label": label_map[role],
+        "active_users": active_users,
+        "can_view_patients": role in {
+            UserRole.admin,
+            UserRole.manager,
+            UserRole.provider,
+            UserRole.ma,
+            UserRole.front_desk,
+        },
+        "can_manage_clinical": role in CLINICAL_WRITE_ROLES,
+        "can_manage_front_office": role in FRONT_OFFICE_WRITE_ROLES,
+        "can_manage_staff": role in MANAGER_ROLES,
+        "can_manage_operations": role in MANAGER_ROLES,
+        "can_manage_integrations": role in MANAGER_ROLES,
+        "can_export_audit": role in MANAGER_ROLES,
+        "mfa_required": role in PRIVILEGED_ROLES,
+        "access_review_required": True,
+        "summary": _role_summary(role),
+    }
+
+
+def _role_summary(role: UserRole) -> str:
+    summaries = {
+        UserRole.admin: "Full system administration, staff access, integrations, operations, and audit evidence.",
+        UserRole.manager: "Clinic operations, staff review, launch evidence, integrations, and audit evidence without admin elevation.",
+        UserRole.provider: "Clinical chart review, documents, medications, labs, encounters, and clinical task work.",
+        UserRole.ma: "Clinical support workflows, document review, medication/lab prep, care plan, and checkout tasks.",
+        UserRole.front_desk: "Scheduling, faxes, messages, patient access, outreach, and front-office task work.",
+    }
+    return summaries[role]
+
+
+def _role_matrix_warnings(rows: list[User]) -> list[dict]:
+    warnings: list[dict] = []
+    privileged_mfa_gaps = [
+        user
+        for user in rows
+        if user.is_active and user.role in PRIVILEGED_ROLES and not user.mfa_enabled
+    ]
+    if privileged_mfa_gaps:
+        warnings.append({
+            "key": "privileged_mfa_required",
+            "label": "Privileged MFA required",
+            "severity": "critical",
+            "role": None,
+            "detail": f"{len(privileged_mfa_gaps)} privileged active user(s) need MFA before production login.",
+        })
+    for role in UserRole:
+        if not any(user.is_active and user.role == role for user in rows):
+            warnings.append({
+                "key": f"role_without_active_user:{role.value}",
+                "label": "No active staff assigned",
+                "severity": "warning",
+                "role": role.value,
+                "detail": f"No active {role.value.replace('_', ' ')} user is assigned.",
+            })
+    return warnings
 
 
 def _access_review_item(user: User) -> dict:
