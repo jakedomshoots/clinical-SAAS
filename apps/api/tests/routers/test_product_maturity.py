@@ -439,6 +439,41 @@ async def test_production_rehearsal_snapshot_and_export(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_production_rehearsal_action_assignment(client, auth_headers):
+    rehearsal = await client.get("/api/operations/production-rehearsal", headers=auth_headers)
+    action = rehearsal.json()["recommended_actions"][0]
+
+    assigned = await client.post(
+        f"/api/operations/production-rehearsal/actions/{action['key']}/assignment",
+        json={
+            "owner_name": "Operations Lead",
+            "status": "in_progress",
+            "due_date": "2026-06-12",
+            "note": "Own before vendor sandbox rehearsal.",
+        },
+        headers=auth_headers,
+    )
+    refreshed = await client.get("/api/operations/production-rehearsal", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.rehearsal_action_assignment",
+        headers=auth_headers,
+    )
+
+    assert assigned.status_code == 201
+    assignment = assigned.json()
+    assert assignment["action_key"] == action["key"]
+    assert assignment["owner_name"] == "Operations Lead"
+    assert assignment["status"] == "in_progress"
+
+    refreshed_action = next(item for item in refreshed.json()["recommended_actions"] if item["key"] == action["key"])
+    assert refreshed_action["assignment"]["owner_name"] == "Operations Lead"
+    assert refreshed_action["assignment"]["due_date"] == "2026-06-12"
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.rehearsal_action_assignment"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

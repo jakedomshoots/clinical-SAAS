@@ -88,6 +88,7 @@ export const ROUTES = {
   OPERATIONS_PRODUCTION_REHEARSAL: '/api/operations/production-rehearsal',
   OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS: '/api/operations/production-rehearsal/snapshots',
   OPERATIONS_PRODUCTION_REHEARSAL_EXPORT: '/api/operations/production-rehearsal/export',
+  OPERATIONS_REHEARSAL_ACTION_ASSIGNMENT: (actionKey: string) => `/api/operations/production-rehearsal/actions/${actionKey}/assignment`,
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

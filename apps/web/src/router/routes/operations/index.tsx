@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -57,6 +57,13 @@ interface ListResponse<T> {
   total: number;
 }
 
+type AssignmentFormState = {
+  owner_name: string;
+  status: RehearsalActionAssignmentUpdate['status'];
+  due_date: string;
+  note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -74,6 +81,7 @@ function OperationsPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const [auditExport, setAuditExport] = useState({ event_type: '', entity_type: '', entity_id: '', limit: '10000' });
+  const [assignmentForms, setAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
     queryFn: () => api.get<ReadyResponse>('/ready'),
@@ -147,6 +155,16 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const assignmentMutation = useMutation({
+    mutationFn: ({ actionKey, data }: { actionKey: string; data: RehearsalActionAssignmentUpdate }) => api.post(
+      ROUTES.OPERATIONS_REHEARSAL_ACTION_ASSIGNMENT(actionKey),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
@@ -161,11 +179,49 @@ function OperationsPage() {
   }, [auditExport]);
   const rehearsalExportHref = useMemo(() => {
     if (!rehearsal) return ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_EXPORT;
-    const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity']];
-    rehearsal.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '']));
-    rehearsal.recommended_actions.forEach((action) => rows.push(['action', action.key, action.label, '', '', action.detail, action.route, action.severity]));
+    const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity', 'owner', 'assignment_status', 'due_date', 'note']];
+    rehearsal.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '', '', '', '', '']));
+    rehearsal.recommended_actions.forEach((action) => rows.push([
+      'action',
+      action.key,
+      action.label,
+      '',
+      '',
+      action.detail,
+      action.route,
+      action.severity,
+      action.assignment?.owner_name ?? '',
+      action.assignment?.status ?? '',
+      action.assignment?.due_date ?? '',
+      action.assignment?.note ?? '',
+    ]));
     return `data:text/csv;charset=utf-8,${encodeURIComponent(rows.map((row) => row.map(csvCell).join(',')).join('\n'))}`;
   }, [rehearsal]);
+  const formForAction = (action: RehearsalAction): AssignmentFormState => assignmentForms[action.key] ?? {
+    owner_name: action.assignment?.owner_name ?? '',
+    status: action.assignment?.status ?? 'open',
+    due_date: action.assignment?.due_date ?? '',
+    note: action.assignment?.note ?? '',
+  };
+  const updateAssignmentForm = (actionKey: string, patch: Partial<AssignmentFormState>) => {
+    setAssignmentForms((current) => ({
+      ...current,
+      [actionKey]: { ...(current[actionKey] ?? { owner_name: '', status: 'open', due_date: '', note: '' }), ...patch },
+    }));
+  };
+  const submitAssignment = (action: RehearsalAction) => {
+    const form = formForAction(action);
+    if (!form.owner_name.trim()) return;
+    assignmentMutation.mutate({
+      actionKey: action.key,
+      data: {
+        owner_name: form.owner_name.trim(),
+        status: form.status,
+        due_date: form.due_date || null,
+        note: form.note.trim() || null,
+      },
+    });
+  };
 
   return (
     <div className="space-y-5">
@@ -225,12 +281,64 @@ function OperationsPage() {
             <aside className="rounded-md border border-clinic-200">
               <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Rehearsal actions</div>
               <div className="divide-y divide-clinic-100">
-                {rehearsal.recommended_actions.slice(0, 5).map((action) => (
-                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
-                    <div className="text-sm font-medium text-clinic-900">{action.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{action.detail}</div>
-                  </Link>
-                ))}
+                {rehearsal.recommended_actions.slice(0, 5).map((action) => {
+                  const form = formForAction(action);
+                  return (
+                    <div key={action.key} className="px-3 py-3">
+                      <Link to={action.route} className="block hover:text-accent-700">
+                        <div className="text-sm font-medium text-clinic-900">{action.label}</div>
+                        <div className="mt-0.5 text-xs text-clinic-500">{action.detail}</div>
+                      </Link>
+                      <div className="mt-3 grid gap-2">
+                        <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-2">
+                          <input
+                            value={form.owner_name}
+                            onChange={(event) => updateAssignmentForm(action.key, { owner_name: event.target.value })}
+                            placeholder="Owner"
+                            className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                          />
+                          <select
+                            value={form.status}
+                            onChange={(event) => updateAssignmentForm(action.key, { status: event.target.value as AssignmentFormState['status'] })}
+                            className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                          >
+                            <option value="open">Open</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="blocked">Blocked</option>
+                            <option value="done">Done</option>
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-2">
+                          <input
+                            type="date"
+                            value={form.due_date}
+                            onChange={(event) => updateAssignmentForm(action.key, { due_date: event.target.value })}
+                            className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                          />
+                          <input
+                            value={form.note}
+                            onChange={(event) => updateAssignmentForm(action.key, { note: event.target.value })}
+                            placeholder="Launch note"
+                            className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[11px] text-clinic-400">
+                            {action.assignment ? `Assigned ${new Date(action.assignment.assigned_at).toLocaleDateString()}` : 'No owner assigned'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => submitAssignment(action)}
+                            disabled={!form.owner_name.trim() || assignmentMutation.isPending}
+                            className="rounded-md bg-clinic-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                          >
+                            Assign
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
                 {rehearsal.recommended_actions.length === 0 && (
                   <div className="px-3 py-6 text-sm text-clinic-400">No rehearsal blockers.</div>
                 )}

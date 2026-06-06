@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OperationsIncidentOut(BaseModel):
@@ -49,12 +49,33 @@ class RehearsalGateOut(BaseModel):
     route: str
 
 
+class RehearsalActionAssignmentOut(BaseModel):
+    id: str
+    action_key: str
+    owner_id: str | None = None
+    owner_name: str
+    status: str
+    due_date: str | None = None
+    note: str | None = None
+    assigned_by: str | None = None
+    assigned_at: datetime
+
+
+class RehearsalActionAssignmentUpdate(BaseModel):
+    owner_id: str | None = None
+    owner_name: str = Field(min_length=1, max_length=120)
+    status: str = Field(default="open", pattern="^(open|in_progress|blocked|done)$")
+    due_date: str | None = None
+    note: str | None = Field(default=None, max_length=500)
+
+
 class RehearsalActionOut(BaseModel):
     key: str
     label: str
     detail: str
     route: str
     severity: str
+    assignment: RehearsalActionAssignmentOut | None = None
 
 
 class ProductionRehearsalReportOut(BaseModel):

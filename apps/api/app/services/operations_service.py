@@ -16,6 +16,7 @@ from app.services.readiness_service import check_readiness
 
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
 REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
+REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -144,6 +145,21 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
     blocking = sum(1 for gate in gates if gate["status"] == "blocking")
     warnings = sum(1 for gate in gates if gate["status"] == "warning")
     score = round(sum(gate["score"] for gate in gates) / len(gates)) if gates else 0
+    recommended_actions = [
+        {
+            "key": gate["key"],
+            "label": f"Resolve {gate['label']}",
+            "detail": gate["detail"],
+            "route": gate["route"],
+            "severity": gate["status"],
+        }
+        for gate in gates
+        if gate["status"] != "ready"
+    ]
+    assignments = await _rehearsal_assignments_by_key(db, user)
+    for action in recommended_actions:
+        action["assignment"] = assignments.get(action["key"])
+
     return {
         "status": "ready" if blocking == 0 else "attention",
         "rehearsal_ready": blocking == 0,
@@ -152,18 +168,36 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
         "warning_count": warnings,
         "generated_at": datetime.now(UTC),
         "gates": gates,
-        "recommended_actions": [
-            {
-                "key": gate["key"],
-                "label": f"Resolve {gate['label']}",
-                "detail": gate["detail"],
-                "route": gate["route"],
-                "severity": gate["status"],
-            }
-            for gate in gates
-            if gate["status"] != "ready"
-        ],
+        "recommended_actions": recommended_actions,
     }
+
+
+async def assign_rehearsal_action(db: AsyncSession, user: User, action_key: str, data: dict) -> dict | None:
+    report = await production_rehearsal_report(db, user)
+    action = next((item for item in report["recommended_actions"] if item["key"] == action_key), None)
+    if not action:
+        return None
+    payload = {
+        "action_key": action_key,
+        "label": action["label"],
+        "severity": action["severity"],
+        "route": action["route"],
+        "owner_id": data.get("owner_id"),
+        "owner_name": data["owner_name"],
+        "status": data.get("status") or "open",
+        "due_date": data.get("due_date"),
+        "note": data.get("note"),
+        "assigned_by": user.display_name,
+    }
+    event = await log_event(
+        db,
+        REHEARSAL_ASSIGNMENT_EVENT_TYPE,
+        "operations",
+        action_key,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _rehearsal_assignment_from_audit(event)
 
 
 async def create_rehearsal_snapshot(db: AsyncSession, user: User) -> dict:
@@ -191,7 +225,7 @@ async def list_rehearsal_snapshots(db: AsyncSession, user: User) -> tuple[list[d
 
 
 def rehearsal_report_csv(report: dict) -> str:
-    rows = ["section,key,label,status,score,detail,route,severity"]
+    rows = ["section,key,label,status,score,detail,route,severity,owner,assignment_status,due_date,note"]
     for gate in report["gates"]:
         rows.append(_csv_row([
             "gate",
@@ -202,8 +236,13 @@ def rehearsal_report_csv(report: dict) -> str:
             gate["detail"],
             gate["route"],
             "",
+            "",
+            "",
+            "",
+            "",
         ]))
     for action in report["recommended_actions"]:
+        assignment = action.get("assignment") or {}
         rows.append(_csv_row([
             "action",
             action["key"],
@@ -213,8 +252,26 @@ def rehearsal_report_csv(report: dict) -> str:
             action["detail"],
             action["route"],
             action["severity"],
+            assignment.get("owner_name", ""),
+            assignment.get("status", ""),
+            assignment.get("due_date", "") or "",
+            assignment.get("note", "") or "",
         ]))
     return "\n".join(rows) + "\n"
+
+
+async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == REHEARSAL_ASSIGNMENT_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    ).order_by(AuditLog.created_at.desc())
+    result = await db.execute(query)
+    assignments: dict[str, dict] = {}
+    for event in result.scalars().all():
+        assignment = _rehearsal_assignment_from_audit(event)
+        assignments.setdefault(assignment["action_key"], assignment)
+    return assignments
 
 
 async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
@@ -275,6 +332,21 @@ def _rehearsal_snapshot_from_audit(event: AuditLog) -> dict:
         "blocking_count": int(payload.get("blocking_count", 0)),
         "warning_count": int(payload.get("warning_count", 0)),
         "recommended_action_count": len(payload.get("recommended_actions", [])),
+    }
+
+
+def _rehearsal_assignment_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "action_key": payload.get("action_key") or event.entity_id,
+        "owner_id": payload.get("owner_id"),
+        "owner_name": payload.get("owner_name", "Unassigned"),
+        "status": payload.get("status", "open"),
+        "due_date": payload.get("due_date"),
+        "note": payload.get("note"),
+        "assigned_by": payload.get("assigned_by"),
+        "assigned_at": event.created_at,
     }
 
 

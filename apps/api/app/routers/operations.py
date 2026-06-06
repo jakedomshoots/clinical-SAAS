@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,8 @@ from app.schemas.operations import (
     ProductionRehearsalSnapshotOut,
     ReadinessSnapshotListOut,
     ReadinessSnapshotOut,
+    RehearsalActionAssignmentOut,
+    RehearsalActionAssignmentUpdate,
 )
 from app.services import operations_service
 
@@ -74,6 +76,28 @@ async def export_production_rehearsal_report(db: DbDep, current_user: OpsUserDep
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="concierge-os-production-rehearsal.csv"'},
     )
+
+
+@router.post(
+    "/production-rehearsal/actions/{action_key}/assignment",
+    response_model=RehearsalActionAssignmentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def assign_production_rehearsal_action(
+    action_key: str,
+    data: RehearsalActionAssignmentUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    assignment = await operations_service.assign_rehearsal_action(
+        db,
+        current_user,
+        action_key,
+        data.model_dump(),
+    )
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rehearsal action is not currently open")
+    return RehearsalActionAssignmentOut(**assignment)
 
 
 @router.post(

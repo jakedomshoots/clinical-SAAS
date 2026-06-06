@@ -77,12 +77,33 @@ export interface RehearsalGate {
   route: string;
 }
 
+export interface RehearsalActionAssignment {
+  id: string;
+  action_key: string;
+  owner_id: string | null;
+  owner_name: string;
+  status: 'open' | 'in_progress' | 'blocked' | 'done';
+  due_date: string | null;
+  note: string | null;
+  assigned_by: string | null;
+  assigned_at: string;
+}
+
+export interface RehearsalActionAssignmentUpdate {
+  owner_id?: string | null;
+  owner_name: string;
+  status: 'open' | 'in_progress' | 'blocked' | 'done';
+  due_date?: string | null;
+  note?: string | null;
+}
+
 export interface RehearsalAction {
   key: string;
   label: string;
   detail: string;
   route: string;
   severity: 'warning' | 'blocking';
+  assignment: RehearsalActionAssignment | null;
 }
 
 export interface ProductionRehearsalReport {

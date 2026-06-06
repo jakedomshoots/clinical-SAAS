@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -306,6 +306,7 @@ function productionRehearsalReport(): ProductionRehearsalReport {
         detail: gate.detail,
         route: gate.route,
         severity: gate.status,
+        assignment: rehearsalAssignments[gate.key] ?? null,
       })),
   };
 }
@@ -325,10 +326,48 @@ function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehe
 }
 
 function productionRehearsalCsv(report: ProductionRehearsalReport) {
-  const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity']];
-  report.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '']));
-  report.recommended_actions.forEach((action) => rows.push(['action', action.key, action.label, '', '', action.detail, action.route, action.severity]));
+  const rows = [['section', 'key', 'label', 'status', 'score', 'detail', 'route', 'severity', 'owner', 'assignment_status', 'due_date', 'note']];
+  report.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, String(gate.score), gate.detail, gate.route, '', '', '', '', '']));
+  report.recommended_actions.forEach((action) => rows.push([
+    'action',
+    action.key,
+    action.label,
+    '',
+    '',
+    action.detail,
+    action.route,
+    action.severity,
+    action.assignment?.owner_name ?? '',
+    action.assignment?.status ?? '',
+    action.assignment?.due_date ?? '',
+    action.assignment?.note ?? '',
+  ]));
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function assignProductionRehearsalAction(actionKey: string, data: RehearsalActionAssignmentUpdate): RehearsalActionAssignment | null {
+  const action = productionRehearsalReport().recommended_actions.find((item) => item.key === actionKey);
+  if (!action) return null;
+  const assignment: RehearsalActionAssignment = {
+    id: uuid(1600 + Object.keys(rehearsalAssignments).length),
+    action_key: actionKey,
+    owner_id: data.owner_id ?? null,
+    owner_name: data.owner_name,
+    status: data.status,
+    due_date: data.due_date ?? null,
+    note: data.note ?? null,
+    assigned_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    assigned_at: new Date().toISOString(),
+  };
+  rehearsalAssignments[actionKey] = assignment;
+  logDemoEvent({
+    event_type: 'operations.rehearsal_action_assignment',
+    entity_type: 'operations',
+    entity_id: actionKey,
+    payload: assignment as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return assignment;
 }
 
 function readinessSnapshotFromEvent(event: AuditEvent): ReadinessSnapshot {
@@ -365,6 +404,7 @@ interface DemoStore {
   integrationDrafts?: Record<string, Record<string, string>>;
   integrationLastTests?: Record<string, { last_tested_at: string; last_test_status: string }>;
   integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
+  rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
 }
 
 interface IntegrationEvent {
@@ -414,6 +454,7 @@ const preparedUploadTokens = new Map<string, { patientId: string; fileUrl: strin
 let integrationDrafts: Record<string, Record<string, string>> = {};
 let integrationLastTests: Record<string, { last_tested_at: string; last_test_status: string }> = {};
 let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
+let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -739,7 +780,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments }),
   );
 }
 
@@ -927,6 +968,7 @@ if (storedDemoData) {
   integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
+  rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1053,6 +1095,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/production-rehearsal/export' && method === 'GET') {
     return productionRehearsalCsv(productionRehearsalReport()) as T;
+  }
+  const rehearsalAssignmentMatch = path.match(/^\/operations\/production-rehearsal\/actions\/([^/]+)\/assignment$/);
+  if (rehearsalAssignmentMatch && method === 'POST') {
+    const assignment = assignProductionRehearsalAction(
+      decodeURIComponent(rehearsalAssignmentMatch[1]),
+      (body ?? {}) as RehearsalActionAssignmentUpdate,
+    );
+    if (!assignment) {
+      throw new Error('Rehearsal action is not currently open');
+    }
+    return assignment as T;
   }
   if (path === '/operations/production-rehearsal/snapshots' && method === 'POST') {
     const report = productionRehearsalReport();
