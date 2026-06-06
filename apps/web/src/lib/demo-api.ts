@@ -1425,6 +1425,7 @@ function launchWorkplan(): LaunchWorkplan {
   const rehearsal = productionRehearsalReport();
   const incidents = operationsIncidents();
   const preflight = demoCredentialPreflight();
+  const credentialAssignment = rehearsal.recommended_actions.find((action) => action.key === 'credential_preflight')?.assignment ?? null;
   const items = [
     ...rehearsal.recommended_actions.map((action) => ({
       key: `rehearsal_${action.key}`,
@@ -1472,7 +1473,7 @@ function launchWorkplan(): LaunchWorkplan {
       route: '/integrations',
       owner_role: 'operations',
       recommended_action: 'Complete missing credential fields, connection test, and sandbox evidence.',
-      assignment: null,
+      assignment: credentialAssignment,
     })),
   ].sort((a, b) => (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1) || a.category.localeCompare(b.category) || a.label.localeCompare(b.label));
   return {

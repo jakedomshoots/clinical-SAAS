@@ -1434,6 +1434,14 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     launch = await launch_readiness()
     preflight = await integration_config_service.credential_preflight(db, user)
     items: list[dict] = []
+    credential_assignment = next(
+        (
+            action.get("assignment")
+            for action in rehearsal["recommended_actions"]
+            if action["key"] == "credential_preflight"
+        ),
+        None,
+    )
 
     for action in rehearsal["recommended_actions"]:
         items.append(_workplan_item(
@@ -1497,6 +1505,7 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
             route="/integrations",
             owner_role="operations",
             recommended_action="Complete missing credential fields, connection test, and sandbox evidence.",
+            assignment=credential_assignment,
         ))
 
     deduped = _dedupe_workplan_items(items)

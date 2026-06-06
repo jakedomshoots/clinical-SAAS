@@ -675,6 +675,25 @@ async def test_launch_workplan_aggregates_operational_blockers(client, auth_head
 
 
 @pytest.mark.asyncio
+async def test_credential_preflight_assignment_owns_workplan_blockers(client, auth_headers):
+    await client.post(
+        "/api/operations/production-rehearsal/actions/credential_preflight/assignment",
+        json={"owner_name": "Integration Owner", "status": "open", "due_date": "2026-06-12"},
+        headers=auth_headers,
+    )
+    workplan = await client.get("/api/operations/launch-workplan", headers=auth_headers)
+
+    assert workplan.status_code == 200
+    credential_items = [
+        item for item in workplan.json()["items"]
+        if item["source"] == "credential_preflight"
+    ]
+    assert credential_items
+    assert all(item["assignment"] for item in credential_items)
+    assert {item["assignment"]["owner_name"] for item in credential_items} == {"Integration Owner"}
+
+
+@pytest.mark.asyncio
 async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     snapshot = await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/launch-workplan/snapshots", headers=auth_headers)
