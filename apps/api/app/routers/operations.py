@@ -13,6 +13,11 @@ from app.schemas.operations import (
     BrowserQaSessionOut,
     BrowserQaSessionStart,
     BrowserQaSessionUpdate,
+    CutoverRunbookOut,
+    CutoverRunbookSessionListOut,
+    CutoverRunbookSessionOut,
+    CutoverRunbookSessionStart,
+    CutoverRunbookSessionUpdate,
     GoLivePacketOut,
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
@@ -215,6 +220,63 @@ async def update_policy_approval_session(
     if not session:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy approval session not found")
     return PolicyApprovalSessionOut(**session)
+
+
+@router.get("/cutover-runbook", response_model=CutoverRunbookOut)
+async def get_cutover_runbook(current_user: OpsUserDep):
+    return CutoverRunbookOut(
+        **operations_service.cutover_runbook()
+    )
+
+
+@router.post(
+    "/cutover-runbook-sessions",
+    response_model=CutoverRunbookSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_cutover_runbook_session(data: CutoverRunbookSessionStart, db: DbDep, current_user: OpsUserDep):
+    return CutoverRunbookSessionOut(
+        **await operations_service.start_cutover_runbook_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/cutover-runbook-sessions", response_model=CutoverRunbookSessionListOut)
+async def list_cutover_runbook_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_cutover_runbook_sessions(db, current_user)
+    return CutoverRunbookSessionListOut(
+        data=[CutoverRunbookSessionOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.patch("/cutover-runbook-sessions/{session_id}", response_model=CutoverRunbookSessionOut)
+async def update_cutover_runbook_session(
+    session_id: str,
+    data: CutoverRunbookSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_cutover_runbook_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found")
+    return CutoverRunbookSessionOut(**session)
+
+
+@router.get("/cutover-runbook-sessions/{session_id}/export")
+async def export_cutover_runbook_session(session_id: str, db: DbDep, current_user: OpsUserDep):
+    session = await operations_service.get_cutover_runbook_session(db, current_user, session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found")
+    return Response(
+        content=operations_service.cutover_runbook_csv(session),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="concierge-os-cutover-runbook.csv"'},
+    )
 
 
 @router.get("/launch-workplan", response_model=LaunchWorkplanOut)

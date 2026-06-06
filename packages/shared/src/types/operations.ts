@@ -288,6 +288,86 @@ export interface PolicyApprovalSessionList {
   total: number;
 }
 
+export interface CutoverRunbookStep {
+  key: string;
+  label: string;
+  detail: string;
+  owner_role: string;
+  expected_minute: number;
+  rollback_trigger: string | null;
+}
+
+export interface CutoverRunbookPhase {
+  key: string;
+  label: string;
+  objective: string;
+  steps: CutoverRunbookStep[];
+}
+
+export interface CutoverRunbook {
+  generated_at: string;
+  phases: CutoverRunbookPhase[];
+  total_phases: number;
+  total_steps: number;
+}
+
+export interface CutoverRunbookSessionStart {
+  session_name?: string | null;
+  cutover_owner?: string | null;
+  scheduled_for?: string | null;
+  note?: string | null;
+}
+
+export interface CutoverRunbookSessionUpdate {
+  phase_key?: string | null;
+  step_key?: string | null;
+  step_status?: 'pending' | 'complete' | 'blocked' | 'rollback' | null;
+  owner_name?: string | null;
+  step_note?: string | null;
+  rollback_status?: 'not_reviewed' | 'rollback_ready' | 'rollback_required' | 'not_needed' | null;
+  rollback_decision?: string | null;
+  session_status?: 'in_progress' | 'completed' | 'aborted' | null;
+  note?: string | null;
+}
+
+export interface CutoverRunbookSessionStep extends CutoverRunbookStep {
+  step_status: 'pending' | 'complete' | 'blocked' | 'rollback';
+  owner_name: string | null;
+  note: string | null;
+}
+
+export interface CutoverRunbookSessionPhase extends Omit<CutoverRunbookPhase, 'steps'> {
+  steps: CutoverRunbookSessionStep[];
+}
+
+export interface CutoverRunbookSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  cutover_owner: string | null;
+  scheduled_for: string | null;
+  status: 'in_progress' | 'completed' | 'aborted';
+  rollback_status: 'not_reviewed' | 'rollback_ready' | 'rollback_required' | 'not_needed';
+  rollback_decision: string | null;
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  step_count: number;
+  complete_count: number;
+  blocked_count: number;
+  rollback_count: number;
+  pending_count: number;
+  phases: CutoverRunbookSessionPhase[];
+}
+
+export interface CutoverRunbookSessionList {
+  data: CutoverRunbookSession[];
+  total: number;
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;

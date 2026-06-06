@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -88,6 +88,12 @@ type PolicyApprovalItemFormState = {
   item_note: string;
 };
 
+type CutoverStepFormState = {
+  step_status: NonNullable<CutoverRunbookSessionUpdate['step_status']>;
+  owner_name: string;
+  step_note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -114,6 +120,12 @@ function OperationsPage() {
   const [staffTrainingItemForms, setStaffTrainingItemForms] = useState<Record<string, StaffTrainingItemFormState>>({});
   const [policyApprovalSessionForm, setPolicyApprovalSessionForm] = useState<PolicyApprovalSessionStart>({ session_name: 'Policy approval', reviewer_name: '', note: '' });
   const [policyApprovalItemForms, setPolicyApprovalItemForms] = useState<Record<string, PolicyApprovalItemFormState>>({});
+  const [cutoverSessionForm, setCutoverSessionForm] = useState<CutoverRunbookSessionStart>({ session_name: 'Production cutover rehearsal', cutover_owner: '', scheduled_for: '', note: '' });
+  const [cutoverStepForms, setCutoverStepForms] = useState<Record<string, CutoverStepFormState>>({});
+  const [cutoverRollbackForm, setCutoverRollbackForm] = useState({
+    rollback_status: 'not_reviewed' as NonNullable<CutoverRunbookSessionUpdate['rollback_status']>,
+    rollback_decision: '',
+  });
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
@@ -186,6 +198,14 @@ function OperationsPage() {
   const { data: policyApprovalSessions } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-sessions'],
     queryFn: () => api.get<PolicyApprovalSessionList>(ROUTES.OPERATIONS_POLICY_APPROVAL_SESSIONS),
+  });
+  const { data: cutoverRunbook } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'cutover-runbook'],
+    queryFn: () => api.get<CutoverRunbook>(ROUTES.OPERATIONS_CUTOVER_RUNBOOK),
+  });
+  const { data: cutoverSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'cutover-runbook-sessions'],
+    queryFn: () => api.get<CutoverRunbookSessionList>(ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSIONS),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -356,6 +376,30 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startCutoverSessionMutation = useMutation({
+    mutationFn: (data: CutoverRunbookSessionStart) => api.post<CutoverRunbookSession>(ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSIONS, data),
+    onSuccess: async () => {
+      setCutoverSessionForm({ session_name: 'Production cutover rehearsal', cutover_owner: '', scheduled_for: '', note: '' });
+      setCutoverStepForms({});
+      setCutoverRollbackForm({ rollback_status: 'not_reviewed', rollback_decision: '' });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'cutover-runbook-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updateCutoverSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: CutoverRunbookSessionUpdate }) => api.patch<CutoverRunbookSession>(
+      ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'cutover-runbook-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
@@ -365,6 +409,7 @@ function OperationsPage() {
   const activeBrowserQaSession = browserQaSessions?.data[0] ?? null;
   const activeStaffTrainingSession = staffTrainingSessions?.data[0] ?? null;
   const activePolicyApprovalSession = policyApprovalSessions?.data[0] ?? null;
+  const activeCutoverSession = cutoverSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(auditExport).forEach(([key, value]) => {
@@ -546,6 +591,49 @@ function OperationsPage() {
         item_key: itemKey,
         approval_status: form.approval_status,
         item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const cutoverStepKey = (sessionId: string, phaseKey: string, stepKey: string) => `${sessionId}:${phaseKey}:${stepKey}`;
+  const formForCutoverStep = (session: CutoverRunbookSession, phaseKey: string, stepKey: string): CutoverStepFormState => {
+    const key = cutoverStepKey(session.session_id, phaseKey, stepKey);
+    const phase = session.phases.find((item) => item.key === phaseKey);
+    const step = phase?.steps.find((entry) => entry.key === stepKey);
+    return cutoverStepForms[key] ?? {
+      step_status: step?.step_status ?? 'pending',
+      owner_name: step?.owner_name ?? '',
+      step_note: step?.note ?? '',
+    };
+  };
+  const updateCutoverStepForm = (sessionId: string, phaseKey: string, stepKey: string, patch: Partial<CutoverStepFormState>) => {
+    const key = cutoverStepKey(sessionId, phaseKey, stepKey);
+    setCutoverStepForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { step_status: 'pending', owner_name: '', step_note: '' }), ...patch },
+    }));
+  };
+  const submitCutoverStep = (session: CutoverRunbookSession, phaseKey: string, stepKey: string) => {
+    const form = formForCutoverStep(session, phaseKey, stepKey);
+    updateCutoverSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        phase_key: phaseKey,
+        step_key: stepKey,
+        step_status: form.step_status,
+        owner_name: form.owner_name.trim() || null,
+        step_note: form.step_note.trim() || null,
+      },
+    });
+  };
+  const submitCutoverRollback = (session: CutoverRunbookSession) => {
+    const rollbackStatus = cutoverRollbackForm.rollback_status === 'not_reviewed' && session.rollback_status !== 'not_reviewed'
+      ? session.rollback_status
+      : cutoverRollbackForm.rollback_status;
+    updateCutoverSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        rollback_status: rollbackStatus,
+        rollback_decision: cutoverRollbackForm.rollback_decision.trim() || session.rollback_decision || null,
       },
     });
   };
@@ -1422,6 +1510,240 @@ function OperationsPage() {
                   <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
                   <div className="mt-1 text-[11px] text-clinic-400">{item.category} · {item.docs.join(', ')}</div>
                 </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Cutover Runbook</h2>
+            <p className="text-xs text-clinic-500">{cutoverSessions?.total ?? 0} saved session(s) · {cutoverRunbook?.total_steps ?? 0} timed step(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeCutoverSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeCutoverSession.complete_count} complete</span>
+                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeCutoverSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{activeCutoverSession.rollback_count} rollback</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeCutoverSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start cutover</div>
+              <input
+                value={cutoverSessionForm.session_name ?? ''}
+                onChange={(event) => setCutoverSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={cutoverSessionForm.cutover_owner ?? ''}
+                onChange={(event) => setCutoverSessionForm((current) => ({ ...current, cutover_owner: event.target.value }))}
+                placeholder="Cutover owner"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                type="datetime-local"
+                value={cutoverSessionForm.scheduled_for ?? ''}
+                onChange={(event) => setCutoverSessionForm((current) => ({ ...current, scheduled_for: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={cutoverSessionForm.note ?? ''}
+                onChange={(event) => setCutoverSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="Cutover note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startCutoverSessionMutation.mutate({
+                  session_name: cutoverSessionForm.session_name?.trim() || 'Production cutover rehearsal',
+                  cutover_owner: cutoverSessionForm.cutover_owner?.trim() || null,
+                  scheduled_for: cutoverSessionForm.scheduled_for || null,
+                  note: cutoverSessionForm.note?.trim() || null,
+                })}
+                disabled={startCutoverSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start cutover
+              </button>
+            </div>
+            {activeCutoverSession && (
+              <div className="space-y-3">
+                <div className="rounded-md border border-clinic-200 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="text-sm font-semibold text-clinic-900">{activeCutoverSession.session_name}</div>
+                      <div className="mt-1 text-xs text-clinic-500">{activeCutoverSession.cutover_owner ?? activeCutoverSession.started_by ?? 'Cutover owner'} · {new Date(activeCutoverSession.started_at).toLocaleString()}</div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeCutoverSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : activeCutoverSession.status === 'aborted' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      {activeCutoverSession.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  {activeCutoverSession.scheduled_for && <div className="mt-2 text-xs text-clinic-500">Scheduled {new Date(activeCutoverSession.scheduled_for).toLocaleString()}</div>}
+                  {activeCutoverSession.note && <div className="mt-2 text-xs text-clinic-500">{activeCutoverSession.note}</div>}
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <a
+                      href={ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSION_EXPORT(activeCutoverSession.session_id)}
+                      download="concierge-os-cutover-runbook.csv"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Export
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => updateCutoverSessionMutation.mutate({
+                        sessionId: activeCutoverSession.session_id,
+                        data: { session_status: 'completed', note: activeCutoverSession.note },
+                      })}
+                      disabled={activeCutoverSession.status === 'completed' || updateCutoverSessionMutation.isPending}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                    >
+                      <CheckSquare className="h-3.5 w-3.5" />
+                      Complete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateCutoverSessionMutation.mutate({
+                        sessionId: activeCutoverSession.session_id,
+                        data: { session_status: 'aborted', note: activeCutoverSession.note },
+                      })}
+                      disabled={activeCutoverSession.status === 'aborted' || updateCutoverSessionMutation.isPending}
+                      className="inline-flex items-center justify-center rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Abort
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-md border border-clinic-200 p-3">
+                  <div className="text-xs font-semibold uppercase text-clinic-500">Rollback decision</div>
+                  <div className="mt-2 grid gap-2">
+                    <select
+                      value={cutoverRollbackForm.rollback_status === 'not_reviewed' && activeCutoverSession.rollback_status !== 'not_reviewed' ? activeCutoverSession.rollback_status : cutoverRollbackForm.rollback_status}
+                      onChange={(event) => setCutoverRollbackForm((current) => ({ ...current, rollback_status: event.target.value as NonNullable<CutoverRunbookSessionUpdate['rollback_status']> }))}
+                      className="w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    >
+                      <option value="not_reviewed">Not reviewed</option>
+                      <option value="rollback_ready">Rollback ready</option>
+                      <option value="rollback_required">Rollback required</option>
+                      <option value="not_needed">Not needed</option>
+                    </select>
+                    <textarea
+                      value={cutoverRollbackForm.rollback_decision || activeCutoverSession.rollback_decision || ''}
+                      onChange={(event) => setCutoverRollbackForm((current) => ({ ...current, rollback_decision: event.target.value }))}
+                      rows={3}
+                      placeholder="Decision note"
+                      className="w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => submitCutoverRollback(activeCutoverSession)}
+                      disabled={updateCutoverSessionMutation.isPending}
+                      className="rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                    >
+                      Save rollback decision
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          {activeCutoverSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activeCutoverSession.phases.map((phase) => (
+                <div key={phase.key} className="rounded-md border border-clinic-200">
+                  <div className="border-b border-clinic-200 px-3 py-2">
+                    <div className="text-sm font-semibold text-clinic-900">{phase.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{phase.objective}</div>
+                  </div>
+                  <div className="divide-y divide-clinic-100">
+                    {phase.steps.map((step) => {
+                      const stepForm = formForCutoverStep(activeCutoverSession, phase.key, step.key);
+                      return (
+                        <div key={step.key} className="space-y-2 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-xs font-medium text-clinic-900">{step.label}</div>
+                              <div className="mt-1 text-[11px] text-clinic-500">{step.detail}</div>
+                              <div className="mt-1 text-[11px] text-clinic-400">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute} · {step.owner_role}</div>
+                              {step.rollback_trigger && <div className="mt-1 text-[11px] text-red-600">{step.rollback_trigger}</div>}
+                            </div>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${step.step_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : step.step_status === 'blocked' || step.step_status === 'rollback' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{step.step_status}</span>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+                            <select
+                              value={stepForm.step_status}
+                              onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { step_status: event.target.value as CutoverStepFormState['step_status'] })}
+                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="complete">Complete</option>
+                              <option value="blocked">Blocked</option>
+                              <option value="rollback">Rollback</option>
+                            </select>
+                            <input
+                              value={stepForm.owner_name}
+                              onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { owner_name: event.target.value })}
+                              placeholder="Owner"
+                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            />
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_4.5rem]">
+                            <input
+                              value={stepForm.step_note}
+                              onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { step_note: event.target.value })}
+                              placeholder="Step evidence"
+                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => submitCutoverStep(activeCutoverSession, phase.key, step.key)}
+                              disabled={updateCutoverSessionMutation.isPending}
+                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {(cutoverRunbook?.phases ?? []).map((phase) => (
+                <div key={phase.key} className="rounded-md border border-clinic-200 bg-clinic-50">
+                  <div className="border-b border-clinic-200 px-3 py-2">
+                    <div className="text-sm font-semibold text-clinic-900">{phase.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{phase.objective}</div>
+                  </div>
+                  <div className="divide-y divide-clinic-100">
+                    {phase.steps.map((step) => (
+                      <div key={step.key} className="px-3 py-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-xs font-medium text-clinic-900">{step.label}</div>
+                            <div className="mt-1 text-[11px] text-clinic-500">{step.detail}</div>
+                          </div>
+                          <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] font-medium text-clinic-500">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-clinic-400">{step.owner_role}</div>
+                        {step.rollback_trigger && <div className="mt-1 text-[11px] text-red-600">{step.rollback_trigger}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}

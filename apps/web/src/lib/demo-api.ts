@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -610,6 +610,152 @@ function updatePolicyApprovalSession(sessionId: string, data: PolicyApprovalSess
   });
   saveDemoData();
   return updated;
+}
+
+function demoCutoverStep(key: string, label: string, detail: string, owner_role: string, expected_minute: number, rollback_trigger: string | null): CutoverRunbookStep {
+  return { key, label, detail, owner_role, expected_minute, rollback_trigger };
+}
+
+function demoCutoverPhase(key: string, label: string, objective: string, steps: CutoverRunbookStep[]): CutoverRunbookPhase {
+  return { key, label, objective, steps };
+}
+
+function cutoverRunbook(): CutoverRunbook {
+  const phases = [
+    demoCutoverPhase('pre_cutover', 'Pre-cutover', 'Confirm launch inputs and freeze risky changes before the cutover window.', [
+      demoCutoverStep('confirm_owner', 'Confirm cutover owner', 'Confirm cutover owner, vendor contacts, escalation channel, and decision authority.', 'manager', -60, null),
+      demoCutoverStep('final_backup', 'Run final backup', 'Run backup and confirm restore marker or documented rollback snapshot.', 'operations', -45, 'Backup fails or restore marker is missing.'),
+      demoCutoverStep('freeze_changes', 'Freeze noncritical changes', 'Pause noncritical workflow changes and confirm staff are using the rehearsal plan.', 'manager', -30, 'Unexpected configuration drift is detected.'),
+    ]),
+    demoCutoverPhase('cutover_window', 'Cutover window', 'Switch production-facing configuration and verify critical access paths.', [
+      demoCutoverStep('deploy_release', 'Deploy release', 'Deploy the approved release and confirm health checks.', 'operations', 0, 'Health check fails after deploy.'),
+      demoCutoverStep('verify_identity', 'Verify identity access', 'Confirm admin/manager/provider/front desk access and session policy.', 'manager', 10, 'Privileged user cannot authenticate.'),
+      demoCutoverStep('enable_integrations', 'Enable integrations', 'Enable approved vendor credentials and confirm credential preflight.', 'operations', 20, 'Credential preflight has blocking items.'),
+    ]),
+    demoCutoverPhase('validation', 'Validation', 'Validate clinical, front-office, billing, and audit workflows before staff use.', [
+      demoCutoverStep('patient_chart_smoke', 'Validate patient chart', 'Open patient search, chart, documents, meds, care plan, and checkout handoff.', 'ma_nurse', 30, 'Patient chart or document workflow fails.'),
+      demoCutoverStep('front_office_smoke', 'Validate front office', 'Validate scheduling, portal intake, messaging, faxes, and reports.', 'front_desk', 40, 'Scheduling, intake, or fax workflow fails.'),
+      demoCutoverStep('billing_smoke', 'Validate billing', 'Validate charge review, claim readiness, eligibility, and audit trail visibility.', 'billing', 50, 'Billing or eligibility workflow fails.'),
+    ]),
+    demoCutoverPhase('rollback', 'Rollback decision', 'Make an explicit go/no-go decision and document rollback readiness.', [
+      demoCutoverStep('rollback_tree', 'Review rollback decision tree', 'Review blockers, owner authority, communication path, and rollback trigger thresholds.', 'manager', 55, 'Any critical validation gate remains unresolved.'),
+      demoCutoverStep('go_no_go', 'Record go/no-go', 'Record go/no-go decision, final owner, and follow-up monitoring plan.', 'manager', 60, 'Go/no-go owner does not approve launch.'),
+    ]),
+  ];
+  return {
+    generated_at: new Date().toISOString(),
+    phases,
+    total_phases: phases.length,
+    total_steps: phases.reduce((sum, phase) => sum + phase.steps.length, 0),
+  };
+}
+
+function recalculateCutoverSession(session: CutoverRunbookSession): CutoverRunbookSession {
+  const steps = session.phases.flatMap((phase) => phase.steps);
+  const completeCount = steps.filter((step) => step.step_status === 'complete').length;
+  const blockedCount = steps.filter((step) => step.step_status === 'blocked').length;
+  const rollbackCount = steps.filter((step) => step.step_status === 'rollback').length;
+  return {
+    ...session,
+    step_count: steps.length,
+    complete_count: completeCount,
+    blocked_count: blockedCount,
+    rollback_count: rollbackCount,
+    pending_count: steps.length - completeCount - blockedCount - rollbackCount,
+  };
+}
+
+function createCutoverRunbookSession(data: CutoverRunbookSessionStart): CutoverRunbookSession {
+  const runbook = cutoverRunbook();
+  const createdAt = new Date().toISOString();
+  const session = recalculateCutoverSession({
+    id: uuid(2600 + cutoverRunbookSessions.length),
+    session_id: uuid(2700 + cutoverRunbookSessions.length),
+    session_name: data.session_name || 'Production cutover rehearsal',
+    cutover_owner: data.cutover_owner ?? null,
+    scheduled_for: data.scheduled_for ?? null,
+    status: 'in_progress',
+    rollback_status: 'not_reviewed',
+    rollback_decision: null,
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    step_count: 0,
+    complete_count: 0,
+    blocked_count: 0,
+    rollback_count: 0,
+    pending_count: 0,
+    phases: runbook.phases.map((phase) => ({
+      ...phase,
+      steps: phase.steps.map((step) => ({ ...step, step_status: 'pending' as const, owner_name: null, note: null })),
+    })),
+  });
+  cutoverRunbookSessions = [session, ...cutoverRunbookSessions];
+  logDemoEvent({
+    event_type: 'operations.cutover_runbook_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updateCutoverRunbookSession(sessionId: string, data: CutoverRunbookSessionUpdate): CutoverRunbookSession | null {
+  const session = cutoverRunbookSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated = recalculateCutoverSession({
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    rollback_status: data.rollback_status ?? session.rollback_status,
+    rollback_decision: data.rollback_decision !== undefined ? data.rollback_decision : session.rollback_decision,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status && data.session_status !== 'in_progress' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status && data.session_status !== 'in_progress' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    phases: session.phases.map((phase) => {
+      if (phase.key !== data.phase_key) return phase;
+      return {
+        ...phase,
+        steps: phase.steps.map((step) => {
+          if (step.key !== data.step_key) return step;
+          return {
+            ...step,
+            step_status: data.step_status ?? step.step_status,
+            owner_name: data.owner_name !== undefined ? data.owner_name : step.owner_name,
+            note: data.step_note !== undefined ? data.step_note : step.note,
+          };
+        }),
+      };
+    }),
+  });
+  cutoverRunbookSessions = [updated, ...cutoverRunbookSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.cutover_runbook_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: updated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return updated;
+}
+
+function cutoverRunbookCsv(session: CutoverRunbookSession) {
+  const rows = [['phase', 'key', 'label', 'status', 'owner', 'note', 'rollback_trigger']];
+  session.phases.forEach((phase) => phase.steps.forEach((step) => rows.push([
+    phase.key,
+    step.key,
+    step.label,
+    step.step_status,
+    step.owner_name ?? '',
+    step.note ?? '',
+    step.rollback_trigger ?? '',
+  ])));
+  rows.push(['rollback_decision', 'rollback_status', 'Rollback status', session.rollback_status, session.cutover_owner ?? '', session.rollback_decision ?? '', '']);
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
 function recalculateBrowserQaSession(session: BrowserQaSession): BrowserQaSession {
@@ -1335,6 +1481,7 @@ interface DemoStore {
   browserQaSessions?: BrowserQaSession[];
   staffTrainingSessions?: StaffTrainingSession[];
   policyApprovalSessions?: PolicyApprovalSession[];
+  cutoverRunbookSessions?: CutoverRunbookSession[];
 }
 
 interface IntegrationEvent {
@@ -1390,6 +1537,7 @@ let roleDryRunSessions: RoleDryRunSession[] = [];
 let browserQaSessions: BrowserQaSession[] = [];
 let staffTrainingSessions: StaffTrainingSession[] = [];
 let policyApprovalSessions: PolicyApprovalSession[] = [];
+let cutoverRunbookSessions: CutoverRunbookSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -1715,7 +1863,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, cutoverRunbookSessions }),
   );
 }
 
@@ -1909,6 +2057,7 @@ if (storedDemoData) {
   browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
   staffTrainingSessions = storedDemoData.staffTrainingSessions ?? staffTrainingSessions;
   policyApprovalSessions = storedDemoData.policyApprovalSessions ?? policyApprovalSessions;
+  cutoverRunbookSessions = storedDemoData.cutoverRunbookSessions ?? cutoverRunbookSessions;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -2093,6 +2242,34 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     if (!session) {
       throw new Error('Policy approval session not found');
+    }
+    return session as T;
+  }
+  if (path === '/operations/cutover-runbook' && method === 'GET') {
+    return cutoverRunbook() as T;
+  }
+  if (path === '/operations/cutover-runbook-sessions' && method === 'POST') {
+    return createCutoverRunbookSession((body ?? {}) as CutoverRunbookSessionStart) as T;
+  }
+  if (path === '/operations/cutover-runbook-sessions' && method === 'GET') {
+    return { data: cutoverRunbookSessions, total: cutoverRunbookSessions.length } satisfies CutoverRunbookSessionList as T;
+  }
+  const cutoverRunbookExportMatch = path.match(/^\/operations\/cutover-runbook-sessions\/([^/]+)\/export$/);
+  if (cutoverRunbookExportMatch && method === 'GET') {
+    const session = cutoverRunbookSessions.find((item) => item.session_id === decodeURIComponent(cutoverRunbookExportMatch[1]));
+    if (!session) {
+      throw new Error('Cutover runbook session not found');
+    }
+    return cutoverRunbookCsv(session) as T;
+  }
+  const cutoverRunbookSessionMatch = path.match(/^\/operations\/cutover-runbook-sessions\/([^/]+)$/);
+  if (cutoverRunbookSessionMatch && method === 'PATCH') {
+    const session = updateCutoverRunbookSession(
+      decodeURIComponent(cutoverRunbookSessionMatch[1]),
+      (body ?? {}) as CutoverRunbookSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Cutover runbook session not found');
     }
     return session as T;
   }

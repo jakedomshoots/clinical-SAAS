@@ -31,6 +31,7 @@ ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
 BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
 STAFF_TRAINING_SESSION_EVENT_TYPE = "operations.staff_training_session"
 POLICY_APPROVAL_SESSION_EVENT_TYPE = "operations.policy_approval_session"
+CUTOVER_RUNBOOK_SESSION_EVENT_TYPE = "operations.cutover_runbook_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -651,6 +652,153 @@ async def update_policy_approval_session(db: AsyncSession, user: User, session_i
         payload=payload,
     )
     return _policy_approval_session_from_audit(event)
+
+
+def cutover_runbook() -> dict:
+    phases = [
+        _cutover_phase("pre_cutover", "Pre-cutover", "Confirm launch inputs and freeze risky changes before the cutover window.", [
+            _cutover_step("confirm_owner", "Confirm cutover owner", "Confirm cutover owner, vendor contacts, escalation channel, and decision authority.", "manager", -60, None),
+            _cutover_step("final_backup", "Run final backup", "Run backup and confirm restore marker or documented rollback snapshot.", "operations", -45, "Backup fails or restore marker is missing."),
+            _cutover_step("freeze_changes", "Freeze noncritical changes", "Pause noncritical workflow changes and confirm staff are using the rehearsal plan.", "manager", -30, "Unexpected configuration drift is detected."),
+        ]),
+        _cutover_phase("cutover_window", "Cutover window", "Switch production-facing configuration and verify critical access paths.", [
+            _cutover_step("deploy_release", "Deploy release", "Deploy the approved release and confirm health checks.", "operations", 0, "Health check fails after deploy."),
+            _cutover_step("verify_identity", "Verify identity access", "Confirm admin/manager/provider/front desk access and session policy.", "manager", 10, "Privileged user cannot authenticate."),
+            _cutover_step("enable_integrations", "Enable integrations", "Enable approved vendor credentials and confirm credential preflight.", "operations", 20, "Credential preflight has blocking items."),
+        ]),
+        _cutover_phase("validation", "Validation", "Validate clinical, front-office, billing, and audit workflows before staff use.", [
+            _cutover_step("patient_chart_smoke", "Validate patient chart", "Open patient search, chart, documents, meds, care plan, and checkout handoff.", "ma_nurse", 30, "Patient chart or document workflow fails."),
+            _cutover_step("front_office_smoke", "Validate front office", "Validate scheduling, portal intake, messaging, faxes, and reports.", "front_desk", 40, "Scheduling, intake, or fax workflow fails."),
+            _cutover_step("billing_smoke", "Validate billing", "Validate charge review, claim readiness, eligibility, and audit trail visibility.", "billing", 50, "Billing or eligibility workflow fails."),
+        ]),
+        _cutover_phase("rollback", "Rollback decision", "Make an explicit go/no-go decision and document rollback readiness.", [
+            _cutover_step("rollback_tree", "Review rollback decision tree", "Review blockers, owner authority, communication path, and rollback trigger thresholds.", "manager", 55, "Any critical validation gate remains unresolved."),
+            _cutover_step("go_no_go", "Record go/no-go", "Record go/no-go decision, final owner, and follow-up monitoring plan.", "manager", 60, "Go/no-go owner does not approve launch."),
+        ]),
+    ]
+    return {
+        "generated_at": datetime.now(UTC),
+        "phases": phases,
+        "total_phases": len(phases),
+        "total_steps": sum(len(phase["steps"]) for phase in phases),
+    }
+
+
+async def start_cutover_runbook_session(db: AsyncSession, user: User, data: dict) -> dict:
+    runbook = cutover_runbook()
+    session_id = str(uuid4())
+    scheduled_for = data.get("scheduled_for")
+    if hasattr(scheduled_for, "isoformat"):
+        scheduled_for = scheduled_for.isoformat()
+    payload = _recalculate_cutover_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Production cutover rehearsal",
+        "cutover_owner": data.get("cutover_owner"),
+        "scheduled_for": scheduled_for,
+        "status": "in_progress",
+        "rollback_status": "not_reviewed",
+        "rollback_decision": None,
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "completed_by": None,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_at": None,
+        "phases": [
+            {
+                **phase,
+                "steps": [
+                    {
+                        **step,
+                        "step_status": "pending",
+                        "owner_name": None,
+                        "note": None,
+                    }
+                    for step in phase["steps"]
+                ],
+            }
+            for phase in runbook["phases"]
+        ],
+    })
+    event = await log_event(
+        db,
+        CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _cutover_runbook_session_from_audit(event)
+
+
+async def list_cutover_runbook_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    sessions: dict[str, dict] = {}
+    for event in result.scalars().all():
+        session = _cutover_runbook_session_from_audit(event)
+        sessions.setdefault(session["session_id"], session)
+    return list(sessions.values())[:25], len(sessions)
+
+
+async def get_cutover_runbook_session(db: AsyncSession, user: User, session_id: str) -> dict | None:
+    latest = await _latest_cutover_runbook_session_event(db, user, session_id)
+    return _cutover_runbook_session_from_audit(latest) if latest else None
+
+
+async def update_cutover_runbook_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_cutover_runbook_session_event(db, user, session_id)
+    if not latest:
+        return None
+
+    payload = deepcopy(latest.payload or {})
+    if data.get("note") is not None:
+        payload["note"] = data["note"]
+    if data.get("rollback_status"):
+        payload["rollback_status"] = data["rollback_status"]
+    if data.get("rollback_decision") is not None:
+        payload["rollback_decision"] = data["rollback_decision"]
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] in {"completed", "aborted"} and not payload.get("completed_at"):
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+            payload["completed_by"] = user.display_name
+
+    phase_key = data.get("phase_key")
+    step_key = data.get("step_key")
+    if phase_key or step_key:
+        updated = False
+        for phase in payload.get("phases", []):
+            if phase.get("key") != phase_key:
+                continue
+            for step in phase.get("steps", []):
+                if step.get("key") != step_key:
+                    continue
+                if data.get("step_status"):
+                    step["step_status"] = data["step_status"]
+                if data.get("owner_name") is not None:
+                    step["owner_name"] = data["owner_name"]
+                if data.get("step_note") is not None:
+                    step["note"] = data["step_note"]
+                updated = True
+                break
+            break
+        if not updated:
+            return None
+
+    payload = _recalculate_cutover_totals(payload)
+    event = await log_event(
+        db,
+        CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _cutover_runbook_session_from_audit(event)
 
 
 async def create_readiness_snapshot(db: AsyncSession, user: User) -> dict:
@@ -1471,6 +1619,31 @@ def live_use_rehearsal_csv(dashboard: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def cutover_runbook_csv(session: dict) -> str:
+    rows = ["phase,key,label,status,owner,note,rollback_trigger"]
+    for phase in session["phases"]:
+        for step in phase["steps"]:
+            rows.append(_csv_row([
+                phase["key"],
+                step["key"],
+                step["label"],
+                step["step_status"],
+                step.get("owner_name") or "",
+                step.get("note") or "",
+                step.get("rollback_trigger") or "",
+            ]))
+    rows.append(_csv_row([
+        "rollback_decision",
+        "rollback_status",
+        "Rollback status",
+        session["rollback_status"],
+        session.get("cutover_owner") or "",
+        session.get("rollback_decision") or "",
+        "",
+    ]))
+    return "\n".join(rows) + "\n"
+
+
 async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
     query = select(AuditLog).where(
         AuditLog.organization_id == user.organization_id,
@@ -1701,6 +1874,33 @@ def _policy_item(key: str, label: str, detail: str, route: str, category: str, d
         "route": route,
         "category": category,
         "docs": docs,
+    }
+
+
+def _cutover_step(
+    key: str,
+    label: str,
+    detail: str,
+    owner_role: str,
+    expected_minute: int,
+    rollback_trigger: str | None,
+) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "owner_role": owner_role,
+        "expected_minute": expected_minute,
+        "rollback_trigger": rollback_trigger,
+    }
+
+
+def _cutover_phase(key: str, label: str, objective: str, steps: list[dict]) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "objective": objective,
+        "steps": steps,
     }
 
 
@@ -2027,6 +2227,70 @@ def _policy_approval_session_from_audit(event: AuditLog) -> dict:
         "needs_changes_count": int(payload.get("needs_changes_count", 0)),
         "pending_count": int(payload.get("pending_count", 0)),
         "items": payload.get("items", []),
+    }
+
+
+async def _latest_cutover_runbook_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_cutover_totals(payload: dict) -> dict:
+    step_count = 0
+    complete_count = 0
+    blocked_count = 0
+    rollback_count = 0
+    pending_count = 0
+    for phase in payload.get("phases", []):
+        for step in phase.get("steps", []):
+            step_count += 1
+            status = step.get("step_status") or "pending"
+            if status == "complete":
+                complete_count += 1
+            elif status == "blocked":
+                blocked_count += 1
+            elif status == "rollback":
+                rollback_count += 1
+            else:
+                pending_count += 1
+    payload["step_count"] = step_count
+    payload["complete_count"] = complete_count
+    payload["blocked_count"] = blocked_count
+    payload["rollback_count"] = rollback_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _cutover_runbook_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_cutover_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Production cutover rehearsal",
+        "cutover_owner": payload.get("cutover_owner"),
+        "scheduled_for": payload.get("scheduled_for"),
+        "status": payload.get("status", "in_progress"),
+        "rollback_status": payload.get("rollback_status", "not_reviewed"),
+        "rollback_decision": payload.get("rollback_decision"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "step_count": int(payload.get("step_count", 0)),
+        "complete_count": int(payload.get("complete_count", 0)),
+        "blocked_count": int(payload.get("blocked_count", 0)),
+        "rollback_count": int(payload.get("rollback_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "phases": payload.get("phases", []),
     }
 
 

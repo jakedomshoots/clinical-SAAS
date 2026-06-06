@@ -993,6 +993,96 @@ async def test_live_use_rehearsal_dashboard_rolls_up_launch_evidence(client, aut
 
 
 @pytest.mark.asyncio
+async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, auth_headers):
+    checklist = await client.get("/api/operations/cutover-runbook", headers=auth_headers)
+    first_phase = checklist.json()["phases"][0]
+    first_step = first_phase["steps"][0]
+
+    created = await client.post(
+        "/api/operations/cutover-runbook-sessions",
+        json={
+            "session_name": "Production cutover rehearsal",
+            "cutover_owner": "Clinic Manager",
+            "scheduled_for": "2026-06-10T08:00:00Z",
+            "note": "Dry run before vendor credentials.",
+        },
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/cutover-runbook-sessions/{session['session_id']}",
+        json={
+            "phase_key": first_phase["key"],
+            "step_key": first_step["key"],
+            "step_status": "complete",
+            "owner_name": "Clinic Manager",
+            "step_note": "Confirmed owner and timing.",
+        },
+        headers=auth_headers,
+    )
+    rollback = await client.patch(
+        f"/api/operations/cutover-runbook-sessions/{session['session_id']}",
+        json={
+            "rollback_status": "rollback_ready",
+            "rollback_decision": "Rollback owner and decision tree reviewed.",
+            "session_status": "completed",
+        },
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/cutover-runbook-sessions", headers=auth_headers)
+    export = await client.get(f"/api/operations/cutover-runbook-sessions/{session['session_id']}/export", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.cutover_runbook_session",
+        headers=auth_headers,
+    )
+
+    assert checklist.status_code == 200
+    checklist_data = checklist.json()
+    phase_keys = {phase["key"] for phase in checklist_data["phases"]}
+    assert {"pre_cutover", "cutover_window", "validation", "rollback"} <= phase_keys
+    assert checklist_data["total_steps"] == sum(len(phase["steps"]) for phase in checklist_data["phases"])
+    assert any(step["rollback_trigger"] for phase in checklist_data["phases"] for step in phase["steps"])
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Production cutover rehearsal"
+    assert session["cutover_owner"] == "Clinic Manager"
+    assert session["pending_count"] == session["step_count"]
+    assert session["rollback_status"] == "not_reviewed"
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["complete_count"] == 1
+    updated_step = next(
+        step
+        for phase in updated_data["phases"]
+        if phase["key"] == first_phase["key"]
+        for step in phase["steps"]
+        if step["key"] == first_step["key"]
+    )
+    assert updated_step["step_status"] == "complete"
+    assert updated_step["owner_name"] == "Clinic Manager"
+    assert updated_step["note"] == "Confirmed owner and timing."
+
+    assert rollback.status_code == 200
+    assert rollback.json()["status"] == "completed"
+    assert rollback.json()["rollback_status"] == "rollback_ready"
+    assert rollback.json()["rollback_decision"] == "Rollback owner and decision tree reviewed."
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert export.status_code == 200
+    assert export.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-cutover-runbook.csv" in export.headers["content-disposition"]
+    assert "phase,key,label,status,owner,note,rollback_trigger" in export.text
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.cutover_runbook_session"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

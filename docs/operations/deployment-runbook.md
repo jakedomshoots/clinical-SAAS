@@ -9,6 +9,7 @@ Use this runbook after production credentials and infrastructure have been provi
 - Confirm `/api/operations/production-config-audit` has status `ready`.
 - Run `pnpm verify:local`.
 - Run `pnpm migrate:api` against the target database.
+- Start a Cutover Runbook session in Operations, assign the cutover owner, and confirm backup, access, credential, and validation owners before the launch window.
 
 ## Launch
 
@@ -16,6 +17,8 @@ Use this runbook after production credentials and infrastructure have been provi
 - Confirm `/api/health` returns `ok`.
 - Confirm `/api/ready` reports core infrastructure `ok`.
 - Confirm Operations shows integration readiness and no unexpected failed events.
+- Mark each Cutover Runbook step complete, blocked, or rollback in Operations as the launch window progresses.
+- Record the rollback readiness status and go/no-go decision before staff are allowed to use the production system.
 
 ## Monitoring
 
@@ -34,3 +37,4 @@ Use this runbook after production credentials and infrastructure have been provi
 - Keep the previous API/web image available.
 - Roll back web first, then API.
 - Do not roll back database migrations without a written migration-specific rollback plan.
+- If any Cutover Runbook step is marked rollback or blocked during validation, pause staff go-live and record the rollback decision in Operations before changing traffic or credentials.

@@ -263,6 +263,89 @@ class PolicyApprovalSessionListOut(BaseModel):
     total: int
 
 
+class CutoverRunbookStepOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    owner_role: str
+    expected_minute: int
+    rollback_trigger: str | None = None
+
+
+class CutoverRunbookPhaseOut(BaseModel):
+    key: str
+    label: str
+    objective: str
+    steps: list[CutoverRunbookStepOut]
+
+
+class CutoverRunbookOut(BaseModel):
+    generated_at: datetime
+    phases: list[CutoverRunbookPhaseOut]
+    total_phases: int
+    total_steps: int
+
+
+class CutoverRunbookSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    cutover_owner: str | None = Field(default=None, max_length=120)
+    scheduled_for: datetime | str | None = None
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class CutoverRunbookSessionUpdate(BaseModel):
+    phase_key: str | None = None
+    step_key: str | None = None
+    step_status: str | None = Field(default=None, pattern="^(pending|complete|blocked|rollback)$")
+    owner_name: str | None = Field(default=None, max_length=120)
+    step_note: str | None = Field(default=None, max_length=1000)
+    rollback_status: str | None = Field(default=None, pattern="^(not_reviewed|rollback_ready|rollback_required|not_needed)$")
+    rollback_decision: str | None = Field(default=None, max_length=1000)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed|aborted)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class CutoverRunbookSessionStepOut(CutoverRunbookStepOut):
+    step_status: str
+    owner_name: str | None = None
+    note: str | None = None
+
+
+class CutoverRunbookSessionPhaseOut(BaseModel):
+    key: str
+    label: str
+    objective: str
+    steps: list[CutoverRunbookSessionStepOut]
+
+
+class CutoverRunbookSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    cutover_owner: str | None = None
+    scheduled_for: datetime | str | None = None
+    status: str
+    rollback_status: str
+    rollback_decision: str | None = None
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    step_count: int
+    complete_count: int
+    blocked_count: int
+    rollback_count: int
+    pending_count: int
+    phases: list[CutoverRunbookSessionPhaseOut]
+
+
+class CutoverRunbookSessionListOut(BaseModel):
+    data: list[CutoverRunbookSessionOut]
+    total: int
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime
