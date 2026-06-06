@@ -11,6 +11,8 @@ from app.schemas.operations import (
     OperationsIncidentListOut,
     OperationsIncidentOut,
     LaunchWorkplanOut,
+    LaunchWorkplanSnapshotListOut,
+    LaunchWorkplanSnapshotOut,
     ProductionRehearsalReportOut,
     ProductionRehearsalSnapshotListOut,
     ProductionRehearsalSnapshotOut,
@@ -43,6 +45,36 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
 async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
     return LaunchWorkplanOut(
         **await operations_service.launch_workplan(db, current_user)
+    )
+
+
+@router.post(
+    "/launch-workplan/snapshots",
+    response_model=LaunchWorkplanSnapshotOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_launch_workplan_snapshot(db: DbDep, current_user: OpsUserDep):
+    return LaunchWorkplanSnapshotOut(
+        **await operations_service.create_launch_workplan_snapshot(db, current_user)
+    )
+
+
+@router.get("/launch-workplan/snapshots", response_model=LaunchWorkplanSnapshotListOut)
+async def list_launch_workplan_snapshots(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_launch_workplan_snapshots(db, current_user)
+    return LaunchWorkplanSnapshotListOut(
+        data=[LaunchWorkplanSnapshotOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.get("/launch-workplan/export")
+async def export_launch_workplan(db: DbDep, current_user: OpsUserDep):
+    workplan = await operations_service.launch_workplan(db, current_user)
+    return Response(
+        content=operations_service.launch_workplan_csv(workplan),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="concierge-os-launch-workplan.csv"'},
     )
 
 

@@ -17,6 +17,7 @@ from app.services.readiness_service import check_readiness
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
 REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
+LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -287,6 +288,30 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def create_launch_workplan_snapshot(db: AsyncSession, user: User) -> dict:
+    workplan = await launch_workplan(db, user)
+    event = await log_event(
+        db,
+        LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE,
+        "operations",
+        user.organization_id,
+        actor_id=user.id,
+        payload=_serialize_launch_workplan(workplan),
+    )
+    return _launch_workplan_snapshot_from_audit(event)
+
+
+async def list_launch_workplan_snapshots(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(25))
+    return [_launch_workplan_snapshot_from_audit(item) for item in result.scalars().all()], total
+
+
 async def create_rehearsal_snapshot(db: AsyncSession, user: User) -> dict:
     report = await production_rehearsal_report(db, user)
     event = await log_event(
@@ -339,6 +364,28 @@ def rehearsal_report_csv(report: dict) -> str:
             action["detail"],
             action["route"],
             action["severity"],
+            assignment.get("owner_name", ""),
+            assignment.get("status", ""),
+            assignment.get("due_date", "") or "",
+            assignment.get("note", "") or "",
+        ]))
+    return "\n".join(rows) + "\n"
+
+
+def launch_workplan_csv(workplan: dict) -> str:
+    rows = ["key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note"]
+    for item in workplan["items"]:
+        assignment = item.get("assignment") or {}
+        rows.append(_csv_row([
+            item["key"],
+            item["source"],
+            item["category"],
+            item["label"],
+            item["severity"],
+            item["detail"],
+            item["route"],
+            item["owner_role"],
+            item["recommended_action"],
             assignment.get("owner_name", ""),
             assignment.get("status", ""),
             assignment.get("due_date", "") or "",
@@ -456,6 +503,13 @@ def _serialize_rehearsal_report(report: dict) -> dict:
     }
 
 
+def _serialize_launch_workplan(workplan: dict) -> dict:
+    return {
+        **workplan,
+        "generated_at": workplan["generated_at"].isoformat() if hasattr(workplan["generated_at"], "isoformat") else workplan["generated_at"],
+    }
+
+
 def _rehearsal_snapshot_from_audit(event: AuditLog) -> dict:
     payload = event.payload or {}
     return {
@@ -467,6 +521,20 @@ def _rehearsal_snapshot_from_audit(event: AuditLog) -> dict:
         "blocking_count": int(payload.get("blocking_count", 0)),
         "warning_count": int(payload.get("warning_count", 0)),
         "recommended_action_count": len(payload.get("recommended_actions", [])),
+    }
+
+
+def _launch_workplan_snapshot_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "created_at": event.created_at,
+        "status": payload.get("status", "attention"),
+        "total": int(payload.get("total", 0)),
+        "blocking_count": int(payload.get("blocking_count", 0)),
+        "warning_count": int(payload.get("warning_count", 0)),
+        "assigned_count": int(payload.get("assigned_count", 0)),
+        "unassigned_count": int(payload.get("unassigned_count", 0)),
     }
 
 

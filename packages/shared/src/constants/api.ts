@@ -85,6 +85,8 @@ export const ROUTES = {
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_LAUNCH_WORKPLAN: '/api/operations/launch-workplan',
+  OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS: '/api/operations/launch-workplan/snapshots',
+  OPERATIONS_LAUNCH_WORKPLAN_EXPORT: '/api/operations/launch-workplan/export',
   OPERATIONS_READINESS_SNAPSHOTS: '/api/operations/readiness-snapshots',
   OPERATIONS_PRODUCTION_REHEARSAL: '/api/operations/production-rehearsal',
   OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS: '/api/operations/production-rehearsal/snapshots',

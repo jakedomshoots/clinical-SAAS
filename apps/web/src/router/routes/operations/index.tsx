@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type LaunchWorkplan, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -126,6 +126,10 @@ function OperationsPage() {
     queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'],
     queryFn: () => api.get<LaunchWorkplan>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN),
   });
+  const { data: workplanSnapshots } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'launch-workplan'],
+    queryFn: () => api.get<LaunchWorkplanSnapshotList>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS),
+  });
   const { data: snapshots } = useQuery({
     queryKey: QUERY_KEYS.READINESS_SNAPSHOTS,
     queryFn: () => api.get<ReadinessSnapshotList>(ROUTES.OPERATIONS_READINESS_SNAPSHOTS),
@@ -156,6 +160,13 @@ function OperationsPage() {
     mutationFn: () => api.post<ProductionRehearsalSnapshot>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS, {}),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'production-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const workplanSnapshotMutation = useMutation({
+    mutationFn: () => api.post<LaunchWorkplanSnapshot>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'launch-workplan'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -202,6 +213,26 @@ function OperationsPage() {
     ]));
     return `data:text/csv;charset=utf-8,${encodeURIComponent(rows.map((row) => row.map(csvCell).join(',')).join('\n'))}`;
   }, [rehearsal]);
+  const workplanExportHref = useMemo(() => {
+    if (!workplan) return ROUTES.OPERATIONS_LAUNCH_WORKPLAN_EXPORT;
+    const rows = [['key', 'source', 'category', 'label', 'severity', 'detail', 'route', 'owner_role', 'recommended_action', 'owner', 'assignment_status', 'due_date', 'note']];
+    workplan.items.forEach((item) => rows.push([
+      item.key,
+      item.source,
+      item.category,
+      item.label,
+      item.severity,
+      item.detail,
+      item.route,
+      item.owner_role,
+      item.recommended_action,
+      item.assignment?.owner_name ?? '',
+      item.assignment?.status ?? '',
+      item.assignment?.due_date ?? '',
+      item.assignment?.note ?? '',
+    ]));
+    return `data:text/csv;charset=utf-8,${encodeURIComponent(rows.map((row) => row.map(csvCell).join(',')).join('\n'))}`;
+  }, [workplan]);
   const formForAction = (action: RehearsalAction): AssignmentFormState => assignmentForms[action.key] ?? {
     owner_name: action.assignment?.owner_name ?? '',
     status: action.assignment?.status ?? 'open',
@@ -253,6 +284,22 @@ function OperationsPage() {
               <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workplan.blocking_count} blocking</span>
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workplan.warning_count} warning</span>
               <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workplan.assigned_count} assigned</span>
+              <a
+                href={workplanExportHref}
+                download="concierge-os-launch-workplan.csv"
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+              <button
+                onClick={() => workplanSnapshotMutation.mutate()}
+                disabled={workplanSnapshotMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Save
+              </button>
             </div>
           </div>
           <div className="divide-y divide-clinic-100">
@@ -281,6 +328,23 @@ function OperationsPage() {
               <div className="px-4 py-6 text-sm text-clinic-400">No launch workplan items.</div>
             )}
           </div>
+          {(workplanSnapshots?.data ?? []).length > 0 && (
+            <div className="border-t border-clinic-200 px-4 py-3">
+              <div className="mb-2 text-xs font-semibold uppercase text-clinic-500">Saved workplan evidence</div>
+              <div className="grid gap-2 md:grid-cols-3">
+                {(workplanSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
+                  <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-clinic-900">{snapshot.total} item(s)</span>
+                      <StatusBadge ok={snapshot.status === 'clear'} label={snapshot.status} />
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{snapshot.blocking_count} blocking, {snapshot.unassigned_count} unassigned</div>
+                    <div className="mt-1 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, LaunchWorkplan, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -400,6 +400,40 @@ function launchWorkplan(): LaunchWorkplan {
     unassigned_count: items.filter((item) => !item.assignment).length,
     items,
   };
+}
+
+function launchWorkplanSnapshotFromEvent(event: AuditEvent): LaunchWorkplanSnapshot {
+  const payload = event.payload as Partial<LaunchWorkplan>;
+  return {
+    id: event.id,
+    created_at: event.created_at,
+    status: payload.status ?? 'attention',
+    total: Number(payload.total ?? 0),
+    blocking_count: Number(payload.blocking_count ?? 0),
+    warning_count: Number(payload.warning_count ?? 0),
+    assigned_count: Number(payload.assigned_count ?? 0),
+    unassigned_count: Number(payload.unassigned_count ?? 0),
+  };
+}
+
+function launchWorkplanCsv(workplan: LaunchWorkplan) {
+  const rows = [['key', 'source', 'category', 'label', 'severity', 'detail', 'route', 'owner_role', 'recommended_action', 'owner', 'assignment_status', 'due_date', 'note']];
+  workplan.items.forEach((item) => rows.push([
+    item.key,
+    item.source,
+    item.category,
+    item.label,
+    item.severity,
+    item.detail,
+    item.route,
+    item.owner_role,
+    item.recommended_action,
+    item.assignment?.owner_name ?? '',
+    item.assignment?.status ?? '',
+    item.assignment?.due_date ?? '',
+    item.assignment?.note ?? '',
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
 function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
@@ -1183,6 +1217,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/launch-workplan' && method === 'GET') {
     return launchWorkplan() as T;
+  }
+  if (path === '/operations/launch-workplan/export' && method === 'GET') {
+    return launchWorkplanCsv(launchWorkplan()) as T;
+  }
+  if (path === '/operations/launch-workplan/snapshots' && method === 'POST') {
+    const workplan = launchWorkplan();
+    logDemoEvent({
+      event_type: 'operations.launch_workplan_snapshot',
+      entity_type: 'operations',
+      entity_id: uuid(902),
+      payload: workplan as unknown as Record<string, unknown>,
+    });
+    saveDemoData();
+    return launchWorkplanSnapshotFromEvent(auditEvents[0]) as T;
+  }
+  if (path === '/operations/launch-workplan/snapshots' && method === 'GET') {
+    const data = auditEvents
+      .filter((event) => event.event_type === 'operations.launch_workplan_snapshot')
+      .map(launchWorkplanSnapshotFromEvent);
+    return { data, total: data.length } satisfies LaunchWorkplanSnapshotList as T;
   }
   if (path === '/operations/production-rehearsal' && method === 'GET') {
     return productionRehearsalReport() as T;

@@ -141,6 +141,22 @@ export interface LaunchWorkplan {
   items: LaunchWorkplanItem[];
 }
 
+export interface LaunchWorkplanSnapshot {
+  id: string;
+  created_at: string;
+  status: 'clear' | 'attention';
+  total: number;
+  blocking_count: number;
+  warning_count: number;
+  assigned_count: number;
+  unassigned_count: number;
+}
+
+export interface LaunchWorkplanSnapshotList {
+  data: LaunchWorkplanSnapshot[];
+  total: number;
+}
+
 export interface ProductionRehearsalSnapshot {
   id: string;
   created_at: string;

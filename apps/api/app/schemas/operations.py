@@ -113,6 +113,22 @@ class LaunchWorkplanOut(BaseModel):
     items: list[LaunchWorkplanItemOut]
 
 
+class LaunchWorkplanSnapshotOut(BaseModel):
+    id: str
+    created_at: datetime
+    status: str
+    total: int
+    blocking_count: int
+    warning_count: int
+    assigned_count: int
+    unassigned_count: int
+
+
+class LaunchWorkplanSnapshotListOut(BaseModel):
+    data: list[LaunchWorkplanSnapshotOut]
+    total: int
+
+
 class ProductionRehearsalSnapshotOut(BaseModel):
     id: str
     created_at: datetime
