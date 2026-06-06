@@ -8,6 +8,7 @@ from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.operations import (
+    GoLivePacketOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
     LaunchWorkplanOut,
@@ -45,6 +46,13 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
 async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
     return LaunchWorkplanOut(
         **await operations_service.launch_workplan(db, current_user)
+    )
+
+
+@router.get("/go-live-packet", response_model=GoLivePacketOut)
+async def get_go_live_packet(db: DbDep, current_user: OpsUserDep):
+    return GoLivePacketOut(
+        **await operations_service.go_live_packet(db, current_user)
     )
 
 

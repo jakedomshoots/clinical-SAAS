@@ -129,6 +129,31 @@ class LaunchWorkplanSnapshotListOut(BaseModel):
     total: int
 
 
+class GoLivePacketEvidenceOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    detail: str
+    route: str
+    captured_at: datetime | str | None = None
+
+
+class GoLivePacketOut(BaseModel):
+    status: str
+    go_live_ready: bool
+    generated_at: datetime
+    environment: str
+    core_status: str
+    operational_status: str
+    launch_score: int
+    blocking_count: int
+    warning_count: int
+    evidence_ready_count: int
+    evidence_total: int
+    evidence: list[GoLivePacketEvidenceOut]
+    open_workplan_items: list[LaunchWorkplanItemOut]
+
+
 class ProductionRehearsalSnapshotOut(BaseModel):
     id: str
     created_at: datetime

@@ -288,6 +288,88 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def go_live_packet(db: AsyncSession, user: User) -> dict:
+    readiness = await check_readiness()
+    launch = await launch_readiness()
+    preflight = await integration_config_service.credential_preflight(db, user)
+    workplan = await launch_workplan(db, user)
+    readiness_snapshots, _ = await list_readiness_snapshots(db, user)
+    rehearsal_snapshots, _ = await list_rehearsal_snapshots(db, user)
+    workplan_snapshots, _ = await list_launch_workplan_snapshots(db, user)
+    deployment = readiness.get("deployment", {})
+
+    latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
+    latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
+    latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
+    backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
+    restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
+
+    evidence = [
+        _packet_evidence(
+            "readiness_snapshot",
+            "Readiness snapshot",
+            "ready" if latest_readiness else "missing",
+            "Latest readiness snapshot is saved." if latest_readiness else "Save a readiness snapshot from Operations.",
+            "/operations",
+            latest_readiness["created_at"] if latest_readiness else None,
+        ),
+        _packet_evidence(
+            "launch_workplan_snapshot",
+            "Launch workplan snapshot",
+            "ready" if latest_workplan else "missing",
+            f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured."
+            if latest_workplan
+            else "Save the Launch Workplan before the rehearsal.",
+            "/operations",
+            latest_workplan["created_at"] if latest_workplan else None,
+        ),
+        _packet_evidence(
+            "production_rehearsal_snapshot",
+            "Production rehearsal snapshot",
+            "ready" if latest_rehearsal and latest_rehearsal["rehearsal_ready"] else "warning" if latest_rehearsal else "missing",
+            f"{latest_rehearsal['blocking_count']} blocker(s), {latest_rehearsal['warning_count']} warning(s) captured."
+            if latest_rehearsal
+            else "Save the production rehearsal report.",
+            "/operations",
+            latest_rehearsal["created_at"] if latest_rehearsal else None,
+        ),
+        _packet_evidence(
+            "credential_preflight",
+            "Credential preflight",
+            "ready" if preflight["blocking_count"] == 0 else "blocking",
+            f"{preflight['blocking_count']} blocking integration item(s), {preflight['staged_count']} staged.",
+            "/integrations",
+            None,
+        ),
+        _packet_evidence(
+            "backup_restore",
+            "Backup and restore",
+            "ready" if backup_ok and restore_ok else "warning" if backup_ok else "blocking",
+            _backup_restore_detail(deployment),
+            "/operations",
+            deployment.get("latest_restore", {}).get("last_success_at") or deployment.get("latest_backup", {}).get("last_success_at"),
+        ),
+    ]
+    blocking = sum(1 for item in evidence if item["status"] == "blocking") + workplan["blocking_count"] + launch["critical_blockers"]
+    warnings = sum(1 for item in evidence if item["status"] == "warning") + workplan["warning_count"] + launch["warnings"]
+    ready_count = sum(1 for item in evidence if item["status"] == "ready")
+    return {
+        "status": "ready" if blocking == 0 and readiness["operational_status"] == "ok" else "attention",
+        "go_live_ready": blocking == 0 and readiness["operational_status"] == "ok",
+        "generated_at": datetime.now(UTC),
+        "environment": readiness["environment"],
+        "core_status": readiness["status"],
+        "operational_status": readiness["operational_status"],
+        "launch_score": launch["score"],
+        "blocking_count": blocking,
+        "warning_count": warnings,
+        "evidence_ready_count": ready_count,
+        "evidence_total": len(evidence),
+        "evidence": evidence,
+        "open_workplan_items": workplan["items"][:8],
+    }
+
+
 async def create_launch_workplan_snapshot(db: AsyncSession, user: User) -> dict:
     workplan = await launch_workplan(db, user)
     event = await log_event(
@@ -472,6 +554,17 @@ def _workplan_item(
         "owner_role": owner_role,
         "recommended_action": recommended_action,
         "assignment": assignment,
+    }
+
+
+def _packet_evidence(key: str, label: str, status: str, detail: str, route: str, captured_at) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "detail": detail,
+        "route": route,
+        "captured_at": captured_at,
     }
 
 

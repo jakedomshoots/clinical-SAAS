@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -434,6 +434,77 @@ function launchWorkplanCsv(workplan: LaunchWorkplan) {
     item.assignment?.note ?? '',
   ]));
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
+function goLivePacket(): GoLivePacket {
+  const workplan = launchWorkplan();
+  const preflight = demoCredentialPreflight();
+  const latestReadiness = auditEvents.find((event) => event.event_type === 'operations.readiness_snapshot');
+  const latestWorkplan = auditEvents.find((event) => event.event_type === 'operations.launch_workplan_snapshot');
+  const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
+  const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
+  const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
+  const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
+  const evidence = [
+    {
+      key: 'readiness_snapshot',
+      label: 'Readiness snapshot',
+      status: readinessSnapshot ? 'ready' as const : 'missing' as const,
+      detail: readinessSnapshot ? 'Latest readiness snapshot is saved.' : 'Save a readiness snapshot from Operations.',
+      route: '/operations',
+      captured_at: readinessSnapshot?.created_at ?? null,
+    },
+    {
+      key: 'launch_workplan_snapshot',
+      label: 'Launch workplan snapshot',
+      status: workplanSnapshot ? 'ready' as const : 'missing' as const,
+      detail: workplanSnapshot ? `${workplanSnapshot.blocking_count} blocking and ${workplanSnapshot.unassigned_count} unassigned item(s) captured.` : 'Save the Launch Workplan before the rehearsal.',
+      route: '/operations',
+      captured_at: workplanSnapshot?.created_at ?? null,
+    },
+    {
+      key: 'production_rehearsal_snapshot',
+      label: 'Production rehearsal snapshot',
+      status: rehearsalSnapshot?.rehearsal_ready ? 'ready' as const : rehearsalSnapshot ? 'warning' as const : 'missing' as const,
+      detail: rehearsalSnapshot ? `${rehearsalSnapshot.blocking_count} blocker(s), ${rehearsalSnapshot.warning_count} warning(s) captured.` : 'Save the production rehearsal report.',
+      route: '/operations',
+      captured_at: rehearsalSnapshot?.created_at ?? null,
+    },
+    {
+      key: 'credential_preflight',
+      label: 'Credential preflight',
+      status: preflight.blocking_count === 0 ? 'ready' as const : 'blocking' as const,
+      detail: `${preflight.blocking_count} blocking integration item(s), ${preflight.staged_count} staged.`,
+      route: '/integrations',
+      captured_at: null,
+    },
+    {
+      key: 'backup_restore',
+      label: 'Backup and restore',
+      status: 'blocking' as const,
+      detail: 'Backup and restore validation evidence is missing in demo mode.',
+      route: '/operations',
+      captured_at: null,
+    },
+  ];
+  const launchRequirements = demoLaunchRequirements().filter((item) => !item.ready);
+  const blockingCount = evidence.filter((item) => item.status === 'blocking').length + workplan.blocking_count + launchRequirements.filter((item) => item.severity === 'critical').length;
+  const warningCount = evidence.filter((item) => item.status === 'warning').length + workplan.warning_count + launchRequirements.filter((item) => item.severity === 'warning').length;
+  return {
+    status: 'attention',
+    go_live_ready: false,
+    generated_at: new Date().toISOString(),
+    environment: 'demo',
+    core_status: 'ok',
+    operational_status: 'degraded',
+    launch_score: 0,
+    blocking_count: blockingCount,
+    warning_count: warningCount,
+    evidence_ready_count: evidence.filter((item) => item.status === 'ready').length,
+    evidence_total: evidence.length,
+    evidence,
+    open_workplan_items: workplan.items.slice(0, 8),
+  };
 }
 
 function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
@@ -1214,6 +1285,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/operations/incidents' && method === 'GET') {
     return operationsIncidents() as T;
+  }
+  if (path === '/operations/go-live-packet' && method === 'GET') {
+    return goLivePacket() as T;
   }
   if (path === '/operations/launch-workplan' && method === 'GET') {
     return launchWorkplan() as T;

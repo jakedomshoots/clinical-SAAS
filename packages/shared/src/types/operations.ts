@@ -157,6 +157,31 @@ export interface LaunchWorkplanSnapshotList {
   total: number;
 }
 
+export interface GoLivePacketEvidence {
+  key: string;
+  label: string;
+  status: 'ready' | 'warning' | 'blocking' | 'missing';
+  detail: string;
+  route: string;
+  captured_at: string | null;
+}
+
+export interface GoLivePacket {
+  status: 'ready' | 'attention';
+  go_live_ready: boolean;
+  generated_at: string;
+  environment: string;
+  core_status: 'ok' | 'degraded';
+  operational_status: 'ok' | 'degraded';
+  launch_score: number;
+  blocking_count: number;
+  warning_count: number;
+  evidence_ready_count: number;
+  evidence_total: number;
+  evidence: GoLivePacketEvidence[];
+  open_workplan_items: LaunchWorkplanItem[];
+}
+
 export interface ProductionRehearsalSnapshot {
   id: string;
   created_at: string;

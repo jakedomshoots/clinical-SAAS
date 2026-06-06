@@ -84,6 +84,7 @@ export const ROUTES = {
   INTEGRATION_SANDBOX_EVIDENCE: (integration: string) => `/api/integrations/config/${integration}/sandbox-evidence`,
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
+  OPERATIONS_GO_LIVE_PACKET: '/api/operations/go-live-packet',
   OPERATIONS_LAUNCH_WORKPLAN: '/api/operations/launch-workplan',
   OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS: '/api/operations/launch-workplan/snapshots',
   OPERATIONS_LAUNCH_WORKPLAN_EXPORT: '/api/operations/launch-workplan/export',

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -122,6 +122,10 @@ function OperationsPage() {
     queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS,
     queryFn: () => api.get<OperationsIncidentList>(ROUTES.OPERATIONS_INCIDENTS),
   });
+  const { data: goLivePacket } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
+    queryFn: () => api.get<GoLivePacket>(ROUTES.OPERATIONS_GO_LIVE_PACKET),
+  });
   const { data: workplan } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'],
     queryFn: () => api.get<LaunchWorkplan>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN),
@@ -153,6 +157,7 @@ function OperationsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS_SNAPSHOTS });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -160,6 +165,7 @@ function OperationsPage() {
     mutationFn: () => api.post<ProductionRehearsalSnapshot>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS, {}),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'production-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -167,6 +173,7 @@ function OperationsPage() {
     mutationFn: () => api.post<LaunchWorkplanSnapshot>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS, {}),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'launch-workplan'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -178,6 +185,7 @@ function OperationsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'] });
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -271,6 +279,54 @@ function OperationsPage() {
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
         </div>
       </header>
+
+      {goLivePacket && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Go-Live Packet</h2>
+              <p className="text-xs text-clinic-500">{goLivePacket.environment} · {new Date(goLivePacket.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <StatusBadge ok={goLivePacket.go_live_ready} label={goLivePacket.go_live_ready ? 'Ready' : 'Attention'} />
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{goLivePacket.launch_score}% launch</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{goLivePacket.blocking_count} blocking</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{goLivePacket.evidence_ready_count}/{goLivePacket.evidence_total} evidence</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {goLivePacket.evidence.map((item) => (
+                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-100 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-clinic-900">{item.label}</span>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.status === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                      {item.status}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-clinic-500">{item.detail}</div>
+                  {item.captured_at && <div className="mt-1 text-[11px] text-clinic-400">{new Date(item.captured_at).toLocaleString()}</div>}
+                </Link>
+              ))}
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Packet blockers</div>
+              <div className="divide-y divide-clinic-100">
+                {goLivePacket.open_workplan_items.slice(0, 4).map((item) => (
+                  <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-clinic-50">
+                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{item.detail}</div>
+                    <div className="mt-1 text-[11px] text-clinic-400">{item.assignment?.owner_name ?? 'Unassigned'} · {item.severity}</div>
+                  </Link>
+                ))}
+                {goLivePacket.open_workplan_items.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No packet blockers.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
 
       {workplan && (
         <section className="rounded-md border border-clinic-200 bg-white">

@@ -520,6 +520,26 @@ async def test_launch_workplan_snapshot_and_export(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
+    await client.post("/api/operations/readiness-snapshots", headers=auth_headers)
+    await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
+    await client.post("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
+
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+
+    assert packet.status_code == 200
+    data = packet.json()
+    assert data["status"] in {"ready", "attention"}
+    assert data["go_live_ready"] is False
+    assert data["evidence_total"] >= 5
+    assert data["evidence_ready_count"] >= 2
+    evidence_keys = {item["key"] for item in data["evidence"]}
+    assert {"readiness_snapshot", "launch_workplan_snapshot", "production_rehearsal_snapshot", "credential_preflight", "backup_restore"} <= evidence_keys
+    assert data["open_workplan_items"]
+    assert all(item["route"] for item in data["open_workplan_items"])
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200
