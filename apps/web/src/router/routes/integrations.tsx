@@ -249,6 +249,68 @@ function IntegrationsPage() {
                       </label>
                     </div>
                   </div>
+                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs font-semibold uppercase text-clinic-600">Vendor risk register</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.risk_register.blocking_count ? 'border-red-200 bg-red-50 text-red-700' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                        {config.risk_register.blocking_count ? `${config.risk_register.blocking_count} blocking` : `${config.risk_register.risk_count} tracked`}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      <label className="grid gap-1 md:col-span-2">
+                        <span className="text-xs font-medium text-clinic-600">Risk</span>
+                        <input
+                          type="text"
+                          value={drafts[config.key]?.RISK_TITLE ?? config.risk_register.risks[0]?.title ?? ''}
+                          onChange={(event) => updateDraft(config.key, 'RISK_TITLE', event.target.value)}
+                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        />
+                      </label>
+                      <label className="grid gap-1">
+                        <span className="text-xs font-medium text-clinic-600">Severity</span>
+                        <select
+                          value={drafts[config.key]?.RISK_SEVERITY ?? config.risk_register.risks[0]?.severity ?? 'warning'}
+                          onChange={(event) => updateDraft(config.key, 'RISK_SEVERITY', event.target.value)}
+                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        >
+                          <option value="critical">Critical</option>
+                          <option value="warning">Warning</option>
+                          <option value="normal">Normal</option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1">
+                        <span className="text-xs font-medium text-clinic-600">Status</span>
+                        <select
+                          value={drafts[config.key]?.RISK_MITIGATION_STATUS ?? config.risk_register.risks[0]?.mitigation_status ?? 'open'}
+                          onChange={(event) => updateDraft(config.key, 'RISK_MITIGATION_STATUS', event.target.value)}
+                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        >
+                          <option value="open">Open</option>
+                          <option value="in_progress">In progress</option>
+                          <option value="mitigated">Mitigated</option>
+                          <option value="accepted">Accepted</option>
+                        </select>
+                      </label>
+                      <label className="grid gap-1">
+                        <span className="text-xs font-medium text-clinic-600">Mitigation owner</span>
+                        <input
+                          type="text"
+                          value={drafts[config.key]?.RISK_MITIGATION_OWNER ?? config.risk_register.risks[0]?.mitigation_owner ?? ''}
+                          onChange={(event) => updateDraft(config.key, 'RISK_MITIGATION_OWNER', event.target.value)}
+                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        />
+                      </label>
+                      <label className="flex items-center gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2 text-sm text-clinic-700">
+                        <input
+                          type="checkbox"
+                          checked={(drafts[config.key]?.RISK_BLOCKS_REHEARSAL ?? (config.risk_register.risks[0]?.blocks_live_rehearsal ? 'true' : '')) === 'true'}
+                          onChange={(event) => updateDraft(config.key, 'RISK_BLOCKS_REHEARSAL', event.target.checked ? 'true' : '')}
+                          className="h-4 w-4 rounded border-clinic-300 text-accent-600 focus:ring-accent-500"
+                        />
+                        Blocks live-use rehearsal
+                      </label>
+                    </div>
+                  </div>
                   {config.fields.map((field) => (
                     <label key={field.key} className="grid gap-1">
                       <span className="flex items-center justify-between gap-2 text-xs font-medium text-clinic-600">

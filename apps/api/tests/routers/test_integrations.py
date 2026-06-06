@@ -239,6 +239,52 @@ async def test_update_integration_config_saves_cutover_rehearsal_evidence(
 
 
 @pytest.mark.asyncio
+async def test_update_integration_config_saves_vendor_risk_register(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+
+    res = await client.patch(
+        "/api/integrations/config/fax",
+        json={
+            "values": {
+                "FAX_PROVIDER_API_KEY": "fax-secret-1234",
+                "RISK_TITLE": "Inbound callbacks may lag during vendor maintenance.",
+                "RISK_SEVERITY": "critical",
+                "RISK_MITIGATION_OWNER": "Avery Ops",
+                "RISK_MITIGATION_STATUS": "open",
+                "RISK_BLOCKS_REHEARSAL": "true",
+            }
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["risk_register"]["risk_count"] == 1
+    assert body["risk_register"]["blocking_count"] == 1
+    assert body["risk_register"]["risks"][0]["title"].startswith("Inbound callbacks")
+    assert body["risk_register"]["risks"][0]["blocks_live_rehearsal"] is True
+    assert body["risk_register"]["risks"][0]["mitigation_status"] == "open"
+
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+    risk_step = next(step for step in fax["steps"] if step["key"] == "vendor_risks")
+    assert risk_step["status"] == "blocked"
+    assert any("vendor risk" in blocker.lower() for blocker in fax["blockers"])
+
+    mitigated = await client.patch(
+        "/api/integrations/config/fax",
+        json={"values": {"RISK_MITIGATION_STATUS": "mitigated"}},
+        headers=auth_headers,
+    )
+    assert mitigated.status_code == 200
+    assert mitigated.json()["risk_register"]["blocking_count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_connection_test_records_integration_event(
     client: AsyncClient,
     auth_headers,

@@ -42,6 +42,22 @@ class CutoverEvidenceOut(BaseModel):
     missing_fields: list[str] = Field(default_factory=list)
 
 
+class VendorRiskOut(BaseModel):
+    key: str
+    title: str
+    severity: str = "warning"
+    mitigation_owner: str = ""
+    mitigation_status: str = "open"
+    blocks_live_rehearsal: bool = False
+    resolved: bool = False
+
+
+class VendorRiskRegisterOut(BaseModel):
+    risks: list[VendorRiskOut] = Field(default_factory=list)
+    risk_count: int = 0
+    blocking_count: int = 0
+
+
 class IntegrationConfigOut(BaseModel):
     key: str
     label: str
@@ -60,6 +76,7 @@ class IntegrationConfigOut(BaseModel):
     fields: list[IntegrationConfigFieldOut]
     vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
     cutover_evidence: CutoverEvidenceOut = Field(default_factory=CutoverEvidenceOut)
+    risk_register: VendorRiskRegisterOut = Field(default_factory=VendorRiskRegisterOut)
     workflows: list[str]
     action: str
     sandbox_tests: list[str] = Field(default_factory=list)
@@ -122,6 +139,7 @@ class CredentialPreflightItemOut(BaseModel):
     mode: str
     vendor_profile: VendorProfileOut = Field(default_factory=VendorProfileOut)
     cutover_evidence: CutoverEvidenceOut = Field(default_factory=CutoverEvidenceOut)
+    risk_register: VendorRiskRegisterOut = Field(default_factory=VendorRiskRegisterOut)
     missing_fields: list[str]
     configured_fields: list[str]
     workflows: list[str]

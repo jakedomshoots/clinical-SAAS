@@ -45,6 +45,14 @@ CUTOVER_EVIDENCE_REQUIRED = {
     "GO_NO_GO_NOTES",
     "LIVE_REHEARSAL_APPROVED",
 }
+VENDOR_RISK_FIELDS = {
+    "RISK_TITLE": "title",
+    "RISK_SEVERITY": "severity",
+    "RISK_MITIGATION_OWNER": "mitigation_owner",
+    "RISK_MITIGATION_STATUS": "mitigation_status",
+    "RISK_BLOCKS_REHEARSAL": "blocks_live_rehearsal",
+}
+MITIGATED_RISK_STATUSES = {"mitigated", "accepted"}
 
 
 @dataclass(frozen=True)
@@ -267,6 +275,7 @@ async def update_integration_config(
         {field.key for field in spec.fields}
         | set(VENDOR_PROFILE_FIELDS)
         | set(CUTOVER_EVIDENCE_FIELDS)
+        | set(VENDOR_RISK_FIELDS)
     )
     sanitized = {
         key: value.strip()
@@ -367,6 +376,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
     last_test = _last_tests.get(_test_key(organization_id, spec.key), {})
     vendor_profile = _vendor_profile_out(spec.key, organization_id)
     cutover_evidence = _cutover_evidence_out(spec.key, organization_id)
+    risk_register = _risk_register_out(spec.key, organization_id)
     return {
         "key": spec.key,
         "label": spec.label,
@@ -385,6 +395,7 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
         "vendor_profile": vendor_profile,
         "cutover_evidence": cutover_evidence,
+        "risk_register": risk_register,
         "workflows": spec.workflows,
         "action": spec.action,
         "sandbox_tests": spec.sandbox_tests,
@@ -537,6 +548,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     readiness_mode = config.get("readiness_mode") or "production_vendor"
     vendor_profile = config.get("vendor_profile") or _empty_vendor_profile()
     cutover_evidence = config.get("cutover_evidence") or _empty_cutover_evidence()
+    risk_register = config.get("risk_register") or _empty_risk_register()
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
@@ -575,6 +587,10 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         blockers.append(
             "Cutover rehearsal evidence is incomplete: "
             + ", ".join(cutover_evidence["missing_fields"])
+        )
+    if risk_register["blocking_count"]:
+        blockers.append(
+            f"{risk_register['blocking_count']} unresolved vendor risk(s) block live-use rehearsal."
         )
     if status == "blocked":
         if not adapter_implemented:
@@ -657,6 +673,16 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             ),
         },
         {
+            "key": "vendor_risks",
+            "label": "Vendor risk register",
+            "status": "blocked" if risk_register["blocking_count"] else "ready",
+            "detail": (
+                f"{risk_register['blocking_count']} unresolved blocking risk(s); {risk_register['risk_count']} total risk(s)."
+                if risk_register["blocking_count"]
+                else f"{risk_register['risk_count']} vendor risk(s) tracked with no blocking unresolved risks."
+            ),
+        },
+        {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
             "status": (
@@ -698,6 +724,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "mode": config["mode"],
         "vendor_profile": vendor_profile,
         "cutover_evidence": cutover_evidence,
+        "risk_register": risk_register,
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,
         "workflows": config["workflows"],
@@ -919,6 +946,46 @@ def _empty_cutover_evidence() -> dict:
             CUTOVER_EVIDENCE_FIELDS[input_key]
             for input_key in CUTOVER_EVIDENCE_REQUIRED
         ],
+    }
+
+
+def _risk_register_out(integration: str, organization_id: str) -> dict:
+    drafts = _draft_values.get(organization_id, {})
+    title = drafts.get(_draft_key(integration, "RISK_TITLE"), "").strip()
+    severity = drafts.get(_draft_key(integration, "RISK_SEVERITY"), "warning").strip().lower() or "warning"
+    if severity not in {"critical", "warning", "normal"}:
+        severity = "warning"
+    mitigation_status = drafts.get(_draft_key(integration, "RISK_MITIGATION_STATUS"), "open").strip().lower() or "open"
+    risk = None
+    if title:
+        blocks_live_rehearsal = _truthy_value(drafts.get(_draft_key(integration, "RISK_BLOCKS_REHEARSAL"), ""))
+        risk = {
+            "key": "primary",
+            "title": title,
+            "severity": severity,
+            "mitigation_owner": drafts.get(_draft_key(integration, "RISK_MITIGATION_OWNER"), "").strip(),
+            "mitigation_status": mitigation_status,
+            "blocks_live_rehearsal": blocks_live_rehearsal,
+            "resolved": mitigation_status in MITIGATED_RISK_STATUSES,
+        }
+    risks = [risk] if risk else []
+    blocking_count = sum(
+        1
+        for item in risks
+        if item["blocks_live_rehearsal"] and not item["resolved"]
+    )
+    return {
+        "risks": risks,
+        "risk_count": len(risks),
+        "blocking_count": blocking_count,
+    }
+
+
+def _empty_risk_register() -> dict:
+    return {
+        "risks": [],
+        "risk_count": 0,
+        "blocking_count": 0,
     }
 
 

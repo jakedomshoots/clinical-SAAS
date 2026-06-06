@@ -33,6 +33,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Every live integration reports `readiness_mode: production_vendor` and `production_ready=true`; any `local_sandbox` lane remains rehearsal-only and is not acceptable go-live evidence.
 - Every live integration has a completed vendor profile with vendor name, environment, internal owner, owner email, support contact, escalation notes, and contract/reference link.
 - Every live integration has approved cutover rehearsal evidence with planned cutover date, last vendor test date, rollback owner, go/no-go notes, and live-use rehearsal approval.
+- Every live integration has no unresolved vendor risk marked as blocking live-use rehearsal; blocking risks are mitigated or explicitly accepted by the launch owner.
 - Failed sandbox evidence is resolved with a new passing evidence record before live-use rehearsal.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.

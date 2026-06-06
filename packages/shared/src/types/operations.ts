@@ -850,6 +850,7 @@ export interface IntegrationConfig {
   fields: IntegrationConfigField[];
   vendor_profile: VendorProfile;
   cutover_evidence: CutoverEvidence;
+  risk_register: VendorRiskRegister;
   workflows: string[];
   action: string;
   sandbox_tests: string[];
@@ -878,6 +879,22 @@ export interface CutoverEvidence {
   live_rehearsal_approved: boolean;
   evidence_complete: boolean;
   missing_fields: string[];
+}
+
+export interface VendorRisk {
+  key: string;
+  title: string;
+  severity: 'critical' | 'warning' | 'normal';
+  mitigation_owner: string;
+  mitigation_status: string;
+  blocks_live_rehearsal: boolean;
+  resolved: boolean;
+}
+
+export interface VendorRiskRegister {
+  risks: VendorRisk[];
+  risk_count: number;
+  blocking_count: number;
 }
 
 export interface IntegrationConfigListResponse {
@@ -941,6 +958,7 @@ export interface CredentialPreflightItem {
   mode: string;
   vendor_profile: VendorProfile;
   cutover_evidence: CutoverEvidence;
+  risk_register: VendorRiskRegister;
   missing_fields: string[];
   configured_fields: string[];
   workflows: string[];

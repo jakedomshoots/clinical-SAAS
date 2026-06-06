@@ -22,6 +22,7 @@ const CUTOVER_EVIDENCE_FIELDS = {
   LIVE_REHEARSAL_APPROVED: 'live_rehearsal_approved',
 } as const;
 const CUTOVER_EVIDENCE_REQUIRED = ['CUTOVER_PLANNED_AT', 'LAST_VENDOR_TEST_AT', 'ROLLBACK_OWNER', 'GO_NO_GO_NOTES', 'LIVE_REHEARSAL_APPROVED'] as const;
+const MITIGATED_RISK_STATUSES = ['mitigated', 'accepted'];
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'patient_chart_access', label: 'Patient chart access', event_types: ['patient.profile_viewed', 'patient_chart.viewed', 'patient_clinical.medications_viewed', 'patient_clinical.care_plan_viewed', 'patient_clinical.labs_viewed', 'patient_clinical.encounters_viewed', 'patient_checkout_handoff.viewed'], severity: 'critical' as const, route: '/audit?entity_type=patient', action_label: 'Review patient chart access' },
@@ -2563,6 +2564,22 @@ function demoIntegrationConfigs() {
     const cutoverMissingFields = liveRehearsalApproved
       ? missingCutoverFields
       : Array.from(new Set([...missingCutoverFields, 'live_rehearsal_approved'])).sort();
+    const riskTitle = draft.RISK_TITLE?.trim() ?? '';
+    const riskSeverity = normalizeRiskSeverity(draft.RISK_SEVERITY);
+    const riskStatus = (draft.RISK_MITIGATION_STATUS?.trim().toLowerCase() || 'open');
+    const risk = riskTitle
+      ? {
+          key: 'primary',
+          title: riskTitle,
+          severity: riskSeverity,
+          mitigation_owner: draft.RISK_MITIGATION_OWNER?.trim() ?? '',
+          mitigation_status: riskStatus,
+          blocks_live_rehearsal: truthyDemoValue(draft.RISK_BLOCKS_REHEARSAL),
+          resolved: MITIGATED_RISK_STATUSES.includes(riskStatus),
+        }
+      : null;
+    const risks = risk ? [risk] : [];
+    const riskBlockingCount = risks.filter((item) => item.blocks_live_rehearsal && !item.resolved).length;
     const lastTest = integrationLastTests[key] ?? {};
     const adapterImplemented = key === 'copilotkit';
     const adapterDetail = adapterImplemented
@@ -2618,6 +2635,11 @@ function demoIntegrationConfigs() {
         live_rehearsal_approved: liveRehearsalApproved,
         evidence_complete: cutoverMissingFields.length === 0,
         missing_fields: cutoverMissingFields,
+      },
+      risk_register: {
+        risks,
+        risk_count: risks.length,
+        blocking_count: riskBlockingCount,
       },
       workflows,
       action,
@@ -2680,6 +2702,9 @@ function demoCredentialPreflight() {
     if (!config.cutover_evidence.evidence_complete) {
       blockers.push(`Cutover rehearsal evidence is incomplete: ${config.cutover_evidence.missing_fields.join(', ')}`);
     }
+    if (config.risk_register.blocking_count) {
+      blockers.push(`${config.risk_register.blocking_count} unresolved vendor risk(s) block live-use rehearsal.`);
+    }
     return {
       key: config.key,
       label: config.label,
@@ -2733,6 +2758,12 @@ function demoCredentialPreflight() {
           detail: config.cutover_evidence.evidence_complete ? `Cutover planned for ${config.cutover_evidence.planned_cutover_at}; rollback owner ${config.cutover_evidence.rollback_owner}.` : 'Capture planned cutover date, last vendor test date, rollback owner, go/no-go notes, and live-use rehearsal approval.',
         },
         {
+          key: 'vendor_risks',
+          label: 'Vendor risk register',
+          status: config.risk_register.blocking_count ? 'blocked' : 'ready',
+          detail: config.risk_register.blocking_count ? `${config.risk_register.blocking_count} unresolved blocking risk(s); ${config.risk_register.risk_count} total risk(s).` : `${config.risk_register.risk_count} vendor risk(s) tracked with no blocking unresolved risks.`,
+        },
+        {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
           status: sandboxComplete && (config.readiness_mode === 'local_sandbox' || vendorReferenceComplete) ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
@@ -2765,6 +2796,11 @@ function isVendorReference(referenceUrl: string | null | undefined) {
 
 function truthyDemoValue(value: string | undefined) {
   return ['true', 'yes', 'approved', '1'].includes((value ?? '').trim().toLowerCase());
+}
+
+function normalizeRiskSeverity(value: string | undefined) {
+  const severity = value?.trim().toLowerCase();
+  return severity === 'critical' || severity === 'normal' ? severity : 'warning';
 }
 
 function demoFileName(fileUrl: string) {
