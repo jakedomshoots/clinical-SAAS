@@ -413,10 +413,13 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
     assert file_access.json()["file_name"] == "file-backed.pdf"
     assert file_access.json()["source_uri_preview"] == "s3://concierge-os/.../file-backed.pdf"
 
-    handoff = await client.get(file_access.json()["url"])
+    unauthenticated_handoff = await client.get(file_access.json()["url"])
+    handoff = await client.get(file_access.json()["url"], headers=auth_headers)
     invalid_handoff = await client.get(
-        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/download?token=bad"
+        f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/download?token=bad",
+        headers=auth_headers,
     )
+    assert unauthenticated_handoff.status_code in {401, 403}
     assert handoff.status_code == 200
     assert handoff.json()["file_name"] == "file-backed.pdf"
     assert handoff.json()["storage_status"] == "signed_handoff"
@@ -425,6 +428,7 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
 
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
     assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
+    assert any(event["event_type"] == "patient_document.download_handoff" for event in audit.json()["data"])
 
     history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
     assert history.status_code == 200
@@ -492,7 +496,7 @@ async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_a
         f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access?reason=Chart%20review",
         headers=auth_headers,
     )
-    handoff = await client.get(file_access.json()["url"])
+    handoff = await client.get(file_access.json()["url"], headers=auth_headers)
 
     assert handoff.status_code == 200
     assert handoff.json()["presigned_url"].startswith("https://storage.example.test/download?")

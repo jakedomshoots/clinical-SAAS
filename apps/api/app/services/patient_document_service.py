@@ -502,6 +502,7 @@ async def get_document_access(
 
 async def get_document_download_handoff(
     db: AsyncSession,
+    user: User,
     patient_id: str,
     document_id: str,
     token: str,
@@ -511,6 +512,7 @@ async def get_document_download_handoff(
             select(PatientDocument).where(
                 PatientDocument.id == document_id,
                 PatientDocument.patient_id == patient_id,
+                PatientDocument.organization_id == user.organization_id,
             )
         )
     ).scalar_one_or_none()
@@ -520,6 +522,24 @@ async def get_document_download_handoff(
         return None
     content_type = _infer_content_type(document.file_url)
     presigned_url = _presigned_get_url(document.file_url)
+    await log_event(
+        db,
+        "patient_document.download_handoff",
+        "patient_document",
+        document.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "storage_status": "signed_handoff",
+            "viewer_mode": (
+                "inline"
+                if content_type in {"application/pdf", "image/png", "image/jpeg"}
+                else "download"
+            ),
+            "content_type": content_type,
+            "presigned": bool(presigned_url),
+        },
+    )
     return {
         "document_id": document.id,
         "title": document.title,

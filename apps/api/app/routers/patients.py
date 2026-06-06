@@ -356,9 +356,11 @@ async def get_patient_document_download(
     document_id: str,
     token: str = Query(..., min_length=1),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     handoff = await patient_document_service.get_document_download_handoff(
         db,
+        current_user,
         patient_id,
         document_id,
         token,
