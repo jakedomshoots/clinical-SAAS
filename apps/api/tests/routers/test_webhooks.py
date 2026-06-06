@@ -1,8 +1,17 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 
 WEBHOOK_SECRET = "test-webhook-secret"
-WEBHOOK_HEADERS = {"X-Concierge-Webhook-Secret": WEBHOOK_SECRET}
+
+
+def webhook_headers(timestamp: datetime | None = None) -> dict[str, str]:
+    occurred_at = timestamp or datetime.now(UTC)
+    return {
+        "X-Concierge-Webhook-Secret": WEBHOOK_SECRET,
+        "X-Concierge-Webhook-Timestamp": str(int(occurred_at.timestamp())),
+    }
 
 
 @pytest.mark.asyncio
@@ -19,7 +28,7 @@ async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_h
             "entity_id": "fax-123",
             "payload": {"status": "received"},
         },
-        headers=WEBHOOK_HEADERS,
+        headers=webhook_headers(),
     )
 
     assert res.status_code == 202
@@ -45,8 +54,8 @@ async def test_webhook_idempotency_returns_duplicate(client: AsyncClient, monkey
         "payload": {"subject": "Hello"},
     }
 
-    first = await client.post("/api/webhooks/portal", json=payload, headers=WEBHOOK_HEADERS)
-    second = await client.post("/api/webhooks/portal", json=payload, headers=WEBHOOK_HEADERS)
+    first = await client.post("/api/webhooks/portal", json=payload, headers=webhook_headers())
+    second = await client.post("/api/webhooks/portal", json=payload, headers=webhook_headers())
 
     assert first.status_code == 202
     assert second.status_code == 202
@@ -65,11 +74,31 @@ async def test_webhook_secret_is_enforced(client: AsyncClient, monkeypatch):
     allowed = await client.post(
         "/api/webhooks/calendar",
         json={"action": "event.updated", "event_id": "calendar-event-1"},
-        headers=WEBHOOK_HEADERS,
+        headers=webhook_headers(),
     )
 
     assert denied.status_code == 401
     assert allowed.status_code == 202
+
+
+@pytest.mark.asyncio
+async def test_webhook_rejects_stale_timestamp(client: AsyncClient, monkeypatch):
+    monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
+
+    stale = await client.post(
+        "/api/webhooks/ehr",
+        json={"action": "patient.updated", "event_id": "ehr-event-stale"},
+        headers=webhook_headers(datetime.now(UTC) - timedelta(minutes=10)),
+    )
+    fresh = await client.post(
+        "/api/webhooks/ehr",
+        json={"action": "patient.updated", "event_id": "ehr-event-fresh"},
+        headers=webhook_headers(),
+    )
+
+    assert stale.status_code == 401
+    assert "timestamp" in stale.json()["detail"].lower()
+    assert fresh.status_code == 202
 
 
 @pytest.mark.asyncio
@@ -129,7 +158,7 @@ async def test_communications_webhook_updates_task_delivery(
                 "delivery_status": "delivered",
             },
         },
-        headers=WEBHOOK_HEADERS,
+        headers=webhook_headers(),
     )
 
     assert callback.status_code == 202

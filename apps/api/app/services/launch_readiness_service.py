@@ -123,8 +123,8 @@ def _requirements(ready: dict) -> list[LaunchRequirement]:
             ready=bool(settings.webhook_shared_secret)
             and len(settings.webhook_shared_secret) >= 16,
             severity="critical",
-            detail="Inbound vendor callbacks require a shared secret.",
-            action="Set WEBHOOK_SHARED_SECRET and configure vendors to send it.",
+            detail="Inbound vendor callbacks require a shared secret and fresh timestamp header.",
+            action="Set WEBHOOK_SHARED_SECRET and configure vendors to send X-Concierge-Webhook-Secret plus X-Concierge-Webhook-Timestamp.",
             env_vars=["WEBHOOK_SHARED_SECRET"],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),

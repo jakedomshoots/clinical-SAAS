@@ -71,6 +71,7 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 
 - Use `/api/integrations/credential-preflight` before any live-use rehearsal.
 - Every integration should have required credentials captured from environment variables or setup drafts.
+- Inbound callbacks must send `X-Concierge-Webhook-Secret` and `X-Concierge-Webhook-Timestamp`; stale timestamps outside the replay window are rejected.
 - Run each connection test and resolve any failed result before go-live.
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
 - Passing evidence should include a short note and, when available, the vendor sandbox reference URL or ticket link.

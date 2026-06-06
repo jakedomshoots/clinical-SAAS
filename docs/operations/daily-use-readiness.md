@@ -91,7 +91,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Staff recovery controls for password resets and review `user.password_reset_issued` audit events before live-patient work.
 - Confirm staff MFA enrollment is recorded; production login blocks session issuance for accounts without MFA.
 - Review the Staff Role Access Matrix and resolve privileged MFA or missing-role coverage warnings.
-- Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
+- Set `WEBHOOK_SHARED_SECRET` and configure vendors to send `X-Concierge-Webhook-Timestamp` before enabling callbacks.
 - Confirm `/api/operations/production-config-audit` reports zero critical checks.
 - Confirm `/api/operations/document-storage-readiness` reports `ready` before relying on document preview/download behavior for real patients, including upload and download presigning checks.
 - Configure vendor adapters listed in `docs/integrations/vendor-adapter-plan.md`.
