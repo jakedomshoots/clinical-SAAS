@@ -63,7 +63,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Staff Training Evidence to record front desk, MA/nurse, provider, billing, and manager training sign-off for workflow usage, PHI handling, assistant policy, incident response, access review, and launch responsibilities.
 - Use Policy Approval Evidence to record clinic-owner or compliance-owner approval for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before live-use rehearsal.
 - Use Restore Drill Evidence to record the backup reference, disposable restore checklist, document/object smoke check, RTO/RPO minutes, blockers, and exportable evidence before live-use rehearsal.
-- Use Cutover Runbook to rehearse timed launch steps, assign owners, capture step evidence, record rollback triggers, and save the go/no-go rollback decision before live-use rehearsal or production cutover.
+- Use Cutover Runbook to rehearse timed launch steps, assign owners, capture step evidence, record rollback triggers, and save the go/no-go rollback decision before live-use rehearsal or production cutover; the latest cutover session appears in the go-live packet as missing, warning, blocking, or ready evidence.
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.

@@ -1375,6 +1375,7 @@ async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, a
     )
     sessions = await client.get("/api/operations/cutover-runbook-sessions", headers=auth_headers)
     export = await client.get(f"/api/operations/cutover-runbook-sessions/{session['session_id']}/export", headers=auth_headers)
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
     audit = await client.get(
         "/api/audit?page=1&page_size=5&event_type=operations.cutover_runbook_session",
         headers=auth_headers,
@@ -1420,6 +1421,14 @@ async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, a
     assert export.headers["content-type"].startswith("text/csv")
     assert "concierge-os-cutover-runbook.csv" in export.headers["content-disposition"]
     assert "phase,key,label,status,owner,note,rollback_trigger" in export.text
+
+    assert packet.status_code == 200
+    cutover_evidence = next(
+        item for item in packet.json()["evidence"]
+        if item["key"] == "cutover_runbook_session"
+    )
+    assert cutover_evidence["status"] == "warning"
+    assert "rollback_ready" in cutover_evidence["detail"]
 
     assert audit.status_code == 200
     assert audit.json()["data"][0]["event_type"] == "operations.cutover_runbook_session"

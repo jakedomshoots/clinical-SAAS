@@ -1543,6 +1543,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     staff_training_sessions, _ = await list_staff_training_sessions(db, user)
     policy_approval_sessions, _ = await list_policy_approval_sessions(db, user)
     restore_drill_sessions, _ = await list_restore_drill_sessions(db, user)
+    cutover_sessions, _ = await list_cutover_runbook_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
@@ -1553,6 +1554,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_training = staff_training_sessions[0] if staff_training_sessions else None
     latest_policy_approval = policy_approval_sessions[0] if policy_approval_sessions else None
     latest_restore_drill = restore_drill_sessions[0] if restore_drill_sessions else None
+    latest_cutover = cutover_sessions[0] if cutover_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -1571,6 +1573,30 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
         else f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured."
         if latest_workplan
         else "Save the Launch Workplan before the rehearsal."
+    )
+    cutover_status = (
+        "blocking"
+        if latest_cutover and (
+            latest_cutover["blocked_count"] > 0
+            or latest_cutover["rollback_count"] > 0
+            or latest_cutover["rollback_status"] == "rollback_required"
+        )
+        else "ready"
+        if latest_cutover
+        and latest_cutover["status"] == "completed"
+        and latest_cutover["pending_count"] == 0
+        and latest_cutover["rollback_status"] in {"rollback_ready", "not_needed"}
+        and bool(latest_cutover.get("rollback_decision"))
+        else "warning"
+        if latest_cutover
+        else "missing"
+    )
+    cutover_detail = (
+        f"{latest_cutover['complete_count']} complete, {latest_cutover['blocked_count']} blocked, "
+        f"{latest_cutover['rollback_count']} rollback, {latest_cutover['pending_count']} pending step(s); "
+        f"rollback status {latest_cutover['rollback_status']}."
+        if latest_cutover
+        else "Start and complete a cutover runbook session with rollback decision evidence."
     )
 
     evidence = [
@@ -1685,6 +1711,14 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Start and complete a restore drill session with RTO/RPO evidence.",
             "/operations",
             latest_restore_drill["updated_at"] if latest_restore_drill else None,
+        ),
+        _packet_evidence(
+            "cutover_runbook_session",
+            "Cutover runbook session",
+            cutover_status,
+            cutover_detail,
+            "/operations",
+            latest_cutover["updated_at"] if latest_cutover else None,
         ),
     ]
     blocking = sum(1 for item in evidence if item["status"] == "blocking") + workplan["blocking_count"] + launch["critical_blockers"]

@@ -1533,6 +1533,7 @@ function goLivePacket(): GoLivePacket {
   const latestTraining = staffTrainingSessions[0] ?? null;
   const latestPolicyApproval = policyApprovalSessions[0] ?? null;
   const latestRestoreDrill = restoreDrillSessions[0] ?? null;
+  const latestCutover = cutoverRunbookSessions[0] ?? null;
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
@@ -1546,6 +1547,16 @@ function goLivePacket(): GoLivePacket {
     : workplanSnapshot
       ? `${workplanSnapshot.blocking_count} blocking and ${workplanSnapshot.unassigned_count} unassigned item(s) captured.`
       : 'Save the Launch Workplan before the rehearsal.';
+  const cutoverStatus = latestCutover && (latestCutover.blocked_count > 0 || latestCutover.rollback_count > 0 || latestCutover.rollback_status === 'rollback_required')
+    ? 'blocking' as const
+    : latestCutover?.status === 'completed' && latestCutover.pending_count === 0 && ['rollback_ready', 'not_needed'].includes(latestCutover.rollback_status) && latestCutover.rollback_decision
+      ? 'ready' as const
+      : latestCutover
+        ? 'warning' as const
+        : 'missing' as const;
+  const cutoverDetail = latestCutover
+    ? `${latestCutover.complete_count} complete, ${latestCutover.blocked_count} blocked, ${latestCutover.rollback_count} rollback, ${latestCutover.pending_count} pending step(s); rollback status ${latestCutover.rollback_status}.`
+    : 'Start and complete a cutover runbook session with rollback decision evidence.';
   const evidence = [
     {
       key: 'readiness_snapshot',
@@ -1610,6 +1621,14 @@ function goLivePacket(): GoLivePacket {
       detail: latestRestoreDrill ? `${latestRestoreDrill.complete_count} complete, ${latestRestoreDrill.blocked_count} blocked, ${latestRestoreDrill.pending_count} pending restore item(s). RTO ${latestRestoreDrill.rto_minutes ?? 'not recorded'} min, RPO ${latestRestoreDrill.rpo_minutes ?? 'not recorded'} min.` : 'Start and complete a restore drill session with RTO/RPO evidence.',
       route: '/operations',
       captured_at: latestRestoreDrill?.updated_at ?? null,
+    },
+    {
+      key: 'cutover_runbook_session',
+      label: 'Cutover runbook session',
+      status: cutoverStatus,
+      detail: cutoverDetail,
+      route: '/operations',
+      captured_at: latestCutover?.updated_at ?? null,
     },
   ];
   const launchRequirements = demoLaunchRequirements().filter((item) => !item.ready);
