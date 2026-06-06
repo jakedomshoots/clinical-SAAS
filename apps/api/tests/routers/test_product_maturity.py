@@ -771,6 +771,29 @@ async def test_credential_dry_run_binder_rolls_up_vendor_launch_materials(client
 
 
 @pytest.mark.asyncio
+async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
+    snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
+    snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.credential_binder_snapshot",
+        headers=auth_headers,
+    )
+
+    assert snapshot.status_code == 201
+    snapshot_data = snapshot.json()
+    assert snapshot_data["total"] >= snapshot_data["blocking_count"]
+    assert snapshot_data["archive_ready_count"] >= 0
+    assert snapshot_data["vendor_reference_ready_count"] >= 0
+
+    assert snapshots.status_code == 200
+    assert snapshots.json()["total"] == 1
+    assert snapshots.json()["data"][0]["id"] == snapshot_data["id"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.credential_binder_snapshot"
+
+
+@pytest.mark.asyncio
 async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     snapshot = await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/launch-workplan/snapshots", headers=auth_headers)
@@ -813,6 +836,7 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
     await client.post("/api/operations/readiness-snapshots", headers=auth_headers)
     await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
     await client.post("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
+    await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
 
     packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
 
@@ -823,7 +847,7 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
     assert data["evidence_total"] >= 5
     assert data["evidence_ready_count"] >= 0
     evidence_keys = {item["key"] for item in data["evidence"]}
-    assert {"readiness_snapshot", "launch_workplan_snapshot", "production_rehearsal_snapshot", "credential_preflight", "backup_restore"} <= evidence_keys
+    assert {"readiness_snapshot", "launch_workplan_snapshot", "production_rehearsal_snapshot", "credential_binder_snapshot", "credential_preflight", "backup_restore"} <= evidence_keys
     readiness_evidence = next(
         item for item in data["evidence"]
         if item["key"] == "readiness_snapshot"
@@ -836,9 +860,14 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
         item for item in data["evidence"]
         if item["key"] == "production_rehearsal_snapshot"
     )
+    binder_evidence = next(
+        item for item in data["evidence"]
+        if item["key"] == "credential_binder_snapshot"
+    )
     assert readiness_evidence["status"] == "blocking"
     assert workplan_evidence["status"] == "blocking"
     assert rehearsal_evidence["status"] == "blocking"
+    assert binder_evidence["status"] in {"ready", "warning", "blocking"}
     assert data["open_workplan_items"]
     assert all(item["route"] for item in data["open_workplan_items"])
 

@@ -705,6 +705,23 @@ export interface CredentialDryRunBinder {
   items: CredentialBinderItem[];
 }
 
+export interface CredentialBinderSnapshot {
+  id: string;
+  created_at: string;
+  status: CredentialDryRunBinder['status'];
+  total: number;
+  ready_count: number;
+  warning_count: number;
+  blocking_count: number;
+  archive_ready_count: number;
+  vendor_reference_ready_count: number;
+}
+
+export interface CredentialBinderSnapshotList {
+  data: CredentialBinderSnapshot[];
+  total: number;
+}
+
 export interface LiveUseRehearsalGate {
   key: string;
   label: string;

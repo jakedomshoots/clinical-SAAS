@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -1652,12 +1652,28 @@ function credentialDryRunBinderCsv(binder: CredentialDryRunBinder) {
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
+function credentialBinderSnapshotFromEvent(event: AuditEvent): CredentialBinderSnapshot {
+  const payload = event.payload as Partial<CredentialDryRunBinder>;
+  return {
+    id: event.id,
+    created_at: event.created_at,
+    status: payload.status ?? 'blocked',
+    total: Number(payload.total ?? 0),
+    ready_count: Number(payload.ready_count ?? 0),
+    warning_count: Number(payload.warning_count ?? 0),
+    blocking_count: Number(payload.blocking_count ?? 0),
+    archive_ready_count: Number(payload.archive_ready_count ?? 0),
+    vendor_reference_ready_count: Number(payload.vendor_reference_ready_count ?? 0),
+  };
+}
+
 function goLivePacket(): GoLivePacket {
   const workplan = launchWorkplan();
   const preflight = demoCredentialPreflight();
   const latestReadiness = auditEvents.find((event) => event.event_type === 'operations.readiness_snapshot');
   const latestWorkplan = auditEvents.find((event) => event.event_type === 'operations.launch_workplan_snapshot');
   const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
+  const latestCredentialBinder = auditEvents.find((event) => event.event_type === 'operations.credential_binder_snapshot');
   const latestDryRun = roleDryRunSessions[0] ?? null;
   const latestBrowserQa = browserQaSessions[0] ?? null;
   const latestTraining = staffTrainingSessions[0] ?? null;
@@ -1667,6 +1683,7 @@ function goLivePacket(): GoLivePacket {
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
+  const credentialBinderSnapshot = latestCredentialBinder ? credentialBinderSnapshotFromEvent(latestCredentialBinder) : null;
   const workplanSnapshotStatus = workplanSnapshot?.unassigned_blocking_count
     ? 'blocking' as const
     : workplanSnapshot
@@ -1721,6 +1738,14 @@ function goLivePacket(): GoLivePacket {
       detail: rehearsalSnapshot ? `${rehearsalSnapshot.blocking_count} blocker(s), ${rehearsalSnapshot.warning_count} warning(s) captured.` : 'Save the production rehearsal report.',
       route: '/operations',
       captured_at: rehearsalSnapshot?.created_at ?? null,
+    },
+    {
+      key: 'credential_binder_snapshot',
+      label: 'Credential binder snapshot',
+      status: credentialBinderSnapshot?.status === 'ready' ? 'ready' as const : credentialBinderSnapshot?.blocking_count ? 'blocking' as const : credentialBinderSnapshot ? 'warning' as const : 'missing' as const,
+      detail: credentialBinderSnapshot ? `${credentialBinderSnapshot.blocking_count} blocking, ${credentialBinderSnapshot.warning_count} warning, ${credentialBinderSnapshot.archive_ready_count} of ${credentialBinderSnapshot.total} archive(s) ready.` : 'Save the Credential Dry-Run Binder before launch review.',
+      route: '/operations',
+      captured_at: credentialBinderSnapshot?.created_at ?? null,
     },
     {
       key: 'credential_preflight',
@@ -3232,6 +3257,23 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/credential-dry-run-binder/export' && method === 'GET') {
     return credentialDryRunBinderCsv(credentialDryRunBinder()) as T;
+  }
+  if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'POST') {
+    const binder = credentialDryRunBinder();
+    logDemoEvent({
+      event_type: 'operations.credential_binder_snapshot',
+      entity_type: 'operations',
+      entity_id: uuid(903),
+      payload: binder as unknown as Record<string, unknown>,
+    });
+    saveDemoData();
+    return credentialBinderSnapshotFromEvent(auditEvents[0]) as T;
+  }
+  if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'GET') {
+    const data = auditEvents
+      .filter((event) => event.event_type === 'operations.credential_binder_snapshot')
+      .map(credentialBinderSnapshotFromEvent);
+    return { data, total: data.length } satisfies CredentialBinderSnapshotList as T;
   }
   if (path === '/operations/live-use-rehearsal' && method === 'GET') {
     return liveUseRehearsal() as T;

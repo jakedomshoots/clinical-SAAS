@@ -27,6 +27,7 @@ SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
 REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
 LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
+CREDENTIAL_BINDER_SNAPSHOT_EVENT_TYPE = "operations.credential_binder_snapshot"
 GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
 ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
 BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
@@ -1618,6 +1619,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     readiness_snapshots, _ = await list_readiness_snapshots(db, user)
     rehearsal_snapshots, _ = await list_rehearsal_snapshots(db, user)
     workplan_snapshots, _ = await list_launch_workplan_snapshots(db, user)
+    credential_binder_snapshots, _ = await list_credential_binder_snapshots(db, user)
     attestations, _ = await list_go_live_attestations(db, user)
     dry_run_sessions, _ = await list_role_dry_run_sessions(db, user)
     browser_qa_sessions, _ = await list_browser_qa_sessions(db, user)
@@ -1631,6 +1633,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
     latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
     latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
+    latest_credential_binder = credential_binder_snapshots[0] if credential_binder_snapshots else None
     latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
     latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
     latest_training = staff_training_sessions[0] if staff_training_sessions else None
@@ -1719,6 +1722,22 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Save the production rehearsal report.",
             "/operations",
             latest_rehearsal["created_at"] if latest_rehearsal else None,
+        ),
+        _packet_evidence(
+            "credential_binder_snapshot",
+            "Credential binder snapshot",
+            "ready"
+            if latest_credential_binder and latest_credential_binder["status"] == "ready"
+            else "blocking"
+            if latest_credential_binder and latest_credential_binder["blocking_count"] > 0
+            else "warning"
+            if latest_credential_binder
+            else "missing",
+            f"{latest_credential_binder['blocking_count']} blocking, {latest_credential_binder['warning_count']} warning, {latest_credential_binder['archive_ready_count']} of {latest_credential_binder['total']} archive(s) ready."
+            if latest_credential_binder
+            else "Save the Credential Dry-Run Binder before launch review.",
+            "/operations",
+            latest_credential_binder["created_at"] if latest_credential_binder else None,
         ),
         _packet_evidence(
             "role_dry_run_session",
@@ -2151,6 +2170,32 @@ async def list_launch_workplan_snapshots(db: AsyncSession, user: User) -> tuple[
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(25))
     return [_launch_workplan_snapshot_from_audit(item) for item in result.scalars().all()], total
+
+
+async def create_credential_binder_snapshot(db: AsyncSession, user: User) -> dict:
+    binder = await credential_dry_run_binder(db, user)
+    event = await log_event(
+        db,
+        CREDENTIAL_BINDER_SNAPSHOT_EVENT_TYPE,
+        "operations",
+        user.organization_id,
+        actor_id=user.id,
+        payload=_serialize_credential_binder(binder),
+    )
+    return _credential_binder_snapshot_from_audit(event)
+
+
+async def list_credential_binder_snapshots(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    if db is None:
+        return [], 0
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == CREDENTIAL_BINDER_SNAPSHOT_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(25))
+    return [_credential_binder_snapshot_from_audit(item) for item in result.scalars().all()], total
 
 
 async def create_rehearsal_snapshot(db: AsyncSession, user: User) -> dict:
@@ -3558,6 +3603,13 @@ def _serialize_launch_workplan(workplan: dict) -> dict:
     }
 
 
+def _serialize_credential_binder(binder: dict) -> dict:
+    return {
+        **binder,
+        "generated_at": binder["generated_at"].isoformat() if hasattr(binder["generated_at"], "isoformat") else binder["generated_at"],
+    }
+
+
 def _rehearsal_snapshot_from_audit(event: AuditLog) -> dict:
     payload = event.payload or {}
     return {
@@ -3584,6 +3636,21 @@ def _launch_workplan_snapshot_from_audit(event: AuditLog) -> dict:
         "assigned_count": int(payload.get("assigned_count", 0)),
         "unassigned_count": int(payload.get("unassigned_count", 0)),
         "unassigned_blocking_count": int(payload.get("unassigned_blocking_count", 0)),
+    }
+
+
+def _credential_binder_snapshot_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "created_at": event.created_at,
+        "status": payload.get("status", "blocked"),
+        "total": int(payload.get("total", 0)),
+        "ready_count": int(payload.get("ready_count", 0)),
+        "warning_count": int(payload.get("warning_count", 0)),
+        "blocking_count": int(payload.get("blocking_count", 0)),
+        "archive_ready_count": int(payload.get("archive_ready_count", 0)),
+        "vendor_reference_ready_count": int(payload.get("vendor_reference_ready_count", 0)),
     }
 
 

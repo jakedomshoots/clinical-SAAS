@@ -35,7 +35,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Every live integration has approved cutover rehearsal evidence with planned cutover date, last vendor test date, rollback owner, go/no-go notes, and live-use rehearsal approval.
 - Every live integration has no unresolved vendor risk marked as blocking live-use rehearsal; blocking risks are mitigated or explicitly accepted by the launch owner.
 - Every live integration has an exported vendor handoff packet archived with the launch review evidence and visible as latest handoff archive evidence.
-- `/api/operations/credential-dry-run-binder` has been reviewed/exported so each live integration has credential status, vendor owner, sandbox reference coverage, handoff archive reference, and blockers in one launch artifact.
+- `/api/operations/credential-dry-run-binder` has been reviewed, saved as snapshot evidence, and exported so each live integration has credential status, vendor owner, sandbox reference coverage, handoff archive reference, and blockers in one launch artifact.
 - Failed sandbox evidence is resolved with a new passing evidence record before live-use rehearsal.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.
@@ -82,6 +82,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/launch-workplan` has no unassigned blocking launch items before the rehearsal starts; saved/exported workplan snapshots with unassigned blocking items remain blocking evidence in the go-live packet until ownership is assigned.
 - The credential-preflight rehearsal action is assigned to the integration owner before vendor blockers are reviewed in the Launch Workplan.
 - `/api/operations/go-live-packet` has been reviewed by the manager/clinic owner as the final launch packet summary, and an audit-backed approval or needs-changes attestation has been recorded.
+- `/api/operations/credential-dry-run-binder/snapshots` includes a saved binder snapshot before final go-live packet review; snapshots with credential blockers remain blocking/warning evidence until refreshed after fixes.
 - `/api/operations/browser-qa-sessions` includes a completed QA session with passed status and evidence notes for every browser QA item; failed items block go-live evidence and pending items remain warning evidence.
 - `/api/operations/role-dry-run-checklists` has been reviewed with front desk, MA/nurse, provider, billing, and manager staff.
 - `/api/operations/role-dry-run-sessions` includes a completed dry-run session with complete status and evidence notes for every role checklist item; blocked items block go-live evidence and pending items remain warning evidence.

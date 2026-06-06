@@ -633,6 +633,23 @@ class CredentialDryRunBinderOut(BaseModel):
     items: list[CredentialBinderItemOut]
 
 
+class CredentialBinderSnapshotOut(BaseModel):
+    id: str
+    created_at: datetime
+    status: str
+    total: int
+    ready_count: int
+    warning_count: int
+    blocking_count: int
+    archive_ready_count: int
+    vendor_reference_ready_count: int
+
+
+class CredentialBinderSnapshotListOut(BaseModel):
+    data: list[CredentialBinderSnapshotOut]
+    total: int
+
+
 class GoLivePacketEvidenceOut(BaseModel):
     key: str
     label: str

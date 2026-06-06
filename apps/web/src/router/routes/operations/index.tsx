@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -247,6 +247,10 @@ function OperationsPage() {
     queryKey: [...QUERY_KEYS.READINESS, 'credential-dry-run-binder'],
     queryFn: () => api.get<CredentialDryRunBinder>(ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER),
   });
+  const { data: credentialBinderSnapshots } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'credential-dry-run-binder'],
+    queryFn: () => api.get<CredentialBinderSnapshotList>(ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_SNAPSHOTS),
+  });
   const { data: liveUseRehearsal } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'],
     queryFn: () => api.get<LiveUseRehearsal>(ROUTES.OPERATIONS_LIVE_USE_REHEARSAL),
@@ -306,6 +310,14 @@ function OperationsPage() {
     mutationFn: () => api.post<LaunchWorkplanSnapshot>(ROUTES.OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS, {}),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'launch-workplan'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const credentialBinderSnapshotMutation = useMutation({
+    mutationFn: () => api.post<CredentialBinderSnapshot>(ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_SNAPSHOTS, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS_SNAPSHOTS, 'credential-dry-run-binder'] });
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
@@ -846,6 +858,15 @@ function OperationsPage() {
               <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{credentialBinder.blocking_count} blocking</span>
               <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{credentialBinder.warning_count} warning</span>
               <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{credentialBinder.archive_ready_count}/{credentialBinder.total} archives</span>
+              <button
+                type="button"
+                onClick={() => credentialBinderSnapshotMutation.mutate()}
+                disabled={credentialBinderSnapshotMutation.isPending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-clinic-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                Save
+              </button>
               <a
                 href={ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT}
                 download={credentialBinder.export_filename}
@@ -888,6 +909,20 @@ function OperationsPage() {
                   <span className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{item.production_ready ? 'production ready' : item.sandbox_ready ? 'sandbox ready' : 'pending'}</span>
                 </div>
               </Link>
+            ))}
+            {(credentialBinderSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
+              <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-white p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium text-clinic-900">Saved binder snapshot</div>
+                    <div className="mt-1 text-xs text-clinic-500">{new Date(snapshot.created_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${snapshot.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : snapshot.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {snapshot.status}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs text-clinic-500">{snapshot.blocking_count} blocking, {snapshot.warning_count} warning, {snapshot.archive_ready_count}/{snapshot.total} archives ready</div>
+              </div>
             ))}
           </div>
         </section>

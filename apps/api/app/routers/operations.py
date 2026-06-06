@@ -13,6 +13,8 @@ from app.schemas.operations import (
     BrowserQaSessionOut,
     BrowserQaSessionStart,
     BrowserQaSessionUpdate,
+    CredentialBinderSnapshotListOut,
+    CredentialBinderSnapshotOut,
     CredentialDryRunBinderOut,
     CutoverRunbookOut,
     CutoverRunbookSessionListOut,
@@ -343,6 +345,26 @@ async def export_credential_dry_run_binder(db: DbDep, current_user: OpsUserDep):
         content=operations_service.credential_dry_run_binder_csv(binder),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{binder["export_filename"]}"'},
+    )
+
+
+@router.post(
+    "/credential-dry-run-binder/snapshots",
+    response_model=CredentialBinderSnapshotOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_credential_dry_run_binder_snapshot(db: DbDep, current_user: OpsUserDep):
+    return CredentialBinderSnapshotOut(
+        **await operations_service.create_credential_binder_snapshot(db, current_user)
+    )
+
+
+@router.get("/credential-dry-run-binder/snapshots", response_model=CredentialBinderSnapshotListOut)
+async def list_credential_dry_run_binder_snapshots(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_credential_binder_snapshots(db, current_user)
+    return CredentialBinderSnapshotListOut(
+        data=[CredentialBinderSnapshotOut(**item) for item in rows],
+        total=total,
     )
 
 
