@@ -890,6 +890,13 @@ export interface SandboxWorkflowRunCreate {
   test_label: string;
 }
 
+export interface SandboxWorkflowRunAllResult {
+  integration: string;
+  passed_count: number;
+  failed_count: number;
+  evidence: SandboxEvidence[];
+}
+
 export interface CredentialPreflightItem {
   key: string;
   label: string;

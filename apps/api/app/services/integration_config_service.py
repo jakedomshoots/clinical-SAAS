@@ -439,6 +439,27 @@ async def run_sandbox_workflow(
     )
 
 
+async def run_all_sandbox_workflows(
+    db: AsyncSession,
+    user: User,
+    integration: str,
+) -> dict | None:
+    spec = _find_spec(integration)
+    if not spec:
+        return None
+    evidence = []
+    for test_label in spec.sandbox_tests:
+        item = await run_sandbox_workflow(db, user, integration, test_label)
+        if item:
+            evidence.append(item)
+    return {
+        "integration": spec.key,
+        "passed_count": sum(1 for item in evidence if item["status"] == "passed"),
+        "failed_count": sum(1 for item in evidence if item["status"] == "failed"),
+        "evidence": evidence,
+    }
+
+
 def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     fields = config["fields"]
     missing_fields = [

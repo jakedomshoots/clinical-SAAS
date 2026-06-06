@@ -5,7 +5,7 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 The Integration Setup screen and `/api/integrations/credential-preflight` publish the same adapter contract methods listed below. A vendor lane is not live-ready until every required method is implemented, the connection test passes, and sandbox workflow evidence is recorded.
 
 For local contract rehearsal before real credentials are available, `USE_SANDBOX_ADAPTERS=true` swaps the placeholder clients for deterministic sandbox harnesses. Keep this disabled in production; sandbox adapters prove app-side wiring only, not vendor connectivity.
-When sandbox adapters are enabled, Integration Setup can run each sandbox workflow through `/api/integrations/config/{integration}/sandbox-workflows/run` and record passing audit-backed evidence automatically.
+When sandbox adapters are enabled, Integration Setup can run each sandbox workflow through `/api/integrations/config/{integration}/sandbox-workflows/run`, or all workflows through `/api/integrations/config/{integration}/sandbox-workflows/run-all`, and record passing audit-backed evidence automatically.
 
 ## EHR
 

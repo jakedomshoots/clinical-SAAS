@@ -416,6 +416,36 @@ async def test_run_sandbox_workflow_records_passing_evidence(
 
 
 @pytest.mark.asyncio
+async def test_run_all_sandbox_workflows_records_all_passing_evidence(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    monkeypatch.setattr(integration_config_service.settings, "use_sandbox_adapters", True)
+    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "sandbox")
+
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+
+    ran = await client.post(
+        "/api/integrations/config/fax/sandbox-workflows/run-all",
+        headers=auth_headers,
+    )
+    updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    updated_fax = next(item for item in updated.json()["data"] if item["key"] == "fax")
+    sandbox_step = next(step for step in updated_fax["steps"] if step["key"] == "sandbox_workflows")
+
+    assert ran.status_code == 201
+    assert ran.json()["integration"] == "fax"
+    assert ran.json()["passed_count"] == len(fax["sandbox_tests"])
+    assert len(ran.json()["evidence"]) == len(fax["sandbox_tests"])
+    assert all(item["status"] == "passed" for item in updated_fax["sandbox_evidence"])
+    assert sandbox_step["status"] == "ready"
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,
@@ -430,6 +460,10 @@ async def test_provider_cannot_manage_integration_config(
         json={"test_label": "Fetch a test patient demographic record"},
         headers=headers_for(provider),
     )
+    ran_all = await client.post(
+        "/api/integrations/config/ehr/sandbox-workflows/run-all",
+        headers=headers_for(provider),
+    )
     evidence = await client.post(
         "/api/integrations/config/ehr/sandbox-evidence",
         json={"test_label": "Fetch a test patient demographic record", "status": "passed"},
@@ -440,4 +474,5 @@ async def test_provider_cannot_manage_integration_config(
     assert preflight.status_code == 403
     assert tested.status_code == 403
     assert ran.status_code == 403
+    assert ran_all.status_code == 403
     assert evidence.status_code == 403

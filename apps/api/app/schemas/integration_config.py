@@ -120,3 +120,10 @@ class SandboxEvidenceCreate(BaseModel):
 
 class SandboxWorkflowRunCreate(BaseModel):
     test_label: str
+
+
+class SandboxWorkflowRunAllOut(BaseModel):
+    integration: str
+    passed_count: int
+    failed_count: int = 0
+    evidence: list[SandboxEvidenceOut]

@@ -15,6 +15,7 @@ from app.schemas.integration_config import (
     IntegrationConnectionTestOut,
     SandboxEvidenceCreate,
     SandboxEvidenceOut,
+    SandboxWorkflowRunAllOut,
     SandboxWorkflowRunCreate,
 )
 from app.schemas.integration_event import IntegrationEventListOut, IntegrationEventOut
@@ -145,6 +146,40 @@ async def run_sandbox_workflow(
             detail="Integration sandbox workflow not found",
         )
     return SandboxEvidenceOut(**result)
+
+
+@router.post(
+    "/config/{integration}/sandbox-workflows/run-all",
+    response_model=SandboxWorkflowRunAllOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def run_all_sandbox_workflows(
+    integration: str,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    try:
+        result = await integration_config_service.run_all_sandbox_workflows(
+            db,
+            current_user,
+            integration,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration sandbox workflows not found",
+        )
+    return SandboxWorkflowRunAllOut(
+        integration=result["integration"],
+        passed_count=result["passed_count"],
+        failed_count=result["failed_count"],
+        evidence=[SandboxEvidenceOut(**item) for item in result["evidence"]],
+    )
 
 
 @router.get("/events", response_model=IntegrationEventListOut)
