@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import UserRole
+from app.services import integration_config_service
 from app.services.integration_event_service import record_event
 from tests.conftest import headers_for, make_user
 
@@ -100,11 +101,14 @@ async def test_list_integration_config_reports_required_fields(
     assert res.status_code == 200
     body = res.json()
     keys = {item["key"] for item in body["data"]}
-    assert {"ehr", "fax", "portal", "calendar", "communications", "copilotkit"} <= keys
+    assert {"ehr", "fax", "portal", "calendar", "communications", "copilotkit", "clearinghouse"} <= keys
     fax = next(item for item in body["data"] if item["key"] == "fax")
     assert fax["configured"] is False
     assert fax["fields"][0]["key"] == "FAX_PROVIDER_API_KEY"
     assert fax["fields"][0]["secret"] is True
+    clearinghouse = next(item for item in body["data"] if item["key"] == "clearinghouse")
+    assert clearinghouse["fields"][0]["key"] == "CLEARINGHOUSE_API_BASE_URL"
+    assert "ERA/remittance import" in clearinghouse["workflows"]
 
 
 @pytest.mark.asyncio
@@ -154,6 +158,44 @@ async def test_connection_test_records_integration_event(
 
 
 @pytest.mark.asyncio
+async def test_credential_preflight_reports_missing_and_staged_integrations(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+
+    initial = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    assert initial.status_code == 200
+    body = initial.json()
+    assert body["total"] >= 7
+    assert body["blocking_count"] == body["total"]
+    ehr = next(item for item in body["data"] if item["key"] == "ehr")
+    assert ehr["status"] == "missing"
+    assert ehr["missing_fields"] == ["EHR_API_BASE_URL"]
+    assert ehr["steps"][0]["status"] == "missing"
+
+    await client.patch(
+        "/api/integrations/config/clearinghouse",
+        json={
+            "values": {
+                "CLEARINGHOUSE_API_BASE_URL": "https://claims.example.test",
+                "CLEARINGHOUSE_API_KEY": "claims-secret-1234",
+            }
+        },
+        headers=auth_headers,
+    )
+    staged = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+
+    clearinghouse = next(item for item in staged.json()["data"] if item["key"] == "clearinghouse")
+    assert clearinghouse["status"] == "staged"
+    assert clearinghouse["missing_fields"] == []
+    assert "CLEARINGHOUSE_API_KEY" in clearinghouse["configured_fields"]
+    assert clearinghouse["steps"][1]["status"] == "pending"
+    assert staged.json()["staged_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,
@@ -161,7 +203,9 @@ async def test_provider_cannot_manage_integration_config(
     provider = await make_user(db, UserRole.provider, "integration-config-provider@example.com")
 
     listed = await client.get("/api/integrations/config", headers=headers_for(provider))
+    preflight = await client.get("/api/integrations/credential-preflight", headers=headers_for(provider))
     tested = await client.post("/api/integrations/config/ehr/test", headers=headers_for(provider))
 
     assert listed.status_code == 403
+    assert preflight.status_code == 403
     assert tested.status_code == 403

@@ -6,6 +6,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import async_session_factory
 from app.integrations.calendar import CalendarClient
+from app.integrations.clearinghouse import ClearinghouseClient
 from app.integrations.communications import CommunicationsClient
 from app.integrations.copilotkit import CopilotRuntimeClient
 from app.integrations.ehr import EHRClient
@@ -45,6 +46,7 @@ async def check_external_integrations() -> dict:
         CalendarClient(settings.calendar_api_base_url),
         CopilotRuntimeClient(settings.copilotkit_runtime_url),
         CommunicationsClient(settings.communications_provider_api_key),
+        ClearinghouseClient(settings.clearinghouse_api_key),
     ]
     results = await asyncio.gather(*(client.health() for client in integrations))
     return {item.name: item.as_dict() for item in results}

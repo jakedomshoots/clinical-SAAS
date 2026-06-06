@@ -16,6 +16,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
+- Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -88,6 +89,7 @@ An internal clinic pilot is ready when:
 ## Recommended Next Build Items For Production
 
 - Vendor-backed EHR, fax, portal, calendar, communications, clearinghouse, and object-storage adapters.
+- Completed credential preflight with vendor sandbox evidence for each live adapter.
 - Production validation of signed document upload and download URLs.
 - Production MFA and identity-provider integration.
 - Real remittance/ERA import and claim reconciliation.

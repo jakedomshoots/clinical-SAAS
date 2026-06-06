@@ -334,6 +334,7 @@ async def test_security_templates_and_integration_capabilities(client, auth_head
     assert "fhir_placeholder" in capabilities.json()["ehr"]["supports"]
     assert capabilities.json()["ehr"]["action"]
     assert capabilities.json()["copilotkit"]["configured"] is False
+    assert "era_remittance" in capabilities.json()["clearinghouse"]["supports"]
 
 
 @pytest.mark.asyncio
@@ -349,6 +350,7 @@ async def test_launch_readiness_contract(client, auth_headers):
     assert "secret_key" in requirement_keys
     assert "webhook_secret" in requirement_keys
     assert "integration_ehr" in requirement_keys
+    assert "integration_clearinghouse" in requirement_keys
     assert all(item["action"] for item in data["requirements"])
 
 

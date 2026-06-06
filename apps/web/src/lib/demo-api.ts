@@ -666,14 +666,15 @@ function findDemoHandoffSource(patientId: string, sourceType: string, sourceId: 
 
 function demoIntegrationConfigs() {
   const specs = [
-    ['ehr', 'EHR', ['EHR_API_BASE_URL'], false, ['Chart sync', 'Medication reconciliation', 'Lab import'], 'Connect the chosen EHR API and validate sync.'],
-    ['fax', 'Fax provider', ['FAX_PROVIDER_API_KEY'], true, ['Inbound fax matching', 'Outbound referrals', 'Delivery status'], 'Set provider credentials and verify inbound/outbound callbacks.'],
-    ['portal', 'Patient portal', ['PORTAL_API_BASE_URL'], false, ['Portal messages', 'Patient intake', 'Document import'], 'Connect portal API and validate webhook mapping.'],
-    ['calendar', 'Calendar', ['CALENDAR_API_BASE_URL'], false, ['Appointment sync', 'Conflict checks', 'Provider availability'], 'Connect calendar API and validate appointment sync.'],
-    ['communications', 'Communications', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], true, ['Patient outreach', 'Appointment reminders', 'Delivery callbacks'], 'Select SMS/email provider and validate delivery callbacks.'],
-    ['copilotkit', 'CopilotKit runtime', ['COPILOTKIT_RUNTIME_URL'], false, ['Assistant runtime', 'Tool policy', 'Confirmation gates'], 'Deploy runtime and approve model/tool policy.'],
+    ['ehr', 'EHR', ['EHR_API_BASE_URL'], false, ['Chart sync', 'Medication reconciliation', 'Lab import'], 'Connect the chosen EHR API and validate sync.', ['Fetch a test patient demographic record', 'Import medication and lab fixtures', 'Write or reconcile one encounter note in sandbox']],
+    ['fax', 'Fax provider', ['FAX_PROVIDER_API_KEY'], true, ['Inbound fax matching', 'Outbound referrals', 'Delivery status'], 'Set provider credentials and verify inbound/outbound callbacks.', ['Send a sandbox outbound fax', 'Receive an inbound fax webhook', 'Download the source document and confirm patient matching']],
+    ['portal', 'Patient portal', ['PORTAL_API_BASE_URL'], false, ['Portal messages', 'Patient intake', 'Document import'], 'Connect portal API and validate webhook mapping.', ['Sync a patient portal message thread', 'Receive an intake submission', 'Import a portal-uploaded document']],
+    ['calendar', 'Calendar', ['CALENDAR_API_BASE_URL'], false, ['Appointment sync', 'Conflict checks', 'Provider availability'], 'Connect calendar API and validate appointment sync.', ['Create a sandbox appointment', 'Update and cancel the appointment', 'Fetch provider availability and conflict results']],
+    ['communications', 'Communications', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], true, ['Patient outreach', 'Appointment reminders', 'Delivery callbacks'], 'Select SMS/email provider and validate delivery callbacks.', ['Queue a consent-approved outreach message', 'Receive queued, delivered, failed, and blocked callbacks', 'Confirm audit and retry states update']],
+    ['copilotkit', 'CopilotKit runtime', ['COPILOTKIT_RUNTIME_URL'], false, ['Assistant runtime', 'Tool policy', 'Confirmation gates'], 'Deploy runtime and approve model/tool policy.', ['Reach the CopilotKit runtime health endpoint', 'Run a non-PHI assistant action in sandbox', 'Verify tool authorization and audit logging']],
+    ['clearinghouse', 'Clearinghouse', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY'], true, ['Claim submission', 'Eligibility verification', 'ERA/remittance import'], 'Connect clearinghouse credentials and validate claim, denial, and remittance workflows.', ['Submit a sandbox claim and capture the clearinghouse reference', 'Receive denial or acceptance callback', 'Import ERA/remittance fixture into the billing timeline']],
   ] as const;
-  return specs.map(([key, label, fields, secret, workflows, action]) => {
+  return specs.map(([key, label, fields, secret, workflows, action, sandboxTests]) => {
     const draft = integrationDrafts[key] ?? {};
     const configured = fields.every((field) => Boolean(draft[field]));
     const lastTest = integrationLastTests[key] ?? {};
@@ -695,10 +696,69 @@ function demoIntegrationConfigs() {
       })),
       workflows,
       action,
+      sandbox_tests: sandboxTests,
+      docs: ['docs/integrations/vendor-adapter-plan.md'],
       last_tested_at: lastTest.last_tested_at ?? null,
       last_test_status: lastTest.last_test_status ?? null,
     };
   });
+}
+
+function demoCredentialPreflight() {
+  const data = demoIntegrationConfigs().map((config) => {
+    const missingFields = config.fields.filter((field) => field.required && !field.configured).map((field) => field.key);
+    const status = config.healthy ? 'ready' : missingFields.length ? 'missing' : config.last_test_status === 'failed' ? 'blocked' : 'staged';
+    return {
+      key: config.key,
+      label: config.label,
+      status,
+      configured: config.configured,
+      healthy: config.healthy,
+      mode: config.mode,
+      missing_fields: missingFields,
+      configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
+      workflows: config.workflows,
+      sandbox_tests: config.sandbox_tests,
+      blockers: missingFields.length
+        ? [`Missing required values: ${missingFields.join(', ')}`]
+        : status === 'blocked'
+        ? ['Latest connection test failed; vendor adapter or credentials need review.']
+        : status === 'staged'
+        ? ['Credentials are staged, but sandbox evidence is still pending.']
+        : [],
+      steps: [
+        {
+          key: 'credentials',
+          label: 'Credentials captured',
+          status: missingFields.length ? 'missing' : 'ready',
+          detail: missingFields.length ? `Missing ${missingFields.join(', ')}.` : 'All required credential fields are present.',
+        },
+        {
+          key: 'connection_test',
+          label: 'Connection test',
+          status: config.healthy ? 'ready' : config.last_test_status === 'failed' ? 'blocked' : 'pending',
+          detail: config.healthy ? 'Latest connection test succeeded.' : config.last_test_status === 'failed' ? 'Latest connection test failed.' : 'Run a connection test after credentials are staged.',
+        },
+        {
+          key: 'sandbox_workflows',
+          label: 'Sandbox workflow evidence',
+          status: config.healthy ? 'ready' : 'pending',
+          detail: 'Complete and record sandbox workflow evidence before go-live.',
+        },
+      ],
+      docs: config.docs,
+      last_tested_at: config.last_tested_at,
+      last_test_status: config.last_test_status,
+    };
+  });
+  return {
+    generated_at: new Date().toISOString(),
+    ready_count: data.filter((item) => item.status === 'ready').length,
+    staged_count: data.filter((item) => item.status === 'staged').length,
+    blocking_count: data.filter((item) => ['missing', 'blocked'].includes(item.status)).length,
+    total: data.length,
+    data,
+  };
 }
 
 function demoFileName(fileUrl: string) {
@@ -815,6 +875,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
         portal: { ok: false, configured: false, env_var: 'PORTAL_API_BASE_URL', mode: 'demo' },
         calendar: { ok: false, configured: false, env_var: 'CALENDAR_API_BASE_URL', mode: 'demo' },
         copilotkit: { ok: false, configured: false, env_var: 'COPILOTKIT_RUNTIME_URL', mode: 'demo' },
+        communications: { ok: false, configured: false, env_var: 'COMMUNICATIONS_PROVIDER_API_KEY', mode: 'demo' },
+        clearinghouse: { ok: false, configured: false, env_var: 'CLEARINGHOUSE_API_KEY', mode: 'demo' },
       },
       deployment: {
         production_env_template: { ok: true, path: '.env.production.example' },
@@ -898,10 +960,14 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       calendar: { label: 'Calendar', configured: false, healthy: false, mode: 'demo', env_vars: ['CALENDAR_API_BASE_URL'], supports: ['appointment_create', 'appointment_update', 'conflict_sync'], workflows: ['Schedule sync', 'Conflict checks', 'Reminder source of truth'], action: 'Set CALENDAR_API_BASE_URL and verify appointment create/update sync.' },
       communications: { label: 'Communications', configured: false, healthy: false, mode: 'demo', env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'], workflows: ['Patient outreach', 'Appointment reminders', 'Delivery tracking'], action: 'Select the delivery provider and configure callback secrets.' },
       copilotkit: { label: 'CopilotKit runtime', configured: false, healthy: false, mode: 'demo', env_vars: ['COPILOTKIT_RUNTIME_URL'], supports: ['assistant_runtime', 'tool_policy', 'confirmation_gates'], workflows: ['Clinical assistant', 'Tool execution', 'Review queue'], action: 'Deploy the runtime and approve model/tool policy before live use.' },
+      clearinghouse: { label: 'Clearinghouse', configured: false, healthy: false, mode: 'demo', env_vars: ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY'], supports: ['claim_submission', 'eligibility', 'denials', 'era_remittance'], workflows: ['Claim submission', 'Denial callbacks', 'ERA/remittance import'], action: 'Connect clearinghouse credentials and validate claim, denial, and remittance workflows.' },
     } as T;
   }
   if (path === '/integrations/config' && method === 'GET') {
     return { data: demoIntegrationConfigs() } as T;
+  }
+  if (path === '/integrations/credential-preflight' && method === 'GET') {
+    return demoCredentialPreflight() as T;
   }
   const integrationConfigMatch = path.match(/^\/integrations\/config\/([^/]+)$/);
   if (integrationConfigMatch && method === 'PATCH') {
@@ -963,6 +1029,8 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       ['Integrations', 'External patient portal', false, 'critical', 'Connect messages, intake, appointment requests, and documents.', ['PORTAL_API_BASE_URL']],
       ['Integrations', 'Calendar system', false, 'critical', 'Connect appointment create/update synchronization.', ['CALENDAR_API_BASE_URL']],
       ['Integrations', 'SMS/email delivery', false, 'critical', 'Connect patient outreach delivery callbacks.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY']],
+      ['Integrations', 'CopilotKit runtime', false, 'critical', 'Deploy the AI runtime and approve model/tool policy.', ['COPILOTKIT_RUNTIME_URL']],
+      ['Integrations', 'Clearinghouse', false, 'critical', 'Connect claim submission, denial, payment, and ERA/remittance callbacks.', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY']],
     ].map(([category, label, ready, severity, action, envVars], index) => ({
       key: `demo-${index}`,
       category,

@@ -193,6 +193,12 @@ def _integration_requirements(integrations: dict) -> list[LaunchRequirement]:
             ["COPILOTKIT_RUNTIME_URL"],
             "Deploy the AI runtime and approve model/tool policy.",
         ),
+        (
+            "clearinghouse",
+            "Clearinghouse",
+            ["CLEARINGHOUSE_API_BASE_URL", "CLEARINGHOUSE_API_KEY"],
+            "Connect claim submission, denial, payment, and ERA/remittance callbacks.",
+        ),
     ]
     requirements: list[LaunchRequirement] = []
     for key, label, env_vars, action in specs:

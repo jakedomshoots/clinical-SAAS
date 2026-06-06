@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.integrations.calendar import CalendarClient
+from app.integrations.clearinghouse import ClearinghouseClient
 from app.integrations.communications import CommunicationsClient
 from app.integrations.copilotkit import CopilotRuntimeClient
 from app.integrations.ehr import EHRClient
@@ -34,6 +35,8 @@ class IntegrationSpec:
     fields: list[IntegrationField]
     workflows: list[str]
     action: str
+    sandbox_tests: list[str]
+    docs: list[str]
 
 
 def integration_specs() -> list[IntegrationSpec]:
@@ -46,6 +49,12 @@ def integration_specs() -> list[IntegrationSpec]:
             fields=[IntegrationField("EHR_API_BASE_URL", "EHR API base URL")],
             workflows=["Chart sync", "Medication reconciliation", "Lab import"],
             action="Connect the chosen EHR API and validate demographics, medication, lab, and encounter sync.",
+            sandbox_tests=[
+                "Fetch a test patient demographic record",
+                "Import medication and lab fixtures",
+                "Write or reconcile one encounter note in sandbox",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
             key="fax",
@@ -55,6 +64,12 @@ def integration_specs() -> list[IntegrationSpec]:
             fields=[IntegrationField("FAX_PROVIDER_API_KEY", "Fax API key", secret=True)],
             workflows=["Inbound fax matching", "Outbound referrals", "Delivery status"],
             action="Set provider credentials and verify inbound webhook plus outbound delivery callbacks.",
+            sandbox_tests=[
+                "Send a sandbox outbound fax",
+                "Receive an inbound fax webhook",
+                "Download the source document and confirm patient matching",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
             key="portal",
@@ -64,6 +79,12 @@ def integration_specs() -> list[IntegrationSpec]:
             fields=[IntegrationField("PORTAL_API_BASE_URL", "Portal API base URL")],
             workflows=["Portal messages", "Patient intake", "Document import"],
             action="Connect portal API and validate message, intake, and document webhook mapping.",
+            sandbox_tests=[
+                "Sync a patient portal message thread",
+                "Receive an intake submission",
+                "Import a portal-uploaded document",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
             key="calendar",
@@ -73,6 +94,12 @@ def integration_specs() -> list[IntegrationSpec]:
             fields=[IntegrationField("CALENDAR_API_BASE_URL", "Calendar API base URL")],
             workflows=["Appointment sync", "Conflict checks", "Provider availability"],
             action="Connect calendar API and validate appointment create/update/cancel sync.",
+            sandbox_tests=[
+                "Create a sandbox appointment",
+                "Update and cancel the appointment",
+                "Fetch provider availability and conflict results",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
             key="communications",
@@ -92,6 +119,12 @@ def integration_specs() -> list[IntegrationSpec]:
             ],
             workflows=["Patient outreach", "Appointment reminders", "Delivery callbacks"],
             action="Select SMS/email provider and validate delivery callback handling.",
+            sandbox_tests=[
+                "Queue a consent-approved outreach message",
+                "Receive queued, delivered, failed, and blocked callbacks",
+                "Confirm audit and retry states update",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
             key="copilotkit",
@@ -101,6 +134,33 @@ def integration_specs() -> list[IntegrationSpec]:
             fields=[IntegrationField("COPILOTKIT_RUNTIME_URL", "Runtime URL")],
             workflows=["Assistant runtime", "Tool policy", "Confirmation gates"],
             action="Deploy runtime and approve model, tenant, and tool authorization policy.",
+            sandbox_tests=[
+                "Reach the CopilotKit runtime health endpoint",
+                "Run a non-PHI assistant action in sandbox",
+                "Verify tool authorization and audit logging",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
+        ),
+        IntegrationSpec(
+            key="clearinghouse",
+            health_key="clearinghouse",
+            label="Clearinghouse",
+            env_values={
+                "CLEARINGHOUSE_API_BASE_URL": settings.clearinghouse_api_base_url,
+                "CLEARINGHOUSE_API_KEY": settings.clearinghouse_api_key,
+            },
+            fields=[
+                IntegrationField("CLEARINGHOUSE_API_BASE_URL", "Clearinghouse API base URL"),
+                IntegrationField("CLEARINGHOUSE_API_KEY", "Clearinghouse API key", secret=True),
+            ],
+            workflows=["Claim submission", "Eligibility verification", "ERA/remittance import"],
+            action="Connect clearinghouse credentials and validate claim submission, denial, and ERA callback flows.",
+            sandbox_tests=[
+                "Submit a sandbox claim and capture the clearinghouse reference",
+                "Receive denial or acceptance callback",
+                "Import ERA/remittance fixture into the billing timeline",
+            ],
+            docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
     ]
 
@@ -209,6 +269,7 @@ async def _health_by_key() -> dict:
         CalendarClient(settings.calendar_api_base_url),
         CopilotRuntimeClient(settings.copilotkit_runtime_url),
         CommunicationsClient(settings.communications_provider_api_key),
+        ClearinghouseClient(settings.clearinghouse_api_key),
     ]
     health = [await client.health() for client in clients]
     return {item.name: item.as_dict() for item in health}
@@ -231,8 +292,109 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
         "workflows": spec.workflows,
         "action": spec.action,
+        "sandbox_tests": spec.sandbox_tests,
+        "docs": spec.docs,
         "last_tested_at": last_test.get("last_tested_at"),
         "last_test_status": last_test.get("last_test_status"),
+    }
+
+
+async def credential_preflight(db: AsyncSession, user: User) -> dict:
+    configs = await list_integration_configs(db, user)
+    items = [_preflight_item(config) for config in configs]
+    blocking = sum(1 for item in items if item["status"] in {"missing", "blocked"})
+    ready = sum(1 for item in items if item["status"] == "ready")
+    staged = sum(1 for item in items if item["status"] == "staged")
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "ready_count": ready,
+        "staged_count": staged,
+        "blocking_count": blocking,
+        "total": len(items),
+        "data": items,
+    }
+
+
+def _preflight_item(config: dict) -> dict:
+    fields = config["fields"]
+    missing_fields = [
+        field["key"]
+        for field in fields
+        if field["required"] and not field["configured"]
+    ]
+    configured_fields = [
+        field["key"]
+        for field in fields
+        if field["configured"]
+    ]
+    last_test_status = config.get("last_test_status")
+    if config["healthy"]:
+        status = "ready"
+    elif missing_fields:
+        status = "missing"
+    elif last_test_status == "failed":
+        status = "blocked"
+    else:
+        status = "staged"
+    blockers = []
+    if missing_fields:
+        blockers.append(f"Missing required values: {', '.join(missing_fields)}")
+    if status == "blocked":
+        blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
+    if status == "staged":
+        blockers.append("Credentials are staged, but sandbox evidence is still pending.")
+    steps = [
+        {
+            "key": "credentials",
+            "label": "Credentials captured",
+            "status": "ready" if not missing_fields else "missing",
+            "detail": (
+                "All required credential fields are present."
+                if not missing_fields
+                else f"Missing {', '.join(missing_fields)}."
+            ),
+        },
+        {
+            "key": "connection_test",
+            "label": "Connection test",
+            "status": (
+                "ready"
+                if config["healthy"]
+                else "blocked"
+                if last_test_status == "failed"
+                else "pending"
+            ),
+            "detail": (
+                "Latest connection test succeeded."
+                if config["healthy"]
+                else "Latest connection test failed."
+                if last_test_status == "failed"
+                else "Run a connection test after credentials are staged."
+            ),
+        },
+        {
+            "key": "sandbox_workflows",
+            "label": "Sandbox workflow evidence",
+            "status": "ready" if config["healthy"] else "pending",
+            "detail": "Complete and record sandbox workflow evidence before go-live.",
+        },
+    ]
+    return {
+        "key": config["key"],
+        "label": config["label"],
+        "status": status,
+        "configured": config["configured"],
+        "healthy": config["healthy"],
+        "mode": config["mode"],
+        "missing_fields": missing_fields,
+        "configured_fields": configured_fields,
+        "workflows": config["workflows"],
+        "sandbox_tests": config["sandbox_tests"],
+        "blockers": blockers,
+        "steps": steps,
+        "docs": config["docs"],
+        "last_tested_at": config.get("last_tested_at"),
+        "last_test_status": last_test_status,
     }
 
 

@@ -64,6 +64,15 @@ async def capabilities():
             workflows=["Clinical assistant", "Tool execution", "Review queue"],
             action="Deploy the runtime and approve model/tool policy before live use.",
         ),
+        "clearinghouse": _capability(
+            health,
+            "clearinghouse",
+            label="Clearinghouse",
+            env_vars=["CLEARINGHOUSE_API_BASE_URL", "CLEARINGHOUSE_API_KEY"],
+            supports=["claim_submission", "eligibility", "denials", "era_remittance"],
+            workflows=["Claim submission", "Denial callbacks", "ERA/remittance import"],
+            action="Connect clearinghouse credentials and validate claim, denial, and remittance workflows.",
+        ),
     }
 
 

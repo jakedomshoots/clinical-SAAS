@@ -123,6 +123,8 @@ export interface IntegrationConfig {
   fields: IntegrationConfigField[];
   workflows: string[];
   action: string;
+  sandbox_tests: string[];
+  docs: string[];
   last_tested_at: string | null;
   last_test_status: string | null;
 }
@@ -139,6 +141,40 @@ export interface IntegrationConnectionTestResult {
   mode: string;
   message: string;
   event_id: string;
+}
+
+export interface CredentialPreflightStep {
+  key: string;
+  label: string;
+  status: 'ready' | 'missing' | 'pending' | 'blocked';
+  detail: string;
+}
+
+export interface CredentialPreflightItem {
+  key: string;
+  label: string;
+  status: 'ready' | 'staged' | 'missing' | 'blocked';
+  configured: boolean;
+  healthy: boolean;
+  mode: string;
+  missing_fields: string[];
+  configured_fields: string[];
+  workflows: string[];
+  sandbox_tests: string[];
+  blockers: string[];
+  steps: CredentialPreflightStep[];
+  docs: string[];
+  last_tested_at: string | null;
+  last_test_status: string | null;
+}
+
+export interface CredentialPreflight {
+  generated_at: string;
+  ready_count: number;
+  staged_count: number;
+  blocking_count: number;
+  total: number;
+  data: CredentialPreflightItem[];
 }
 
 export interface SessionPolicy {

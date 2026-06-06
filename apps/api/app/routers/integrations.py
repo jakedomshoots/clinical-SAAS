@@ -7,6 +7,8 @@ from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.integration_config import (
+    CredentialPreflightItemOut,
+    CredentialPreflightOut,
     IntegrationConfigListOut,
     IntegrationConfigOut,
     IntegrationConfigUpdate,
@@ -25,6 +27,19 @@ OpsUserDep = Annotated[User, Depends(require_roles(UserRole.admin, UserRole.mana
 async def list_integration_config(db: DbDep, current_user: OpsUserDep):
     configs = await integration_config_service.list_integration_configs(db, current_user)
     return IntegrationConfigListOut(data=[IntegrationConfigOut(**item) for item in configs])
+
+
+@router.get("/credential-preflight", response_model=CredentialPreflightOut)
+async def get_credential_preflight(db: DbDep, current_user: OpsUserDep):
+    result = await integration_config_service.credential_preflight(db, current_user)
+    return CredentialPreflightOut(
+        generated_at=result["generated_at"],
+        ready_count=result["ready_count"],
+        staged_count=result["staged_count"],
+        blocking_count=result["blocking_count"],
+        total=result["total"],
+        data=[CredentialPreflightItemOut(**item) for item in result["data"]],
+    )
 
 
 @router.patch("/config/{integration}", response_model=IntegrationConfigOut)

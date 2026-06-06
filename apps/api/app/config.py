@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     copilotkit_runtime_url: str = ""
     communications_provider: str = "demo"
     communications_provider_api_key: str = ""
+    clearinghouse_api_base_url: str = ""
+    clearinghouse_api_key: str = ""
     webhook_shared_secret: str = ""
     patient_portal_access_code_expire_minutes: int = 60 * 24 * 7
 

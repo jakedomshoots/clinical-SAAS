@@ -54,3 +54,22 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
   - Tool allowlist
   - Tenant/user authorization forwarding
   - Audit event capture for tool invocations
+
+## Clearinghouse
+
+- Environment: `CLEARINGHOUSE_API_BASE_URL`, `CLEARINGHOUSE_API_KEY`
+- Current boundary: `app.integrations.clearinghouse.ClearinghouseClient`
+- Required live methods:
+  - Claim submission
+  - Eligibility verification if handled by the clearinghouse
+  - Denial or acceptance callbacks
+  - Payment status callbacks
+  - ERA/remittance import
+  - Billing timeline reconciliation
+
+## Credential Preflight Gate
+
+- Use `/api/integrations/credential-preflight` before any live-use rehearsal.
+- Every integration should have required credentials captured from environment variables or setup drafts.
+- Run each connection test and resolve any failed result before go-live.
+- Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
