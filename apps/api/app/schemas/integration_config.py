@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 class IntegrationConfigFieldOut(BaseModel):
@@ -52,6 +53,18 @@ class CredentialPreflightStepOut(BaseModel):
     detail: str
 
 
+class SandboxEvidenceOut(BaseModel):
+    id: str | None = None
+    integration: str | None = None
+    test_key: str
+    test_label: str
+    status: str
+    notes: str = ""
+    reference_url: str | None = None
+    recorded_by: str | None = None
+    recorded_at: datetime | None = None
+
+
 class CredentialPreflightItemOut(BaseModel):
     key: str
     label: str
@@ -63,6 +76,7 @@ class CredentialPreflightItemOut(BaseModel):
     configured_fields: list[str]
     workflows: list[str]
     sandbox_tests: list[str]
+    sandbox_evidence: list[SandboxEvidenceOut] = Field(default_factory=list)
     blockers: list[str]
     steps: list[CredentialPreflightStepOut]
     docs: list[str]
@@ -77,3 +91,10 @@ class CredentialPreflightOut(BaseModel):
     blocking_count: int
     total: int
     data: list[CredentialPreflightItemOut]
+
+
+class SandboxEvidenceCreate(BaseModel):
+    test_label: str
+    status: str = "passed"
+    notes: str = ""
+    reference_url: str | None = None

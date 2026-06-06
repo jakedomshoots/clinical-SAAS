@@ -9,6 +9,8 @@ import {
   type IntegrationConfig,
   type IntegrationConfigListResponse,
   type IntegrationConnectionTestResult,
+  type SandboxEvidence,
+  type SandboxEvidenceCreate,
 } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -22,6 +24,7 @@ function IntegrationsPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
+  const [evidenceDrafts, setEvidenceDrafts] = useState<Record<string, SandboxEvidenceCreate>>({});
   const { data, isLoading } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'integration-config'],
     queryFn: () => api.get<IntegrationConfigListResponse>(ROUTES.INTEGRATION_CONFIG),
@@ -46,6 +49,14 @@ function IntegrationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATION_EVENTS });
     },
   });
+  const evidenceMutation = useMutation({
+    mutationFn: ({ integration, data }: { integration: string; data: SandboxEvidenceCreate }) =>
+      api.post<SandboxEvidence>(ROUTES.INTEGRATION_SANDBOX_EVIDENCE(integration), data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
   const configs = data?.data ?? [];
   const preflightByKey = new Map((preflight?.data ?? []).map((item) => [item.key, item]));
 
@@ -58,6 +69,35 @@ function IntegrationsPage() {
 
   function fieldValue(config: IntegrationConfig, field: string) {
     return drafts[config.key]?.[field] ?? '';
+  }
+
+  function evidenceKey(integration: string, testLabel: string) {
+    return `${integration}:${testLabel}`;
+  }
+
+  function evidenceDraft(integration: string, testLabel: string): SandboxEvidenceCreate {
+    return evidenceDrafts[evidenceKey(integration, testLabel)] ?? {
+      test_label: testLabel,
+      status: 'passed',
+      notes: '',
+      reference_url: '',
+    };
+  }
+
+  function updateEvidenceDraft(integration: string, testLabel: string, update: Partial<SandboxEvidenceCreate>) {
+    setEvidenceDrafts((current) => {
+      const key = evidenceKey(integration, testLabel);
+      const existing = current[key] ?? {
+        test_label: testLabel,
+        status: 'passed' as const,
+        notes: '',
+        reference_url: '',
+      };
+      return {
+        ...current,
+        [key]: { ...existing, ...update, test_label: testLabel },
+      };
+    });
   }
 
   return (
@@ -140,7 +180,18 @@ function IntegrationsPage() {
                 <div className="mt-3 rounded-md border border-clinic-200 px-3 py-2 text-sm text-clinic-700">
                   {config.action}
                 </div>
-                {preflightItem && <CredentialPreflightPanel item={preflightItem} />}
+                {preflightItem && (
+                  <CredentialPreflightPanel
+                    item={preflightItem}
+                    evidenceDraft={(testLabel) => evidenceDraft(config.key, testLabel)}
+                    onDraftChange={(testLabel, update) => updateEvidenceDraft(config.key, testLabel, update)}
+                    onRecord={(testLabel) => evidenceMutation.mutate({
+                      integration: config.key,
+                      data: evidenceDraft(config.key, testLabel),
+                    })}
+                    recording={evidenceMutation.isPending}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => saveMutation.mutate({ integration: config.key, values: changedValues })}
@@ -174,7 +225,19 @@ function PreflightStat({ label, value, tone }: { label: string; value: number; t
   );
 }
 
-function CredentialPreflightPanel({ item }: { item: CredentialPreflightItem }) {
+function CredentialPreflightPanel({
+  item,
+  evidenceDraft,
+  onDraftChange,
+  onRecord,
+  recording,
+}: {
+  item: CredentialPreflightItem;
+  evidenceDraft: (testLabel: string) => SandboxEvidenceCreate;
+  onDraftChange: (testLabel: string, update: Partial<SandboxEvidenceCreate>) => void;
+  onRecord: (testLabel: string) => void;
+  recording: boolean;
+}) {
   return (
     <div className="mt-4 rounded-md border border-clinic-200 bg-clinic-50 p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -208,11 +271,53 @@ function CredentialPreflightPanel({ item }: { item: CredentialPreflightItem }) {
           </div>
         ))}
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {item.sandbox_tests.map((test) => (
-          <span key={test} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-600">
-            {test}
-          </span>
+      <div className="mt-3 grid gap-2">
+        {item.sandbox_evidence.map((evidence) => (
+          <div key={evidence.test_key} className="rounded-md border border-clinic-200 bg-white p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div className="text-xs font-medium text-clinic-800">{evidence.test_label}</div>
+                <div className="mt-1 text-[11px] text-clinic-500">
+                  {evidence.status === 'missing'
+                    ? 'No evidence recorded'
+                    : `${evidence.status} by ${evidence.recorded_by ?? 'staff'}${evidence.recorded_at ? ` on ${new Date(evidence.recorded_at).toLocaleDateString()}` : ''}`}
+                </div>
+              </div>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${evidence.status === 'passed' ? 'border-accent-200 bg-accent-50 text-accent-800' : evidence.status === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>
+                {evidence.status}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 md:grid-cols-[7rem_minmax(0,1fr)]">
+              <select
+                value={evidenceDraft(evidence.test_label).status}
+                onChange={(event) => onDraftChange(evidence.test_label, { status: event.target.value as SandboxEvidenceCreate['status'] })}
+                className="rounded-md border border-clinic-300 px-2 py-2 text-xs text-clinic-800"
+              >
+                <option value="passed">Passed</option>
+                <option value="failed">Failed</option>
+              </select>
+              <input
+                value={evidenceDraft(evidence.test_label).notes}
+                onChange={(event) => onDraftChange(evidence.test_label, { notes: event.target.value })}
+                placeholder="Sandbox evidence note"
+                className="rounded-md border border-clinic-300 px-3 py-2 text-xs text-clinic-800 placeholder:text-clinic-400"
+              />
+              <input
+                value={evidenceDraft(evidence.test_label).reference_url ?? ''}
+                onChange={(event) => onDraftChange(evidence.test_label, { reference_url: event.target.value })}
+                placeholder="Reference URL"
+                className="rounded-md border border-clinic-300 px-3 py-2 text-xs text-clinic-800 placeholder:text-clinic-400 md:col-span-2"
+              />
+              <button
+                type="button"
+                onClick={() => onRecord(evidence.test_label)}
+                disabled={recording || evidenceDraft(evidence.test_label).notes.trim().length < 3}
+                className="rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2"
+              >
+                Record evidence
+              </button>
+            </div>
+          </div>
         ))}
       </div>
     </div>

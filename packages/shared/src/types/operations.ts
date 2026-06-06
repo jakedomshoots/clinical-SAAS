@@ -150,6 +150,18 @@ export interface CredentialPreflightStep {
   detail: string;
 }
 
+export interface SandboxEvidence {
+  id: string | null;
+  integration: string | null;
+  test_key: string;
+  test_label: string;
+  status: 'missing' | 'passed' | 'failed';
+  notes: string;
+  reference_url: string | null;
+  recorded_by: string | null;
+  recorded_at: string | null;
+}
+
 export interface CredentialPreflightItem {
   key: string;
   label: string;
@@ -161,11 +173,19 @@ export interface CredentialPreflightItem {
   configured_fields: string[];
   workflows: string[];
   sandbox_tests: string[];
+  sandbox_evidence: SandboxEvidence[];
   blockers: string[];
   steps: CredentialPreflightStep[];
   docs: string[];
   last_tested_at: string | null;
   last_test_status: string | null;
+}
+
+export interface SandboxEvidenceCreate {
+  test_label: string;
+  status: 'passed' | 'failed';
+  notes: string;
+  reference_url?: string | null;
 }
 
 export interface CredentialPreflight {

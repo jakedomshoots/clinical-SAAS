@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -266,6 +266,7 @@ interface DemoStore {
   portalIntake?: PortalIntakeSubmission[];
   integrationDrafts?: Record<string, Record<string, string>>;
   integrationLastTests?: Record<string, { last_tested_at: string; last_test_status: string }>;
+  integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
 }
 
 interface IntegrationEvent {
@@ -314,6 +315,7 @@ let portalIntake: PortalIntakeSubmission[] = [];
 const preparedUploadTokens = new Map<string, { patientId: string; fileUrl: string; contentType: string }>();
 let integrationDrafts: Record<string, Record<string, string>> = {};
 let integrationLastTests: Record<string, { last_tested_at: string; last_test_status: string }> = {};
+let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -639,7 +641,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence }),
   );
 }
 
@@ -707,7 +709,23 @@ function demoIntegrationConfigs() {
 function demoCredentialPreflight() {
   const data = demoIntegrationConfigs().map((config) => {
     const missingFields = config.fields.filter((field) => field.required && !field.configured).map((field) => field.key);
-    const status = config.healthy ? 'ready' : missingFields.length ? 'missing' : config.last_test_status === 'failed' ? 'blocked' : 'staged';
+    const evidenceByTest = integrationSandboxEvidence[config.key] ?? {};
+    const sandboxEvidence = config.sandbox_tests.map((testLabel) => (
+      evidenceByTest[demoSandboxTestKey(testLabel)] ?? {
+        id: null,
+        integration: config.key,
+        test_key: demoSandboxTestKey(testLabel),
+        test_label: testLabel,
+        status: 'missing',
+        notes: '',
+        reference_url: null,
+        recorded_by: null,
+        recorded_at: null,
+      }
+    ));
+    const passedEvidenceCount = sandboxEvidence.filter((item) => item.status === 'passed').length;
+    const sandboxComplete = sandboxEvidence.length > 0 && passedEvidenceCount === sandboxEvidence.length;
+    const status = config.healthy && sandboxComplete ? 'ready' : missingFields.length ? 'missing' : config.last_test_status === 'failed' ? 'blocked' : 'staged';
     return {
       key: config.key,
       label: config.label,
@@ -719,6 +737,7 @@ function demoCredentialPreflight() {
       configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
       workflows: config.workflows,
       sandbox_tests: config.sandbox_tests,
+      sandbox_evidence: sandboxEvidence,
       blockers: missingFields.length
         ? [`Missing required values: ${missingFields.join(', ')}`]
         : status === 'blocked'
@@ -742,8 +761,8 @@ function demoCredentialPreflight() {
         {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
-          status: config.healthy ? 'ready' : 'pending',
-          detail: 'Complete and record sandbox workflow evidence before go-live.',
+          status: sandboxComplete ? 'ready' : 'pending',
+          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence.`,
         },
       ],
       docs: config.docs,
@@ -759,6 +778,10 @@ function demoCredentialPreflight() {
     total: data.length,
     data,
   };
+}
+
+function demoSandboxTestKey(testLabel: string) {
+  return testLabel.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'sandbox_check';
 }
 
 function demoFileName(fileUrl: string) {
@@ -805,6 +828,7 @@ if (storedDemoData) {
   portalIntake = storedDemoData.portalIntake ?? portalIntake;
   integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
+  integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -968,6 +992,39 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/integrations/credential-preflight' && method === 'GET') {
     return demoCredentialPreflight() as T;
+  }
+  const sandboxEvidenceMatch = path.match(/^\/integrations\/config\/([^/]+)\/sandbox-evidence$/);
+  if (sandboxEvidenceMatch && method === 'POST') {
+    const integration = sandboxEvidenceMatch[1];
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    const incoming = body as { test_label: string; status?: 'passed' | 'failed'; notes?: string; reference_url?: string | null };
+    if (!config || !(config.sandbox_tests as readonly string[]).includes(incoming.test_label)) throw new Error('Integration sandbox test not found');
+    const evidence: SandboxEvidence = {
+      id: uuid(3900 + Object.values(integrationSandboxEvidence).reduce((total, items) => total + Object.keys(items).length, 0)),
+      integration,
+      test_key: demoSandboxTestKey(incoming.test_label),
+      test_label: incoming.test_label,
+      status: incoming.status ?? 'passed',
+      notes: incoming.notes ?? '',
+      reference_url: incoming.reference_url ?? null,
+      recorded_by: 'Clinic Admin',
+      recorded_at: new Date().toISOString(),
+    };
+    integrationSandboxEvidence = {
+      ...integrationSandboxEvidence,
+      [integration]: {
+        ...(integrationSandboxEvidence[integration] ?? {}),
+        [evidence.test_key]: evidence,
+      },
+    };
+    logDemoEvent({
+      event_type: 'integration.sandbox_evidence',
+      entity_type: 'integration_config',
+      entity_id: integration,
+      payload: { ...evidence },
+    });
+    saveDemoData();
+    return evidence as T;
   }
   const integrationConfigMatch = path.match(/^\/integrations\/config\/([^/]+)$/);
   if (integrationConfigMatch && method === 'PATCH') {

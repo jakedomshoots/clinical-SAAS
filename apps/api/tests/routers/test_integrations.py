@@ -196,6 +196,47 @@ async def test_credential_preflight_reports_missing_and_staged_integrations(
 
 
 @pytest.mark.asyncio
+async def test_sandbox_evidence_updates_credential_preflight(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    await client.patch(
+        "/api/integrations/config/clearinghouse",
+        json={
+            "values": {
+                "CLEARINGHOUSE_API_BASE_URL": "https://claims.example.test",
+                "CLEARINGHOUSE_API_KEY": "claims-secret-1234",
+            }
+        },
+        headers=auth_headers,
+    )
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    clearinghouse = next(item for item in preflight.json()["data"] if item["key"] == "clearinghouse")
+
+    for test_label in clearinghouse["sandbox_tests"]:
+        evidence = await client.post(
+            "/api/integrations/config/clearinghouse/sandbox-evidence",
+            json={
+                "test_label": test_label,
+                "status": "passed",
+                "notes": f"Sandbox proof for {test_label}",
+                "reference_url": "https://vendor.example.test/evidence/123",
+            },
+            headers=auth_headers,
+        )
+        assert evidence.status_code == 201
+        assert evidence.json()["status"] == "passed"
+        assert evidence.json()["reference_url"] == "https://vendor.example.test/evidence/123"
+
+    updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    updated_clearinghouse = next(item for item in updated.json()["data"] if item["key"] == "clearinghouse")
+    assert updated_clearinghouse["steps"][2]["status"] == "ready"
+    assert all(item["status"] == "passed" for item in updated_clearinghouse["sandbox_evidence"])
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,
@@ -205,7 +246,13 @@ async def test_provider_cannot_manage_integration_config(
     listed = await client.get("/api/integrations/config", headers=headers_for(provider))
     preflight = await client.get("/api/integrations/credential-preflight", headers=headers_for(provider))
     tested = await client.post("/api/integrations/config/ehr/test", headers=headers_for(provider))
+    evidence = await client.post(
+        "/api/integrations/config/ehr/sandbox-evidence",
+        json={"test_label": "Fetch a test patient demographic record", "status": "passed"},
+        headers=headers_for(provider),
+    )
 
     assert listed.status_code == 403
     assert preflight.status_code == 403
     assert tested.status_code == 403
+    assert evidence.status_code == 403

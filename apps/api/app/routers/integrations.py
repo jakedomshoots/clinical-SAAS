@@ -13,6 +13,8 @@ from app.schemas.integration_config import (
     IntegrationConfigOut,
     IntegrationConfigUpdate,
     IntegrationConnectionTestOut,
+    SandboxEvidenceCreate,
+    SandboxEvidenceOut,
 )
 from app.schemas.integration_event import IntegrationEventListOut, IntegrationEventOut
 from app.services import integration_config_service, integration_event_service
@@ -80,6 +82,31 @@ async def test_integration_connection(
             detail="Integration configuration not found",
         )
     return IntegrationConnectionTestOut(**result)
+
+
+@router.post(
+    "/config/{integration}/sandbox-evidence",
+    response_model=SandboxEvidenceOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_sandbox_evidence(
+    integration: str,
+    data: SandboxEvidenceCreate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    result = await integration_config_service.record_sandbox_evidence(
+        db,
+        current_user,
+        integration,
+        data.model_dump(),
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration sandbox test not found",
+        )
+    return SandboxEvidenceOut(**result)
 
 
 @router.get("/events", response_model=IntegrationEventListOut)

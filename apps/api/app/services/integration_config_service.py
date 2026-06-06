@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
+import re
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -11,11 +13,14 @@ from app.integrations.copilotkit import CopilotRuntimeClient
 from app.integrations.ehr import EHRClient
 from app.integrations.fax_provider import FaxProviderClient
 from app.integrations.portal import PortalClient
+from app.models.audit import AuditLog
 from app.models.user import User
+from app.services.audit_service import log_event
 from app.services.integration_event_service import record_event
 
 _draft_values: dict[str, dict[str, str]] = {}
 _last_tests: dict[str, dict[str, str]] = {}
+SANDBOX_EVIDENCE_EVENT = "integration.sandbox_evidence"
 
 
 @dataclass(frozen=True)
@@ -301,7 +306,8 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
 
 async def credential_preflight(db: AsyncSession, user: User) -> dict:
     configs = await list_integration_configs(db, user)
-    items = [_preflight_item(config) for config in configs]
+    evidence = await _sandbox_evidence_by_integration(db, user)
+    items = [_preflight_item(config, evidence.get(config["key"], {})) for config in configs]
     blocking = sum(1 for item in items if item["status"] in {"missing", "blocked"})
     ready = sum(1 for item in items if item["status"] == "ready")
     staged = sum(1 for item in items if item["status"] == "staged")
@@ -315,7 +321,41 @@ async def credential_preflight(db: AsyncSession, user: User) -> dict:
     }
 
 
-def _preflight_item(config: dict) -> dict:
+async def record_sandbox_evidence(
+    db: AsyncSession,
+    user: User,
+    integration: str,
+    data: dict,
+) -> dict | None:
+    spec = _find_spec(integration)
+    if not spec:
+        return None
+    test_label = str(data.get("test_label", "")).strip()
+    if test_label not in spec.sandbox_tests:
+        return None
+    status = str(data.get("status", "passed")).strip().lower()
+    if status not in {"passed", "failed"}:
+        status = "passed"
+    event = await log_event(
+        db,
+        SANDBOX_EVIDENCE_EVENT,
+        "integration_config",
+        spec.key,
+        actor_id=user.id,
+        payload={
+            "integration": spec.key,
+            "test_key": _sandbox_test_key(test_label),
+            "test_label": test_label,
+            "status": status,
+            "notes": str(data.get("notes", "")).strip(),
+            "reference_url": str(data.get("reference_url", "")).strip() or None,
+            "recorded_by": user.display_name,
+        },
+    )
+    return _evidence_from_audit(event)
+
+
+def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     fields = config["fields"]
     missing_fields = [
         field["key"]
@@ -328,7 +368,18 @@ def _preflight_item(config: dict) -> dict:
         if field["configured"]
     ]
     last_test_status = config.get("last_test_status")
-    if config["healthy"]:
+    sandbox_evidence = [
+        evidence_by_test.get(_sandbox_test_key(test), _empty_evidence(test))
+        for test in config["sandbox_tests"]
+    ]
+    passed_evidence_count = sum(
+        1 for item in sandbox_evidence if item["status"] == "passed"
+    )
+    sandbox_complete = (
+        len(sandbox_evidence) > 0
+        and passed_evidence_count == len(sandbox_evidence)
+    )
+    if config["healthy"] and sandbox_complete:
         status = "ready"
     elif missing_fields:
         status = "missing"
@@ -343,6 +394,8 @@ def _preflight_item(config: dict) -> dict:
         blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
     if status == "staged":
         blockers.append("Credentials are staged, but sandbox evidence is still pending.")
+    if not missing_fields and not sandbox_complete:
+        blockers.append("Sandbox workflow evidence is incomplete.")
     steps = [
         {
             "key": "credentials",
@@ -375,8 +428,12 @@ def _preflight_item(config: dict) -> dict:
         {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
-            "status": "ready" if config["healthy"] else "pending",
-            "detail": "Complete and record sandbox workflow evidence before go-live.",
+            "status": "ready" if sandbox_complete else "pending",
+            "detail": (
+                "All sandbox workflow checks have recorded passing evidence."
+                if sandbox_complete
+                else f"{passed_evidence_count} of {len(sandbox_evidence)} sandbox checks have passing evidence."
+            ),
         },
     ]
     return {
@@ -390,12 +447,64 @@ def _preflight_item(config: dict) -> dict:
         "configured_fields": configured_fields,
         "workflows": config["workflows"],
         "sandbox_tests": config["sandbox_tests"],
+        "sandbox_evidence": sandbox_evidence,
         "blockers": blockers,
         "steps": steps,
         "docs": config["docs"],
         "last_tested_at": config.get("last_tested_at"),
         "last_test_status": last_test_status,
     }
+
+
+async def _sandbox_evidence_by_integration(db: AsyncSession, user: User) -> dict[str, dict[str, dict]]:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == SANDBOX_EVIDENCE_EVENT,
+            AuditLog.entity_type == "integration_config",
+        ).order_by(AuditLog.created_at.desc())
+    )
+    evidence: dict[str, dict[str, dict]] = {}
+    for event in result.scalars().all():
+        item = _evidence_from_audit(event)
+        integration = item["integration"]
+        test_key = item["test_key"]
+        evidence.setdefault(integration, {}).setdefault(test_key, item)
+    return evidence
+
+
+def _evidence_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "integration": payload.get("integration") or event.entity_id,
+        "test_key": payload.get("test_key") or _sandbox_test_key(payload.get("test_label", "")),
+        "test_label": payload.get("test_label", ""),
+        "status": payload.get("status", "passed"),
+        "notes": payload.get("notes") or "",
+        "reference_url": payload.get("reference_url"),
+        "recorded_by": payload.get("recorded_by"),
+        "recorded_at": event.created_at,
+    }
+
+
+def _empty_evidence(test_label: str) -> dict:
+    return {
+        "id": None,
+        "integration": None,
+        "test_key": _sandbox_test_key(test_label),
+        "test_label": test_label,
+        "status": "missing",
+        "notes": "",
+        "reference_url": None,
+        "recorded_by": None,
+        "recorded_at": None,
+    }
+
+
+def _sandbox_test_key(test_label: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", test_label.lower()).strip("_")
+    return slug or "sandbox_check"
 
 
 def _field_out(

@@ -73,3 +73,4 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 - Every integration should have required credentials captured from environment variables or setup drafts.
 - Run each connection test and resolve any failed result before go-live.
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
+- Passing evidence should include a short note and, when available, the vendor sandbox reference URL or ticket link.

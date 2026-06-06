@@ -81,6 +81,7 @@ export const ROUTES = {
   INTEGRATION_CONFIG: '/api/integrations/config',
   INTEGRATION_CONFIG_ITEM: (integration: string) => `/api/integrations/config/${integration}`,
   INTEGRATION_CONFIG_TEST: (integration: string) => `/api/integrations/config/${integration}/test`,
+  INTEGRATION_SANDBOX_EVIDENCE: (integration: string) => `/api/integrations/config/${integration}/sandbox-evidence`,
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_READINESS_SNAPSHOTS: '/api/operations/readiness-snapshots',
