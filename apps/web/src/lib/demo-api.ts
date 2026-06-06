@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -329,6 +329,48 @@ function operatorHealth(): OperatorHealth {
     },
     checks,
     recommended_actions,
+  };
+}
+
+function demoConfigCheck(
+  key: string,
+  category: string,
+  label: string,
+  ready: boolean,
+  severity: ProductionConfigCheck['severity'],
+  detail: string,
+  action: string,
+  env_vars: string[],
+  docs: string[],
+): ProductionConfigCheck {
+  return { key, category, label, ready, severity, detail, action, env_vars, docs };
+}
+
+function productionConfigAudit(): ProductionConfigAudit {
+  const checks: ProductionConfigCheck[] = [
+    demoConfigCheck('app_env', 'Infrastructure', 'Production environment mode', false, 'warning', 'Current APP_ENV is demo.', 'Set APP_ENV=production in the production secret store.', ['APP_ENV'], ['docs/operations/production-launch-checklist.md']),
+    demoConfigCheck('secret_key', 'Security', 'Unique API signing secret', false, 'critical', 'JWT signing uses the local/demo default in this workspace.', 'Generate and store a unique SECRET_KEY of at least 32 characters.', ['SECRET_KEY'], ['.env.production.example']),
+    demoConfigCheck('cors_origins', 'Security', 'Production HTTPS CORS origins', false, 'critical', 'Demo mode allows localhost origins.', 'Set CORS_ORIGINS to only production HTTPS app origin(s).', ['CORS_ORIGINS'], ['docs/operations/production-launch-checklist.md']),
+    demoConfigCheck('seed_endpoints', 'Security', 'Seed endpoints disabled', false, 'critical', 'Seed endpoints are available for local setup.', 'Set ALLOW_SEED_ENDPOINT=false before production launch.', ['ALLOW_SEED_ENDPOINT'], ['docs/operations/production-launch-checklist.md']),
+    demoConfigCheck('schema_migrations', 'Infrastructure', 'Explicit database migrations', false, 'critical', 'Demo mode can bootstrap schema automatically.', 'Set AUTO_CREATE_SCHEMA=false and run pnpm migrate:api during deploy.', ['AUTO_CREATE_SCHEMA'], ['scripts/migrate-api.sh', 'docs/operations/deployment-runbook.md']),
+    demoConfigCheck('object_storage_startup', 'Infrastructure', 'Object storage startup enforcement', true, 'critical', 'Object storage startup enforcement is enabled in local defaults.', 'Keep ENSURE_OBJECT_STORAGE_ON_STARTUP=true for production.', ['ENSURE_OBJECT_STORAGE_ON_STARTUP'], ['docs/operations/production-launch-checklist.md']),
+    demoConfigCheck('minio_credentials', 'Security', 'Production object-storage credentials', false, 'critical', 'Demo object storage uses local credentials and insecure transport.', 'Set production object-storage endpoint, credentials, bucket, and MINIO_SECURE=true.', ['MINIO_ENDPOINT', 'MINIO_ACCESS_KEY', 'MINIO_SECRET_KEY', 'MINIO_BUCKET', 'MINIO_SECURE'], ['.env.production.example', 'docs/operations/production-launch-checklist.md']),
+    demoConfigCheck('webhook_secret', 'Security', 'Webhook signing secret', false, 'critical', 'No production webhook shared secret is configured in demo mode.', 'Set WEBHOOK_SHARED_SECRET and configure vendors to send it.', ['WEBHOOK_SHARED_SECRET'], ['docs/integrations/vendor-adapter-plan.md']),
+    demoConfigCheck('communications_provider', 'Integrations', 'Production communications provider', false, 'warning', 'Current communications provider is demo.', 'Select the production SMS/email/portal provider and set COMMUNICATIONS_PROVIDER_API_KEY.', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], ['docs/integrations/vendor-adapter-plan.md']),
+  ];
+  const critical = checks.filter((item) => !item.ready && item.severity === 'critical').length;
+  const warnings = checks.filter((item) => !item.ready && item.severity === 'warning').length;
+  const ready = checks.filter((item) => item.ready).length;
+  return {
+    status: critical ? 'blocked' : warnings ? 'attention' : 'ready',
+    score: Math.round((ready / checks.length) * 100),
+    environment: 'demo',
+    generated_at: new Date().toISOString(),
+    critical_count: critical,
+    warning_count: warnings,
+    ready_count: ready,
+    total: checks.length,
+    checks,
   };
 }
 
@@ -1569,6 +1611,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/operator-health' && method === 'GET') {
     return operatorHealth() as T;
+  }
+  if (path === '/operations/production-config-audit' && method === 'GET') {
+    return productionConfigAudit() as T;
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;

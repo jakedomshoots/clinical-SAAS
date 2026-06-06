@@ -11,6 +11,12 @@ from app.models.patient_clinical import EncounterStatus, PatientEncounter
 from app.models.patient_document import PatientDocument, PatientDocumentStatus
 from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
+from app.config import (
+    DEFAULT_MINIO_ACCESS_KEY,
+    DEFAULT_MINIO_SECRET_KEY,
+    DEFAULT_SECRET_KEY,
+    settings,
+)
 from app.services import integration_config_service, user_service
 from app.services.audit_service import log_event
 from app.services.launch_readiness_service import launch_readiness
@@ -131,6 +137,127 @@ async def operator_health(db: AsyncSession, user: User) -> dict:
         },
         "checks": checks,
         "recommended_actions": recommended_actions,
+    }
+
+
+def production_config_audit() -> dict:
+    checks = [
+        _config_check(
+            "app_env",
+            "Infrastructure",
+            "Production environment mode",
+            settings.is_production,
+            "warning",
+            f"Current APP_ENV is {settings.app_env}.",
+            "Set APP_ENV=production in the production secret store.",
+            ["APP_ENV"],
+            ["docs/operations/production-launch-checklist.md"],
+        ),
+        _config_check(
+            "secret_key",
+            "Security",
+            "Unique API signing secret",
+            settings.secret_key != DEFAULT_SECRET_KEY and len(settings.secret_key) >= 32,
+            "critical",
+            "JWT signing must use a unique production secret of at least 32 characters.",
+            "Generate and store a new SECRET_KEY; never reuse the development default.",
+            ["SECRET_KEY"],
+            [".env.production.example"],
+        ),
+        _config_check(
+            "cors_origins",
+            "Security",
+            "Production HTTPS CORS origins",
+            _cors_origins_are_production_safe(),
+            "critical",
+            f"Configured CORS origins: {', '.join(settings.cors_origin_list) or 'none'}.",
+            "Set CORS_ORIGINS to only the production HTTPS app origin(s).",
+            ["CORS_ORIGINS"],
+            ["docs/operations/production-launch-checklist.md"],
+        ),
+        _config_check(
+            "seed_endpoints",
+            "Security",
+            "Seed endpoints disabled",
+            not settings.allow_seed_endpoint,
+            "critical",
+            "Seed endpoints can create local/demo users and pilot data.",
+            "Set ALLOW_SEED_ENDPOINT=false before production launch.",
+            ["ALLOW_SEED_ENDPOINT"],
+            ["docs/operations/production-launch-checklist.md"],
+        ),
+        _config_check(
+            "schema_migrations",
+            "Infrastructure",
+            "Explicit database migrations",
+            not settings.auto_create_schema,
+            "critical",
+            "Production should run Alembic migrations instead of auto-creating schema.",
+            "Set AUTO_CREATE_SCHEMA=false and run pnpm migrate:api during deploy.",
+            ["AUTO_CREATE_SCHEMA"],
+            ["scripts/migrate-api.sh", "docs/operations/deployment-runbook.md"],
+        ),
+        _config_check(
+            "object_storage_startup",
+            "Infrastructure",
+            "Object storage startup enforcement",
+            settings.ensure_object_storage_on_startup,
+            "critical",
+            "Startup should fail if object storage is missing or unreachable.",
+            "Set ENSURE_OBJECT_STORAGE_ON_STARTUP=true for production.",
+            ["ENSURE_OBJECT_STORAGE_ON_STARTUP"],
+            ["docs/operations/production-launch-checklist.md"],
+        ),
+        _config_check(
+            "minio_credentials",
+            "Security",
+            "Production object-storage credentials",
+            settings.minio_access_key != DEFAULT_MINIO_ACCESS_KEY
+            and settings.minio_secret_key != DEFAULT_MINIO_SECRET_KEY
+            and bool(settings.minio_endpoint)
+            and settings.minio_secure,
+            "critical",
+            "Object storage should use production credentials and secure transport.",
+            "Set production MINIO/S3 endpoint, access key, secret key, bucket, and MINIO_SECURE=true.",
+            ["MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET", "MINIO_SECURE"],
+            [".env.production.example", "docs/operations/production-launch-checklist.md"],
+        ),
+        _config_check(
+            "webhook_secret",
+            "Security",
+            "Webhook signing secret",
+            bool(settings.webhook_shared_secret) and len(settings.webhook_shared_secret) >= 16,
+            "critical",
+            "Inbound vendor callbacks require a shared signing secret.",
+            "Set WEBHOOK_SHARED_SECRET and configure vendors to send it.",
+            ["WEBHOOK_SHARED_SECRET"],
+            ["docs/integrations/vendor-adapter-plan.md"],
+        ),
+        _config_check(
+            "communications_provider",
+            "Integrations",
+            "Production communications provider",
+            settings.communications_provider != "demo" and bool(settings.communications_provider_api_key),
+            "warning",
+            f"Current communications provider is {settings.communications_provider}.",
+            "Select the production SMS/email/portal provider and set COMMUNICATIONS_PROVIDER_API_KEY.",
+            ["COMMUNICATIONS_PROVIDER", "COMMUNICATIONS_PROVIDER_API_KEY"],
+            ["docs/integrations/vendor-adapter-plan.md"],
+        ),
+    ]
+    critical = sum(1 for check in checks if not check["ready"] and check["severity"] == "critical")
+    warnings = sum(1 for check in checks if not check["ready"] and check["severity"] == "warning")
+    ready_count = sum(1 for check in checks if check["ready"])
+    return {
+        "status": "blocked" if critical else "attention" if warnings else "ready",
+        "score": round((ready_count / len(checks)) * 100) if checks else 0,
+        "environment": settings.app_env,
+        "generated_at": datetime.now(UTC),
+        "critical_count": critical,
+        "warning_count": warnings,
+        "ready_count": ready_count,
+        "total": len(checks),
+        "checks": checks,
     }
 
 
@@ -892,6 +1019,42 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "route": route,
         "captured_at": captured_at,
     }
+
+
+def _config_check(
+    key: str,
+    category: str,
+    label: str,
+    ready: bool,
+    severity: str,
+    detail: str,
+    action: str,
+    env_vars: list[str],
+    docs: list[str],
+) -> dict:
+    return {
+        "key": key,
+        "category": category,
+        "label": label,
+        "ready": bool(ready),
+        "severity": severity,
+        "detail": detail,
+        "action": action,
+        "env_vars": env_vars,
+        "docs": docs,
+    }
+
+
+def _cors_origins_are_production_safe() -> bool:
+    origins = settings.cors_origin_list
+    if not origins:
+        return False
+    for origin in origins:
+        if origin == "*" or origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1"):
+            return False
+        if not origin.startswith("https://"):
+            return False
+    return True
 
 
 def _operator_check(

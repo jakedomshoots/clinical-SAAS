@@ -6,6 +6,7 @@ Use this runbook after production credentials and infrastructure have been provi
 
 - Copy `.env.production.example` into the deployment secret store.
 - Replace every placeholder value.
+- Confirm `/api/operations/production-config-audit` has status `ready`.
 - Run `pnpm verify:local`.
 - Run `pnpm migrate:api` against the target database.
 

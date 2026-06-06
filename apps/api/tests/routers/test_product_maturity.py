@@ -697,6 +697,38 @@ async def test_operator_health_rollup_surfaces_production_signals(client, auth_h
 
 
 @pytest.mark.asyncio
+async def test_production_config_audit_flags_launch_settings(client, auth_headers):
+    response = await client.get("/api/operations/production-config-audit", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] in {"ready", "attention", "blocked"}
+    assert data["status"] == "blocked"
+    assert data["critical_count"] > 0
+    assert data["generated_at"]
+    check_keys = {check["key"] for check in data["checks"]}
+    assert {
+        "app_env",
+        "secret_key",
+        "cors_origins",
+        "seed_endpoints",
+        "schema_migrations",
+        "object_storage_startup",
+        "minio_credentials",
+        "webhook_secret",
+        "communications_provider",
+    } <= check_keys
+    assert all(check["action"] for check in data["checks"])
+    assert all(check["docs"] for check in data["checks"])
+    assert all(check["env_vars"] for check in data["checks"] if check["key"] != "communications_provider")
+
+    seed_check = next(check for check in data["checks"] if check["key"] == "seed_endpoints")
+    assert seed_check["ready"] is False
+    assert seed_check["severity"] == "critical"
+    assert "ALLOW_SEED_ENDPOINT" in seed_check["env_vars"]
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

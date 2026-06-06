@@ -46,7 +46,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 
 ### Manager/Admin
 
-- Use Operator Health in Operations to check production readiness, backup and restore freshness, integration-event failures, credential blockers, and launch evidence gaps.
+- Use Operator Health and Production Config Audit in Operations to check production readiness, unsafe launch settings, backup and restore freshness, integration-event failures, credential blockers, and launch evidence gaps.
 - Use Go-Live Packet for final manager review and sign-off, then use Launch Workplan to review open launch blockers, incident risks, credential preflight gaps, and assigned rehearsal work in one queue; save/export snapshots before and after rehearsal fixes.
 - Use Role Dry-Run Checklists to rehearse front desk, MA/nurse, provider, billing, and manager workflows before live integrations are connected; start a dry-run session, mark each item complete or blocked, and capture evidence notes.
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
@@ -71,6 +71,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Set `ALLOW_SEED_ENDPOINT=false`.
 - Provision admin users through the approved identity workflow and review role assignments.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
+- Confirm `/api/operations/production-config-audit` reports zero critical checks.
 - Configure vendor adapters listed in `docs/integrations/vendor-adapter-plan.md`.
 - Approve patient outreach consent policy and test queued, blocked, failed, and delivered callback states.
 - Confirm `/api/ready` reports `operational_status: ok`.

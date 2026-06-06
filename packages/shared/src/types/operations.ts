@@ -79,6 +79,30 @@ export interface OperatorHealth {
   recommended_actions: OperatorHealthAction[];
 }
 
+export interface ProductionConfigCheck {
+  key: string;
+  category: string;
+  label: string;
+  ready: boolean;
+  severity: 'critical' | 'warning';
+  detail: string;
+  action: string;
+  env_vars: string[];
+  docs: string[];
+}
+
+export interface ProductionConfigAudit {
+  status: 'ready' | 'attention' | 'blocked';
+  score: number;
+  environment: string;
+  generated_at: string;
+  critical_count: number;
+  warning_count: number;
+  ready_count: number;
+  total: number;
+  checks: ProductionConfigCheck[];
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;

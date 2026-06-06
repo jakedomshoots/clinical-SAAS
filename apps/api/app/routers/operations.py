@@ -15,6 +15,7 @@ from app.schemas.operations import (
     OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    ProductionConfigAuditOut,
     LaunchWorkplanOut,
     LaunchWorkplanSnapshotListOut,
     LaunchWorkplanSnapshotOut,
@@ -55,6 +56,13 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
 async def get_operator_health(db: DbDep, current_user: OpsUserDep):
     return OperatorHealthOut(
         **await operations_service.operator_health(db, current_user)
+    )
+
+
+@router.get("/production-config-audit", response_model=ProductionConfigAuditOut)
+async def get_production_config_audit(current_user: OpsUserDep):
+    return ProductionConfigAuditOut(
+        **operations_service.production_config_audit()
     )
 
 

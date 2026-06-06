@@ -51,6 +51,30 @@ class OperatorHealthOut(BaseModel):
     recommended_actions: list[OperatorHealthActionOut]
 
 
+class ProductionConfigCheckOut(BaseModel):
+    key: str
+    category: str
+    label: str
+    ready: bool
+    severity: str
+    detail: str
+    action: str
+    env_vars: list[str]
+    docs: list[str]
+
+
+class ProductionConfigAuditOut(BaseModel):
+    status: str
+    score: int
+    environment: str
+    generated_at: datetime
+    critical_count: int
+    warning_count: int
+    ready_count: int
+    total: int
+    checks: list[ProductionConfigCheckOut]
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

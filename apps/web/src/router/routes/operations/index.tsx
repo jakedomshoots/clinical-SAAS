@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CheckSquare,
   CheckCircle2,
+  LockKeyhole,
   PlugZap,
   Play,
   RefreshCw,
@@ -18,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -136,6 +137,10 @@ function OperationsPage() {
   const { data: operatorHealth } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'operator-health'],
     queryFn: () => api.get<OperatorHealth>(ROUTES.OPERATIONS_OPERATOR_HEALTH),
+  });
+  const { data: productionConfigAudit } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'production-config-audit'],
+    queryFn: () => api.get<ProductionConfigAudit>(ROUTES.OPERATIONS_PRODUCTION_CONFIG_AUDIT),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -417,6 +422,50 @@ function OperationsPage() {
                 )}
               </div>
             </aside>
+          </div>
+        </section>
+      )}
+
+      {productionConfigAudit && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <LockKeyhole className="h-4 w-4 text-accent-600" />
+                Production Config Audit
+              </h2>
+              <p className="text-xs text-clinic-500">{productionConfigAudit.environment} · {new Date(productionConfigAudit.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${productionConfigAudit.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : productionConfigAudit.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                {productionConfigAudit.status}
+              </span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{productionConfigAudit.score}%</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{productionConfigAudit.critical_count} critical</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{productionConfigAudit.warning_count} warning</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {productionConfigAudit.checks.map((check) => (
+              <div key={check.key} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-medium text-clinic-900">{check.label}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.ready ? 'border-accent-200 bg-accent-50 text-accent-800' : check.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {check.ready ? 'ready' : check.severity}
+                  </span>
+                </div>
+                <div className="mt-2 text-xs text-clinic-600">{check.action}</div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {check.env_vars.map((envVar) => (
+                    <span key={envVar} className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-clinic-500">{envVar}</span>
+                  ))}
+                </div>
+                <div className="mt-2 text-[11px] text-clinic-400">{check.docs.join(' · ')}</div>
+              </div>
+            ))}
           </div>
         </section>
       )}

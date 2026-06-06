@@ -13,6 +13,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `WEBHOOK_SHARED_SECRET` is unique, random, and shared only with trusted webhook senders.
 - `SECRET_KEY` is unique, random, and at least 32 characters.
 - `CORS_ORIGINS` contains only production HTTPS origins.
+- `/api/operations/production-config-audit` has status `ready` with zero critical checks.
 - `pnpm migrate:api` runs successfully during deployment.
 - `docs/operations/deployment-runbook.md` is reviewed and assigned to an owner.
 - `BASE_URL=<production-host> sh scripts/health-report.sh` succeeds from a trusted workstation.
