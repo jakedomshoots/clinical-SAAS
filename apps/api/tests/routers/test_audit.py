@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.services.auth_service import create_access_token, hash_password
+from app.services.audit_service import log_event
 from tests.conftest import headers_for, make_user
 
 
@@ -146,3 +147,77 @@ async def test_audit_export_is_scoped_to_user_organization(
     assert res.status_code == 200
     assert ",default," in res.text
     assert ",other-org," not in res.text
+
+
+@pytest.mark.asyncio
+async def test_audit_review_summary_groups_sensitive_events_by_category(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    await log_event(
+        db,
+        "patient_document.accessed",
+        "patient_document",
+        "doc-1",
+        payload={"patient_id": "patient-1"},
+    )
+    await log_event(
+        db,
+        "patient_document.download_handoff",
+        "patient_document",
+        "doc-1",
+        payload={"patient_id": "patient-1", "presigned": False},
+    )
+    await log_event(db, "assistant.task_created", "task", "task-1", payload={"patient_id": "patient-1"})
+    await log_event(db, "user.updated", "user", "user-1", payload={"role": "manager"})
+    await log_event(db, "patient_outreach.staged", "task", "task-2", payload={"patient_id": "patient-1"})
+    await log_event(db, "integration_event.retry", "integration_event", "event-1", payload={"integration": "ehr"})
+    await log_event(db, "task.created", "task", "task-3", payload={})
+
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-audit-review-admin@clinic.example.com",
+        organization_id="other-org",
+    )
+    await log_event(
+        db,
+        "patient_document.accessed",
+        "patient_document",
+        "other-doc",
+        actor_id=other_user.id,
+        payload={"patient_id": "other-patient"},
+    )
+
+    res = await client.get("/api/audit/review-summary", headers=auth_headers)
+
+    assert res.status_code == 200
+    data = res.json()
+    categories = {item["key"]: item for item in data["categories"]}
+    assert data["sensitive_event_count"] == 6
+    assert data["total_event_count"] == 7
+    assert categories["document_access"]["count"] == 2
+    assert categories["assistant_actions"]["count"] == 1
+    assert categories["user_administration"]["count"] == 1
+    assert categories["patient_outreach"]["count"] == 1
+    assert categories["integration_operations"]["count"] == 1
+    assert all(item["route"] for item in data["recommended_actions"])
+    document_action = next(item for item in data["recommended_actions"] if item["key"] == "document_access")
+    assert document_action["route"].startswith("/audit")
+
+
+@pytest.mark.asyncio
+async def test_audit_review_summary_requires_admin_or_manager(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    provider = await make_user(
+        db,
+        UserRole.provider,
+        "audit-review-provider@clinic.example.com",
+    )
+
+    res = await client.get("/api/audit/review-summary", headers=headers_for(provider))
+
+    assert res.status_code == 403

@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +7,59 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.redis_client import redis
+
+
+AUDIT_REVIEW_CATEGORIES = [
+    {
+        "key": "document_access",
+        "label": "Document access",
+        "event_types": ["patient_document.accessed", "patient_document.download_handoff"],
+        "severity": "critical",
+        "route": "/audit?entity_type=patient_document",
+        "action_label": "Review document access",
+    },
+    {
+        "key": "assistant_actions",
+        "label": "Assistant actions",
+        "event_types": [
+            "assistant.task_created",
+            "assistant.message_drafted",
+            "assistant.fax_match_staged",
+        ],
+        "severity": "warning",
+        "route": "/assistant-review",
+        "action_label": "Review assistant-confirmed actions",
+    },
+    {
+        "key": "user_administration",
+        "label": "User administration",
+        "event_types": ["user.created", "user.updated", "user.access_reviewed"],
+        "severity": "critical",
+        "route": "/staff",
+        "action_label": "Review staff access changes",
+    },
+    {
+        "key": "patient_outreach",
+        "label": "Patient outreach",
+        "event_types": ["patient_outreach.staged", "patient_outreach.callback"],
+        "severity": "warning",
+        "route": "/tasks",
+        "action_label": "Review patient outreach",
+    },
+    {
+        "key": "integration_operations",
+        "label": "Integration operations",
+        "event_types": [
+            "integration_event.retry",
+            "integration_config.updated",
+            "integration_config.connection_test",
+            "integration_config.sandbox_evidence",
+        ],
+        "severity": "warning",
+        "route": "/integrations",
+        "action_label": "Review integration changes",
+    },
+]
 
 
 async def log_event(
@@ -118,3 +172,64 @@ async def patient_access_history(db: AsyncSession, user, patient_id: str) -> tup
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
     rows = list(result.scalars().all())
     return rows, len(rows)
+
+
+async def review_summary(db: AsyncSession, user: User) -> dict:
+    total_event_count = (
+        await db.execute(
+            select(func.count(AuditLog.id)).where(AuditLog.organization_id == user.organization_id)
+        )
+    ).scalar() or 0
+
+    categories = []
+    sensitive_event_count = 0
+    for definition in AUDIT_REVIEW_CATEGORIES:
+        event_types = definition["event_types"]
+        count = (
+            await db.execute(
+                select(func.count(AuditLog.id)).where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type.in_(event_types),
+                )
+            )
+        ).scalar() or 0
+        latest = (
+            await db.execute(
+                select(func.max(AuditLog.created_at)).where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type.in_(event_types),
+                )
+            )
+        ).scalar_one_or_none()
+        sensitive_event_count += count
+        categories.append({
+            "key": definition["key"],
+            "label": definition["label"],
+            "count": count,
+            "severity": definition["severity"] if count else "clear",
+            "event_types": event_types,
+            "last_event_at": latest,
+            "route": definition["route"],
+        })
+
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        "total_event_count": total_event_count,
+        "sensitive_event_count": sensitive_event_count,
+        "categories": categories,
+        "recommended_actions": [
+            {
+                "key": category["key"],
+                "label": next(
+                    item["action_label"]
+                    for item in AUDIT_REVIEW_CATEGORIES
+                    if item["key"] == category["key"]
+                ),
+                "detail": f"{category['count']} sensitive audit event(s) need review.",
+                "severity": category["severity"],
+                "route": category["route"],
+            }
+            for category in categories
+            if category["count"] > 0
+        ],
+    }

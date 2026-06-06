@@ -52,6 +52,7 @@ export const ROUTES = {
   THREAD: (id: string) => `/api/messages/threads/${id}`,
   WS: '/api/ws',
   HEALTH: '/api/health',
+  AUDIT_REVIEW_SUMMARY: '/api/audit/review-summary',
   PATIENT_ACCESS_HISTORY: (id: string) => `/api/audit/patients/${id}/access-history`,
   ANALYTICS_SUMMARY: '/api/analytics/summary',
   ANALYTICS_DAILY_CLOSEOUT: '/api/analytics/daily-closeout',

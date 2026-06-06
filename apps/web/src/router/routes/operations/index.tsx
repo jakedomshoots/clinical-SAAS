@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -142,6 +142,10 @@ function OperationsPage() {
   const { data: assistantEvents } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'assistant-actions'],
     queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=8&event_type=assistant.task_created'),
+  });
+  const { data: auditReviewSummary } = useQuery({
+    queryKey: [...QUERY_KEYS.AUDIT, 'review-summary'],
+    queryFn: () => api.get<AuditReviewSummary>(ROUTES.AUDIT_REVIEW_SUMMARY),
   });
   const { data: analytics } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'analytics-summary'],
@@ -2080,6 +2084,50 @@ function OperationsPage() {
           <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
         </div>
       </section>
+
+      {auditReviewSummary && (
+        <section className="rounded-md border border-clinic-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-clinic-900">Audit Review Control</div>
+              <div className="mt-1 text-xs text-clinic-500">{auditReviewSummary.sensitive_event_count} sensitive event{auditReviewSummary.sensitive_event_count === 1 ? '' : 's'} across {auditReviewSummary.total_event_count} total audit rows</div>
+            </div>
+            <span className={`rounded-md border px-2 py-1 text-xs font-medium ${auditReviewSummary.sensitive_event_count ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+              {auditReviewSummary.recommended_actions.length} action{auditReviewSummary.recommended_actions.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-5">
+            {auditReviewSummary.categories.map((category) => (
+              <div key={category.key} className="rounded-md border border-clinic-100 bg-clinic-50 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-lg font-semibold text-clinic-900">{category.count}</div>
+                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${category.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : category.severity === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                    {category.severity}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs font-medium text-clinic-700">{category.label}</div>
+                <div className="mt-1 text-[11px] text-clinic-400">{category.last_event_at ? new Date(category.last_event_at).toLocaleString() : 'No events'}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {auditReviewSummary.recommended_actions.slice(0, 4).map((action) => (
+              <div key={action.key} className="rounded-md border border-clinic-100 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium text-clinic-900">{action.label}</div>
+                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {action.severity}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+              </div>
+            ))}
+            {auditReviewSummary.recommended_actions.length === 0 && (
+              <div className="rounded-md border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-800">No sensitive audit review actions are currently open.</div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="rounded-md border border-clinic-200 bg-white p-4">
         <div className="flex items-center justify-between gap-3">

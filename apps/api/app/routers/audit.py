@@ -9,10 +9,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import get_current_user, require_roles
 from app.models.user import User, UserRole
-from app.schemas.audit import AuditEventListOut, AuditEventOut, PatientAccessHistoryOut
-from app.services.audit_service import list_events, list_events_for_export, patient_access_history
+from app.schemas.audit import (
+    AuditEventListOut,
+    AuditEventOut,
+    AuditReviewSummaryOut,
+    PatientAccessHistoryOut,
+)
+from app.services.audit_service import (
+    list_events,
+    list_events_for_export,
+    patient_access_history,
+    review_summary,
+)
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
+
+
+@router.get("/review-summary", response_model=AuditReviewSummaryOut)
+async def get_audit_review_summary(
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
+):
+    return AuditReviewSummaryOut(**await review_summary(db, current_user))
 
 
 @router.get("", response_model=AuditEventListOut)

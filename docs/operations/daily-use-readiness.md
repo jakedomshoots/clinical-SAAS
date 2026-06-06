@@ -18,7 +18,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
 - Tasks includes Work Queue Control for open/in-progress/blocked work, urgent/high priority counts, overdue/due-today/unassigned/blocked work, role buckets, source buckets, next-action guidance, status filtering, and bulk assignment/start/block/complete controls.
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
-- Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
+- Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
 - Operations includes a live-use rehearsal board, Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/cutover evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
@@ -64,6 +64,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
+- Use Audit Review Control to review sensitive document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
 - Run backup and restore validation before any live-use rehearsal.
 
 ## Not Ready Without Real Credentials

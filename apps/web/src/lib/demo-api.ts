@@ -1,9 +1,16 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
 const now = new Date('2026-06-03T13:30:00-04:00');
 const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
+const AUDIT_REVIEW_CATEGORIES = [
+  { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
+  { key: 'assistant_actions', label: 'Assistant actions', event_types: ['assistant.task_created', 'assistant.message_drafted', 'assistant.fax_match_staged'], severity: 'warning' as const, route: '/assistant-review', action_label: 'Review assistant-confirmed actions' },
+  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
+  { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },
+  { key: 'integration_operations', label: 'Integration operations', event_types: ['integration_event.retry', 'integration_config.updated', 'integration_config.connection_test', 'integration_config.sandbox_evidence'], severity: 'warning' as const, route: '/integrations', action_label: 'Review integration changes' },
+];
 
 function iso(offsetHours = 0) {
   return new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
@@ -81,6 +88,39 @@ function accessReviewSummary(): UserAccessReviewSummary {
     privileged_without_mfa_count: data.filter((item) => item.findings.includes('privileged_mfa_missing')).length,
     inactive_count: demoUsers.filter((user) => !user.is_active).length,
     review_window_days: ACCESS_REVIEW_WINDOW_DAYS,
+  };
+}
+
+function auditReviewSummary(): AuditReviewSummary {
+  const categories = AUDIT_REVIEW_CATEGORIES.map((definition) => {
+    const rows = auditEvents.filter((event) => definition.event_types.includes(event.event_type));
+    return {
+      key: definition.key,
+      label: definition.label,
+      count: rows.length,
+      severity: rows.length ? definition.severity : 'clear' as const,
+      event_types: definition.event_types,
+      last_event_at: rows[0]?.created_at ?? null,
+      route: definition.route,
+    };
+  });
+  return {
+    generated_at: new Date().toISOString(),
+    total_event_count: auditEvents.length,
+    sensitive_event_count: categories.reduce((sum, category) => sum + category.count, 0),
+    categories,
+    recommended_actions: categories
+      .filter((category) => category.count > 0)
+      .map((category) => {
+        const definition = AUDIT_REVIEW_CATEGORIES.find((item) => item.key === category.key);
+        return {
+          key: category.key,
+          label: definition?.action_label ?? category.label,
+          detail: `${category.count} sensitive audit event(s) need review.`,
+          severity: category.severity,
+          route: category.route,
+        };
+      }),
   };
 }
 
@@ -3000,6 +3040,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const eventType = url.searchParams.get('event_type');
     const filtered = eventType ? auditEvents.filter((event) => event.event_type === eventType) : auditEvents;
     return { data: paginate(filtered, page, pageSize), total: filtered.length, page, page_size: pageSize } as T;
+  }
+
+  if (method === 'GET' && path === '/audit/review-summary') {
+    return auditReviewSummary() as T;
   }
 
   const patientAccessHistoryMatch = path.match(/^\/audit\/patients\/([^/]+)\/access-history$/);
