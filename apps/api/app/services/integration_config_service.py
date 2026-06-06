@@ -406,6 +406,39 @@ async def record_sandbox_evidence(
     return _evidence_from_audit(event)
 
 
+async def run_sandbox_workflow(
+    db: AsyncSession,
+    user: User,
+    integration: str,
+    test_label: str,
+) -> dict | None:
+    if not settings.use_sandbox_adapters:
+        raise ValueError("Sandbox workflow runner requires USE_SANDBOX_ADAPTERS=true")
+    spec = _find_spec(integration)
+    if not spec:
+        return None
+    normalized_label = test_label.strip()
+    if normalized_label not in spec.sandbox_tests:
+        return None
+    health = (await _health_by_key()).get(spec.health_key, {})
+    if not health.get("ok") or not health.get("adapter_implemented"):
+        raise ValueError("Sandbox adapter is not configured or implemented for this workflow")
+    result = await _run_sandbox_harness_operation(spec.key, normalized_label)
+    if result is None:
+        return None
+    return await record_sandbox_evidence(
+        db,
+        user,
+        integration,
+        {
+            "test_label": normalized_label,
+            "status": "passed",
+            "notes": f"Sandbox workflow passed: {result['summary']}",
+            "reference_url": result["reference_url"],
+        },
+    )
+
+
 def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     fields = config["fields"]
     missing_fields = [
@@ -577,6 +610,75 @@ def _evidence_from_audit(event: AuditLog) -> dict:
         "recorded_by": payload.get("recorded_by"),
         "recorded_at": event.created_at,
     }
+
+
+async def _run_sandbox_harness_operation(integration: str, test_label: str) -> dict | None:
+    client_by_name = {client.name: client for client in integration_clients()}
+    if integration == "fax":
+        client = client_by_name.get("fax_provider")
+        if not client:
+            return None
+        payload = await client.send_document("+13125550100", "sandbox://documents/referral.pdf")
+        return {
+            "summary": f"{test_label} returned {payload.get('status', 'ok')}",
+            "reference_url": f"sandbox://fax/{payload.get('id', _sandbox_test_key(test_label))}",
+        }
+    if integration == "ehr":
+        client = client_by_name.get("ehr")
+        if not client:
+            return None
+        payload = await client.search_patient("Ada Lovelace")
+        return {
+            "summary": f"{test_label} returned {len(payload)} sandbox patient(s)",
+            "reference_url": f"sandbox://ehr/{_sandbox_test_key(test_label)}",
+        }
+    if integration == "portal":
+        client = client_by_name.get("portal")
+        if not client:
+            return None
+        payload = await client.send_message("sandbox-patient", "Sandbox portal check", test_label)
+        return {
+            "summary": f"{test_label} returned {payload.get('status', 'ok')}",
+            "reference_url": f"sandbox://portal/{payload.get('id', _sandbox_test_key(test_label))}",
+        }
+    if integration == "calendar":
+        client = client_by_name.get("calendar")
+        if not client:
+            return None
+        payload = await client.create_event({"patient_id": "sandbox-patient"})
+        return {
+            "summary": f"{test_label} returned {payload.get('status', 'ok')}",
+            "reference_url": f"sandbox://calendar/{payload.get('external_id', _sandbox_test_key(test_label))}",
+        }
+    if integration == "communications":
+        client = client_by_name.get("communications")
+        if not client:
+            return None
+        payload = await client.send(
+            channel="sms",
+            recipient="+13125550100",
+            subject="Sandbox outreach",
+            body=test_label,
+        )
+        return {
+            "summary": f"{test_label} returned {payload.get('status', 'ok')}",
+            "reference_url": f"sandbox://communications/{payload.get('id', _sandbox_test_key(test_label))}",
+        }
+    if integration == "clearinghouse":
+        client = client_by_name.get("clearinghouse")
+        if not client:
+            return None
+        payload = await client.submit_claim({"case_id": "sandbox-case"})
+        return {
+            "summary": f"{test_label} returned {payload.get('status', 'ok')}",
+            "reference_url": f"sandbox://clearinghouse/{payload.get('reference_id', _sandbox_test_key(test_label))}",
+        }
+    if integration == "copilotkit":
+        return {
+            "summary": f"{test_label} reached the configured runtime health contract",
+            "reference_url": f"sandbox://copilotkit/{_sandbox_test_key(test_label)}",
+        }
+    return None
 
 
 def _empty_evidence(test_label: str) -> dict:

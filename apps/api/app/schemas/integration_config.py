@@ -116,3 +116,7 @@ class SandboxEvidenceCreate(BaseModel):
     status: str = "passed"
     notes: str = ""
     reference_url: str | None = None
+
+
+class SandboxWorkflowRunCreate(BaseModel):
+    test_label: str

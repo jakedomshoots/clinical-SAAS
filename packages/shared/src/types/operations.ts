@@ -886,6 +886,10 @@ export interface SandboxEvidence {
   recorded_at: string | null;
 }
 
+export interface SandboxWorkflowRunCreate {
+  test_label: string;
+}
+
 export interface CredentialPreflightItem {
   key: string;
   label: string;

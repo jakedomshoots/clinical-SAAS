@@ -11,6 +11,7 @@ import {
   type IntegrationConnectionTestResult,
   type SandboxEvidence,
   type SandboxEvidenceCreate,
+  type SandboxWorkflowRunCreate,
 } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -52,6 +53,14 @@ function IntegrationsPage() {
   const evidenceMutation = useMutation({
     mutationFn: ({ integration, data }: { integration: string; data: SandboxEvidenceCreate }) =>
       api.post<SandboxEvidence>(ROUTES.INTEGRATION_SANDBOX_EVIDENCE(integration), data),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const runSandboxMutation = useMutation({
+    mutationFn: ({ integration, data }: { integration: string; data: SandboxWorkflowRunCreate }) =>
+      api.post<SandboxEvidence>(ROUTES.INTEGRATION_SANDBOX_WORKFLOW_RUN(integration), data),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
@@ -189,7 +198,12 @@ function IntegrationsPage() {
                       integration: config.key,
                       data: evidenceDraft(config.key, testLabel),
                     })}
+                    onRunSandbox={(testLabel) => runSandboxMutation.mutate({
+                      integration: config.key,
+                      data: { test_label: testLabel },
+                    })}
                     recording={evidenceMutation.isPending}
+                    running={runSandboxMutation.isPending}
                   />
                 )}
                 <button
@@ -230,13 +244,17 @@ function CredentialPreflightPanel({
   evidenceDraft,
   onDraftChange,
   onRecord,
+  onRunSandbox,
   recording,
+  running,
 }: {
   item: CredentialPreflightItem;
   evidenceDraft: (testLabel: string) => SandboxEvidenceCreate;
   onDraftChange: (testLabel: string, update: Partial<SandboxEvidenceCreate>) => void;
   onRecord: (testLabel: string) => void;
+  onRunSandbox: (testLabel: string) => void;
   recording: boolean;
+  running: boolean;
 }) {
   return (
     <div className="mt-4 rounded-md border border-clinic-200 bg-clinic-50 p-3">
@@ -333,9 +351,17 @@ function CredentialPreflightPanel({
                 type="button"
                 onClick={() => onRecord(evidence.test_label)}
                 disabled={recording || evidenceDraft(evidence.test_label).notes.trim().length < 3}
-                className="rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50 md:col-span-2"
+                className="rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Record evidence
+              </button>
+              <button
+                type="button"
+                onClick={() => onRunSandbox(evidence.test_label)}
+                disabled={running || item.adapter_method_ready_count < item.adapter_method_total}
+                className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Run sandbox
               </button>
             </div>
           </div>

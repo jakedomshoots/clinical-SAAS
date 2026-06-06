@@ -5,6 +5,7 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 The Integration Setup screen and `/api/integrations/credential-preflight` publish the same adapter contract methods listed below. A vendor lane is not live-ready until every required method is implemented, the connection test passes, and sandbox workflow evidence is recorded.
 
 For local contract rehearsal before real credentials are available, `USE_SANDBOX_ADAPTERS=true` swaps the placeholder clients for deterministic sandbox harnesses. Keep this disabled in production; sandbox adapters prove app-side wiring only, not vendor connectivity.
+When sandbox adapters are enabled, Integration Setup can run each sandbox workflow through `/api/integrations/config/{integration}/sandbox-workflows/run` and record passing audit-backed evidence automatically.
 
 ## EHR
 
@@ -80,5 +81,6 @@ For local contract rehearsal before real credentials are available, `USE_SANDBOX
 - Inbound callbacks must send `X-Concierge-Webhook-Secret`, `X-Concierge-Webhook-Timestamp`, `X-Concierge-Webhook-Signature`, and a stable vendor `event_id`; sign `timestamp.raw_body` with `WEBHOOK_SHARED_SECRET` as `sha256=<hmac>`. Stale timestamps outside the replay window, invalid signatures, and callbacks without `event_id` are rejected.
 - Run each connection test and resolve any failed result before go-live.
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
+- In local sandbox-adapter mode, use the workflow runner to generate evidence directly from the harness before replacing it with real vendor sandbox references.
 - Passing evidence must include a short note or vendor sandbox reference URL/ticket link; empty pass records are rejected.
 - Failed sandbox evidence blocks credential preflight until the vendor issue is resolved and a new passing evidence record is captured.

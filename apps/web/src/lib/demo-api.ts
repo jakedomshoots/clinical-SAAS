@@ -3155,6 +3155,39 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     saveDemoData();
     return evidence as T;
   }
+  const sandboxWorkflowRunMatch = path.match(/^\/integrations\/config\/([^/]+)\/sandbox-workflows\/run$/);
+  if (sandboxWorkflowRunMatch && method === 'POST') {
+    const integration = sandboxWorkflowRunMatch[1];
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    const incoming = body as { test_label: string };
+    if (!config || !(config.sandbox_tests as readonly string[]).includes(incoming.test_label)) throw new Error('Integration sandbox workflow not found');
+    const evidence: SandboxEvidence = {
+      id: uuid(4200 + Object.values(integrationSandboxEvidence).reduce((total, items) => total + Object.keys(items).length, 0)),
+      integration,
+      test_key: demoSandboxTestKey(incoming.test_label),
+      test_label: incoming.test_label,
+      status: 'passed',
+      notes: `Sandbox workflow passed: ${incoming.test_label} returned ok`,
+      reference_url: `sandbox://${integration}/${demoSandboxTestKey(incoming.test_label)}`,
+      recorded_by: 'Clinic Admin',
+      recorded_at: new Date().toISOString(),
+    };
+    integrationSandboxEvidence = {
+      ...integrationSandboxEvidence,
+      [integration]: {
+        ...(integrationSandboxEvidence[integration] ?? {}),
+        [evidence.test_key]: evidence,
+      },
+    };
+    logDemoEvent({
+      event_type: 'integration.sandbox_evidence',
+      entity_type: 'integration_config',
+      entity_id: integration,
+      payload: { ...evidence, source: 'sandbox_workflow_runner' },
+    });
+    saveDemoData();
+    return evidence as T;
+  }
   const integrationConfigMatch = path.match(/^\/integrations\/config\/([^/]+)$/);
   if (integrationConfigMatch && method === 'PATCH') {
     const integration = integrationConfigMatch[1];
