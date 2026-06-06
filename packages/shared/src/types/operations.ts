@@ -68,6 +68,34 @@ export interface ReadinessSnapshotList {
   total: number;
 }
 
+export interface RehearsalGate {
+  key: string;
+  label: string;
+  status: 'ready' | 'warning' | 'blocking';
+  score: number;
+  detail: string;
+  route: string;
+}
+
+export interface RehearsalAction {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  severity: 'warning' | 'blocking';
+}
+
+export interface ProductionRehearsalReport {
+  status: 'ready' | 'attention';
+  rehearsal_ready: boolean;
+  score: number;
+  blocking_count: number;
+  warning_count: number;
+  generated_at: string;
+  gates: RehearsalGate[];
+  recommended_actions: RehearsalAction[];
+}
+
 export interface IntegrationCapabilities {
   [key: string]: {
     label?: string;

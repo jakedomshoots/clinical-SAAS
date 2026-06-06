@@ -59,5 +59,6 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Browser QA covers login, patients, tasks, schedule, faxes, messages, audit export, and assistant actions.
 - Browser QA covers Command Center queue blockers, patient Documents, Meds, and Care Plan actions.
 - Browser QA covers staff admin, task outreach staging, document preview/download modes, and schedule conflict handling.
+- `/api/operations/production-rehearsal` has been reviewed and every blocking gate has an assigned owner before the rehearsal starts.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

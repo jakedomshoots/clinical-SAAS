@@ -5,7 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
 from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
+from app.models.patient_clinical import EncounterStatus, PatientEncounter
+from app.models.patient_document import PatientDocument, PatientDocumentStatus
+from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
+from app.services import integration_config_service, user_service
 from app.services.audit_service import log_event
 from app.services.launch_readiness_service import launch_readiness
 from app.services.readiness_service import check_readiness
@@ -62,6 +66,143 @@ async def list_readiness_snapshots(db: AsyncSession, user: User) -> tuple[list[d
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(25))
     return [_snapshot_from_audit(item) for item in result.scalars().all()], total
+
+
+async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
+    readiness = await check_readiness()
+    launch = await launch_readiness()
+    incidents = await incident_register(db, user)
+    preflight = await integration_config_service.credential_preflight(db, user)
+    access_review = await user_service.access_review_summary(db, user)
+    closeout = await _rehearsal_closeout_status(db, user)
+    deployment = readiness.get("deployment", {})
+    gates = [
+        _gate(
+            "core_readiness",
+            "Core readiness",
+            "ready" if readiness.get("status") == "ok" else "blocking",
+            100 if readiness.get("status") == "ok" else 0,
+            f"Core status is {readiness.get('status', 'unknown')}.",
+            "/operations",
+        ),
+        _gate(
+            "daily_closeout",
+            "Daily closeout",
+            "ready" if closeout["status"] == "clear" else "blocking",
+            closeout["score"],
+            closeout["detail"],
+            "/reports",
+        ),
+        _gate(
+            "incident_register",
+            "Incident register",
+            "ready" if incidents["critical_count"] == 0 else "blocking",
+            max(0, 100 - incidents["critical_count"] * 25 - incidents["warning_count"] * 10),
+            f"{incidents['critical_count']} critical and {incidents['warning_count']} warning incident(s) are open.",
+            "/operations",
+        ),
+        _gate(
+            "launch_readiness",
+            "Launch readiness",
+            "ready" if launch["critical_blockers"] == 0 else "blocking",
+            launch["score"],
+            f"{launch['critical_blockers']} critical launch blocker(s), {launch['warnings']} warning(s).",
+            "/setup",
+        ),
+        _gate(
+            "credential_preflight",
+            "Credential preflight",
+            "ready" if preflight["blocking_count"] == 0 else "blocking",
+            round((preflight["ready_count"] / preflight["total"]) * 100) if preflight["total"] else 0,
+            f"{preflight['blocking_count']} missing or blocked integration item(s), {preflight['staged_count']} staged.",
+            "/integrations",
+        ),
+        _gate(
+            "access_review",
+            "Access review",
+            "ready" if access_review["due_count"] == 0 and access_review["privileged_without_mfa_count"] == 0 else "blocking",
+            max(0, 100 - access_review["due_count"] * 15 - access_review["privileged_without_mfa_count"] * 20),
+            f"{access_review['due_count']} access review item(s) due; {access_review['privileged_without_mfa_count']} privileged account(s) without MFA.",
+            "/staff",
+        ),
+        _gate(
+            "backup_restore",
+            "Backup and restore",
+            "ready"
+            if deployment.get("latest_backup", {}).get("ok") and deployment.get("latest_restore", {}).get("ok")
+            else "warning",
+            100
+            if deployment.get("latest_backup", {}).get("ok") and deployment.get("latest_restore", {}).get("ok")
+            else 50
+            if deployment.get("latest_backup", {}).get("ok")
+            else 0,
+            _backup_restore_detail(deployment),
+            "/operations",
+        ),
+    ]
+    blocking = sum(1 for gate in gates if gate["status"] == "blocking")
+    warnings = sum(1 for gate in gates if gate["status"] == "warning")
+    score = round(sum(gate["score"] for gate in gates) / len(gates)) if gates else 0
+    return {
+        "status": "ready" if blocking == 0 else "attention",
+        "rehearsal_ready": blocking == 0,
+        "score": score,
+        "blocking_count": blocking,
+        "warning_count": warnings,
+        "generated_at": datetime.now(UTC),
+        "gates": gates,
+        "recommended_actions": [
+            {
+                "key": gate["key"],
+                "label": f"Resolve {gate['label']}",
+                "detail": gate["detail"],
+                "route": gate["route"],
+                "severity": gate["status"],
+            }
+            for gate in gates
+            if gate["status"] != "ready"
+        ],
+    }
+
+
+async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
+    org = user.organization_id
+
+    async def count(model, *clauses) -> int:
+        result = await db.execute(select(func.count(model.id)).where(model.organization_id == org, *clauses))
+        return result.scalar() or 0
+
+    urgent_tasks = await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress]), Task.priority == TaskPriority.urgent)
+    documents = await count(PatientDocument, PatientDocument.status == PatientDocumentStatus.needs_review)
+    unsigned = await count(PatientEncounter, PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]))
+    failed_integrations = await count(IntegrationEvent, IntegrationEvent.status == IntegrationEventStatus.failed)
+    blockers = urgent_tasks + documents + unsigned + failed_integrations
+    return {
+        "status": "clear" if blockers == 0 else "attention",
+        "score": max(0, 100 - blockers * 10),
+        "detail": f"{urgent_tasks} urgent task(s), {documents} document(s), {unsigned} unsigned encounter(s), {failed_integrations} failed integration event(s).",
+    }
+
+
+def _gate(key: str, label: str, status: str, score: int, detail: str, route: str) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "score": max(0, min(100, int(score))),
+        "detail": detail,
+        "route": route,
+    }
+
+
+def _backup_restore_detail(deployment: dict) -> str:
+    backup = deployment.get("latest_backup", {})
+    restore = deployment.get("latest_restore", {})
+    if backup.get("ok") and restore.get("ok"):
+        return "Latest backup and restore evidence are present."
+    if backup.get("ok"):
+        return "Backup evidence exists, but restore validation is missing."
+    return "Backup and restore validation evidence is missing."
 
 
 def _readiness_incidents(readiness: dict) -> list[dict]:

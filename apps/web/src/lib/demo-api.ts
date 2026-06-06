@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -230,6 +230,83 @@ function operationsIncidents(): OperationsIncidentList {
     critical_count: incidents.filter((item) => item.severity === 'critical').length,
     warning_count: incidents.filter((item) => item.severity === 'warning').length,
     generated_at: new Date().toISOString(),
+  };
+}
+
+function productionRehearsalReport(): ProductionRehearsalReport {
+  const closeout = dailyCloseout();
+  const incidents = operationsIncidents();
+  const accessReview = accessReviewSummary();
+  const preflight = demoCredentialPreflight();
+  const gates = [
+    {
+      key: 'core_readiness',
+      label: 'Core readiness',
+      status: 'ready' as const,
+      score: 100,
+      detail: 'Demo core services are available.',
+      route: '/operations',
+    },
+    {
+      key: 'daily_closeout',
+      label: 'Daily closeout',
+      status: closeout.status === 'clear' ? 'ready' as const : 'blocking' as const,
+      score: Math.max(0, 100 - closeout.risk_register.length * 15),
+      detail: `${closeout.risk_register.length} closeout risk(s) are open.`,
+      route: '/reports',
+    },
+    {
+      key: 'incident_register',
+      label: 'Incident register',
+      status: incidents.critical_count === 0 ? 'ready' as const : 'blocking' as const,
+      score: Math.max(0, 100 - incidents.critical_count * 25 - incidents.warning_count * 10),
+      detail: `${incidents.critical_count} critical and ${incidents.warning_count} warning incident(s) are open.`,
+      route: '/operations',
+    },
+    {
+      key: 'credential_preflight',
+      label: 'Credential preflight',
+      status: preflight.blocking_count === 0 ? 'ready' as const : 'blocking' as const,
+      score: preflight.total ? Math.round((preflight.ready_count / preflight.total) * 100) : 0,
+      detail: `${preflight.blocking_count} missing or blocked integration item(s), ${preflight.staged_count} staged.`,
+      route: '/integrations',
+    },
+    {
+      key: 'access_review',
+      label: 'Access review',
+      status: accessReview.due_count === 0 && accessReview.privileged_without_mfa_count === 0 ? 'ready' as const : 'blocking' as const,
+      score: Math.max(0, 100 - accessReview.due_count * 15 - accessReview.privileged_without_mfa_count * 20),
+      detail: `${accessReview.due_count} access review item(s) due; ${accessReview.privileged_without_mfa_count} privileged account(s) without MFA.`,
+      route: '/staff',
+    },
+    {
+      key: 'backup_restore',
+      label: 'Backup and restore',
+      status: 'warning' as const,
+      score: 0,
+      detail: 'Backup and restore validation evidence is missing in demo mode.',
+      route: '/operations',
+    },
+  ];
+  const blocking = gates.filter((gate) => gate.status === 'blocking').length;
+  const warnings = gates.filter((gate) => gate.status === 'warning').length;
+  return {
+    status: blocking === 0 ? 'ready' : 'attention',
+    rehearsal_ready: blocking === 0,
+    score: Math.round(gates.reduce((total, gate) => total + gate.score, 0) / gates.length),
+    blocking_count: blocking,
+    warning_count: warnings,
+    generated_at: new Date().toISOString(),
+    gates,
+    recommended_actions: gates
+      .filter((gate): gate is typeof gates[number] & { status: 'warning' | 'blocking' } => gate.status !== 'ready')
+      .map((gate) => ({
+        key: gate.key,
+        label: `Resolve ${gate.label}`,
+        detail: gate.detail,
+        route: gate.route,
+        severity: gate.status,
+      })),
   };
 }
 
@@ -949,6 +1026,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/operations/incidents' && method === 'GET') {
     return operationsIncidents() as T;
+  }
+  if (path === '/operations/production-rehearsal' && method === 'GET') {
+    return productionRehearsalReport() as T;
   }
   if (path === '/operations/readiness-snapshots' && method === 'POST') {
     const incidents = operationsIncidents();

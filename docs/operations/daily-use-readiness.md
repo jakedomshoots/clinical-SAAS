@@ -17,6 +17,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
+- Operations includes a production rehearsal report that combines readiness, incidents, closeout, credential preflight, access review, and backup/restore gates.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -85,6 +86,7 @@ An internal clinic pilot is ready when:
 - Staff can complete a dry-run day from Command Center through checkout, documents, messaging, faxes, billing, operations, and reports.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
 - Managers can export audit data, retry failed integration events, and inspect readiness.
+- Managers can review the production rehearsal report before scheduling a live-use dry run.
 
 ## Recommended Next Build Items For Production
 

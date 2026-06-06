@@ -395,6 +395,29 @@ async def test_operations_incidents_and_readiness_snapshots(client, auth_headers
 
 
 @pytest.mark.asyncio
+async def test_production_rehearsal_report_contract(client, auth_headers):
+    rehearsal = await client.get("/api/operations/production-rehearsal", headers=auth_headers)
+
+    assert rehearsal.status_code == 200
+    data = rehearsal.json()
+    assert data["status"] in {"ready", "attention"}
+    assert data["score"] >= 0
+    assert data["blocking_count"] >= 0
+    gate_keys = {gate["key"] for gate in data["gates"]}
+    assert {
+        "core_readiness",
+        "daily_closeout",
+        "incident_register",
+        "launch_readiness",
+        "credential_preflight",
+        "access_review",
+        "backup_restore",
+    } <= gate_keys
+    assert all(gate["route"] for gate in data["gates"])
+    assert all(action["route"] for action in data["recommended_actions"])
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

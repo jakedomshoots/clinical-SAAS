@@ -38,3 +38,31 @@ class ReadinessSnapshotOut(BaseModel):
 class ReadinessSnapshotListOut(BaseModel):
     data: list[ReadinessSnapshotOut]
     total: int
+
+
+class RehearsalGateOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    score: int
+    detail: str
+    route: str
+
+
+class RehearsalActionOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    severity: str
+
+
+class ProductionRehearsalReportOut(BaseModel):
+    status: str
+    rehearsal_ready: bool
+    score: int
+    blocking_count: int
+    warning_count: int
+    generated_at: datetime
+    gates: list[RehearsalGateOut]
+    recommended_actions: list[RehearsalActionOut]

@@ -85,6 +85,7 @@ export const ROUTES = {
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_READINESS_SNAPSHOTS: '/api/operations/readiness-snapshots',
+  OPERATIONS_PRODUCTION_REHEARSAL: '/api/operations/production-rehearsal',
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

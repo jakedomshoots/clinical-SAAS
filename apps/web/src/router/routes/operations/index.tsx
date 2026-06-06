@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { Link, createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ProductionRehearsalReport, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -118,6 +118,10 @@ function OperationsPage() {
     queryKey: QUERY_KEYS.READINESS_SNAPSHOTS,
     queryFn: () => api.get<ReadinessSnapshotList>(ROUTES.OPERATIONS_READINESS_SNAPSHOTS),
   });
+  const { data: rehearsal } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'],
+    queryFn: () => api.get<ProductionRehearsalReport>(ROUTES.OPERATIONS_PRODUCTION_REHEARSAL),
+  });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
     onSuccess: async () => {
@@ -157,6 +161,50 @@ function OperationsPage() {
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
         </div>
       </header>
+
+      {rehearsal && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Production Rehearsal</h2>
+              <p className="text-xs text-clinic-500">{new Date(rehearsal.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusBadge ok={rehearsal.rehearsal_ready} label={rehearsal.rehearsal_ready ? 'Ready' : 'Attention'} />
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{rehearsal.score}%</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {rehearsal.gates.map((gate) => (
+                <Link key={gate.key} to={gate.route} className="rounded-md border border-clinic-100 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-clinic-900">{gate.label}</span>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                      {gate.score}%
+                    </span>
+                  </div>
+                  <div className="mt-2 text-xs text-clinic-500">{gate.detail}</div>
+                </Link>
+              ))}
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Rehearsal actions</div>
+              <div className="divide-y divide-clinic-100">
+                {rehearsal.recommended_actions.slice(0, 5).map((action) => (
+                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
+                    <div className="text-sm font-medium text-clinic-900">{action.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{action.detail}</div>
+                  </Link>
+                ))}
+                {rehearsal.recommended_actions.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No rehearsal blockers.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-3 lg:grid-cols-3">
         <div className="rounded-md border border-clinic-200 bg-white p-4">

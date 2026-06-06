@@ -9,6 +9,7 @@ from app.models.user import User, UserRole
 from app.schemas.operations import (
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    ProductionRehearsalReportOut,
     ReadinessSnapshotListOut,
     ReadinessSnapshotOut,
 )
@@ -29,6 +30,13 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
         critical_count=result["critical_count"],
         warning_count=result["warning_count"],
         generated_at=result["generated_at"],
+    )
+
+
+@router.get("/production-rehearsal", response_model=ProductionRehearsalReportOut)
+async def get_production_rehearsal_report(db: DbDep, current_user: OpsUserDep):
+    return ProductionRehearsalReportOut(
+        **await operations_service.production_rehearsal_report(db, current_user)
     )
 
 
