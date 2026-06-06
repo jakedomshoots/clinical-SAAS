@@ -403,6 +403,28 @@ async def export_integration_cutover_readiness_packet(db: DbDep, current_user: O
 
 
 @router.post(
+    "/integration-cutover-readiness-packet/{integration}/assignment",
+    response_model=RehearsalActionAssignmentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def assign_integration_cutover_lane(
+    integration: str,
+    data: RehearsalActionAssignmentUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    assignment = await operations_service.assign_integration_cutover_lane(
+        db,
+        current_user,
+        integration,
+        data.model_dump(),
+    )
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration cutover lane not found")
+    return RehearsalActionAssignmentOut(**assignment)
+
+
+@router.post(
     "/credential-dry-run-binder/snapshots",
     response_model=CredentialBinderSnapshotOut,
     status_code=status.HTTP_201_CREATED,

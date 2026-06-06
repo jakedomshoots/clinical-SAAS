@@ -740,6 +740,7 @@ class IntegrationCutoverReadinessItemOut(BaseModel):
     blockers: list[str]
     next_actions: list[str]
     route: str
+    assignment: RehearsalActionAssignmentOut | None = None
 
 
 class IntegrationCutoverReadinessPacketOut(BaseModel):

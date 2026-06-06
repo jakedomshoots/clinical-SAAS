@@ -1494,6 +1494,18 @@ function launchWorkplan(): LaunchWorkplan {
       recommended_action: 'Complete missing credential fields, connection test, and sandbox evidence.',
       assignment: credentialAssignment,
     })),
+    ...integrationCutoverReadinessPacket().items.filter((lane) => lane.cutover_status !== 'ready').map((lane) => ({
+      key: `cutover_${lane.integration}`,
+      source: 'integration_cutover' as const,
+      category: 'Integrations',
+      label: `${lane.label} cutover`,
+      detail: (lane.blockers[0] ?? lane.next_actions[0] ?? `${lane.label} cutover needs go/no-go review.`),
+      severity: lane.cutover_status === 'blocked' ? 'blocking' as const : 'warning' as const,
+      route: '/integrations',
+      owner_role: 'operations',
+      recommended_action: 'Assign an integration owner and clear adapter, credential, handoff, risk, and cutover evidence gaps.',
+      assignment: lane.assignment,
+    })),
   ].sort((a, b) => (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1) || a.category.localeCompare(b.category) || a.label.localeCompare(b.label));
   return {
     status: items.length ? 'attention' : 'clear',
@@ -1988,6 +2000,7 @@ function integrationCutoverReadinessPacket(): IntegrationCutoverReadinessPacket 
       blockers,
       next_actions: nextActions,
       route: '/integrations',
+      assignment: integrationCutoverAssignments[preflightItem.key] ?? null,
     };
   });
   const readyCount = items.filter((item) => item.cutover_status === 'ready').length;
@@ -2540,6 +2553,37 @@ function assignProductionRehearsalAction(actionKey: string, data: RehearsalActio
   return assignment;
 }
 
+function assignIntegrationCutoverLane(integration: string, data: RehearsalActionAssignmentUpdate): RehearsalActionAssignment | null {
+  const lane = integrationCutoverReadinessPacket().items.find((item) => item.integration === integration);
+  if (!lane) return null;
+  const assignment: RehearsalActionAssignment = {
+    id: uuid(2600 + Object.keys(integrationCutoverAssignments).length),
+    action_key: integration,
+    owner_id: data.owner_id ?? null,
+    owner_name: data.owner_name,
+    status: data.status,
+    due_date: data.due_date ?? null,
+    note: data.note ?? null,
+    assigned_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    assigned_at: new Date().toISOString(),
+  };
+  integrationCutoverAssignments[integration] = assignment;
+  logDemoEvent({
+    event_type: 'operations.integration_cutover_assignment',
+    entity_type: 'operations',
+    entity_id: integration,
+    actor_id: demoUsers[0]?.id,
+    payload: {
+      ...assignment,
+      label: lane.label,
+      severity: lane.cutover_status === 'blocked' ? 'blocking' : lane.cutover_status === 'attention' ? 'warning' : 'normal',
+      route: lane.route,
+    },
+  });
+  saveDemoData();
+  return assignment;
+}
+
 function readinessSnapshotFromEvent(event: AuditEvent): ReadinessSnapshot {
   const payload = event.payload as Partial<ReadinessSnapshot>;
   return {
@@ -2576,6 +2620,7 @@ interface DemoStore {
   integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
   integrationHandoffArchives?: Record<string, HandoffPacketArchive>;
   rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
+  integrationCutoverAssignments?: Record<string, RehearsalActionAssignment>;
   goLiveAttestations?: GoLiveAttestation[];
   roleDryRunSessions?: RoleDryRunSession[];
   browserQaSessions?: BrowserQaSession[];
@@ -2634,6 +2679,7 @@ let integrationLastTests: Record<string, { last_tested_at: string; last_test_sta
 let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
 let integrationHandoffArchives: Record<string, HandoffPacketArchive> = {};
 let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
+let integrationCutoverAssignments: Record<string, RehearsalActionAssignment> = {};
 let goLiveAttestations: GoLiveAttestation[] = [];
 let roleDryRunSessions: RoleDryRunSession[] = [];
 let browserQaSessions: BrowserQaSession[] = [];
@@ -3001,7 +3047,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, integrationHandoffArchives, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, restoreDrillSessions, cutoverRunbookSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, integrationHandoffArchives, rehearsalAssignments, integrationCutoverAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, restoreDrillSessions, cutoverRunbookSessions }),
   );
 }
 
@@ -3378,6 +3424,7 @@ if (storedDemoData) {
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
   integrationHandoffArchives = storedDemoData.integrationHandoffArchives ?? integrationHandoffArchives;
   rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
+  integrationCutoverAssignments = storedDemoData.integrationCutoverAssignments ?? integrationCutoverAssignments;
   goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
   roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
   browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
@@ -3663,6 +3710,17 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/integration-cutover-readiness-packet/export' && method === 'GET') {
     return integrationCutoverReadinessPacketCsv(integrationCutoverReadinessPacket()) as T;
+  }
+  const cutoverAssignmentMatch = path.match(/^\/operations\/integration-cutover-readiness-packet\/([^/]+)\/assignment$/);
+  if (cutoverAssignmentMatch && method === 'POST') {
+    const assignment = assignIntegrationCutoverLane(
+      decodeURIComponent(cutoverAssignmentMatch[1]),
+      (body ?? {}) as RehearsalActionAssignmentUpdate,
+    );
+    if (!assignment) {
+      throw new Error('Integration cutover lane not found');
+    }
+    return assignment as T;
   }
   if (path === '/operations/credential-dry-run-binder/snapshots' && method === 'POST') {
     const binder = credentialDryRunBinder();

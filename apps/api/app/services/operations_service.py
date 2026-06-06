@@ -26,6 +26,7 @@ from app.services.readiness_service import check_readiness
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
 REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
+INTEGRATION_CUTOVER_ASSIGNMENT_EVENT_TYPE = "operations.integration_cutover_assignment"
 LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
 CREDENTIAL_BINDER_SNAPSHOT_EVENT_TYPE = "operations.credential_binder_snapshot"
 GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
@@ -1434,6 +1435,7 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     incidents = await incident_register(db, user)
     launch = await launch_readiness()
     preflight = await integration_config_service.credential_preflight(db, user)
+    cutover_packet = await integration_cutover_readiness_packet(db, user)
     items: list[dict] = []
     credential_assignment = next(
         (
@@ -1510,6 +1512,22 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
         ))
 
     items.extend(await _vendor_handoff_archive_workplan_items(db, user, preflight, credential_assignment))
+
+    for lane in cutover_packet["items"]:
+        if lane["cutover_status"] == "ready":
+            continue
+        items.append(_workplan_item(
+            key=f"cutover_{lane['integration']}",
+            source="integration_cutover",
+            category="Integrations",
+            label=f"{lane['label']} cutover",
+            detail="; ".join(lane["blockers"] or lane["next_actions"] or [f"{lane['label']} cutover needs go/no-go review."]),
+            severity="blocking" if lane["cutover_status"] == "blocked" else "warning",
+            route="/integrations",
+            owner_role="operations",
+            recommended_action="Assign an integration owner and clear adapter, credential, handoff, risk, and cutover evidence gaps.",
+            assignment=lane.get("assignment"),
+        ))
 
     deduped = _dedupe_workplan_items(items)
     blocking = sum(1 for item in deduped if item["severity"] == "blocking")
@@ -1650,6 +1668,7 @@ async def adapter_implementation_packet(db: AsyncSession, user: User) -> dict:
 async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> dict:
     preflight = await integration_config_service.credential_preflight(db, user)
     archives = await _latest_vendor_handoff_archives(db, user)
+    assignments = await _integration_cutover_assignments_by_key(db, user)
     adapter_items = {
         item["integration"]: item
         for item in [_adapter_implementation_item(item) for item in preflight.get("data", [])]
@@ -1666,6 +1685,7 @@ async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> 
             item,
             adapter_items[item["key"]],
             credential_items[item["key"]],
+            assignments.get(item["key"]),
         )
         for item in preflight.get("data", [])
     ]
@@ -1698,6 +1718,34 @@ async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> 
         },
         "items": items,
     }
+
+
+async def assign_integration_cutover_lane(db: AsyncSession, user: User, integration: str, data: dict) -> dict | None:
+    packet = await integration_cutover_readiness_packet(db, user)
+    lane = next((item for item in packet["items"] if item["integration"] == integration), None)
+    if not lane:
+        return None
+    payload = {
+        "action_key": integration,
+        "label": lane["label"],
+        "severity": "blocking" if lane["cutover_status"] == "blocked" else "warning" if lane["cutover_status"] == "attention" else "normal",
+        "route": lane["route"],
+        "owner_id": data.get("owner_id"),
+        "owner_name": data["owner_name"],
+        "status": data.get("status") or "open",
+        "due_date": data.get("due_date"),
+        "note": data.get("note"),
+        "assigned_by": user.display_name,
+    }
+    event = await log_event(
+        db,
+        INTEGRATION_CUTOVER_ASSIGNMENT_EVENT_TYPE,
+        "operations",
+        integration,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _rehearsal_assignment_from_audit(event)
 
 
 async def _vendor_handoff_archive_workplan_items(
@@ -2583,6 +2631,22 @@ async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[st
     return assignments
 
 
+async def _integration_cutover_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
+    if db is None:
+        return {}
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == INTEGRATION_CUTOVER_ASSIGNMENT_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    ).order_by(AuditLog.created_at.desc())
+    result = await db.execute(query)
+    assignments: dict[str, dict] = {}
+    for event in result.scalars().all():
+        assignment = _rehearsal_assignment_from_audit(event)
+        assignments.setdefault(assignment["action_key"], assignment)
+    return assignments
+
+
 async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
     org = user.organization_id
 
@@ -3212,10 +3276,10 @@ def _adapter_implementation_item(item: dict) -> dict:
         "implementation_status": implementation_status,
         "priority": priority,
         "readiness_mode": readiness_mode,
-        "configured": item["configured"],
+        "configured": bool(item.get("configured")),
         "adapter_implemented": adapter_implemented,
-        "adapter_method_ready_count": item["adapter_method_ready_count"],
-        "adapter_method_total": item["adapter_method_total"],
+        "adapter_method_ready_count": int(item.get("adapter_method_ready_count") or 0),
+        "adapter_method_total": int(item.get("adapter_method_total") or len(item.get("adapter_methods", []))),
         "adapter_methods": item.get("adapter_methods", []),
         "required_credentials": required_credentials,
         "missing_credentials": list(item.get("missing_fields") or []),
@@ -3290,7 +3354,7 @@ def _adapter_implementation_phases(item: dict, implementation_status: str) -> li
     ]
 
 
-def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: dict) -> dict:
+def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: dict, assignment: dict | None = None) -> dict:
     cutover_evidence = item.get("cutover_evidence") or {}
     risk_register = item.get("risk_register") or {}
     gates = [
@@ -3376,6 +3440,7 @@ def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: d
         "blockers": blockers,
         "next_actions": next_actions,
         "route": "/integrations",
+        "assignment": assignment,
     }
 
 

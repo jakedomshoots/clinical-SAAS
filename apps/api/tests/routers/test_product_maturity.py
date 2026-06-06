@@ -874,6 +874,49 @@ async def test_integration_cutover_readiness_packet_combines_vendor_gates(client
 
 
 @pytest.mark.asyncio
+async def test_integration_cutover_assignment_feeds_packet_and_workplan(client, auth_headers):
+    before = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
+    item = next(item for item in before.json()["items"] if item["cutover_status"] != "ready")
+
+    assigned = await client.post(
+        f"/api/operations/integration-cutover-readiness-packet/{item['integration']}/assignment",
+        json={
+            "owner_name": "Vendor Lane Owner",
+            "status": "in_progress",
+            "due_date": "2026-06-20",
+            "note": "Own vendor cutover blockers before credential request.",
+        },
+        headers=auth_headers,
+    )
+    refreshed = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
+    workplan = await client.get("/api/operations/launch-workplan", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.integration_cutover_assignment",
+        headers=auth_headers,
+    )
+
+    assert assigned.status_code == 201
+    assignment = assigned.json()
+    assert assignment["action_key"] == item["integration"]
+    assert assignment["owner_name"] == "Vendor Lane Owner"
+    assert assignment["status"] == "in_progress"
+
+    refreshed_item = next(row for row in refreshed.json()["items"] if row["integration"] == item["integration"])
+    assert refreshed_item["assignment"]["owner_name"] == "Vendor Lane Owner"
+    assert refreshed_item["assignment"]["due_date"] == "2026-06-20"
+
+    cutover_items = [
+        row for row in workplan.json()["items"]
+        if row["source"] == "integration_cutover" and row["key"] == f"cutover_{item['integration']}"
+    ]
+    assert cutover_items
+    assert cutover_items[0]["assignment"]["owner_name"] == "Vendor Lane Owner"
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.integration_cutover_assignment"
+
+
+@pytest.mark.asyncio
 async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
     snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)

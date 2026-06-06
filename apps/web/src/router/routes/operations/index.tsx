@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type IntegrationCutoverReadinessPacket, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
+import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type IntegrationCutoverReadinessItem, type IntegrationCutoverReadinessPacket, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -117,6 +117,7 @@ function OperationsPage() {
   const queryClient = useQueryClient();
   const [auditExport, setAuditExport] = useState({ event_type: '', entity_type: '', entity_id: '', limit: '10000' });
   const [assignmentForms, setAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
+  const [cutoverAssignmentForms, setCutoverAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
   const [dryRunSessionForm, setDryRunSessionForm] = useState<RoleDryRunSessionStart>({ session_name: 'Clinic dry run', note: '' });
   const [dryRunItemForms, setDryRunItemForms] = useState<Record<string, DryRunItemFormState>>({});
   const [browserQaSessionForm, setBrowserQaSessionForm] = useState<BrowserQaSessionStart>({ session_name: 'Browser QA run', browser: 'Chrome', note: '' });
@@ -346,6 +347,18 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const cutoverAssignmentMutation = useMutation({
+    mutationFn: ({ integration, data }: { integration: string; data: RehearsalActionAssignmentUpdate }) => api.post(
+      ROUTES.OPERATIONS_INTEGRATION_CUTOVER_ASSIGNMENT(integration),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'integration-cutover-readiness-packet'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
   const attestationMutation = useMutation({
     mutationFn: (data: GoLiveAttestationCreate) => api.post<GoLiveAttestation>(ROUTES.OPERATIONS_GO_LIVE_ATTESTATIONS, data),
     onSuccess: async () => {
@@ -559,6 +572,31 @@ function OperationsPage() {
     if (!form.owner_name.trim()) return;
     assignmentMutation.mutate({
       actionKey: action.key,
+      data: {
+        owner_name: form.owner_name.trim(),
+        status: form.status,
+        due_date: form.due_date || null,
+        note: form.note.trim() || null,
+      },
+    });
+  };
+  const formForCutoverLane = (lane: IntegrationCutoverReadinessItem): AssignmentFormState => cutoverAssignmentForms[lane.integration] ?? {
+    owner_name: lane.assignment?.owner_name ?? '',
+    status: lane.assignment?.status ?? 'open',
+    due_date: lane.assignment?.due_date ?? '',
+    note: lane.assignment?.note ?? '',
+  };
+  const updateCutoverAssignmentForm = (integration: string, patch: Partial<AssignmentFormState>) => {
+    setCutoverAssignmentForms((current) => ({
+      ...current,
+      [integration]: { ...(current[integration] ?? { owner_name: '', status: 'open', due_date: '', note: '' }), ...patch },
+    }));
+  };
+  const submitCutoverAssignment = (lane: IntegrationCutoverReadinessItem) => {
+    const form = formForCutoverLane(lane);
+    if (!form.owner_name.trim()) return;
+    cutoverAssignmentMutation.mutate({
+      integration: lane.integration,
       data: {
         owner_name: form.owner_name.trim(),
         status: form.status,
@@ -1030,8 +1068,10 @@ function OperationsPage() {
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-2">
-            {cutoverReadinessPacket.items.map((item) => (
-              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+            {cutoverReadinessPacket.items.map((item) => {
+              const form = formForCutoverLane(item);
+              return (
+              <div key={item.integration} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-clinic-900">{item.label}</div>
@@ -1058,8 +1098,60 @@ function OperationsPage() {
                   ))}
                 </div>
                 <div className="mt-3 text-xs text-clinic-500">{item.next_actions[0] || item.blockers[0] || 'Cutover lane is ready for go/no-go review.'}</div>
-              </Link>
-            ))}
+                <div className="mt-3 rounded-md border border-clinic-200 bg-white p-2">
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-clinic-700">Lane owner</span>
+                    <Link to={item.route} className="text-xs font-medium text-accent-700 hover:text-accent-900">Open setup</Link>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
+                    <input
+                      value={form.owner_name}
+                      onChange={(event) => updateCutoverAssignmentForm(item.integration, { owner_name: event.target.value })}
+                      placeholder="Owner"
+                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <select
+                      value={form.status}
+                      onChange={(event) => updateCutoverAssignmentForm(item.integration, { status: event.target.value as AssignmentFormState['status'] })}
+                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    >
+                      <option value="open">Open</option>
+                      <option value="in_progress">In progress</option>
+                      <option value="blocked">Blocked</option>
+                      <option value="done">Done</option>
+                    </select>
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-[8.5rem_minmax(0,1fr)]">
+                    <input
+                      type="date"
+                      value={form.due_date}
+                      onChange={(event) => updateCutoverAssignmentForm(item.integration, { due_date: event.target.value })}
+                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                    <input
+                      value={form.note}
+                      onChange={(event) => updateCutoverAssignmentForm(item.integration, { note: event.target.value })}
+                      placeholder="Cutover note"
+                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    />
+                  </div>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="truncate text-[11px] text-clinic-400">
+                      {item.assignment ? `Assigned ${new Date(item.assignment.assigned_at).toLocaleDateString()}` : 'No owner assigned'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => submitCutoverAssignment(item)}
+                      disabled={!form.owner_name.trim() || cutoverAssignmentMutation.isPending}
+                      className="rounded-md bg-clinic-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                    >
+                      Assign
+                    </button>
+                  </div>
+                </div>
+              </div>
+              );
+            })}
           </div>
         </section>
       )}

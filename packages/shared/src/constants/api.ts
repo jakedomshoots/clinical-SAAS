@@ -127,6 +127,7 @@ export const ROUTES = {
   OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET_EXPORT: '/api/operations/adapter-implementation-packet/export',
   OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET: '/api/operations/integration-cutover-readiness-packet',
   OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET_EXPORT: '/api/operations/integration-cutover-readiness-packet/export',
+  OPERATIONS_INTEGRATION_CUTOVER_ASSIGNMENT: (integration: string) => `/api/operations/integration-cutover-readiness-packet/${integration}/assignment`,
   OPERATIONS_LIVE_USE_REHEARSAL: '/api/operations/live-use-rehearsal',
   OPERATIONS_LIVE_USE_REHEARSAL_EXPORT: '/api/operations/live-use-rehearsal/export',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',
