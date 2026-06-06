@@ -65,6 +65,49 @@ async def list_patient_documents(
     return [PatientDocumentOut.model_validate(doc).model_dump() for doc in documents], total
 
 
+async def document_review_queue(
+    db: AsyncSession,
+    user: User,
+    page: int = 1,
+    page_size: int = 20,
+    status: str | None = PatientDocumentStatus.needs_review.value,
+    routed_to_role: str | None = None,
+    review_priority: str | None = None,
+) -> tuple[list[dict], int]:
+    filters = [
+        PatientDocument.organization_id == user.organization_id,
+        Patient.organization_id == user.organization_id,
+        PatientDocument.patient_id == Patient.id,
+    ]
+    if status:
+        filters.append(PatientDocument.status == PatientDocumentStatus(status))
+    if routed_to_role:
+        filters.append(PatientDocument.routed_to_role == routed_to_role)
+    if review_priority:
+        filters.append(PatientDocument.review_priority == review_priority)
+
+    count_query = select(func.count(PatientDocument.id)).select_from(PatientDocument, Patient).where(*filters)
+    total = (await db.execute(count_query)).scalar() or 0
+    offset = (page - 1) * page_size
+    result = await db.execute(
+        select(PatientDocument, Patient)
+        .where(*filters)
+        .order_by(PatientDocument.received_at.desc(), PatientDocument.created_at.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    rows = []
+    for document, patient in result.all():
+        rows.append({
+            **PatientDocumentOut.model_validate(document).model_dump(),
+            "patient_name": f"{patient.first_name} {patient.last_name}",
+            "patient_mrn": patient.mrn,
+            "patient_dob": patient.dob,
+            "patient_phone": patient.phone,
+        })
+    return rows, total
+
+
 async def create_patient_document(
     db: AsyncSession,
     user: User,

@@ -43,6 +43,20 @@ export interface PatientDocumentListResponse {
   page_size: number;
 }
 
+export interface PatientDocumentQueueItem extends PatientDocument {
+  patient_name: string;
+  patient_mrn: string;
+  patient_dob: string;
+  patient_phone: string | null;
+}
+
+export interface PatientDocumentQueueResponse {
+  data: PatientDocumentQueueItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
 export interface PatientDocumentAccess {
   document_id: UUID;
   available: boolean;

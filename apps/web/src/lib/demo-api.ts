@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -3148,6 +3148,28 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       return patients.find((item) => item.id === patient.id) as T;
     }
     return patient as T;
+  }
+
+  if (path === '/patients/documents/review-queue') {
+    const status = url.searchParams.get('status') ?? 'needs_review';
+    const routedToRole = url.searchParams.get('routed_to_role');
+    const reviewPriority = url.searchParams.get('review_priority');
+    const rows: PatientDocumentQueueItem[] = patientDocuments
+      .filter((document) => !status || document.status === status)
+      .filter((document) => !routedToRole || document.routed_to_role === routedToRole)
+      .filter((document) => !reviewPriority || document.review_priority === reviewPriority)
+      .map((document) => {
+        const patient = patients.find((item) => item.id === document.patient_id);
+        return {
+          ...document,
+          patient_name: patient ? `${patient.first_name} ${patient.last_name}` : 'Unknown patient',
+          patient_mrn: patient?.mrn ?? 'MRN-UNKNOWN',
+          patient_dob: patient?.dob ?? '',
+          patient_phone: patient?.phone ?? null,
+        };
+      })
+      .sort((a, b) => b.received_at.localeCompare(a.received_at));
+    return { data: paginate(rows, page, pageSize), total: rows.length, page, page_size: pageSize } as T;
   }
 
   const patientDocumentsMatch = path.match(/^\/patients\/([^/]+)\/documents$/);

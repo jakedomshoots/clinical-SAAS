@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import type { Appointment, AppointmentStatus, AuditEvent, Fax, MessageThread, Task, TodayQueue } from '@concierge-os/shared';
+import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type PatientDocumentQueueResponse, type Task, type TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
   component: CommandCenterPage,
@@ -48,6 +48,10 @@ function CommandCenterPage() {
     queryKey: [...QUERY_KEYS.FAXES, 'command-center', 'inbound'],
     queryFn: () => api.get<ListResponse<Fax>>('/faxes?direction=inbound&page=1&page_size=50'),
   });
+  const { data: documentQueue } = useQuery({
+    queryKey: [...QUERY_KEYS.PATIENT_DOCUMENTS('review-queue'), 'command-center'],
+    queryFn: () => api.get<PatientDocumentQueueResponse>(`${ROUTES.PATIENT_DOCUMENT_REVIEW_QUEUE}?status=needs_review&page=1&page_size=6`),
+  });
   const { data: threads } = useQuery({
     queryKey: [...QUERY_KEYS.MESSAGES, 'command-center'],
     queryFn: () => api.get<ListResponse<MessageThread>>('/messages/threads'),
@@ -61,17 +65,17 @@ function CommandCenterPage() {
   const dueToday = openTasks.filter((task) => task.due_date && dateOnly(new Date(task.due_date)) === dateOnly(today)).length;
   const unreadMessages = threads?.data.reduce((count, thread) => count + thread.unread_count, 0) ?? 0;
   const unmatchedFaxes = inboundFaxes?.data.filter((fax) => !fax.patient_id).length ?? 0;
+  const reviewDocuments = documentQueue?.data ?? [];
   const todayItems = (todayQueue?.data ?? [])
     .filter((item) => dateOnly(new Date(item.appointment.start_time)) === dateOnly(today))
     .sort((a, b) => a.appointment.start_time.localeCompare(b.appointment.start_time));
   const checkedIn = todayQueue?.checked_in ?? 0;
-  const unsignedNotes = todayItems.reduce((sum, item) => sum + item.unsigned_encounters, 0);
 
   const queueMetrics = [
     { label: 'Patients scheduled', value: String(todayQueue?.total ?? todayItems.length), note: `${checkedIn} active, ${todayQueue?.blocked ?? 0} blocked`, icon: Users, tone: 'text-clinic-700' },
     { label: 'Open tasks', value: String(openTasks.length), note: `${dueToday} due today`, icon: CheckCircle2, tone: 'text-amber-700' },
     { label: 'Unread messages', value: String(unreadMessages), note: `${threads?.total ?? 0} active threads`, icon: MessageSquare, tone: 'text-accent-700' },
-    { label: 'Unsigned notes', value: String(unsignedNotes), note: `${todayQueue?.blocked ?? 0} patients blocked`, icon: FileText, tone: 'text-red-700' },
+    { label: 'Documents', value: String(documentQueue?.total ?? 0), note: `${reviewDocuments.filter((item) => item.review_priority === 'urgent' || item.review_priority === 'high').length} high priority`, icon: FileText, tone: 'text-red-700' },
   ];
 
   const riskItems = [
@@ -86,6 +90,14 @@ function CommandCenterPage() {
     ...((unmatchedFaxes > 0)
       ? [{ label: 'Unmatched fax queue', detail: `${unmatchedFaxes} inbound documents need chart matching`, severity: 'normal' }]
       : []),
+    ...reviewDocuments
+      .filter((document) => document.review_priority === 'urgent' || document.review_priority === 'high')
+      .slice(0, 2)
+      .map((document) => ({
+        label: document.title,
+        detail: `${document.patient_name} - ${document.routed_to_role ?? 'Unrouted'} document review`,
+        severity: document.review_priority === 'urgent' ? 'urgent' : 'high',
+      })),
   ].slice(0, 4);
 
   const handoffItems = [
@@ -216,6 +228,37 @@ function CommandCenterPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </section>
+
+          <section className="rounded-md border border-clinic-200 bg-white">
+            <div className="border-b border-clinic-200 px-4 py-3">
+              <h2 className="text-sm font-semibold text-clinic-800">Document Review Queue</h2>
+              <p className="text-xs text-clinic-500">Outside records needing clinical or front-office review</p>
+            </div>
+            <div className="divide-y divide-clinic-100">
+              {reviewDocuments.slice(0, 4).map((document) => (
+                <Link
+                  key={document.id}
+                  to="/patients/$patientId"
+                  params={{ patientId: document.patient_id }}
+                  className="block px-4 py-3 hover:bg-clinic-50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-clinic-900">{document.title}</div>
+                      <div className="mt-0.5 text-xs text-clinic-500">{document.patient_name} · {document.source}</div>
+                      <div className="mt-0.5 text-xs text-clinic-500">{document.routed_to_role ?? 'Unrouted'} · {document.source_reference ?? 'No reference'}</div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${document.review_priority === 'urgent' ? 'border-red-200 bg-red-50 text-red-700' : document.review_priority === 'high' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>
+                      {document.review_priority}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+              {reviewDocuments.length === 0 && (
+                <div className="px-4 py-8 text-center text-sm text-clinic-400">No outside documents need review.</div>
+              )}
             </div>
           </section>
 

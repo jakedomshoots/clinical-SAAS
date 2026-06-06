@@ -36,6 +36,8 @@ from app.schemas.patient_document import (
     PatientDocumentListOut,
     PatientDocumentOut,
     PatientDocumentProcessOut,
+    PatientDocumentQueueOut,
+    PatientDocumentQueueItemOut,
     PatientDocumentUpdate,
     PatientDocumentUploadConfirm,
     PatientDocumentUploadPrepare,
@@ -82,6 +84,33 @@ async def list_patients(
         is_active=is_active,
     )
     return PatientListOut(data=[PatientOut(**p) for p in data], total=total, page=page, page_size=page_size)
+
+
+@router.get("/documents/review-queue", response_model=PatientDocumentQueueOut)
+async def get_document_review_queue(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    document_status: str | None = Query("needs_review", alias="status"),
+    routed_to_role: str | None = Query(None),
+    review_priority: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    data, total = await patient_document_service.document_review_queue(
+        db,
+        current_user,
+        page=page,
+        page_size=page_size,
+        status=document_status,
+        routed_to_role=routed_to_role,
+        review_priority=review_priority,
+    )
+    return PatientDocumentQueueOut(
+        data=[PatientDocumentQueueItemOut(**document) for document in data],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.get("/{patient_id}", response_model=PatientOut)

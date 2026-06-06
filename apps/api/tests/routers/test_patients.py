@@ -235,6 +235,72 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
 
 
 @pytest.mark.asyncio
+async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
+    client: AsyncClient,
+    auth_headers,
+    db: AsyncSession,
+):
+    patient_res = await client.post("/api/patients", json={
+        "first_name": "Queue", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown", "phone": "555-1000",
+    }, headers=auth_headers)
+    patient_id = patient_res.json()["id"]
+    other_patient_res = await client.post("/api/patients", json={
+        "first_name": "Filed", "last_name": "Patient", "dob": "1981-01-01", "gender": "Unknown",
+    }, headers=auth_headers)
+    other_patient_id = other_patient_res.json()["id"]
+    await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Incoming orthopedic note",
+        "source": "Ortho Partners",
+        "document_type": "Consult note",
+        "status": "needs_review",
+        "source_contact": "Records desk",
+        "source_phone": "555-2000",
+        "source_reference": "ORTHO-22",
+        "routed_to_role": "ma_nurse",
+        "review_priority": "high",
+        "summary": "Outside note needs medication reconciliation.",
+    }, headers=auth_headers)
+    await client.post(f"/api/patients/{other_patient_id}/documents", json={
+        "title": "Already filed note",
+        "source": "Filed Office",
+        "document_type": "Referral",
+        "status": "filed",
+    }, headers=auth_headers)
+    other_user = await make_user(
+        db,
+        UserRole.admin,
+        "other-org-doc-queue@clinic.example.com",
+        organization_id="other-org",
+    )
+    other_patient = await client.post("/api/patients", json={
+        "first_name": "Other", "last_name": "Org", "dob": "1970-01-01", "gender": "Unknown",
+    }, headers=headers_for(other_user))
+    await client.post(f"/api/patients/{other_patient.json()['id']}/documents", json={
+        "title": "Other org note",
+        "source": "Hidden Office",
+        "document_type": "Consult note",
+        "status": "needs_review",
+    }, headers=headers_for(other_user))
+
+    queue_res = await client.get("/api/patients/documents/review-queue?status=needs_review", headers=auth_headers)
+
+    assert queue_res.status_code == 200
+    queue = queue_res.json()
+    assert queue["total"] == 1
+    item = queue["data"][0]
+    assert item["title"] == "Incoming orthopedic note"
+    assert item["patient_id"] == patient_id
+    assert item["patient_name"] == "Queue Patient"
+    assert item["patient_mrn"].startswith("MRN-")
+    assert item["patient_phone"] == "555-1000"
+    assert item["source_contact"] == "Records desk"
+    assert item["source_phone"] == "555-2000"
+    assert item["source_reference"] == "ORTHO-22"
+    assert item["routed_to_role"] == "ma_nurse"
+    assert item["review_priority"] == "high"
+
+
+@pytest.mark.asyncio
 async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, auth_headers):
     create_res = await client.post("/api/patients", json={
         "first_name": "Upload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",

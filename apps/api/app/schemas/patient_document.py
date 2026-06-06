@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
@@ -90,6 +90,24 @@ class PatientDocumentOut(BaseModel):
 
 class PatientDocumentListOut(BaseModel):
     data: list[PatientDocumentOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class PatientDocumentQueueItemOut(PatientDocumentOut):
+    patient_name: str
+    patient_mrn: str
+    patient_dob: date
+    patient_phone: str | None = None
+
+    @field_serializer("patient_dob")
+    def serialize_date(self, value: date) -> str:
+        return value.isoformat()
+
+
+class PatientDocumentQueueOut(BaseModel):
+    data: list[PatientDocumentQueueItemOut]
     total: int
     page: int
     page_size: int

@@ -12,6 +12,7 @@ export const ROUTES = {
   PATIENT_CHECKOUT_HANDOFF: (id: string) => `/api/patients/${id}/checkout-handoff`,
   PATIENT_CHECKOUT_HANDOFF_TASKS: (id: string) => `/api/patients/${id}/checkout-handoff/tasks`,
   CHECKOUT_WORKLOAD: '/api/patients/workload/checkout',
+  PATIENT_DOCUMENT_REVIEW_QUEUE: '/api/patients/documents/review-queue',
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
   PATIENT_DOCUMENT_UPLOAD: (id: string) => `/api/patients/${id}/documents/upload`,
   PATIENT_DOCUMENT_UPLOAD_CONFIRM: (id: string) => `/api/patients/${id}/documents/upload/confirm`,
