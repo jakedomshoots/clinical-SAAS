@@ -72,7 +72,21 @@ async def get_patient(db: AsyncSession, user: User, patient_id: str) -> dict | N
         )
     )
     patient = result.scalar_one_or_none()
-    return PatientOut.model_validate(patient).model_dump() if patient else None
+    if not patient:
+        return None
+    await log_event(
+        db,
+        event_type="patient.profile_viewed",
+        entity_type="patient",
+        entity_id=patient.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient.id,
+            "surface": "patient_profile",
+            "mrn": patient.mrn,
+        },
+    )
+    return PatientOut.model_validate(patient).model_dump()
 
 
 async def create_patient(

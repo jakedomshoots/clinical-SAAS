@@ -66,9 +66,9 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
-- Use Audit Review Control to review sensitive document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
+- Use Audit Review Control to review sensitive patient chart/profile access, document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
 - Use Document Storage Readiness in Operations to review metadata-only documents, unsigned handoffs, expired handoffs, and object-storage credential gaps before live-use rehearsal.
-- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness before closeout or live-use rehearsal.
+- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, patient chart/profile access, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness before closeout or live-use rehearsal.
 - Run backup and restore validation before any live-use rehearsal.
 
 ## Not Ready Without Real Credentials

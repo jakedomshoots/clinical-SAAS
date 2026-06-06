@@ -231,6 +231,45 @@ async def test_audit_review_summary_groups_sensitive_events_by_category(
 
 
 @pytest.mark.asyncio
+async def test_patient_chart_reads_feed_access_history_and_review_summary(
+    client: AsyncClient,
+    auth_headers,
+):
+    patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Access",
+            "last_name": "History",
+            "dob": "1980-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
+    patient_id = patient.json()["id"]
+
+    profile = await client.get(f"/api/patients/{patient_id}", headers=auth_headers)
+    chart = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
+    medications = await client.get(f"/api/patients/{patient_id}/medications", headers=auth_headers)
+    history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
+    review = await client.get("/api/audit/review-summary", headers=auth_headers)
+
+    assert profile.status_code == 200
+    assert chart.status_code == 200
+    assert medications.status_code == 200
+
+    assert history.status_code == 200
+    event_types = {event["event_type"] for event in history.json()["data"]}
+    assert {
+        "patient.profile_viewed",
+        "patient_chart.viewed",
+        "patient_clinical.medications_viewed",
+    } <= event_types
+
+    categories = {item["key"]: item for item in review.json()["categories"]}
+    assert categories["patient_chart_access"]["count"] >= 3
+
+
+@pytest.mark.asyncio
 async def test_audit_review_summary_requires_admin_or_manager(
     client: AsyncClient,
     db: AsyncSession,

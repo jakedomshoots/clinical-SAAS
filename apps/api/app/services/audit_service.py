@@ -19,6 +19,18 @@ AUDIT_REVIEW_CATEGORIES = [
         "action_label": "Review document access",
     },
     {
+        "key": "patient_chart_access",
+        "label": "Patient chart access",
+        "event_types": [
+            "patient.profile_viewed",
+            "patient_chart.viewed",
+            "patient_clinical.medications_viewed",
+        ],
+        "severity": "critical",
+        "route": "/audit?entity_type=patient",
+        "action_label": "Review patient chart access",
+    },
+    {
         "key": "assistant_actions",
         "label": "Assistant actions",
         "event_types": [
@@ -179,9 +191,11 @@ async def patient_access_history(db: AsyncSession, user, patient_id: str) -> tup
         AuditLog.organization_id == user.organization_id,
         AuditLog.payload["patient_id"].as_string() == patient_id,
         AuditLog.event_type.in_([
+            "patient.profile_viewed",
             "patient_document.accessed",
             "patient_document.processed",
             "patient_chart.viewed",
+            "patient_clinical.medications_viewed",
             "patient_outreach.staged",
         ]),
     )

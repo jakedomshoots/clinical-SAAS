@@ -47,7 +47,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/users/role-access-matrix` has been reviewed by a manager; privileged MFA and missing active-role warnings are resolved or assigned.
 - Audit export access is limited to admin/manager roles.
 - Audit exports create `audit.exported` evidence with filters, limit, and row count for compliance review.
-- Patient document viewer access is audited and expiring access metadata is reviewed.
+- Patient chart/profile access, medication-tab access, and document viewer access are audited and reviewed.
 - Patient outreach consent policy is approved before enabling real SMS/email sends.
 - Session lifetime is approved for clinic policy.
 
@@ -68,7 +68,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Browser QA covers staff admin, task outreach staging, document preview/download modes, and schedule conflict handling.
 - `/api/operations/operator-health` has no critical checks, backup/restore freshness is current, integration failures are cleared, staff role/access warnings are resolved or assigned, and launch evidence gaps are assigned before the live-use rehearsal.
 - `/api/operations/document-storage-readiness` has status `ready`; metadata-only document gaps, unsigned handoffs, expired handoffs, and object-storage credential gaps are cleared or assigned with launch-owner sign-off.
-- `/api/operations/alert-rules` has no critical triggered rules, and `/api/operations/incident-timeline` has been reviewed for failed integrations, blocked logins, expired onboarding, backup/restore gaps, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness.
+- `/api/operations/alert-rules` has no critical triggered rules, and `/api/operations/incident-timeline` has been reviewed for failed integrations, blocked logins, expired onboarding, backup/restore gaps, patient chart/profile access, document access review signals, audit export evidence, staff role/access warnings, and document-storage readiness.
 - `/api/operations/live-use-rehearsal` has been reviewed/exported by the manager and has no blocking gates before the live-use rehearsal starts.
 - `/api/operations/production-rehearsal` has been reviewed, saved as rehearsal evidence, exported for the launch packet, and every blocking gate has an assigned owner, status, due date, and launch note before the rehearsal starts.
 - `/api/operations/launch-workplan` has no unassigned blocking launch items before the rehearsal starts, and a saved/exported workplan snapshot is included in the launch packet.

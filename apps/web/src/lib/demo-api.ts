@@ -6,6 +6,7 @@ const now = new Date('2026-06-03T13:30:00-04:00');
 const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
+  { key: 'patient_chart_access', label: 'Patient chart access', event_types: ['patient.profile_viewed', 'patient_chart.viewed', 'patient_clinical.medications_viewed'], severity: 'critical' as const, route: '/audit?entity_type=patient', action_label: 'Review patient chart access' },
   { key: 'assistant_actions', label: 'Assistant actions', event_types: ['assistant.task_created', 'assistant.message_drafted', 'assistant.fax_match_staged'], severity: 'warning' as const, route: '/assistant-review', action_label: 'Review assistant-confirmed actions' },
   { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'user.password_reset_issued', 'auth.login', 'auth.login_blocked', 'auth.password_rotated'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
   { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },

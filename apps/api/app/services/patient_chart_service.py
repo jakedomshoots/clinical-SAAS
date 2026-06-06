@@ -23,6 +23,7 @@ from app.schemas.patient_chart import PatientChartSummaryCounts, PatientChartSum
 from app.schemas.patient_document import PatientDocumentOut
 from app.services.fax_service import _make_fax_dict
 from app.services.schedule_service import _make_appt_dict
+from app.services.audit_service import log_event
 from app.services.task_service import _make_task_dict
 
 
@@ -41,6 +42,18 @@ async def get_patient_chart_summary(
     ).scalar_one_or_none()
     if not patient:
         return None
+
+    await log_event(
+        db,
+        "patient_chart.viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "chart_summary",
+        },
+    )
 
     now = datetime.now(UTC).replace(tzinfo=None)
     upcoming_window = now + timedelta(days=30)

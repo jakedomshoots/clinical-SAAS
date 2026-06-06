@@ -33,6 +33,17 @@ async def _patient_exists(db: AsyncSession, user: User, patient_id: str) -> bool
 async def list_medications(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
     if not await _patient_exists(db, user, patient_id):
         return None
+    await log_event(
+        db,
+        "patient_clinical.medications_viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "medications",
+        },
+    )
     rows = (
         await db.execute(
             select(PatientMedication)
