@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -372,6 +372,100 @@ function productionConfigAudit(): ProductionConfigAudit {
     total: checks.length,
     checks,
   };
+}
+
+function demoBrowserQaItem(key: string, label: string, detail: string, route: string, category: string): BrowserQaChecklistItem {
+  return { key, label, detail, route, category };
+}
+
+function browserQaChecklist(): BrowserQaChecklist {
+  const items = [
+    demoBrowserQaItem('login', 'Login', 'Confirm staff login and demo-mode entry load the expected workspace.', '/login', 'Access'),
+    demoBrowserQaItem('patients', 'Patients', 'Search patients, open a profile, and confirm chart tabs render.', '/patients', 'Clinical'),
+    demoBrowserQaItem('scheduling', 'Scheduling', 'Open today queue, schedule views, and conflict-check controls.', '/scheduling', 'Front office'),
+    demoBrowserQaItem('documents', 'Patient documents', 'Review document list, access metadata, upload flow, and filing controls from a patient chart.', '/patients', 'Clinical'),
+    demoBrowserQaItem('faxes', 'Faxes', 'Review inbound/outbound fax queues, matching, and status actions.', '/faxes', 'Front office'),
+    demoBrowserQaItem('billing', 'Billing', 'Review charge capture, claim readiness, eligibility history, and billing work queue.', '/billing', 'Revenue'),
+    demoBrowserQaItem('audit', 'Audit', 'Confirm audit list, patient access history, and export controls are reachable.', '/operations', 'Compliance'),
+    demoBrowserQaItem('assistant_actions', 'Assistant actions', 'Review confirmation-gated assistant actions and policy surface.', '/assistant-review', 'AI safety'),
+    demoBrowserQaItem('portal_intake', 'Portal intake', 'Process intake, appointment conversion, and document conversion workflows.', '/portal-intake', 'Patient access'),
+    demoBrowserQaItem('reports', 'Reports', 'Review daily closeout risks, recommended actions, and CSV export.', '/reports', 'Operations'),
+  ];
+  return { generated_at: new Date().toISOString(), items, total: items.length };
+}
+
+function recalculateBrowserQaSession(session: BrowserQaSession): BrowserQaSession {
+  const passedCount = session.items.filter((item) => item.qa_status === 'passed').length;
+  const failedCount = session.items.filter((item) => item.qa_status === 'failed').length;
+  return {
+    ...session,
+    item_count: session.items.length,
+    passed_count: passedCount,
+    failed_count: failedCount,
+    pending_count: session.items.length - passedCount - failedCount,
+  };
+}
+
+function createBrowserQaSession(data: BrowserQaSessionStart): BrowserQaSession {
+  const checklist = browserQaChecklist();
+  const createdAt = new Date().toISOString();
+  const session = recalculateBrowserQaSession({
+    id: uuid(2000 + browserQaSessions.length),
+    session_id: uuid(2100 + browserQaSessions.length),
+    session_name: data.session_name || 'Browser QA run',
+    browser: data.browser ?? null,
+    status: 'in_progress',
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    item_count: 0,
+    passed_count: 0,
+    failed_count: 0,
+    pending_count: 0,
+    items: checklist.items.map((item) => ({ ...item, qa_status: 'pending' as const, note: null })),
+  });
+  browserQaSessions = [session, ...browserQaSessions];
+  logDemoEvent({
+    event_type: 'operations.browser_qa_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updateBrowserQaSession(sessionId: string, data: BrowserQaSessionUpdate): BrowserQaSession | null {
+  const session = browserQaSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated = recalculateBrowserQaSession({
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status === 'completed' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status === 'completed' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    items: session.items.map((item) => {
+      if (item.key !== data.item_key) return item;
+      return {
+        ...item,
+        qa_status: data.qa_status ?? item.qa_status,
+        note: data.item_note !== undefined ? data.item_note : item.note,
+      };
+    }),
+  });
+  browserQaSessions = [updated, ...browserQaSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.browser_qa_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: updated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return updated;
 }
 
 function productionRehearsalReport(): ProductionRehearsalReport {
@@ -920,6 +1014,7 @@ interface DemoStore {
   rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
   goLiveAttestations?: GoLiveAttestation[];
   roleDryRunSessions?: RoleDryRunSession[];
+  browserQaSessions?: BrowserQaSession[];
 }
 
 interface IntegrationEvent {
@@ -972,6 +1067,7 @@ let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> 
 let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
 let goLiveAttestations: GoLiveAttestation[] = [];
 let roleDryRunSessions: RoleDryRunSession[] = [];
+let browserQaSessions: BrowserQaSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -1297,7 +1393,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions }),
   );
 }
 
@@ -1488,6 +1584,7 @@ if (storedDemoData) {
   rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
   goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
   roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
+  browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1614,6 +1711,26 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/production-config-audit' && method === 'GET') {
     return productionConfigAudit() as T;
+  }
+  if (path === '/operations/browser-qa-checklist' && method === 'GET') {
+    return browserQaChecklist() as T;
+  }
+  if (path === '/operations/browser-qa-sessions' && method === 'POST') {
+    return createBrowserQaSession((body ?? {}) as BrowserQaSessionStart) as T;
+  }
+  if (path === '/operations/browser-qa-sessions' && method === 'GET') {
+    return { data: browserQaSessions, total: browserQaSessions.length } satisfies BrowserQaSessionList as T;
+  }
+  const browserQaSessionMatch = path.match(/^\/operations\/browser-qa-sessions\/([^/]+)$/);
+  if (browserQaSessionMatch && method === 'PATCH') {
+    const session = updateBrowserQaSession(
+      decodeURIComponent(browserQaSessionMatch[1]),
+      (body ?? {}) as BrowserQaSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Browser QA session not found');
+    }
+    return session as T;
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;

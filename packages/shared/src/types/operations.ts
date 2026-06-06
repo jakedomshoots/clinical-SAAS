@@ -103,6 +103,63 @@ export interface ProductionConfigAudit {
   checks: ProductionConfigCheck[];
 }
 
+export interface BrowserQaChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  category: string;
+}
+
+export interface BrowserQaChecklist {
+  generated_at: string;
+  items: BrowserQaChecklistItem[];
+  total: number;
+}
+
+export interface BrowserQaSessionStart {
+  session_name?: string | null;
+  browser?: string | null;
+  note?: string | null;
+}
+
+export interface BrowserQaSessionUpdate {
+  item_key?: string | null;
+  qa_status?: 'pending' | 'passed' | 'failed' | null;
+  item_note?: string | null;
+  session_status?: 'in_progress' | 'completed' | null;
+  note?: string | null;
+}
+
+export interface BrowserQaSessionItem extends BrowserQaChecklistItem {
+  qa_status: 'pending' | 'passed' | 'failed';
+  note: string | null;
+}
+
+export interface BrowserQaSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  browser: string | null;
+  status: 'in_progress' | 'completed';
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  item_count: number;
+  passed_count: number;
+  failed_count: number;
+  pending_count: number;
+  items: BrowserQaSessionItem[];
+}
+
+export interface BrowserQaSessionList {
+  data: BrowserQaSession[];
+  total: number;
+}
+
 export interface ReadinessSnapshot {
   id: string;
   created_at: string;

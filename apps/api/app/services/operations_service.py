@@ -28,6 +28,7 @@ REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
 LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
 GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
 ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
+BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -259,6 +260,114 @@ def production_config_audit() -> dict:
         "total": len(checks),
         "checks": checks,
     }
+
+
+def browser_qa_checklist() -> dict:
+    items = [
+        _browser_qa_item("login", "Login", "Confirm staff login and demo-mode entry load the expected workspace.", "/login", "Access"),
+        _browser_qa_item("patients", "Patients", "Search patients, open a profile, and confirm chart tabs render.", "/patients", "Clinical"),
+        _browser_qa_item("scheduling", "Scheduling", "Open today queue, schedule views, and conflict-check controls.", "/scheduling", "Front office"),
+        _browser_qa_item("documents", "Patient documents", "Review document list, access metadata, upload flow, and filing controls from a patient chart.", "/patients", "Clinical"),
+        _browser_qa_item("faxes", "Faxes", "Review inbound/outbound fax queues, matching, and status actions.", "/faxes", "Front office"),
+        _browser_qa_item("billing", "Billing", "Review charge capture, claim readiness, eligibility history, and billing work queue.", "/billing", "Revenue"),
+        _browser_qa_item("audit", "Audit", "Confirm audit list, patient access history, and export controls are reachable.", "/operations", "Compliance"),
+        _browser_qa_item("assistant_actions", "Assistant actions", "Review confirmation-gated assistant actions and policy surface.", "/assistant-review", "AI safety"),
+        _browser_qa_item("portal_intake", "Portal intake", "Process intake, appointment conversion, and document conversion workflows.", "/portal-intake", "Patient access"),
+        _browser_qa_item("reports", "Reports", "Review daily closeout risks, recommended actions, and CSV export.", "/reports", "Operations"),
+    ]
+    return {
+        "generated_at": datetime.now(UTC),
+        "items": items,
+        "total": len(items),
+    }
+
+
+async def start_browser_qa_session(db: AsyncSession, user: User, data: dict) -> dict:
+    checklist = browser_qa_checklist()
+    session_id = str(uuid4())
+    payload = _recalculate_browser_qa_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Browser QA run",
+        "browser": data.get("browser"),
+        "status": "in_progress",
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "completed_by": None,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_at": None,
+        "items": [
+            {
+                **item,
+                "qa_status": "pending",
+                "note": None,
+            }
+            for item in checklist["items"]
+        ],
+    })
+    event = await log_event(
+        db,
+        BROWSER_QA_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _browser_qa_session_from_audit(event)
+
+
+async def list_browser_qa_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == BROWSER_QA_SESSION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    sessions: dict[str, dict] = {}
+    for event in result.scalars().all():
+        session = _browser_qa_session_from_audit(event)
+        sessions.setdefault(session["session_id"], session)
+    return list(sessions.values())[:25], len(sessions)
+
+
+async def update_browser_qa_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_browser_qa_session_event(db, user, session_id)
+    if not latest:
+        return None
+
+    payload = deepcopy(latest.payload or {})
+    if data.get("note") is not None:
+        payload["note"] = data["note"]
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] == "completed" and not payload.get("completed_at"):
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+            payload["completed_by"] = user.display_name
+
+    item_key = data.get("item_key")
+    if item_key:
+        updated = False
+        for item in payload.get("items", []):
+            if item.get("key") != item_key:
+                continue
+            if data.get("qa_status"):
+                item["qa_status"] = data["qa_status"]
+            if data.get("item_note") is not None:
+                item["note"] = data["item_note"]
+            updated = True
+            break
+        if not updated:
+            return None
+
+    payload = _recalculate_browser_qa_totals(payload)
+    event = await log_event(
+        db,
+        BROWSER_QA_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _browser_qa_session_from_audit(event)
 
 
 async def create_readiness_snapshot(db: AsyncSession, user: User) -> dict:
@@ -522,12 +631,14 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     workplan_snapshots, _ = await list_launch_workplan_snapshots(db, user)
     attestations, _ = await list_go_live_attestations(db, user)
     dry_run_sessions, _ = await list_role_dry_run_sessions(db, user)
+    browser_qa_sessions, _ = await list_browser_qa_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
     latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
     latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
     latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
+    latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -573,6 +684,20 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Start and complete a role dry-run session with staff evidence notes.",
             "/operations",
             latest_dry_run["updated_at"] if latest_dry_run else None,
+        ),
+        _packet_evidence(
+            "browser_qa_session",
+            "Browser QA session",
+            "ready"
+            if latest_browser_qa and latest_browser_qa["status"] == "completed" and latest_browser_qa["failed_count"] == 0
+            else "warning"
+            if latest_browser_qa
+            else "missing",
+            f"{latest_browser_qa['passed_count']} passed, {latest_browser_qa['failed_count']} failed, {latest_browser_qa['pending_count']} pending item(s)."
+            if latest_browser_qa
+            else "Complete a browser QA session for major staff workflows.",
+            "/operations",
+            latest_browser_qa["updated_at"] if latest_browser_qa else None,
         ),
         _packet_evidence(
             "credential_preflight",
@@ -1045,6 +1170,16 @@ def _config_check(
     }
 
 
+def _browser_qa_item(key: str, label: str, detail: str, route: str, category: str) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "route": route,
+        "category": category,
+    }
+
+
 def _cors_origins_are_production_safe() -> bool:
     origins = settings.cors_origin_list
     if not origins:
@@ -1202,6 +1337,61 @@ def _role_checklist(key: str, label: str, summary: str, items: list[dict]) -> di
         "attention_count": attention,
         "total": len(items),
         "items": items,
+    }
+
+
+async def _latest_browser_qa_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == BROWSER_QA_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_browser_qa_totals(payload: dict) -> dict:
+    item_count = 0
+    passed_count = 0
+    failed_count = 0
+    pending_count = 0
+    for item in payload.get("items", []):
+        item_count += 1
+        status = item.get("qa_status") or "pending"
+        if status == "passed":
+            passed_count += 1
+        elif status == "failed":
+            failed_count += 1
+        else:
+            pending_count += 1
+    payload["item_count"] = item_count
+    payload["passed_count"] = passed_count
+    payload["failed_count"] = failed_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _browser_qa_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_browser_qa_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Browser QA run",
+        "browser": payload.get("browser"),
+        "status": payload.get("status", "in_progress"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "item_count": int(payload.get("item_count", 0)),
+        "passed_count": int(payload.get("passed_count", 0)),
+        "failed_count": int(payload.get("failed_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "items": payload.get("items", []),
     }
 
 

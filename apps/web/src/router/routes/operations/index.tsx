@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -73,6 +73,11 @@ type DryRunItemFormState = {
   item_note: string;
 };
 
+type BrowserQaItemFormState = {
+  qa_status: NonNullable<BrowserQaSessionUpdate['qa_status']>;
+  item_note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -93,6 +98,8 @@ function OperationsPage() {
   const [assignmentForms, setAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
   const [dryRunSessionForm, setDryRunSessionForm] = useState<RoleDryRunSessionStart>({ session_name: 'Clinic dry run', note: '' });
   const [dryRunItemForms, setDryRunItemForms] = useState<Record<string, DryRunItemFormState>>({});
+  const [browserQaSessionForm, setBrowserQaSessionForm] = useState<BrowserQaSessionStart>({ session_name: 'Browser QA run', browser: 'Chrome', note: '' });
+  const [browserQaItemForms, setBrowserQaItemForms] = useState<Record<string, BrowserQaItemFormState>>({});
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
@@ -141,6 +148,14 @@ function OperationsPage() {
   const { data: productionConfigAudit } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'production-config-audit'],
     queryFn: () => api.get<ProductionConfigAudit>(ROUTES.OPERATIONS_PRODUCTION_CONFIG_AUDIT),
+  });
+  const { data: browserQaChecklist } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'browser-qa-checklist'],
+    queryFn: () => api.get<BrowserQaChecklist>(ROUTES.OPERATIONS_BROWSER_QA_CHECKLIST),
+  });
+  const { data: browserQaSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'browser-qa-sessions'],
+    queryFn: () => api.get<BrowserQaSessionList>(ROUTES.OPERATIONS_BROWSER_QA_SESSIONS),
   });
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
@@ -245,12 +260,33 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startBrowserQaSessionMutation = useMutation({
+    mutationFn: (data: BrowserQaSessionStart) => api.post<BrowserQaSession>(ROUTES.OPERATIONS_BROWSER_QA_SESSIONS, data),
+    onSuccess: async () => {
+      setBrowserQaSessionForm({ session_name: 'Browser QA run', browser: 'Chrome', note: '' });
+      setBrowserQaItemForms({});
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'browser-qa-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updateBrowserQaSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: BrowserQaSessionUpdate }) => api.patch<BrowserQaSession>(
+      ROUTES.OPERATIONS_BROWSER_QA_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'browser-qa-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
   const deployment = ready?.deployment ? Object.entries(ready.deployment) : [];
   const failedEvents = events?.data.filter((event) => event.status === 'failed') ?? [];
   const activeDryRunSession = dryRunSessions?.data[0] ?? null;
+  const activeBrowserQaSession = browserQaSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(auditExport).forEach(([key, value]) => {
@@ -348,6 +384,33 @@ function OperationsPage() {
         role_key: roleKey,
         item_key: itemKey,
         dry_run_status: form.dry_run_status,
+        item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const browserQaItemKey = (sessionId: string, itemKey: string) => `${sessionId}:${itemKey}`;
+  const formForBrowserQaItem = (session: BrowserQaSession, itemKey: string): BrowserQaItemFormState => {
+    const key = browserQaItemKey(session.session_id, itemKey);
+    const item = session.items.find((entry) => entry.key === itemKey);
+    return browserQaItemForms[key] ?? {
+      qa_status: item?.qa_status ?? 'pending',
+      item_note: item?.note ?? '',
+    };
+  };
+  const updateBrowserQaItemForm = (sessionId: string, itemKey: string, patch: Partial<BrowserQaItemFormState>) => {
+    const key = browserQaItemKey(sessionId, itemKey);
+    setBrowserQaItemForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { qa_status: 'pending', item_note: '' }), ...patch },
+    }));
+  };
+  const submitBrowserQaItem = (session: BrowserQaSession, itemKey: string) => {
+    const form = formForBrowserQaItem(session, itemKey);
+    updateBrowserQaSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        item_key: itemKey,
+        qa_status: form.qa_status,
         item_note: form.item_note.trim() || null,
       },
     });
@@ -718,6 +781,142 @@ function OperationsPage() {
           ) : (
             <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-clinic-200 text-sm text-clinic-400">
               Start a dry-run session to capture role evidence.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Browser QA Evidence</h2>
+            <p className="text-xs text-clinic-500">{browserQaSessions?.total ?? 0} saved session(s) · {browserQaChecklist?.total ?? 0} checklist item(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeBrowserQaSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeBrowserQaSession.passed_count} passed</span>
+                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeBrowserQaSession.failed_count} failed</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeBrowserQaSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start QA run</div>
+              <input
+                value={browserQaSessionForm.session_name ?? ''}
+                onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={browserQaSessionForm.browser ?? ''}
+                onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, browser: event.target.value }))}
+                placeholder="Browser"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={browserQaSessionForm.note ?? ''}
+                onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="QA note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startBrowserQaSessionMutation.mutate({
+                  session_name: browserQaSessionForm.session_name?.trim() || 'Browser QA run',
+                  browser: browserQaSessionForm.browser?.trim() || null,
+                  note: browserQaSessionForm.note?.trim() || null,
+                })}
+                disabled={startBrowserQaSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start QA
+              </button>
+            </div>
+            {activeBrowserQaSession && (
+              <div className="rounded-md border border-clinic-200 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-clinic-900">{activeBrowserQaSession.session_name}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{activeBrowserQaSession.browser ?? 'Browser'} · {new Date(activeBrowserQaSession.started_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeBrowserQaSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {activeBrowserQaSession.status.replace('_', ' ')}
+                  </span>
+                </div>
+                {activeBrowserQaSession.note && <div className="mt-2 text-xs text-clinic-500">{activeBrowserQaSession.note}</div>}
+                <button
+                  type="button"
+                  onClick={() => updateBrowserQaSessionMutation.mutate({
+                    sessionId: activeBrowserQaSession.session_id,
+                    data: { session_status: 'completed', note: activeBrowserQaSession.note },
+                  })}
+                  disabled={activeBrowserQaSession.status === 'completed' || updateBrowserQaSessionMutation.isPending}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Complete QA
+                </button>
+              </div>
+            )}
+          </div>
+          {activeBrowserQaSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activeBrowserQaSession.items.map((item) => {
+                const itemForm = formForBrowserQaItem(activeBrowserQaSession, item.key);
+                return (
+                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <Link to={item.route} className="text-sm font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
+                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                      </div>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.qa_status === 'passed' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.qa_status === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.qa_status}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
+                      <select
+                        value={itemForm.qa_status}
+                        onChange={(event) => updateBrowserQaItemForm(activeBrowserQaSession.session_id, item.key, { qa_status: event.target.value as BrowserQaItemFormState['qa_status'] })}
+                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="passed">Passed</option>
+                        <option value="failed">Failed</option>
+                      </select>
+                      <input
+                        value={itemForm.item_note}
+                        onChange={(event) => updateBrowserQaItemForm(activeBrowserQaSession.session_id, item.key, { item_note: event.target.value })}
+                        placeholder="Evidence note"
+                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => submitBrowserQaItem(activeBrowserQaSession, item.key)}
+                        disabled={updateBrowserQaSessionMutation.isPending}
+                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {(browserQaChecklist?.items ?? []).map((item) => (
+                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                </Link>
+              ))}
             </div>
           )}
         </div>

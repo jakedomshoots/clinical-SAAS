@@ -75,6 +75,63 @@ class ProductionConfigAuditOut(BaseModel):
     checks: list[ProductionConfigCheckOut]
 
 
+class BrowserQaChecklistItemOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    category: str
+
+
+class BrowserQaChecklistOut(BaseModel):
+    generated_at: datetime
+    items: list[BrowserQaChecklistItemOut]
+    total: int
+
+
+class BrowserQaSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    browser: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class BrowserQaSessionUpdate(BaseModel):
+    item_key: str | None = None
+    qa_status: str | None = Field(default=None, pattern="^(pending|passed|failed)$")
+    item_note: str | None = Field(default=None, max_length=1000)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class BrowserQaSessionItemOut(BrowserQaChecklistItemOut):
+    qa_status: str
+    note: str | None = None
+
+
+class BrowserQaSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    browser: str | None = None
+    status: str
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    item_count: int
+    passed_count: int
+    failed_count: int
+    pending_count: int
+    items: list[BrowserQaSessionItemOut]
+
+
+class BrowserQaSessionListOut(BaseModel):
+    data: list[BrowserQaSessionOut]
+    total: int
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

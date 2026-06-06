@@ -8,6 +8,11 @@ from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.operations import (
+    BrowserQaChecklistOut,
+    BrowserQaSessionListOut,
+    BrowserQaSessionOut,
+    BrowserQaSessionStart,
+    BrowserQaSessionUpdate,
     GoLivePacketOut,
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
@@ -64,6 +69,51 @@ async def get_production_config_audit(current_user: OpsUserDep):
     return ProductionConfigAuditOut(
         **operations_service.production_config_audit()
     )
+
+
+@router.get("/browser-qa-checklist", response_model=BrowserQaChecklistOut)
+async def get_browser_qa_checklist(current_user: OpsUserDep):
+    return BrowserQaChecklistOut(
+        **operations_service.browser_qa_checklist()
+    )
+
+
+@router.post(
+    "/browser-qa-sessions",
+    response_model=BrowserQaSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_browser_qa_session(data: BrowserQaSessionStart, db: DbDep, current_user: OpsUserDep):
+    return BrowserQaSessionOut(
+        **await operations_service.start_browser_qa_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/browser-qa-sessions", response_model=BrowserQaSessionListOut)
+async def list_browser_qa_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_browser_qa_sessions(db, current_user)
+    return BrowserQaSessionListOut(
+        data=[BrowserQaSessionOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.patch("/browser-qa-sessions/{session_id}", response_model=BrowserQaSessionOut)
+async def update_browser_qa_session(
+    session_id: str,
+    data: BrowserQaSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_browser_qa_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Browser QA session not found")
+    return BrowserQaSessionOut(**session)
 
 
 @router.get("/launch-workplan", response_model=LaunchWorkplanOut)

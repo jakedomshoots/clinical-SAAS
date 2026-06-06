@@ -729,6 +729,79 @@ async def test_production_config_audit_flags_launch_settings(client, auth_header
 
 
 @pytest.mark.asyncio
+async def test_browser_qa_session_evidence_is_audit_backed(client, auth_headers):
+    checklist = await client.get("/api/operations/browser-qa-checklist", headers=auth_headers)
+    first_item = checklist.json()["items"][0]
+
+    created = await client.post(
+        "/api/operations/browser-qa-sessions",
+        json={"session_name": "Manager browser QA", "browser": "Chrome", "note": "Pre-rehearsal walkthrough."},
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/browser-qa-sessions/{session['session_id']}",
+        json={
+            "item_key": first_item["key"],
+            "qa_status": "passed",
+            "item_note": "Route loaded and core controls were visible.",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/operations/browser-qa-sessions/{session['session_id']}",
+        json={"session_status": "completed", "note": "Ready for launch packet review."},
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/browser-qa-sessions", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.browser_qa_session",
+        headers=auth_headers,
+    )
+
+    assert checklist.status_code == 200
+    checklist_data = checklist.json()
+    item_keys = {item["key"] for item in checklist_data["items"]}
+    assert {
+        "login",
+        "patients",
+        "scheduling",
+        "documents",
+        "faxes",
+        "billing",
+        "audit",
+        "assistant_actions",
+        "portal_intake",
+        "reports",
+    } <= item_keys
+    assert all(item["route"] for item in checklist_data["items"])
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Manager browser QA"
+    assert session["browser"] == "Chrome"
+    assert session["pending_count"] == session["item_count"]
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["passed_count"] == 1
+    updated_item = next(item for item in updated_data["items"] if item["key"] == first_item["key"])
+    assert updated_item["qa_status"] == "passed"
+    assert updated_item["note"] == "Route loaded and core controls were visible."
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"]
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.browser_qa_session"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200
