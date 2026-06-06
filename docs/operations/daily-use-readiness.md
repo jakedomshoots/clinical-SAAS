@@ -20,7 +20,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
-- Operations includes a live-use rehearsal board, Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/cutover evidence.
+- Operations includes a live-use rehearsal board, Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -60,6 +60,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Browser QA Evidence to record manual smoke coverage for login, patients, scheduling, documents, faxes, billing, audit, assistant actions, portal intake, and reports before live-use rehearsal.
 - Use Staff Training Evidence to record front desk, MA/nurse, provider, billing, and manager training sign-off for workflow usage, PHI handling, assistant policy, incident response, access review, and launch responsibilities.
 - Use Policy Approval Evidence to record clinic-owner or compliance-owner approval for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before live-use rehearsal.
+- Use Restore Drill Evidence to record the backup reference, disposable restore checklist, document/object smoke check, RTO/RPO minutes, blockers, and exportable evidence before live-use rehearsal.
 - Use Cutover Runbook to rehearse timed launch steps, assign owners, capture step evidence, record rollback triggers, and save the go/no-go rollback decision before live-use rehearsal or production cutover.
 - Capture readiness snapshots during rehearsals and before/after fixing incidents so managers can see trend history.
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
@@ -89,7 +90,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Approve patient outreach consent policy and test queued, blocked, failed, and delivered callback states.
 - Confirm `/api/ready` reports `operational_status: ok`.
 - Run `pnpm verify:local`.
-- Test backup and restore on a disposable stack.
+- Test backup and restore on a disposable stack, then record the restore drill session and RTO/RPO evidence in Operations.
 - Review PHI retention and incident-response policy with the clinic owner.
 
 ## Internal Pilot Definition
@@ -103,6 +104,7 @@ An internal clinic pilot is ready when:
 - Each role can walk through its Operations dry-run checklist with no unroutable workflow items, and the manager can save an audit-backed dry-run session with complete/blocked status and notes for launch review.
 - Staff training is recorded in Operations with reviewed/signed evidence for front desk, MA/nurse, provider, billing, and manager roles before live-use rehearsal.
 - Policy approval is recorded in Operations with approved/needs-changes evidence for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy.
+- Restore drill evidence is recorded in Operations with backup reference, complete/blocked checklist item status, RTO/RPO minutes, and exported evidence before live-use rehearsal.
 - Cutover runbook evidence is recorded in Operations with timed step owners, complete/blocked/rollback statuses, rollback readiness, and exportable go/no-go notes.
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
 - Managers can export audit data, retry failed integration events, and inspect readiness.

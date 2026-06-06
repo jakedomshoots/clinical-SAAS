@@ -288,6 +288,69 @@ export interface PolicyApprovalSessionList {
   total: number;
 }
 
+export interface RestoreDrillChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  category: string;
+}
+
+export interface RestoreDrillChecklist {
+  generated_at: string;
+  items: RestoreDrillChecklistItem[];
+  total: number;
+}
+
+export interface RestoreDrillSessionStart {
+  session_name?: string | null;
+  owner_name?: string | null;
+  backup_reference?: string | null;
+  note?: string | null;
+}
+
+export interface RestoreDrillSessionUpdate {
+  item_key?: string | null;
+  drill_status?: 'pending' | 'complete' | 'blocked' | null;
+  item_note?: string | null;
+  rto_minutes?: number | null;
+  rpo_minutes?: number | null;
+  session_status?: 'in_progress' | 'completed' | null;
+  note?: string | null;
+}
+
+export interface RestoreDrillSessionItem extends RestoreDrillChecklistItem {
+  drill_status: 'pending' | 'complete' | 'blocked';
+  note: string | null;
+}
+
+export interface RestoreDrillSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  owner_name: string | null;
+  backup_reference: string | null;
+  status: 'in_progress' | 'completed';
+  rto_minutes: number | null;
+  rpo_minutes: number | null;
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  item_count: number;
+  complete_count: number;
+  blocked_count: number;
+  pending_count: number;
+  items: RestoreDrillSessionItem[];
+}
+
+export interface RestoreDrillSessionList {
+  data: RestoreDrillSession[];
+  total: number;
+}
+
 export interface CutoverRunbookStep {
   key: string;
   label: string;

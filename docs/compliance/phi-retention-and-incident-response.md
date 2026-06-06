@@ -36,4 +36,4 @@ Policy approval should be recorded in Operations before any live-use rehearsal. 
 - Restore into a disposable environment.
 - Confirm login and core data visibility.
 - Confirm object files are present.
-- Record duration, failures, and next corrective action.
+- Record backup reference, RTO/RPO minutes, failures, and next corrective action in the Operations restore drill evidence workflow.

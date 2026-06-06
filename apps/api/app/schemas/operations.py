@@ -346,6 +346,70 @@ class CutoverRunbookSessionListOut(BaseModel):
     total: int
 
 
+class RestoreDrillChecklistItemOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    status: str
+    docs: list[str]
+
+
+class RestoreDrillChecklistOut(BaseModel):
+    generated_at: datetime
+    items: list[RestoreDrillChecklistItemOut]
+    total: int
+
+
+class RestoreDrillSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    owner_name: str | None = Field(default=None, max_length=120)
+    backup_reference: str | None = Field(default=None, max_length=255)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RestoreDrillSessionUpdate(BaseModel):
+    item_key: str | None = None
+    drill_status: str | None = Field(default=None, pattern="^(pending|complete|blocked)$")
+    item_note: str | None = Field(default=None, max_length=1000)
+    rto_minutes: int | None = Field(default=None, ge=0, le=10080)
+    rpo_minutes: int | None = Field(default=None, ge=0, le=10080)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RestoreDrillSessionItemOut(RestoreDrillChecklistItemOut):
+    drill_status: str
+    note: str | None = None
+
+
+class RestoreDrillSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    owner_name: str | None = None
+    backup_reference: str | None = None
+    status: str
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    rto_minutes: int | None = None
+    rpo_minutes: int | None = None
+    item_count: int
+    complete_count: int
+    blocked_count: int
+    pending_count: int
+    items: list[RestoreDrillSessionItemOut]
+
+
+class RestoreDrillSessionListOut(BaseModel):
+    data: list[RestoreDrillSessionOut]
+    total: int
+
+
 class ReadinessSnapshotOut(BaseModel):
     id: str
     created_at: datetime

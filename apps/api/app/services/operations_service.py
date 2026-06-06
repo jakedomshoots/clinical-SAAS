@@ -32,6 +32,7 @@ BROWSER_QA_SESSION_EVENT_TYPE = "operations.browser_qa_session"
 STAFF_TRAINING_SESSION_EVENT_TYPE = "operations.staff_training_session"
 POLICY_APPROVAL_SESSION_EVENT_TYPE = "operations.policy_approval_session"
 CUTOVER_RUNBOOK_SESSION_EVENT_TYPE = "operations.cutover_runbook_session"
+RESTORE_DRILL_SESSION_EVENT_TYPE = "operations.restore_drill_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -566,6 +567,140 @@ def policy_approval_checklist() -> dict:
     }
 
 
+def restore_drill_checklist() -> dict:
+    items = [
+        _restore_drill_item(
+            "backup_created",
+            "Backup created",
+            "Run a current backup and identify the backup folder used for the drill.",
+            ["docs/operations/production-launch-checklist.md", "docs/operations/deployment-runbook.md"],
+        ),
+        _restore_drill_item(
+            "backup_validated",
+            "Backup validated",
+            "Validate manifest, postgres dump, and object archive structure before restoring.",
+            ["scripts/validate-backup.sh", "docs/operations/production-launch-checklist.md"],
+        ),
+        _restore_drill_item(
+            "disposable_restore",
+            "Disposable restore",
+            "Restore into a disposable stack or environment without touching active clinic data.",
+            ["scripts/restore-local.sh", "docs/compliance/phi-retention-and-incident-response.md"],
+        ),
+        _restore_drill_item(
+            "application_smoke",
+            "Application smoke",
+            "Confirm login, patient search, document visibility, tasks, and reports after restore.",
+            ["docs/operations/daily-use-readiness.md"],
+        ),
+        _restore_drill_item(
+            "object_file_check",
+            "Object file check",
+            "Confirm restored object files are present and document handoff paths are usable.",
+            ["docs/operations/production-launch-checklist.md"],
+        ),
+        _restore_drill_item(
+            "rto_rpo_recorded",
+            "RTO/RPO recorded",
+            "Capture restore duration, backup age, RTO/RPO result, failures, and follow-up owner.",
+            ["docs/compliance/phi-retention-and-incident-response.md"],
+        ),
+    ]
+    return {"generated_at": datetime.now(UTC), "items": items, "total": len(items)}
+
+
+async def start_restore_drill_session(db: AsyncSession, user: User, data: dict) -> dict:
+    checklist = restore_drill_checklist()
+    session_id = str(uuid4())
+    payload = _recalculate_restore_drill_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Restore drill",
+        "owner_name": data.get("owner_name"),
+        "backup_reference": data.get("backup_reference"),
+        "status": "in_progress",
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_by": None,
+        "completed_at": None,
+        "rto_minutes": None,
+        "rpo_minutes": None,
+        "items": [
+            {**item, "drill_status": "pending", "note": None}
+            for item in checklist["items"]
+        ],
+    })
+    event = await log_event(
+        db,
+        RESTORE_DRILL_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _restore_drill_session_from_audit(event)
+
+
+async def list_restore_drill_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    rows = (
+        await db.execute(
+            select(AuditLog).where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type == RESTORE_DRILL_SESSION_EVENT_TYPE,
+                AuditLog.entity_type == "operations",
+            ).order_by(AuditLog.created_at.desc())
+        )
+    ).scalars().all()
+    latest_by_session: dict[str, dict] = {}
+    for event in rows:
+        session = _restore_drill_session_from_audit(event)
+        latest_by_session.setdefault(session["session_id"], session)
+    sessions = list(latest_by_session.values())
+    return sessions, len(sessions)
+
+
+async def get_restore_drill_session(db: AsyncSession, user: User, session_id: str) -> dict | None:
+    latest = await _latest_restore_drill_session_event(db, user, session_id)
+    return _restore_drill_session_from_audit(latest) if latest else None
+
+
+async def update_restore_drill_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_restore_drill_session_event(db, user, session_id)
+    if not latest:
+        return None
+    payload = deepcopy(latest.payload or {})
+    item_key = data.get("item_key")
+    if item_key:
+        for item in payload.get("items", []):
+            if item.get("key") == item_key:
+                if data.get("drill_status"):
+                    item["drill_status"] = data["drill_status"]
+                if "item_note" in data:
+                    item["note"] = data.get("item_note")
+                break
+    if "rto_minutes" in data:
+        payload["rto_minutes"] = data.get("rto_minutes")
+    if "rpo_minutes" in data:
+        payload["rpo_minutes"] = data.get("rpo_minutes")
+    if data.get("note") is not None:
+        payload["note"] = data.get("note")
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] == "completed":
+            payload["completed_by"] = user.display_name
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+    payload = _recalculate_restore_drill_totals(payload)
+    event = await log_event(
+        db,
+        RESTORE_DRILL_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _restore_drill_session_from_audit(event)
+
+
 async def start_policy_approval_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = policy_approval_checklist()
     session_id = str(uuid4())
@@ -1065,6 +1200,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     browser_qa_sessions, _ = await list_browser_qa_sessions(db, user)
     staff_training_sessions, _ = await list_staff_training_sessions(db, user)
     policy_approval_sessions, _ = await list_policy_approval_sessions(db, user)
+    restore_drill_sessions, _ = await list_restore_drill_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
@@ -1074,6 +1210,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
     latest_training = staff_training_sessions[0] if staff_training_sessions else None
     latest_policy_approval = policy_approval_sessions[0] if policy_approval_sessions else None
+    latest_restore_drill = restore_drill_sessions[0] if restore_drill_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -1177,6 +1314,20 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             _backup_restore_detail(deployment),
             "/operations",
             deployment.get("latest_restore", {}).get("last_success_at") or deployment.get("latest_backup", {}).get("last_success_at"),
+        ),
+        _packet_evidence(
+            "restore_drill_session",
+            "Restore drill session",
+            "ready"
+            if latest_restore_drill and latest_restore_drill["status"] == "completed" and latest_restore_drill["pending_count"] == 0 and latest_restore_drill["blocked_count"] == 0
+            else "warning"
+            if latest_restore_drill
+            else "missing",
+            f"{latest_restore_drill['complete_count']} complete, {latest_restore_drill['blocked_count']} blocked, {latest_restore_drill['pending_count']} pending item(s). RTO {latest_restore_drill['rto_minutes'] if latest_restore_drill['rto_minutes'] is not None else 'not recorded'} min, RPO {latest_restore_drill['rpo_minutes'] if latest_restore_drill['rpo_minutes'] is not None else 'not recorded'} min."
+            if latest_restore_drill
+            else "Start and complete a restore drill session with RTO/RPO evidence.",
+            "/operations",
+            latest_restore_drill["updated_at"] if latest_restore_drill else None,
         ),
     ]
     blocking = sum(1 for item in evidence if item["status"] == "blocking") + workplan["blocking_count"] + launch["critical_blockers"]
@@ -1775,6 +1926,48 @@ def _backup_restore_detail(deployment: dict) -> str:
     return "Backup and restore validation evidence is missing."
 
 
+def _restore_drill_item(key: str, label: str, detail: str, docs: list[str]) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "route": "/operations",
+        "status": "attention",
+        "docs": docs,
+    }
+
+
+def restore_drill_session_csv(session: dict) -> str:
+    rows = [[
+        "session_id",
+        "session_name",
+        "owner_name",
+        "status",
+        "backup_reference",
+        "rto_minutes",
+        "rpo_minutes",
+        "item_key",
+        "item_label",
+        "drill_status",
+        "note",
+    ]]
+    for item in session.get("items", []):
+        rows.append([
+            session["session_id"],
+            session["session_name"],
+            session.get("owner_name") or "",
+            session["status"],
+            session.get("backup_reference") or "",
+            "" if session.get("rto_minutes") is None else str(session.get("rto_minutes")),
+            "" if session.get("rpo_minutes") is None else str(session.get("rpo_minutes")),
+            item["key"],
+            item["label"],
+            item["drill_status"],
+            item.get("note") or "",
+        ])
+    return "\n".join(_csv_row([str(value) for value in row]) for row in rows) + "\n"
+
+
 def _workplan_item(
     *,
     key: str,
@@ -2172,6 +2365,64 @@ def _staff_training_session_from_audit(event: AuditLog) -> dict:
         "reviewed_count": int(payload.get("reviewed_count", 0)),
         "pending_count": int(payload.get("pending_count", 0)),
         "roles": payload.get("roles", []),
+    }
+
+
+async def _latest_restore_drill_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == RESTORE_DRILL_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_restore_drill_totals(payload: dict) -> dict:
+    item_count = 0
+    complete_count = 0
+    blocked_count = 0
+    pending_count = 0
+    for item in payload.get("items", []):
+        item_count += 1
+        status = item.get("drill_status") or "pending"
+        if status == "complete":
+            complete_count += 1
+        elif status == "blocked":
+            blocked_count += 1
+        else:
+            pending_count += 1
+    payload["item_count"] = item_count
+    payload["complete_count"] = complete_count
+    payload["blocked_count"] = blocked_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _restore_drill_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_restore_drill_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Restore drill",
+        "owner_name": payload.get("owner_name"),
+        "backup_reference": payload.get("backup_reference"),
+        "status": payload.get("status", "in_progress"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "rto_minutes": payload.get("rto_minutes"),
+        "rpo_minutes": payload.get("rpo_minutes"),
+        "item_count": int(payload.get("item_count", 0)),
+        "complete_count": int(payload.get("complete_count", 0)),
+        "blocked_count": int(payload.get("blocked_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "items": payload.get("items", []),
     }
 
 

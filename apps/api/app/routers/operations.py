@@ -42,6 +42,11 @@ from app.schemas.operations import (
     ReadinessSnapshotOut,
     RehearsalActionAssignmentOut,
     RehearsalActionAssignmentUpdate,
+    RestoreDrillChecklistOut,
+    RestoreDrillSessionListOut,
+    RestoreDrillSessionOut,
+    RestoreDrillSessionStart,
+    RestoreDrillSessionUpdate,
     RoleDryRunChecklistListOut,
     RoleDryRunSessionListOut,
     RoleDryRunSessionOut,
@@ -484,4 +489,56 @@ async def list_readiness_snapshots(db: DbDep, current_user: OpsUserDep):
     return ReadinessSnapshotListOut(
         data=[ReadinessSnapshotOut(**item) for item in rows],
         total=total,
+    )
+
+
+@router.get("/restore-drill-checklist", response_model=RestoreDrillChecklistOut)
+async def get_restore_drill_checklist(current_user: OpsUserDep):
+    return RestoreDrillChecklistOut(**operations_service.restore_drill_checklist())
+
+
+@router.post(
+    "/restore-drill-sessions",
+    response_model=RestoreDrillSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_restore_drill_session(data: RestoreDrillSessionStart, db: DbDep, current_user: OpsUserDep):
+    return RestoreDrillSessionOut(
+        **await operations_service.start_restore_drill_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/restore-drill-sessions", response_model=RestoreDrillSessionListOut)
+async def list_restore_drill_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_restore_drill_sessions(db, current_user)
+    return RestoreDrillSessionListOut(data=[RestoreDrillSessionOut(**item) for item in rows], total=total)
+
+
+@router.patch("/restore-drill-sessions/{session_id}", response_model=RestoreDrillSessionOut)
+async def update_restore_drill_session(
+    session_id: str,
+    data: RestoreDrillSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_restore_drill_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(exclude_none=True),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found")
+    return RestoreDrillSessionOut(**session)
+
+
+@router.get("/restore-drill-sessions/{session_id}/export")
+async def export_restore_drill_session(session_id: str, db: DbDep, current_user: OpsUserDep):
+    session = await operations_service.get_restore_drill_session(db, current_user, session_id)
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found")
+    return Response(
+        content=operations_service.restore_drill_session_csv(session),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="concierge-os-restore-drill.csv"'},
     )

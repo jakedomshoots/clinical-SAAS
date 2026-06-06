@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -88,6 +88,11 @@ type PolicyApprovalItemFormState = {
   item_note: string;
 };
 
+type RestoreDrillItemFormState = {
+  drill_status: NonNullable<RestoreDrillSessionUpdate['drill_status']>;
+  item_note: string;
+};
+
 type CutoverStepFormState = {
   step_status: NonNullable<CutoverRunbookSessionUpdate['step_status']>;
   owner_name: string;
@@ -120,6 +125,9 @@ function OperationsPage() {
   const [staffTrainingItemForms, setStaffTrainingItemForms] = useState<Record<string, StaffTrainingItemFormState>>({});
   const [policyApprovalSessionForm, setPolicyApprovalSessionForm] = useState<PolicyApprovalSessionStart>({ session_name: 'Policy approval', reviewer_name: '', note: '' });
   const [policyApprovalItemForms, setPolicyApprovalItemForms] = useState<Record<string, PolicyApprovalItemFormState>>({});
+  const [restoreDrillSessionForm, setRestoreDrillSessionForm] = useState<RestoreDrillSessionStart>({ session_name: 'Restore drill', owner_name: '', backup_reference: '', note: '' });
+  const [restoreDrillItemForms, setRestoreDrillItemForms] = useState<Record<string, RestoreDrillItemFormState>>({});
+  const [restoreDrillMetricsForm, setRestoreDrillMetricsForm] = useState({ rto_minutes: '', rpo_minutes: '', note: '' });
   const [cutoverSessionForm, setCutoverSessionForm] = useState<CutoverRunbookSessionStart>({ session_name: 'Production cutover rehearsal', cutover_owner: '', scheduled_for: '', note: '' });
   const [cutoverStepForms, setCutoverStepForms] = useState<Record<string, CutoverStepFormState>>({});
   const [cutoverRollbackForm, setCutoverRollbackForm] = useState({
@@ -202,6 +210,14 @@ function OperationsPage() {
   const { data: policyApprovalSessions } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'policy-approval-sessions'],
     queryFn: () => api.get<PolicyApprovalSessionList>(ROUTES.OPERATIONS_POLICY_APPROVAL_SESSIONS),
+  });
+  const { data: restoreDrillChecklist } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'restore-drill-checklist'],
+    queryFn: () => api.get<RestoreDrillChecklist>(ROUTES.OPERATIONS_RESTORE_DRILL_CHECKLIST),
+  });
+  const { data: restoreDrillSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'restore-drill-sessions'],
+    queryFn: () => api.get<RestoreDrillSessionList>(ROUTES.OPERATIONS_RESTORE_DRILL_SESSIONS),
   });
   const { data: cutoverRunbook } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'cutover-runbook'],
@@ -380,6 +396,30 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startRestoreDrillSessionMutation = useMutation({
+    mutationFn: (data: RestoreDrillSessionStart) => api.post<RestoreDrillSession>(ROUTES.OPERATIONS_RESTORE_DRILL_SESSIONS, data),
+    onSuccess: async () => {
+      setRestoreDrillSessionForm({ session_name: 'Restore drill', owner_name: '', backup_reference: '', note: '' });
+      setRestoreDrillItemForms({});
+      setRestoreDrillMetricsForm({ rto_minutes: '', rpo_minutes: '', note: '' });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'restore-drill-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updateRestoreDrillSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: RestoreDrillSessionUpdate }) => api.patch<RestoreDrillSession>(
+      ROUTES.OPERATIONS_RESTORE_DRILL_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'restore-drill-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
   const startCutoverSessionMutation = useMutation({
     mutationFn: (data: CutoverRunbookSessionStart) => api.post<CutoverRunbookSession>(ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSIONS, data),
     onSuccess: async () => {
@@ -413,6 +453,7 @@ function OperationsPage() {
   const activeBrowserQaSession = browserQaSessions?.data[0] ?? null;
   const activeStaffTrainingSession = staffTrainingSessions?.data[0] ?? null;
   const activePolicyApprovalSession = policyApprovalSessions?.data[0] ?? null;
+  const activeRestoreDrillSession = restoreDrillSessions?.data[0] ?? null;
   const activeCutoverSession = cutoverSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
@@ -595,6 +636,43 @@ function OperationsPage() {
         item_key: itemKey,
         approval_status: form.approval_status,
         item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const restoreDrillItemKey = (sessionId: string, itemKey: string) => `${sessionId}:${itemKey}`;
+  const formForRestoreDrillItem = (session: RestoreDrillSession, itemKey: string): RestoreDrillItemFormState => {
+    const key = restoreDrillItemKey(session.session_id, itemKey);
+    const item = session.items.find((entry) => entry.key === itemKey);
+    return restoreDrillItemForms[key] ?? {
+      drill_status: item?.drill_status ?? 'pending',
+      item_note: item?.note ?? '',
+    };
+  };
+  const updateRestoreDrillItemForm = (sessionId: string, itemKey: string, patch: Partial<RestoreDrillItemFormState>) => {
+    const key = restoreDrillItemKey(sessionId, itemKey);
+    setRestoreDrillItemForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { drill_status: 'pending', item_note: '' }), ...patch },
+    }));
+  };
+  const submitRestoreDrillItem = (session: RestoreDrillSession, itemKey: string) => {
+    const form = formForRestoreDrillItem(session, itemKey);
+    updateRestoreDrillSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        item_key: itemKey,
+        drill_status: form.drill_status,
+        item_note: form.item_note.trim() || null,
+      },
+    });
+  };
+  const submitRestoreDrillMetrics = (session: RestoreDrillSession) => {
+    updateRestoreDrillSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        rto_minutes: restoreDrillMetricsForm.rto_minutes ? Number(restoreDrillMetricsForm.rto_minutes) : session.rto_minutes,
+        rpo_minutes: restoreDrillMetricsForm.rpo_minutes ? Number(restoreDrillMetricsForm.rpo_minutes) : session.rpo_minutes,
+        note: restoreDrillMetricsForm.note.trim() || session.note,
       },
     });
   };
@@ -1087,6 +1165,193 @@ function OperationsPage() {
           ) : (
             <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-clinic-200 text-sm text-clinic-400">
               Start a dry-run session to capture role evidence.
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Restore Drill Evidence</h2>
+            <p className="text-xs text-clinic-500">{restoreDrillSessions?.total ?? 0} saved session(s) · {restoreDrillChecklist?.total ?? 0} evidence item(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeRestoreDrillSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeRestoreDrillSession.complete_count} complete</span>
+                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeRestoreDrillSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeRestoreDrillSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start drill</div>
+              <input
+                value={restoreDrillSessionForm.session_name ?? ''}
+                onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={restoreDrillSessionForm.owner_name ?? ''}
+                onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, owner_name: event.target.value }))}
+                placeholder="Drill owner"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <input
+                value={restoreDrillSessionForm.backup_reference ?? ''}
+                onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, backup_reference: event.target.value }))}
+                placeholder="Backup reference"
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={restoreDrillSessionForm.note ?? ''}
+                onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="Drill note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startRestoreDrillSessionMutation.mutate({
+                  session_name: restoreDrillSessionForm.session_name?.trim() || 'Restore drill',
+                  owner_name: restoreDrillSessionForm.owner_name?.trim() || null,
+                  backup_reference: restoreDrillSessionForm.backup_reference?.trim() || null,
+                  note: restoreDrillSessionForm.note?.trim() || null,
+                })}
+                disabled={startRestoreDrillSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start drill
+              </button>
+            </div>
+            {activeRestoreDrillSession && (
+              <div className="rounded-md border border-clinic-200 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-clinic-900">{activeRestoreDrillSession.session_name}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{activeRestoreDrillSession.owner_name ?? activeRestoreDrillSession.started_by ?? 'Drill owner'} · {new Date(activeRestoreDrillSession.started_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeRestoreDrillSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {activeRestoreDrillSession.status.replace('_', ' ')}
+                  </span>
+                </div>
+                {activeRestoreDrillSession.backup_reference && <div className="mt-2 text-xs text-clinic-500">Backup {activeRestoreDrillSession.backup_reference}</div>}
+                {activeRestoreDrillSession.note && <div className="mt-2 text-xs text-clinic-500">{activeRestoreDrillSession.note}</div>}
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={restoreDrillMetricsForm.rto_minutes || (activeRestoreDrillSession.rto_minutes === null ? '' : String(activeRestoreDrillSession.rto_minutes))}
+                    onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, rto_minutes: event.target.value }))}
+                    placeholder="RTO minutes"
+                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    value={restoreDrillMetricsForm.rpo_minutes || (activeRestoreDrillSession.rpo_minutes === null ? '' : String(activeRestoreDrillSession.rpo_minutes))}
+                    onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, rpo_minutes: event.target.value }))}
+                    placeholder="RPO minutes"
+                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  />
+                </div>
+                <textarea
+                  value={restoreDrillMetricsForm.note || activeRestoreDrillSession.note || ''}
+                  onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, note: event.target.value }))}
+                  rows={3}
+                  placeholder="RTO/RPO evidence note"
+                  className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                />
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <a
+                    href={ROUTES.OPERATIONS_RESTORE_DRILL_SESSION_EXPORT(activeRestoreDrillSession.session_id)}
+                    download="concierge-os-restore-drill.csv"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Export
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => submitRestoreDrillMetrics(activeRestoreDrillSession)}
+                    disabled={updateRestoreDrillSessionMutation.isPending}
+                    className="rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                  >
+                    Save metrics
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateRestoreDrillSessionMutation.mutate({
+                      sessionId: activeRestoreDrillSession.session_id,
+                      data: { session_status: 'completed', note: restoreDrillMetricsForm.note.trim() || activeRestoreDrillSession.note },
+                    })}
+                    disabled={activeRestoreDrillSession.status === 'completed' || updateRestoreDrillSessionMutation.isPending}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                  >
+                    <CheckSquare className="h-3.5 w-3.5" />
+                    Complete
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          {activeRestoreDrillSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activeRestoreDrillSession.items.map((item) => {
+                const itemForm = formForRestoreDrillItem(activeRestoreDrillSession, item.key);
+                return (
+                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                      </div>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.drill_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.drill_status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.drill_status}</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
+                      <select
+                        value={itemForm.drill_status}
+                        onChange={(event) => updateRestoreDrillItemForm(activeRestoreDrillSession.session_id, item.key, { drill_status: event.target.value as RestoreDrillItemFormState['drill_status'] })}
+                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="complete">Complete</option>
+                        <option value="blocked">Blocked</option>
+                      </select>
+                      <input
+                        value={itemForm.item_note}
+                        onChange={(event) => updateRestoreDrillItemForm(activeRestoreDrillSession.session_id, item.key, { item_note: event.target.value })}
+                        placeholder="Evidence note"
+                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => submitRestoreDrillItem(activeRestoreDrillSession, item.key)}
+                        disabled={updateRestoreDrillSessionMutation.isPending}
+                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {(restoreDrillChecklist?.items ?? []).map((item) => (
+                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                </Link>
+              ))}
             </div>
           )}
         </div>

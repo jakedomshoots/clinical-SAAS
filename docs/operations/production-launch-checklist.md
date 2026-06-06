@@ -50,6 +50,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 
 - `pnpm backup:local` succeeds against the deployed-like local stack.
 - `pnpm restore:local backups/<timestamp>` has been tested on a disposable stack.
+- `/api/operations/restore-drill-sessions` includes an audit-backed restore drill with backup reference, disposable restore evidence, object-file check, RTO/RPO minutes, and CSV export.
 - Backup retention location and access controls are documented.
 - Recovery time objective and recovery point objective are approved.
 
@@ -70,6 +71,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/role-dry-run-sessions` includes a completed dry-run session with complete/blocked status and evidence notes for each role before the live-use rehearsal.
 - `/api/operations/staff-training-sessions` includes a completed staff training session with reviewed/signed status and evidence notes for front desk, MA/nurse, provider, billing, and manager responsibilities before the live-use rehearsal.
 - `/api/operations/policy-approval-sessions` includes a completed policy approval session with approved/needs-changes status and evidence notes for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before the live-use rehearsal.
+- `/api/operations/restore-drill-sessions` includes a completed restore drill session with complete/blocked checklist item status, RTO/RPO evidence, and exportable notes before the live-use rehearsal.
 - `/api/operations/cutover-runbook-sessions` includes a completed cutover session with each timed step assigned, complete/blocked/rollback status captured, rollback readiness reviewed, and go/no-go decision notes exported before production cutover.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -706,6 +706,119 @@ function updatePolicyApprovalSession(sessionId: string, data: PolicyApprovalSess
   return updated;
 }
 
+function demoRestoreDrillItem(key: string, label: string, detail: string, route: string, category: string): RestoreDrillChecklistItem {
+  return { key, label, detail, route, category };
+}
+
+function restoreDrillChecklist(): RestoreDrillChecklist {
+  const items = [
+    demoRestoreDrillItem('backup_created', 'Backup created', 'Run a current backup and identify the backup folder used for the drill.', '/operations', 'Backup'),
+    demoRestoreDrillItem('backup_validated', 'Backup validated', 'Validate the selected backup manifest and object archive before restoring.', '/operations', 'Backup'),
+    demoRestoreDrillItem('disposable_restore', 'Disposable restore', 'Restore into a disposable stack or database target, not the active clinic workspace.', '/operations', 'Restore'),
+    demoRestoreDrillItem('application_smoke', 'Application smoke', 'Open the restored app and verify login, patients, tasks, documents, and reports.', '/operations', 'Application'),
+    demoRestoreDrillItem('object_file_check', 'Object file check', 'Open at least one restored patient document or object reference.', '/patients', 'Documents'),
+    demoRestoreDrillItem('rto_rpo_recorded', 'RTO/RPO recorded', 'Capture restore duration, backup age, RTO/RPO result, failures, and follow-up owner.', '/operations', 'Evidence'),
+  ];
+  return { generated_at: new Date().toISOString(), items, total: items.length };
+}
+
+function recalculateRestoreDrillSession(session: RestoreDrillSession): RestoreDrillSession {
+  const completeCount = session.items.filter((item) => item.drill_status === 'complete').length;
+  const blockedCount = session.items.filter((item) => item.drill_status === 'blocked').length;
+  return {
+    ...session,
+    item_count: session.items.length,
+    complete_count: completeCount,
+    blocked_count: blockedCount,
+    pending_count: session.items.length - completeCount - blockedCount,
+  };
+}
+
+function createRestoreDrillSession(data: RestoreDrillSessionStart): RestoreDrillSession {
+  const checklist = restoreDrillChecklist();
+  const createdAt = new Date().toISOString();
+  const session = recalculateRestoreDrillSession({
+    id: uuid(3000 + restoreDrillSessions.length),
+    session_id: uuid(3100 + restoreDrillSessions.length),
+    session_name: data.session_name || 'Restore drill',
+    owner_name: data.owner_name ?? null,
+    backup_reference: data.backup_reference ?? null,
+    status: 'in_progress',
+    rto_minutes: null,
+    rpo_minutes: null,
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    item_count: 0,
+    complete_count: 0,
+    blocked_count: 0,
+    pending_count: 0,
+    items: checklist.items.map((item) => ({ ...item, drill_status: 'pending' as const, note: null })),
+  });
+  restoreDrillSessions = [session, ...restoreDrillSessions];
+  logDemoEvent({
+    event_type: 'operations.restore_drill_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updateRestoreDrillSession(sessionId: string, data: RestoreDrillSessionUpdate): RestoreDrillSession | null {
+  const session = restoreDrillSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated = recalculateRestoreDrillSession({
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    rto_minutes: data.rto_minutes !== undefined ? data.rto_minutes : session.rto_minutes,
+    rpo_minutes: data.rpo_minutes !== undefined ? data.rpo_minutes : session.rpo_minutes,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status === 'completed' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status === 'completed' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    items: session.items.map((item) => {
+      if (item.key !== data.item_key) return item;
+      return {
+        ...item,
+        drill_status: data.drill_status ?? item.drill_status,
+        note: data.item_note !== undefined ? data.item_note : item.note,
+      };
+    }),
+  });
+  restoreDrillSessions = [updated, ...restoreDrillSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.restore_drill_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: updated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return updated;
+}
+
+function restoreDrillCsv(session: RestoreDrillSession) {
+  const rows = [['session_id', 'session_name', 'owner_name', 'status', 'backup_reference', 'rto_minutes', 'rpo_minutes', 'item_key', 'item_label', 'drill_status', 'note']];
+  session.items.forEach((item) => rows.push([
+    session.session_id,
+    session.session_name,
+    session.owner_name ?? '',
+    session.status,
+    session.backup_reference ?? '',
+    session.rto_minutes === null ? '' : String(session.rto_minutes),
+    session.rpo_minutes === null ? '' : String(session.rpo_minutes),
+    item.key,
+    item.label,
+    item.drill_status,
+    item.note ?? '',
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 function demoCutoverStep(key: string, label: string, detail: string, owner_role: string, expected_minute: number, rollback_trigger: string | null): CutoverRunbookStep {
   return { key, label, detail, owner_role, expected_minute, rollback_trigger };
 }
@@ -1137,6 +1250,7 @@ function goLivePacket(): GoLivePacket {
   const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
   const latestTraining = staffTrainingSessions[0] ?? null;
   const latestPolicyApproval = policyApprovalSessions[0] ?? null;
+  const latestRestoreDrill = restoreDrillSessions[0] ?? null;
   const readinessSnapshot = latestReadiness ? readinessSnapshotFromEvent(latestReadiness) : null;
   const workplanSnapshot = latestWorkplan ? launchWorkplanSnapshotFromEvent(latestWorkplan) : null;
   const rehearsalSnapshot = latestRehearsal ? productionRehearsalSnapshotFromEvent(latestRehearsal) : null;
@@ -1196,6 +1310,14 @@ function goLivePacket(): GoLivePacket {
       detail: 'Backup and restore validation evidence is missing in demo mode.',
       route: '/operations',
       captured_at: null,
+    },
+    {
+      key: 'restore_drill_session',
+      label: 'Restore drill session',
+      status: latestRestoreDrill?.status === 'completed' && latestRestoreDrill.pending_count === 0 && latestRestoreDrill.blocked_count === 0 ? 'ready' as const : latestRestoreDrill ? 'warning' as const : 'missing' as const,
+      detail: latestRestoreDrill ? `${latestRestoreDrill.complete_count} complete, ${latestRestoreDrill.blocked_count} blocked, ${latestRestoreDrill.pending_count} pending restore item(s). RTO ${latestRestoreDrill.rto_minutes ?? 'not recorded'} min, RPO ${latestRestoreDrill.rpo_minutes ?? 'not recorded'} min.` : 'Start and complete a restore drill session with RTO/RPO evidence.',
+      route: '/operations',
+      captured_at: latestRestoreDrill?.updated_at ?? null,
     },
   ];
   const launchRequirements = demoLaunchRequirements().filter((item) => !item.ready);
@@ -1575,6 +1697,7 @@ interface DemoStore {
   browserQaSessions?: BrowserQaSession[];
   staffTrainingSessions?: StaffTrainingSession[];
   policyApprovalSessions?: PolicyApprovalSession[];
+  restoreDrillSessions?: RestoreDrillSession[];
   cutoverRunbookSessions?: CutoverRunbookSession[];
 }
 
@@ -1631,6 +1754,7 @@ let roleDryRunSessions: RoleDryRunSession[] = [];
 let browserQaSessions: BrowserQaSession[] = [];
 let staffTrainingSessions: StaffTrainingSession[] = [];
 let policyApprovalSessions: PolicyApprovalSession[] = [];
+let restoreDrillSessions: RestoreDrillSession[] = [];
 let cutoverRunbookSessions: CutoverRunbookSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
@@ -1992,7 +2116,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, cutoverRunbookSessions }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions, browserQaSessions, staffTrainingSessions, policyApprovalSessions, restoreDrillSessions, cutoverRunbookSessions }),
   );
 }
 
@@ -2186,6 +2310,7 @@ if (storedDemoData) {
   browserQaSessions = storedDemoData.browserQaSessions ?? browserQaSessions;
   staffTrainingSessions = storedDemoData.staffTrainingSessions ?? staffTrainingSessions;
   policyApprovalSessions = storedDemoData.policyApprovalSessions ?? policyApprovalSessions;
+  restoreDrillSessions = storedDemoData.restoreDrillSessions ?? restoreDrillSessions;
   cutoverRunbookSessions = storedDemoData.cutoverRunbookSessions ?? cutoverRunbookSessions;
 }
 
@@ -2371,6 +2496,34 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     );
     if (!session) {
       throw new Error('Policy approval session not found');
+    }
+    return session as T;
+  }
+  if (path === '/operations/restore-drill-checklist' && method === 'GET') {
+    return restoreDrillChecklist() as T;
+  }
+  if (path === '/operations/restore-drill-sessions' && method === 'POST') {
+    return createRestoreDrillSession((body ?? {}) as RestoreDrillSessionStart) as T;
+  }
+  if (path === '/operations/restore-drill-sessions' && method === 'GET') {
+    return { data: restoreDrillSessions, total: restoreDrillSessions.length } satisfies RestoreDrillSessionList as T;
+  }
+  const restoreDrillExportMatch = path.match(/^\/operations\/restore-drill-sessions\/([^/]+)\/export$/);
+  if (restoreDrillExportMatch && method === 'GET') {
+    const session = restoreDrillSessions.find((item) => item.session_id === decodeURIComponent(restoreDrillExportMatch[1]));
+    if (!session) {
+      throw new Error('Restore drill session not found');
+    }
+    return restoreDrillCsv(session) as T;
+  }
+  const restoreDrillSessionMatch = path.match(/^\/operations\/restore-drill-sessions\/([^/]+)$/);
+  if (restoreDrillSessionMatch && method === 'PATCH') {
+    const session = updateRestoreDrillSession(
+      decodeURIComponent(restoreDrillSessionMatch[1]),
+      (body ?? {}) as RestoreDrillSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Restore drill session not found');
     }
     return session as T;
   }

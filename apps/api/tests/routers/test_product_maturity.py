@@ -571,6 +571,96 @@ async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_restore_drill_session_evidence_feeds_go_live_packet(client, auth_headers):
+    checklist = await client.get("/api/operations/restore-drill-checklist", headers=auth_headers)
+    first_item = checklist.json()["items"][0]
+
+    created = await client.post(
+        "/api/operations/restore-drill-sessions",
+        json={
+            "session_name": "Disposable restore drill",
+            "owner_name": "Ops Lead",
+            "backup_reference": "backups/20260606T120000Z",
+            "note": "Run on disposable local stack.",
+        },
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/restore-drill-sessions/{session['session_id']}",
+        json={
+            "item_key": first_item["key"],
+            "drill_status": "complete",
+            "item_note": "Backup manifest, database dump, and object archive validated.",
+            "rto_minutes": 45,
+            "rpo_minutes": 15,
+        },
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/operations/restore-drill-sessions/{session['session_id']}",
+        json={"session_status": "completed", "note": "Restore drill evidence captured."},
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/restore-drill-sessions", headers=auth_headers)
+    exported = await client.get(
+        f"/api/operations/restore-drill-sessions/{session['session_id']}/export",
+        headers=auth_headers,
+    )
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.restore_drill_session",
+        headers=auth_headers,
+    )
+
+    assert checklist.status_code == 200
+    checklist_data = checklist.json()
+    item_keys = {item["key"] for item in checklist_data["items"]}
+    assert {
+        "backup_created",
+        "backup_validated",
+        "disposable_restore",
+        "application_smoke",
+        "object_file_check",
+        "rto_rpo_recorded",
+    } <= item_keys
+    assert all(item["docs"] for item in checklist_data["items"])
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Disposable restore drill"
+    assert session["owner_name"] == "Ops Lead"
+    assert session["backup_reference"] == "backups/20260606T120000Z"
+    assert session["pending_count"] == session["item_count"]
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["complete_count"] == 1
+    assert updated_data["rto_minutes"] == 45
+    assert updated_data["rpo_minutes"] == 15
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"]
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "session_id,session_name,owner_name,status,backup_reference,rto_minutes,rpo_minutes,item_key,item_label,drill_status,note" in exported.text
+
+    evidence = {item["key"]: item for item in packet.json()["evidence"]}
+    assert "restore_drill_session" in evidence
+    assert evidence["restore_drill_session"]["status"] == "warning"
+    assert "1 complete" in evidence["restore_drill_session"]["detail"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.restore_drill_session"
+
+
+@pytest.mark.asyncio
 async def test_role_dry_run_checklists_cover_clinic_workflows(client, auth_headers):
     response = await client.get("/api/operations/role-dry-run-checklists", headers=auth_headers)
 
