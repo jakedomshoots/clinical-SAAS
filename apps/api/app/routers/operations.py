@@ -13,6 +13,7 @@ from app.schemas.operations import (
     BrowserQaSessionOut,
     BrowserQaSessionStart,
     BrowserQaSessionUpdate,
+    CredentialDryRunBinderOut,
     CutoverRunbookOut,
     CutoverRunbookSessionListOut,
     CutoverRunbookSessionOut,
@@ -325,6 +326,23 @@ async def export_cutover_runbook_session(session_id: str, db: DbDep, current_use
 async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
     return LaunchWorkplanOut(
         **await operations_service.launch_workplan(db, current_user)
+    )
+
+
+@router.get("/credential-dry-run-binder", response_model=CredentialDryRunBinderOut)
+async def get_credential_dry_run_binder(db: DbDep, current_user: OpsUserDep):
+    return CredentialDryRunBinderOut(
+        **await operations_service.credential_dry_run_binder(db, current_user)
+    )
+
+
+@router.get("/credential-dry-run-binder/export")
+async def export_credential_dry_run_binder(db: DbDep, current_user: OpsUserDep):
+    binder = await operations_service.credential_dry_run_binder(db, current_user)
+    return Response(
+        content=operations_service.credential_dry_run_binder_csv(binder),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{binder["export_filename"]}"'},
     )
 
 

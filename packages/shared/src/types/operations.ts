@@ -660,6 +660,51 @@ export interface GoLivePacket {
   latest_attestation: GoLiveAttestation | null;
 }
 
+export interface CredentialBinderArchive {
+  status: 'ready' | 'warning' | 'missing';
+  detail: string;
+  archive_reference_url: string | null;
+  archived_at: string | null;
+}
+
+export interface CredentialBinderItem {
+  integration: string;
+  label: string;
+  status: CredentialPreflightItem['status'];
+  binder_status: 'ready' | 'warning' | 'blocking';
+  readiness_mode: CredentialPreflightItem['readiness_mode'];
+  configured: boolean;
+  healthy: boolean;
+  adapter_implemented: boolean;
+  production_ready: boolean;
+  sandbox_ready: boolean;
+  mode: string;
+  vendor_profile: VendorProfile;
+  cutover_evidence: CutoverEvidence;
+  risk_register: VendorRiskRegister;
+  handoff_archive: CredentialBinderArchive;
+  sandbox_reference_count: number;
+  sandbox_reference_total: number;
+  sandbox_evidence_count: number;
+  missing_steps: string[];
+  blockers: string[];
+  route: string;
+}
+
+export interface CredentialDryRunBinder {
+  status: 'ready' | 'attention' | 'blocked';
+  generated_at: string;
+  export_filename: string;
+  ready_count: number;
+  warning_count: number;
+  blocking_count: number;
+  archive_ready_count: number;
+  vendor_reference_ready_count: number;
+  total: number;
+  summary: Record<string, number>;
+  items: CredentialBinderItem[];
+}
+
 export interface LiveUseRehearsalGate {
   key: string;
   label: string;

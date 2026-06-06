@@ -588,6 +588,51 @@ class LaunchWorkplanSnapshotListOut(BaseModel):
     total: int
 
 
+class CredentialBinderArchiveOut(BaseModel):
+    status: str
+    detail: str
+    archive_reference_url: str | None = None
+    archived_at: datetime | str | None = None
+
+
+class CredentialBinderItemOut(BaseModel):
+    integration: str
+    label: str
+    status: str
+    binder_status: str
+    readiness_mode: str
+    configured: bool
+    healthy: bool
+    adapter_implemented: bool
+    production_ready: bool
+    sandbox_ready: bool
+    mode: str
+    vendor_profile: dict
+    cutover_evidence: dict
+    risk_register: dict
+    handoff_archive: CredentialBinderArchiveOut
+    sandbox_reference_count: int
+    sandbox_reference_total: int
+    sandbox_evidence_count: int
+    missing_steps: list[str]
+    blockers: list[str]
+    route: str
+
+
+class CredentialDryRunBinderOut(BaseModel):
+    status: str
+    generated_at: datetime
+    export_filename: str
+    ready_count: int
+    warning_count: int
+    blocking_count: int
+    archive_ready_count: int
+    vendor_reference_ready_count: int
+    total: int
+    summary: dict[str, int]
+    items: list[CredentialBinderItemOut]
+
+
 class GoLivePacketEvidenceOut(BaseModel):
     key: str
     label: str

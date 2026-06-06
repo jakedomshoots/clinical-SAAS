@@ -118,6 +118,8 @@ export const ROUTES = {
   OPERATIONS_CUTOVER_RUNBOOK_SESSION: (sessionId: string) => `/api/operations/cutover-runbook-sessions/${sessionId}`,
   OPERATIONS_CUTOVER_RUNBOOK_SESSION_EXPORT: (sessionId: string) => `/api/operations/cutover-runbook-sessions/${sessionId}/export`,
   OPERATIONS_GO_LIVE_PACKET: '/api/operations/go-live-packet',
+  OPERATIONS_CREDENTIAL_DRY_RUN_BINDER: '/api/operations/credential-dry-run-binder',
+  OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT: '/api/operations/credential-dry-run-binder/export',
   OPERATIONS_LIVE_USE_REHEARSAL: '/api/operations/live-use-rehearsal',
   OPERATIONS_LIVE_USE_REHEARSAL_EXPORT: '/api/operations/live-use-rehearsal/export',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',

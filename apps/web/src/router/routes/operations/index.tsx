@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -242,6 +242,10 @@ function OperationsPage() {
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
     queryFn: () => api.get<GoLivePacket>(ROUTES.OPERATIONS_GO_LIVE_PACKET),
+  });
+  const { data: credentialBinder } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'credential-dry-run-binder'],
+    queryFn: () => api.get<CredentialDryRunBinder>(ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER),
   });
   const { data: liveUseRehearsal } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'],
@@ -821,6 +825,70 @@ function OperationsPage() {
                 )}
               </div>
             </aside>
+          </div>
+        </section>
+      )}
+
+      {credentialBinder && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <ClipboardList className="h-4 w-4 text-accent-600" />
+                Credential Dry-Run Binder
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(credentialBinder.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${credentialBinder.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : credentialBinder.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                {credentialBinder.status}
+              </span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{credentialBinder.blocking_count} blocking</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{credentialBinder.warning_count} warning</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{credentialBinder.archive_ready_count}/{credentialBinder.total} archives</span>
+              <a
+                href={ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT}
+                download={credentialBinder.export_filename}
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {credentialBinder.items.map((item) => (
+              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{item.vendor_profile.vendor_name || 'Vendor pending'} · {item.vendor_profile.owner_name || 'Owner pending'}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.binder_status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.binder_status === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {item.binder_status}
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
+                    <div className="font-semibold text-clinic-700">{item.status}</div>
+                    <div className="text-clinic-400">preflight</div>
+                  </div>
+                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
+                    <div className="font-semibold text-clinic-700">{item.handoff_archive.status}</div>
+                    <div className="text-clinic-400">archive</div>
+                  </div>
+                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
+                    <div className="font-semibold text-clinic-700">{item.sandbox_reference_count}/{item.sandbox_reference_total}</div>
+                    <div className="text-clinic-400">refs</div>
+                  </div>
+                </div>
+                <div className="mt-3 text-xs text-clinic-500">{item.blockers[0] || item.handoff_archive.detail}</div>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  <span className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{item.readiness_mode}</span>
+                  <span className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{item.production_ready ? 'production ready' : item.sandbox_ready ? 'sandbox ready' : 'pending'}</span>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}

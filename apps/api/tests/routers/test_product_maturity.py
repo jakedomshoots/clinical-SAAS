@@ -739,6 +739,38 @@ async def test_launch_workplan_tracks_missing_vendor_handoff_archives(monkeypatc
 
 
 @pytest.mark.asyncio
+async def test_credential_dry_run_binder_rolls_up_vendor_launch_materials(client, auth_headers):
+    binder = await client.get("/api/operations/credential-dry-run-binder", headers=auth_headers)
+    exported = await client.get("/api/operations/credential-dry-run-binder/export", headers=auth_headers)
+
+    assert binder.status_code == 200
+    data = binder.json()
+    assert data["total"] >= 6
+    assert data["blocking_count"] >= 1
+    assert data["archive_ready_count"] >= 0
+    assert data["vendor_reference_ready_count"] >= 0
+    assert data["export_filename"] == "concierge-os-credential-dry-run-binder.csv"
+    assert data["generated_at"]
+    assert data["summary"]["total"] == data["total"]
+
+    fax = next(item for item in data["items"] if item["integration"] == "fax")
+    assert fax["label"] == "Fax provider"
+    assert fax["status"] in {"ready", "staged", "missing", "blocked"}
+    assert fax["readiness_mode"] in {"production_vendor", "local_sandbox"}
+    assert fax["vendor_profile"]["profile_complete"] in {True, False}
+    assert fax["handoff_archive"]["status"] in {"ready", "warning", "missing"}
+    assert isinstance(fax["sandbox_reference_count"], int)
+    assert isinstance(fax["blockers"], list)
+    assert fax["route"] == "/integrations"
+
+    assert exported.status_code == 200
+    assert exported.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-credential-dry-run-binder.csv" in exported.headers["content-disposition"]
+    assert "integration,label,binder_status,credential_status" in exported.text
+    assert "fax,Fax provider" in exported.text
+
+
+@pytest.mark.asyncio
 async def test_launch_workplan_snapshot_and_export(client, auth_headers):
     snapshot = await client.post("/api/operations/launch-workplan/snapshots", headers=auth_headers)
     snapshots = await client.get("/api/operations/launch-workplan/snapshots", headers=auth_headers)

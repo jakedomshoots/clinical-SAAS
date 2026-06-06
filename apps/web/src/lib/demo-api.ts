@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -1543,6 +1543,115 @@ function launchWorkplanCsv(workplan: LaunchWorkplan) {
   return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
+function credentialDryRunBinder(): CredentialDryRunBinder {
+  const preflight = demoCredentialPreflight();
+  const items: CredentialBinderItem[] = preflight.data.map((item): CredentialBinderItem => {
+    const archive = integrationHandoffArchives[item.key] ?? null;
+    const sandboxReferenceCount = item.sandbox_evidence.filter((evidence) => evidence.status === 'passed' && Boolean(evidence.reference_url) && !evidence.reference_url?.startsWith('sandbox://')).length;
+    const sandboxReferenceTotal = item.sandbox_tests.length;
+    const handoffArchive = archive
+      ? {
+          status: archive.archive_reference_url ? 'ready' as const : 'warning' as const,
+          detail: archive.archive_reference_url ? `${item.label} handoff packet archive is linked to launch evidence.` : `${item.label} handoff packet is archived but missing a launch evidence reference.`,
+          archive_reference_url: archive.archive_reference_url,
+          archived_at: archive.archived_at,
+        }
+      : {
+          status: 'missing' as const,
+          detail: `${item.label} handoff packet has not been archived for launch review.`,
+          archive_reference_url: null,
+          archived_at: null,
+        };
+    const missingSteps = item.steps.filter((step) => step.status !== 'ready').map((step) => step.label);
+    const blockers = [...item.blockers];
+    let binderStatus: 'ready' | 'warning' | 'blocking';
+    if (['missing', 'blocked'].includes(item.status)) {
+      binderStatus = 'blocking';
+    } else if (handoffArchive.status === 'missing' && item.production_ready) {
+      binderStatus = 'blocking';
+    } else if (item.readiness_mode === 'production_vendor' && sandboxReferenceTotal > 0 && sandboxReferenceCount < sandboxReferenceTotal) {
+      binderStatus = 'blocking';
+      blockers.push('Vendor sandbox reference URLs are required for every passed workflow before launch review.');
+    } else if (item.status === 'staged' || handoffArchive.status !== 'ready' || missingSteps.length) {
+      binderStatus = 'warning';
+    } else {
+      binderStatus = 'ready';
+    }
+    return {
+      integration: item.key,
+      label: item.label,
+      status: item.status,
+      binder_status: binderStatus,
+      readiness_mode: item.readiness_mode,
+      configured: item.configured,
+      healthy: item.healthy,
+      adapter_implemented: item.adapter_implemented,
+      production_ready: item.production_ready,
+      sandbox_ready: item.sandbox_ready,
+      mode: item.mode,
+      vendor_profile: item.vendor_profile,
+      cutover_evidence: item.cutover_evidence,
+      risk_register: item.risk_register,
+      handoff_archive: handoffArchive,
+      sandbox_reference_count: sandboxReferenceCount,
+      sandbox_reference_total: sandboxReferenceTotal,
+      sandbox_evidence_count: item.sandbox_evidence.filter((evidence) => evidence.status === 'passed').length,
+      missing_steps: missingSteps,
+      blockers,
+      route: '/integrations',
+    };
+  });
+  const blockingCount = items.filter((item) => item.binder_status === 'blocking').length;
+  const warningCount = items.filter((item) => item.binder_status === 'warning').length;
+  const readyCount = items.filter((item) => item.binder_status === 'ready').length;
+  const archiveReadyCount = items.filter((item) => item.handoff_archive.status === 'ready').length;
+  const vendorReferenceReadyCount = items.filter((item) => item.sandbox_reference_total > 0 && item.sandbox_reference_count === item.sandbox_reference_total).length;
+  return {
+    status: blockingCount ? 'blocked' : warningCount ? 'attention' : 'ready',
+    generated_at: new Date().toISOString(),
+    export_filename: 'concierge-os-credential-dry-run-binder.csv',
+    ready_count: readyCount,
+    warning_count: warningCount,
+    blocking_count: blockingCount,
+    archive_ready_count: archiveReadyCount,
+    vendor_reference_ready_count: vendorReferenceReadyCount,
+    total: items.length,
+    summary: {
+      total: items.length,
+      ready: readyCount,
+      warning: warningCount,
+      blocking: blockingCount,
+      archive_ready: archiveReadyCount,
+      vendor_reference_ready: vendorReferenceReadyCount,
+      credential_blockers: preflight.blocking_count,
+      credential_staged: preflight.staged_count,
+    },
+    items,
+  };
+}
+
+function credentialDryRunBinderCsv(binder: CredentialDryRunBinder) {
+  const rows = [['integration', 'label', 'binder_status', 'credential_status', 'readiness_mode', 'production_ready', 'vendor_name', 'owner_name', 'owner_email', 'handoff_archive_status', 'handoff_archive_reference', 'sandbox_reference_count', 'sandbox_reference_total', 'blockers', 'route']];
+  binder.items.forEach((item) => rows.push([
+    item.integration,
+    item.label,
+    item.binder_status,
+    item.status,
+    item.readiness_mode,
+    String(item.production_ready),
+    item.vendor_profile.vendor_name,
+    item.vendor_profile.owner_name,
+    item.vendor_profile.owner_email,
+    item.handoff_archive.status,
+    item.handoff_archive.archive_reference_url ?? '',
+    String(item.sandbox_reference_count),
+    String(item.sandbox_reference_total),
+    item.blockers.join('; '),
+    item.route,
+  ]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
+}
+
 function goLivePacket(): GoLivePacket {
   const workplan = launchWorkplan();
   const preflight = demoCredentialPreflight();
@@ -2592,7 +2701,7 @@ function demoIntegrationConfigs() {
       label: methodLabel,
       description,
       required: true,
-      status: adapterImplemented ? 'ready' : 'blocked',
+      status: adapterImplemented ? 'ready' as const : 'blocked' as const,
     }));
     return {
       key,
@@ -2604,7 +2713,7 @@ function demoIntegrationConfigs() {
       adapter_methods: methods,
       adapter_method_ready_count: methods.filter((method) => method.status === 'ready').length,
       adapter_method_total: methods.length,
-      readiness_mode: 'production_vendor',
+      readiness_mode: 'production_vendor' as const,
       sandbox_ready: false,
       production_ready: false,
       mode: configured ? 'setup_draft' : 'demo',
@@ -2643,9 +2752,9 @@ function demoIntegrationConfigs() {
         risk_count: risks.length,
         blocking_count: riskBlockingCount,
       },
-      workflows,
+      workflows: [...workflows],
       action,
-      sandbox_tests: sandboxTests,
+      sandbox_tests: [...sandboxTests],
       docs: ['docs/integrations/vendor-adapter-plan.md'],
       last_tested_at: lastTest.last_tested_at ?? null,
       last_test_status: lastTest.last_test_status ?? null,
@@ -2653,8 +2762,8 @@ function demoIntegrationConfigs() {
   });
 }
 
-function demoCredentialPreflight() {
-  const data = demoIntegrationConfigs().map((config) => {
+function demoCredentialPreflight(): CredentialPreflight {
+  const data: CredentialPreflightItem[] = demoIntegrationConfigs().map((config): CredentialPreflightItem => {
     const missingFields = config.fields.filter((field) => field.required && !field.configured).map((field) => field.key);
     const evidenceByTest = integrationSandboxEvidence[config.key] ?? {};
     const sandboxEvidence = config.sandbox_tests.map((testLabel) => (
@@ -2771,8 +2880,8 @@ function demoCredentialPreflight() {
         {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
-          status: sandboxComplete && (config.readiness_mode === 'local_sandbox' || vendorReferenceComplete) ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
-          detail: sandboxComplete && config.readiness_mode === 'local_sandbox' ? 'All local sandbox workflow checks have recorded passing evidence; production vendor sandbox references are still required before go-live.' : sandboxComplete && vendorReferenceComplete ? 'All vendor sandbox workflow checks have passing evidence with vendor reference URLs.' : sandboxComplete ? 'Passing vendor sandbox evidence needs reference URLs for every workflow before production readiness.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
+          status: sandboxComplete && vendorReferenceComplete ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
+          detail: sandboxComplete && vendorReferenceComplete ? 'All vendor sandbox workflow checks have passing evidence with vendor reference URLs.' : sandboxComplete ? 'Passing vendor sandbox evidence needs reference URLs for every workflow before production readiness.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
         },
       ],
       docs: config.docs,
@@ -2803,7 +2912,7 @@ function truthyDemoValue(value: string | undefined) {
   return ['true', 'yes', 'approved', '1'].includes((value ?? '').trim().toLowerCase());
 }
 
-function normalizeRiskSeverity(value: string | undefined) {
+function normalizeRiskSeverity(value: string | undefined): 'critical' | 'warning' | 'normal' {
   const severity = value?.trim().toLowerCase();
   return severity === 'critical' || severity === 'normal' ? severity : 'warning';
 }
@@ -3117,6 +3226,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;
+  }
+  if (path === '/operations/credential-dry-run-binder' && method === 'GET') {
+    return credentialDryRunBinder() as T;
+  }
+  if (path === '/operations/credential-dry-run-binder/export' && method === 'GET') {
+    return credentialDryRunBinderCsv(credentialDryRunBinder()) as T;
   }
   if (path === '/operations/live-use-rehearsal' && method === 'GET') {
     return liveUseRehearsal() as T;

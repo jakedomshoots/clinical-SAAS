@@ -1531,6 +1531,43 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def credential_dry_run_binder(db: AsyncSession, user: User) -> dict:
+    preflight = await integration_config_service.credential_preflight(db, user)
+    archives = await _latest_vendor_handoff_archives(db, user)
+    items = [_credential_binder_item(item, archives.get(item["key"])) for item in preflight.get("data", [])]
+    blocking_count = sum(1 for item in items if item["binder_status"] == "blocking")
+    warning_count = sum(1 for item in items if item["binder_status"] == "warning")
+    ready_count = sum(1 for item in items if item["binder_status"] == "ready")
+    archive_ready_count = sum(1 for item in items if item["handoff_archive"]["status"] == "ready")
+    vendor_reference_ready_count = sum(
+        1
+        for item in items
+        if item["sandbox_reference_total"] > 0 and item["sandbox_reference_count"] == item["sandbox_reference_total"]
+    )
+    return {
+        "status": "ready" if blocking_count == 0 and warning_count == 0 else "blocked" if blocking_count else "attention",
+        "generated_at": datetime.now(UTC),
+        "export_filename": "concierge-os-credential-dry-run-binder.csv",
+        "ready_count": ready_count,
+        "warning_count": warning_count,
+        "blocking_count": blocking_count,
+        "archive_ready_count": archive_ready_count,
+        "vendor_reference_ready_count": vendor_reference_ready_count,
+        "total": len(items),
+        "summary": {
+            "total": len(items),
+            "ready": ready_count,
+            "warning": warning_count,
+            "blocking": blocking_count,
+            "archive_ready": archive_ready_count,
+            "vendor_reference_ready": vendor_reference_ready_count,
+            "credential_blockers": preflight.get("blocking_count", 0),
+            "credential_staged": preflight.get("staged_count", 0),
+        },
+        "items": items,
+    }
+
+
 async def _vendor_handoff_archive_workplan_items(
     db: AsyncSession | None,
     user: User,
@@ -2198,6 +2235,33 @@ def launch_workplan_csv(workplan: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def credential_dry_run_binder_csv(binder: dict) -> str:
+    rows = [
+        "integration,label,binder_status,credential_status,readiness_mode,production_ready,vendor_name,owner_name,owner_email,handoff_archive_status,handoff_archive_reference,sandbox_reference_count,sandbox_reference_total,blockers,route"
+    ]
+    for item in binder["items"]:
+        profile = item["vendor_profile"]
+        archive = item["handoff_archive"]
+        rows.append(_csv_row([
+            item["integration"],
+            item["label"],
+            item["binder_status"],
+            item["status"],
+            item["readiness_mode"],
+            str(item["production_ready"]).lower(),
+            profile.get("vendor_name", ""),
+            profile.get("owner_name", ""),
+            profile.get("owner_email", ""),
+            archive["status"],
+            archive.get("archive_reference_url") or "",
+            str(item["sandbox_reference_count"]),
+            str(item["sandbox_reference_total"]),
+            "; ".join(item["blockers"]),
+            item["route"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 def live_use_rehearsal_csv(dashboard: dict) -> str:
     rows = ["section,key,label,status,detail,route"]
     for gate in dashboard["gates"]:
@@ -2682,6 +2746,87 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "route": route,
         "captured_at": captured_at,
     }
+
+
+def _credential_binder_item(item: dict, archive: dict | None) -> dict:
+    missing_steps = [
+        step["label"]
+        for step in item.get("steps", [])
+        if step.get("status") != "ready"
+    ]
+    blockers = list(item.get("blockers") or [])
+    sandbox_reference_count = sum(
+        1
+        for evidence in item.get("sandbox_evidence", [])
+        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+    )
+    sandbox_reference_total = len(item.get("sandbox_tests", []))
+    handoff_archive = _credential_binder_archive(item, archive)
+    if item.get("status") in {"missing", "blocked"}:
+        binder_status = "blocking"
+    elif handoff_archive["status"] == "missing" and item.get("production_ready"):
+        binder_status = "blocking"
+    elif (
+        item.get("readiness_mode") == "production_vendor"
+        and sandbox_reference_total > 0
+        and sandbox_reference_count < sandbox_reference_total
+    ):
+        binder_status = "blocking"
+        blockers.append("Vendor sandbox reference URLs are required for every passed workflow before launch review.")
+    elif item.get("status") == "staged" or handoff_archive["status"] in {"missing", "warning"} or missing_steps:
+        binder_status = "warning"
+    else:
+        binder_status = "ready"
+    return {
+        "integration": item["key"],
+        "label": item["label"],
+        "status": item["status"],
+        "binder_status": binder_status,
+        "readiness_mode": item["readiness_mode"],
+        "configured": item["configured"],
+        "healthy": item["healthy"],
+        "adapter_implemented": item["adapter_implemented"],
+        "production_ready": item["production_ready"],
+        "sandbox_ready": item["sandbox_ready"],
+        "mode": item["mode"],
+        "vendor_profile": item["vendor_profile"],
+        "cutover_evidence": item["cutover_evidence"],
+        "risk_register": item["risk_register"],
+        "handoff_archive": handoff_archive,
+        "sandbox_reference_count": sandbox_reference_count,
+        "sandbox_reference_total": sandbox_reference_total,
+        "sandbox_evidence_count": sum(1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed"),
+        "missing_steps": missing_steps,
+        "blockers": blockers,
+        "route": "/integrations",
+    }
+
+
+def _credential_binder_archive(item: dict, archive: dict | None) -> dict:
+    if not archive:
+        return {
+            "status": "missing",
+            "detail": f"{item['label']} handoff packet has not been archived for launch review.",
+            "archive_reference_url": None,
+            "archived_at": None,
+        }
+    if not archive.get("archive_reference_url"):
+        return {
+            "status": "warning",
+            "detail": f"{item['label']} handoff packet is archived but missing a launch evidence reference.",
+            "archive_reference_url": None,
+            "archived_at": archive.get("archived_at"),
+        }
+    return {
+        "status": "ready",
+        "detail": f"{item['label']} handoff packet archive is linked to launch evidence.",
+        "archive_reference_url": archive.get("archive_reference_url"),
+        "archived_at": archive.get("archived_at"),
+    }
+
+
+def _is_vendor_reference_url(reference_url: str | None) -> bool:
+    return bool(reference_url and not reference_url.strip().lower().startswith("sandbox://"))
 
 
 async def _vendor_handoff_archive_packet_evidence(db: AsyncSession | None, user: User, preflight: dict) -> dict:
