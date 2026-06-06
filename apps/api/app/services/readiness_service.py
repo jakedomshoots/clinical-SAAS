@@ -5,13 +5,7 @@ from sqlalchemy import text
 
 from app.config import settings
 from app.database import async_session_factory
-from app.integrations.calendar import CalendarClient
-from app.integrations.clearinghouse import ClearinghouseClient
-from app.integrations.communications import CommunicationsClient
-from app.integrations.copilotkit import CopilotRuntimeClient
-from app.integrations.ehr import EHRClient
-from app.integrations.fax_provider import FaxProviderClient
-from app.integrations.portal import PortalClient
+from app.integrations.factory import integration_clients
 from app.minio_client import minio
 from app.redis_client import redis
 
@@ -39,16 +33,7 @@ async def check_readiness() -> dict:
 
 
 async def check_external_integrations() -> dict:
-    integrations = [
-        EHRClient(settings.ehr_api_base_url),
-        FaxProviderClient(settings.fax_provider_api_key),
-        PortalClient(settings.portal_api_base_url),
-        CalendarClient(settings.calendar_api_base_url),
-        CopilotRuntimeClient(settings.copilotkit_runtime_url),
-        CommunicationsClient(settings.communications_provider_api_key),
-        ClearinghouseClient(settings.clearinghouse_api_key),
-    ]
-    results = await asyncio.gather(*(client.health() for client in integrations))
+    results = await asyncio.gather(*(client.health() for client in integration_clients()))
     return {item.name: item.as_dict() for item in results}
 
 

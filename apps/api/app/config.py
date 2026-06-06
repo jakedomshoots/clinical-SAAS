@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     communications_provider_api_key: str = ""
     clearinghouse_api_base_url: str = ""
     clearinghouse_api_key: str = ""
+    use_sandbox_adapters: bool = False
     webhook_shared_secret: str = ""
     patient_portal_access_code_expire_minutes: int = 60 * 24 * 7
 

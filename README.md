@@ -67,10 +67,16 @@ FAX_PROVIDER_API_KEY=
 PORTAL_API_BASE_URL=
 CALENDAR_API_BASE_URL=
 COPILOTKIT_RUNTIME_URL=
+COMMUNICATIONS_PROVIDER=
+COMMUNICATIONS_PROVIDER_API_KEY=
+CLEARINGHOUSE_API_BASE_URL=
+CLEARINGHOUSE_API_KEY=
+USE_SANDBOX_ADAPTERS=false
 ```
 
 `/api/ready.status` reflects core infrastructure. `/api/ready.operational_status` includes these external integration checks.
 Configured credentials do not make an integration live-ready by themselves; placeholder vendor adapters keep `/api/ready.operational_status` and `/api/integrations/credential-preflight` blocked until the adapter is implemented and sandbox evidence is recorded.
+Set `USE_SANDBOX_ADAPTERS=true` only for local contract rehearsal; it enables deterministic fake adapters so teams can test adapter wiring before real vendor credentials are available.
 
 ## Verification
 

@@ -45,6 +45,26 @@ async def test_external_integrations_report_placeholder_adapters_when_configured
     assert integrations["copilotkit"]["adapter_implemented"] is True
 
 
+@pytest.mark.asyncio
+async def test_external_integrations_use_sandbox_harnesses_when_enabled(monkeypatch):
+    monkeypatch.setattr(readiness_service.settings, "use_sandbox_adapters", True)
+    monkeypatch.setattr(readiness_service.settings, "ehr_api_base_url", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "fax_provider_api_key", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "portal_api_base_url", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "calendar_api_base_url", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "copilotkit_runtime_url", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "communications_provider_api_key", "sandbox")
+    monkeypatch.setattr(readiness_service.settings, "clearinghouse_api_key", "sandbox")
+
+    integrations = await readiness_service.check_external_integrations()
+
+    assert integrations["ehr"]["ok"] is True
+    assert integrations["ehr"]["adapter_implemented"] is True
+    assert "sandbox" in integrations["ehr"]["adapter_detail"].lower()
+    assert integrations["fax_provider"]["ok"] is True
+    assert integrations["clearinghouse"]["ok"] is True
+
+
 def test_deployment_assets_report_operational_files():
     deployment = readiness_service._check_deployment_assets()
 

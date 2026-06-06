@@ -364,6 +364,26 @@ async def test_placeholder_adapter_blocks_credential_preflight_even_with_sandbox
 
 
 @pytest.mark.asyncio
+async def test_sandbox_adapter_mode_marks_contract_methods_ready(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    monkeypatch.setattr(integration_config_service.settings, "use_sandbox_adapters", True)
+    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "sandbox")
+
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+
+    assert fax["adapter_implemented"] is True
+    assert fax["adapter_method_ready_count"] == fax["adapter_method_total"]
+    assert all(method["status"] == "ready" for method in fax["adapter_methods"])
+    assert fax["steps"][1]["status"] == "ready"
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,

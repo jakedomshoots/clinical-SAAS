@@ -6,13 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.integrations.calendar import CalendarClient
-from app.integrations.clearinghouse import ClearinghouseClient
-from app.integrations.communications import CommunicationsClient
-from app.integrations.copilotkit import CopilotRuntimeClient
-from app.integrations.ehr import EHRClient
-from app.integrations.fax_provider import FaxProviderClient
-from app.integrations.portal import PortalClient
+from app.integrations.factory import integration_clients
 from app.models.audit import AuditLog
 from app.models.user import User
 from app.services.audit_service import log_event
@@ -322,16 +316,7 @@ async def test_integration_connection(
 
 
 async def _health_by_key() -> dict:
-    clients = [
-        EHRClient(settings.ehr_api_base_url),
-        FaxProviderClient(settings.fax_provider_api_key),
-        PortalClient(settings.portal_api_base_url),
-        CalendarClient(settings.calendar_api_base_url),
-        CopilotRuntimeClient(settings.copilotkit_runtime_url),
-        CommunicationsClient(settings.communications_provider_api_key),
-        ClearinghouseClient(settings.clearinghouse_api_key),
-    ]
-    health = [await client.health() for client in clients]
+    health = [await client.health() for client in integration_clients()]
     return {item.name: item.as_dict() for item in health}
 
 
