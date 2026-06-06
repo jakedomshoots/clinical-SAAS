@@ -33,7 +33,13 @@ AUDIT_REVIEW_CATEGORIES = [
     {
         "key": "user_administration",
         "label": "User administration",
-        "event_types": ["user.created", "user.updated", "user.access_reviewed"],
+        "event_types": [
+            "user.created",
+            "user.updated",
+            "user.access_reviewed",
+            "auth.login",
+            "auth.login_blocked",
+        ],
         "severity": "critical",
         "route": "/staff",
         "action_label": "Review staff access changes",

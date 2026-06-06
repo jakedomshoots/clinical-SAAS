@@ -3,6 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
+from app.models.audit import AuditLog
 from app.models.user import User, UserRole
 from app.services.auth_service import authenticate_user, create_access_token, hash_password, seed_admin
 from tests.conftest import headers_for, make_user
@@ -24,6 +26,63 @@ async def test_login_success(client: AsyncClient, admin_user, db: AsyncSession):
         await db.execute(select(User).where(User.id == admin_user.id))
     ).scalar_one()
     assert refreshed.last_login_at is not None
+
+
+@pytest.mark.asyncio
+async def test_production_login_requires_mfa_enrollment_for_staff(
+    client: AsyncClient,
+    admin_user,
+    db: AsyncSession,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "app_env", "production")
+
+    res = await client.post("/api/auth/login", json={
+        "email": "admin@clinic.example.com",
+        "password": "admin123!",
+    })
+
+    assert res.status_code == 403
+    assert res.json()["detail"] == "MFA enrollment required before production login"
+    audit = (
+        await db.execute(
+            select(AuditLog).where(
+                AuditLog.event_type == "auth.login_blocked",
+                AuditLog.entity_id == admin_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert audit is not None
+    assert audit.payload["reason"] == "mfa_required"
+
+
+@pytest.mark.asyncio
+async def test_production_login_allows_mfa_enrolled_staff_and_logs_success(
+    client: AsyncClient,
+    admin_user,
+    db: AsyncSession,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "app_env", "production")
+    admin_user.mfa_enabled = True
+    await db.commit()
+
+    res = await client.post("/api/auth/login", json={
+        "email": "admin@clinic.example.com",
+        "password": "admin123!",
+    })
+
+    assert res.status_code == 200
+    audit = (
+        await db.execute(
+            select(AuditLog).where(
+                AuditLog.event_type == "auth.login",
+                AuditLog.entity_id == admin_user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert audit is not None
+    assert audit.payload["mfa_enabled"] is True
 
 
 @pytest.mark.asyncio

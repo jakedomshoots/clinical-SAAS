@@ -69,10 +69,31 @@ async def login(data: UserLogin, db: AsyncSession = Depends(get_db)):  # noqa: B
     user = await authenticate_user(db, data.email, data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if settings.is_production and not user.mfa_enabled:
+        await log_event(
+            db,
+            "auth.login_blocked",
+            "user",
+            user.id,
+            actor_id=user.id,
+            payload={"reason": "mfa_required", "role": user.role.value},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="MFA enrollment required before production login",
+        )
 
     user.last_login_at = utcnow()
     await db.commit()
     await db.refresh(user)
+    await log_event(
+        db,
+        "auth.login",
+        "user",
+        user.id,
+        actor_id=user.id,
+        payload={"role": user.role.value, "mfa_enabled": user.mfa_enabled},
+    )
     token = create_access_token(user.id, user.role.value)
     return TokenResponse(
         access_token=token,
@@ -110,7 +131,13 @@ async def session_policy(
         "phi_reauth_required": True,
         "phi_reauth_minutes": clinic_settings.phi_reauth_minutes,
         "audit_retention_days": clinic_settings.audit_retention_days,
-        "audit_events": ["auth.login", "patient_document.accessed", "settings.updated", "user.access_reviewed"],
+        "audit_events": [
+            "auth.login",
+            "auth.login_blocked",
+            "patient_document.accessed",
+            "settings.updated",
+            "user.access_reviewed",
+        ],
     }
 
 

@@ -40,6 +40,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - User provisioning is limited to admins/managers and reviewed.
 - Manager-created users are limited to the manager's organization.
 - Manager-created users cannot be assigned admin access.
+- Production staff login blocks session issuance until MFA enrollment is recorded.
 - Role matrix is reviewed with the clinic owner.
 - Audit export access is limited to admin/manager roles.
 - Patient document viewer access is audited and expiring access metadata is reviewed.

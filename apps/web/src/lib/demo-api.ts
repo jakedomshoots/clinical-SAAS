@@ -7,7 +7,7 @@ const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'assistant_actions', label: 'Assistant actions', event_types: ['assistant.task_created', 'assistant.message_drafted', 'assistant.fax_match_staged'], severity: 'warning' as const, route: '/assistant-review', action_label: 'Review assistant-confirmed actions' },
-  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
+  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'auth.login', 'auth.login_blocked'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
   { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },
   { key: 'integration_operations', label: 'Integration operations', event_types: ['integration_event.retry', 'integration_config.updated', 'integration_config.connection_test', 'integration_config.sandbox_evidence'], severity: 'warning' as const, route: '/integrations', action_label: 'Review integration changes' },
 ];
@@ -2780,7 +2780,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/auth/session-policy' && method === 'GET') {
     const user = demoUsers[0];
-    return { user_id: user.id, role: user.role, access_token_expire_minutes: 480, mfa_required: false, mfa_enabled: user.mfa_enabled, mfa_provider: 'local_policy', access_review_required: true, access_review_window_days: ACCESS_REVIEW_WINDOW_DAYS, last_login_at: user.last_login_at, last_access_reviewed_at: user.access_reviewed_at, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'patient_document.accessed', 'settings.updated', 'user.access_reviewed'] } as T;
+    return { user_id: user.id, role: user.role, access_token_expire_minutes: 480, mfa_required: false, mfa_enabled: user.mfa_enabled, mfa_provider: 'local_policy', access_review_required: true, access_review_window_days: ACCESS_REVIEW_WINDOW_DAYS, last_login_at: user.last_login_at, last_access_reviewed_at: user.access_reviewed_at, phi_reauth_required: true, phi_reauth_minutes: clinicSettings.phi_reauth_minutes, audit_retention_days: clinicSettings.audit_retention_days, audit_events: ['auth.login', 'auth.login_blocked', 'patient_document.accessed', 'settings.updated', 'user.access_reviewed'] } as T;
   }
   if (path === '/auth/register' && method === 'POST') {
     const incoming = body as Partial<User> & { password?: string };
