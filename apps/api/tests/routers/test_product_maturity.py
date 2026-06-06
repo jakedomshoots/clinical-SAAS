@@ -46,24 +46,32 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
     assert transitioned.status_code == 200
     assert transitioned.json()["status"] == "denied"
 
+    reworked_initial = await client.post(f"/api/billing/cases/{billing.json()['id']}/rework", json={"notes": "Corrected modifier before initial submission."}, headers=auth_headers)
+    eligibility = await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
     submitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    assert reworked_initial.status_code == 200
     assert submitted.status_code == 200
     assert submitted.json()["status"] == "submitted"
+    assert submitted.json()["claim_control_number"]
 
     denied = await client.post(f"/api/billing/cases/{billing.json()['id']}/deny", json={"notes": "Payer requested documentation"}, headers=auth_headers)
     assert denied.status_code == 200
     assert denied.json()["status"] == "denied"
 
-    paid = await client.post(f"/api/billing/cases/{billing.json()['id']}/payment", headers=auth_headers)
+    reworked = await client.post(f"/api/billing/cases/{billing.json()['id']}/rework", json={"notes": "Corrected modifier and documentation."}, headers=auth_headers)
+    resubmitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    paid = await client.post(f"/api/billing/cases/{billing.json()['id']}/payment", json={"paid_amount": 92.50, "allowed_amount": 120.0}, headers=auth_headers)
+    assert reworked.status_code == 200
+    assert resubmitted.status_code == 200
     assert paid.status_code == 200
     assert paid.json()["status"] == "paid"
+    assert paid.json()["remittance_status"] == "received"
 
     case_timeline = await client.get(f"/api/billing/cases/{billing.json()['id']}/timeline", headers=auth_headers)
     assert case_timeline.status_code == 200
     assert case_timeline.json()["total"] >= 3
     assert any(event["source"] == "integration" and event["status"] == "pending" for event in case_timeline.json()["data"])
 
-    eligibility = await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
     history = await client.get(f"/api/billing/eligibility/{patient_id}/history", headers=auth_headers)
     assert eligibility.status_code == 200
     assert history.status_code == 200
@@ -158,6 +166,42 @@ async def test_charge_review_queue_clears_after_billing_case_creation(client, au
 
     cleared = await client.get("/api/billing/charge-review", headers=auth_headers)
     assert cleared.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_billing_claim_readiness_and_work_queue(client, auth_headers):
+    patient_id = await create_patient(client, auth_headers)
+    billing = await client.post(
+        "/api/billing/cases",
+        json={"patient_id": patient_id, "cpt_codes": ["99213"], "diagnosis_codes": []},
+        headers=auth_headers,
+    )
+
+    blocked = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    readiness = await client.get(f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers)
+    queue = await client.get("/api/billing/work-queue", headers=auth_headers)
+
+    assert blocked.status_code == 400
+    assert "Diagnosis codes are required" in blocked.json()["detail"]
+    assert readiness.status_code == 200
+    assert readiness.json()["ready"] is False
+    assert "Diagnosis codes are required." in readiness.json()["blockers"]
+    assert queue.json()["missing_coding_count"] == 1
+
+    await client.patch(
+        f"/api/billing/cases/{billing.json()['id']}",
+        json={"diagnosis_codes": ["I10"]},
+        headers=auth_headers,
+    )
+    await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
+    ready = await client.get(f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers)
+    submitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    queue_after = await client.get("/api/billing/work-queue", headers=auth_headers)
+
+    assert ready.json()["ready"] is True
+    assert submitted.status_code == 200
+    assert submitted.json()["status"] == "submitted"
+    assert queue_after.json()["remittance_pending_count"] == 1
 
 
 @pytest.mark.asyncio

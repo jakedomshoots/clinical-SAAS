@@ -100,6 +100,58 @@ function outreachSummary() {
   };
 }
 
+function normalizeBillingCase(item: BillingCase): BillingCase {
+  return {
+    ...item,
+    claim_control_number: item.claim_control_number ?? null,
+    submission_ready_at: item.submission_ready_at ?? null,
+    submitted_at: item.submitted_at ?? null,
+    denied_at: item.denied_at ?? null,
+    denial_reason: item.denial_reason ?? null,
+    denial_worked_at: item.denial_worked_at ?? null,
+    remittance_status: item.remittance_status ?? 'not_received',
+    allowed_amount: item.allowed_amount ?? null,
+    paid_amount: item.paid_amount ?? null,
+    paid_at: item.paid_at ?? null,
+  };
+}
+
+function billingReadiness(item: BillingCase) {
+  const blockers = [
+    ...(!item.payer ? ['Payer is required.'] : []),
+    ...(item.cpt_codes.length === 0 ? ['CPT codes are required.'] : []),
+    ...(item.diagnosis_codes.length === 0 ? ['Diagnosis codes are required.'] : []),
+    ...(item.eligibility_status !== 'eligible' ? ['Eligibility must be checked and eligible.'] : []),
+    ...(item.status === 'denied' && !item.denial_worked_at ? ['Denied claim must be reworked before resubmission.'] : []),
+  ];
+  const warnings = item.appointment_id ? [] : ['No appointment is linked to this case.'];
+  const ready = blockers.length === 0;
+  const recommended_next_step = ready
+    ? 'Submit claim to the configured clearinghouse.'
+    : blockers.includes('Eligibility must be checked and eligible.')
+      ? 'Run eligibility check before submission.'
+      : blockers.includes('Denied claim must be reworked before resubmission.')
+        ? 'Work the denial and document rework notes.'
+        : 'Complete payer and coding fields.';
+  return { case_id: item.id, ready, blockers, warnings, recommended_next_step };
+}
+
+function billingWorkQueue() {
+  const readiness = billingCases.map(billingReadiness);
+  return {
+    draft_count: billingCases.filter((item) => item.status === 'draft').length,
+    ready_count: billingCases.filter((item) => item.status === 'ready').length,
+    submitted_count: billingCases.filter((item) => item.status === 'submitted').length,
+    denied_count: billingCases.filter((item) => item.status === 'denied').length,
+    paid_count: billingCases.filter((item) => item.status === 'paid').length,
+    missing_coding_count: readiness.filter((item) => item.blockers.includes('CPT codes are required.') || item.blockers.includes('Diagnosis codes are required.')).length,
+    eligibility_needed_count: readiness.filter((item) => item.blockers.includes('Eligibility must be checked and eligible.')).length,
+    denial_rework_count: billingCases.filter((item) => item.status === 'denied' && !item.denial_worked_at).length,
+    remittance_pending_count: billingCases.filter((item) => item.status === 'submitted' && item.remittance_status === 'not_received').length,
+    total: billingCases.length,
+  };
+}
+
 interface DemoStore {
   patients: Patient[];
   tasks: Task[];
@@ -594,7 +646,7 @@ if (storedDemoData) {
   integrationEvents = storedDemoData.integrationEvents ?? integrationEvents;
   providerAvailability = storedDemoData.providerAvailability ?? providerAvailability;
   clinicSettings = storedDemoData.clinicSettings ?? clinicSettings;
-  billingCases = storedDemoData.billingCases ?? billingCases;
+  billingCases = (storedDemoData.billingCases ?? billingCases).map(normalizeBillingCase);
   portalIntake = storedDemoData.portalIntake ?? portalIntake;
   integrationDrafts = storedDemoData.integrationDrafts ?? integrationDrafts;
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
@@ -944,6 +996,7 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
 
   if (path === '/billing/cases' && method === 'GET') return { data: billingCases, total: billingCases.length } as T;
+  if (path === '/billing/work-queue' && method === 'GET') return billingWorkQueue() as T;
   if (path === '/billing/charge-review' && method === 'GET') {
     const billedAppointmentIds = new Set(billingCases.map((item) => item.appointment_id).filter(Boolean));
     const data = patientEncounters
@@ -974,6 +1027,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       status: 'draft',
       payer: incoming.payer ?? patient?.insurance?.provider ?? null,
       eligibility_status: 'not_checked',
+      claim_control_number: null,
+      submission_ready_at: null,
+      submitted_at: null,
+      denied_at: null,
+      denial_reason: null,
+      denial_worked_at: null,
+      remittance_status: 'not_received',
+      allowed_amount: null,
+      paid_amount: null,
+      paid_at: null,
       cpt_codes: incoming.cpt_codes ?? [],
       diagnosis_codes: incoming.diagnosis_codes ?? [],
       notes: incoming.notes ?? null,
@@ -986,10 +1049,23 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   const billingCaseMatch = path.match(/^\/billing\/cases\/([^/]+)$/);
   if (billingCaseMatch && method === 'PATCH') {
-    billingCases = billingCases.map((item) => item.id === billingCaseMatch[1] ? { ...item, ...(body as Partial<BillingCase>), updated_at: new Date().toISOString() } : item);
+    billingCases = billingCases.map((item) => {
+      if (item.id !== billingCaseMatch[1]) return item;
+      const updated = normalizeBillingCase({ ...item, ...(body as Partial<BillingCase>), updated_at: new Date().toISOString() });
+      const readiness = billingReadiness(updated);
+      return readiness.ready && ['draft', 'ready'].includes(updated.status)
+        ? { ...updated, status: 'ready', submission_ready_at: updated.submission_ready_at ?? new Date().toISOString() }
+        : updated;
+    });
     logDemoEvent({ event_type: 'billing.case_updated', entity_type: 'billing_case', entity_id: billingCaseMatch[1], payload: { updated_fields: Object.keys((body as Partial<BillingCase>) ?? {}) } });
     saveDemoData();
     return billingCases.find((item) => item.id === billingCaseMatch[1]) as T;
+  }
+  const billingReadinessMatch = path.match(/^\/billing\/cases\/([^/]+)\/readiness$/);
+  if (billingReadinessMatch && method === 'GET') {
+    const item = billingCases.find((billingCase) => billingCase.id === billingReadinessMatch[1]);
+    if (!item) throw new Error('Billing case not found');
+    return billingReadiness(item) as T;
   }
   const billingTimelineMatch = path.match(/^\/billing\/cases\/([^/]+)\/timeline$/);
   if (billingTimelineMatch && method === 'GET') {
@@ -1006,9 +1082,13 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     const incoming = body as Partial<BillingCase>;
     billingCases = billingCases.map((item) => {
       if (item.id !== caseId) return item;
-      if (action === 'submit') return { ...item, status: 'submitted', notes: [item.notes, 'Claim staged for clearinghouse submission.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
-      if (action === 'payment') return { ...item, status: 'paid', notes: [item.notes, 'Payment recorded.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
-      return { ...item, status: 'denied', notes: [item.notes, incoming.notes ?? 'Denial received and queued for follow-up.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+      if (action === 'submit') {
+        const readiness = billingReadiness(item);
+        if (!readiness.ready) throw new Error(`Claim is not ready for submission: ${readiness.blockers.join('; ')}`);
+        return { ...item, status: 'submitted', claim_control_number: item.claim_control_number ?? `DEMO-CLM-${item.id.slice(-8).toUpperCase()}`, submission_ready_at: item.submission_ready_at ?? new Date().toISOString(), submitted_at: new Date().toISOString(), remittance_status: 'not_received', notes: [item.notes, 'Claim staged for clearinghouse submission.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+      }
+      if (action === 'payment') return { ...item, status: 'paid', remittance_status: incoming.remittance_status ?? 'received', allowed_amount: incoming.allowed_amount ?? item.allowed_amount ?? null, paid_amount: incoming.paid_amount ?? item.paid_amount ?? null, paid_at: new Date().toISOString(), notes: [item.notes, incoming.notes ?? 'Payment recorded.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
+      return { ...item, status: 'denied', denied_at: new Date().toISOString(), denial_reason: incoming.notes ?? 'Denial received and queued for follow-up.', notes: [item.notes, incoming.notes ?? 'Denial received and queued for follow-up.'].filter(Boolean).join('\n'), updated_at: new Date().toISOString() };
     });
     const eventType = action === 'submit' ? 'billing.claim_submitted' : action === 'payment' ? 'billing.payment_recorded' : 'billing.claim_denied';
     logDemoEvent({ event_type: eventType, entity_type: 'billing_case', entity_id: caseId, payload: { action } });
@@ -1033,6 +1113,19 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
     saveDemoData();
     return billingCases.find((item) => item.id === caseId) as T;
   }
+  const billingReworkMatch = path.match(/^\/billing\/cases\/([^/]+)\/rework$/);
+  if (billingReworkMatch && method === 'POST') {
+    const incoming = body as { notes?: string | null };
+    billingCases = billingCases.map((item) => {
+      if (item.id !== billingReworkMatch[1]) return item;
+      const worked = { ...item, denial_worked_at: new Date().toISOString(), notes: [item.notes, incoming.notes ?? 'Denial worked and ready to resubmit.'].filter(Boolean).join('\n') };
+      const readiness = billingReadiness(worked);
+      return { ...worked, status: readiness.ready ? 'ready' : 'draft', submission_ready_at: readiness.ready ? new Date().toISOString() : item.submission_ready_at, updated_at: new Date().toISOString() };
+    });
+    logDemoEvent({ event_type: 'billing.denial_reworked', entity_type: 'billing_case', entity_id: billingReworkMatch[1], payload: {} });
+    saveDemoData();
+    return billingCases.find((item) => item.id === billingReworkMatch[1]) as T;
+  }
   const billingFromEncounterMatch = path.match(/^\/billing\/cases\/from-encounter\/([^/]+)$/);
   if (billingFromEncounterMatch && method === 'POST') {
     const encounter = patientEncounters.find((item) => item.id === billingFromEncounterMatch[1]);
@@ -1045,6 +1138,16 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       status: 'draft',
       payer: patient?.insurance?.provider ?? null,
       eligibility_status: 'not_checked',
+      claim_control_number: null,
+      submission_ready_at: null,
+      submitted_at: null,
+      denied_at: null,
+      denial_reason: null,
+      denial_worked_at: null,
+      remittance_status: 'not_received',
+      allowed_amount: null,
+      paid_amount: null,
+      paid_at: null,
       cpt_codes: ['99213'],
       diagnosis_codes: [],
       notes: `Charge capture from ${encounter.encounter_type} encounter.`,
@@ -1059,7 +1162,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (eligibilityMatch && method === 'POST') {
     const patient = patients.find((item) => item.id === eligibilityMatch[1]);
     const status = patient?.insurance ? 'eligible' : 'missing_insurance';
-    billingCases = billingCases.map((item) => item.patient_id === eligibilityMatch[1] && item.status === 'draft' ? { ...item, eligibility_status: status, updated_at: new Date().toISOString() } : item);
+    billingCases = billingCases.map((item) => {
+      if (item.patient_id !== eligibilityMatch[1] || !['draft', 'ready'].includes(item.status)) return item;
+      const updated = { ...item, eligibility_status: status, updated_at: new Date().toISOString() };
+      const readiness = billingReadiness(updated);
+      return readiness.ready ? { ...updated, status: 'ready', submission_ready_at: updated.submission_ready_at ?? new Date().toISOString() } : updated;
+    });
     logDemoEvent({ event_type: 'billing.eligibility_checked', entity_type: 'patient', entity_id: eligibilityMatch[1], payload: { payer: patient?.insurance?.provider ?? null, status } });
     saveDemoData();
     return { patient_id: eligibilityMatch[1], payer: patient?.insurance?.provider ?? null, status, reference_id: `demo-elig-${eligibilityMatch[1].slice(-6)}`, message: patient?.insurance ? 'Demo eligibility staged. Configure a clearinghouse before live use.' : 'Insurance is missing from chart.' } as T;

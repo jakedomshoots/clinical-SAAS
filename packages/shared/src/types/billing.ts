@@ -9,6 +9,16 @@ export interface BillingCase {
   status: BillingCaseStatus;
   payer: string | null;
   eligibility_status: string;
+  claim_control_number: string | null;
+  submission_ready_at: string | null;
+  submitted_at: string | null;
+  denied_at: string | null;
+  denial_reason: string | null;
+  denial_worked_at: string | null;
+  remittance_status: string;
+  allowed_amount: number | null;
+  paid_amount: number | null;
+  paid_at: string | null;
   cpt_codes: string[];
   diagnosis_codes: string[];
   notes: string | null;
@@ -60,5 +70,26 @@ export interface BillingTimelineEvent {
 
 export interface BillingTimelineResponse {
   data: BillingTimelineEvent[];
+  total: number;
+}
+
+export interface BillingClaimReadiness {
+  case_id: UUID;
+  ready: boolean;
+  blockers: string[];
+  warnings: string[];
+  recommended_next_step: string;
+}
+
+export interface BillingWorkQueue {
+  draft_count: number;
+  ready_count: number;
+  submitted_count: number;
+  denied_count: number;
+  paid_count: number;
+  missing_coding_count: number;
+  eligibility_needed_count: number;
+  denial_rework_count: number;
+  remittance_pending_count: number;
   total: number;
 }

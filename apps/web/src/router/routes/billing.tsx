@@ -1,8 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-react';
-import { ROUTES, type BillingCase, type BillingCaseListResponse, type BillingTimelineResponse, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
+import { AlertTriangle, ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-react';
+import { ROUTES, type BillingCase, type BillingCaseListResponse, type BillingClaimReadiness, type BillingTimelineResponse, type BillingWorkQueue, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState } from '@/lib/ui-state';
@@ -25,6 +25,10 @@ function BillingPage() {
     queryKey: [...QUERY_KEYS.BILLING_CASES, 'charge-review'],
     queryFn: () => api.get<ChargeReviewListResponse>(ROUTES.BILLING_CHARGE_REVIEW),
   });
+  const { data: workQueue } = useQuery({
+    queryKey: QUERY_KEYS.BILLING_WORK_QUEUE,
+    queryFn: () => api.get<BillingWorkQueue>(ROUTES.BILLING_WORK_QUEUE),
+  });
   const { data: patients } = useQuery({
     queryKey: [...QUERY_KEYS.PATIENTS, 'billing'],
     queryFn: () => api.get<PatientListResponse>(`${ROUTES.PATIENTS}?page=1&page_size=100`),
@@ -40,26 +44,40 @@ function BillingPage() {
     onSuccess: () => {
       setDraft({ patient_id: '', payer: '', cpt_codes: '99213', diagnosis_codes: '', notes: '' });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_WORK_QUEUE });
     },
   });
   const updateMutation = useMutation({
     mutationFn: ({ id, update }: { id: string; update: Partial<BillingCase> }) => api.patch<BillingCase>(`${ROUTES.BILLING_CASES}/${id}`, update),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_WORK_QUEUE });
+    },
   });
   const fromEncounterMutation = useMutation({
     mutationFn: (encounterId: string) => api.post<BillingCase>(ROUTES.BILLING_FROM_ENCOUNTER(encounterId), {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_WORK_QUEUE });
+    },
   });
   const eligibilityMutation = useMutation({
     mutationFn: (patientId: string) => api.post<EligibilityCheck>(ROUTES.ELIGIBILITY_CHECK(patientId), {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_WORK_QUEUE });
+    },
   });
   const caseActionMutation = useMutation({
-    mutationFn: ({ id, action }: { id: string; action: 'submit' | 'payment' | 'deny' }) => {
+    mutationFn: ({ id, action }: { id: string; action: 'submit' | 'payment' | 'deny' | 'rework' }) => {
       const route = action === 'submit' ? ROUTES.BILLING_CASE_SUBMIT(id) : action === 'payment' ? ROUTES.BILLING_CASE_PAYMENT(id) : ROUTES.BILLING_CASE_DENY(id);
-      return api.post<BillingCase>(route, action === 'deny' ? { notes: 'Denial received and queued for follow-up.' } : {});
+      if (action === 'rework') return api.post<BillingCase>(ROUTES.BILLING_CASE_REWORK(id), { notes: 'Denial worked and ready to resubmit.' });
+      return api.post<BillingCase>(route, action === 'deny' ? { notes: 'Denial received and queued for follow-up.' } : action === 'payment' ? { remittance_status: 'received' } : {});
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_CASES });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.BILLING_WORK_QUEUE });
+    },
   });
   const rows = cases?.data ?? [];
   const reviewRows = chargeReview?.data ?? [];
@@ -68,6 +86,11 @@ function BillingPage() {
   const { data: selectedTimeline } = useQuery({
     queryKey: [...QUERY_KEYS.BILLING_CASES, selectedCaseId, 'timeline'],
     queryFn: () => api.get<BillingTimelineResponse>(ROUTES.BILLING_CASE_TIMELINE(selectedCaseId ?? '')),
+    enabled: Boolean(selectedCaseId),
+  });
+  const { data: selectedReadiness } = useQuery({
+    queryKey: [...QUERY_KEYS.BILLING_CASES, selectedCaseId, 'readiness'],
+    queryFn: () => api.get<BillingClaimReadiness>(ROUTES.BILLING_CASE_READINESS(selectedCaseId ?? '')),
     enabled: Boolean(selectedCaseId),
   });
 
@@ -100,6 +123,20 @@ function BillingPage() {
         <p className="text-sm font-medium text-clinic-500">Revenue workflow</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Billing Cases</h1>
       </header>
+      <section className="grid gap-2 md:grid-cols-5">
+        {[
+          ['Ready', workQueue?.ready_count ?? 0],
+          ['Submitted', workQueue?.submitted_count ?? 0],
+          ['Denials', workQueue?.denial_rework_count ?? 0],
+          ['Eligibility needed', workQueue?.eligibility_needed_count ?? 0],
+          ['Remittance pending', workQueue?.remittance_pending_count ?? 0],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-md border border-clinic-200 bg-white px-3 py-2">
+            <div className="text-xl font-semibold text-clinic-900">{value}</div>
+            <div className="text-xs text-clinic-500">{label}</div>
+          </div>
+        ))}
+      </section>
       <section className="rounded-md border border-clinic-200 bg-white p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
           <CreditCard className="h-4 w-4 text-accent-700" />
@@ -149,6 +186,13 @@ function BillingPage() {
                 <div>
                   <div className="text-sm font-semibold text-clinic-900">{item.payer ?? 'No payer'}</div>
                   <div className="mt-1 text-xs text-clinic-500">CPT {item.cpt_codes.join(', ') || 'not coded'} · DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
+                  <div className="mt-1 text-xs text-clinic-500">Claim {item.claim_control_number ?? 'not submitted'} · Remit {item.remittance_status}</div>
+                  {item.status === 'denied' && item.denial_reason && (
+                    <div className="mt-1 inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      <AlertTriangle className="h-3 w-3" />
+                      {item.denial_reason}
+                    </div>
+                  )}
                   {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
                 </div>
                 <select value={item.status} onChange={(event) => updateMutation.mutate({ id: item.id, update: { status: event.target.value as BillingCase['status'] } })} className="rounded-md border border-clinic-200 px-2 py-1 text-sm text-clinic-700">
@@ -164,7 +208,7 @@ function BillingPage() {
                   {item.status !== 'submitted' && item.status !== 'paid' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'submit' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Submit</button>}
                   {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'payment' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Paid</button>}
                   {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'deny' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Deny</button>}
-                  {item.status === 'denied' && <button onClick={() => updateMutation.mutate({ id: item.id, update: { notes: `${item.notes ?? ''}\nDenial worked and ready to resubmit.`, status: 'ready' } })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
+                  {item.status === 'denied' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'rework' })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
                 </div>
               </div>
             ))}
@@ -188,6 +232,20 @@ function BillingPage() {
             <textarea aria-label="Billing notes" placeholder="Notes" value={caseDraft.notes} onChange={(event) => setCaseDraft({ ...caseDraft, notes: event.target.value })} className="min-h-24 rounded-md border border-clinic-300 px-3 py-2 text-sm" />
           </div>
           <button onClick={saveCase} className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Save case</button>
+          {selectedReadiness && (
+            <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${selectedReadiness.ready ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <div className="font-semibold">{selectedReadiness.ready ? 'Ready to submit' : 'Submission blockers'}</div>
+              <div className="mt-1 text-xs">{selectedReadiness.recommended_next_step}</div>
+              {selectedReadiness.blockers.length > 0 && (
+                <ul className="mt-2 list-disc pl-4 text-xs">
+                  {selectedReadiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
+                </ul>
+              )}
+              {selectedReadiness.warnings.length > 0 && (
+                <div className="mt-2 text-xs">{selectedReadiness.warnings.join(' ')}</div>
+              )}
+            </div>
+          )}
           <div className="mt-4 border-t border-clinic-100 pt-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-clinic-500">Case timeline</h3>
             <div className="mt-2 space-y-2">

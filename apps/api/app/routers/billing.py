@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
-from app.schemas.billing import BillingCaseCreate, BillingCaseListOut, BillingCaseOut, BillingCaseUpdate, BillingTimelineEventOut, BillingTimelineOut, ChargeReviewItemOut, ChargeReviewListOut, EligibilityCheckOut
+from app.schemas.billing import BillingCaseCreate, BillingCaseListOut, BillingCaseOut, BillingCaseUpdate, BillingClaimReadinessOut, BillingPaymentIn, BillingReworkIn, BillingTimelineEventOut, BillingTimelineOut, BillingWorkQueueOut, ChargeReviewItemOut, ChargeReviewListOut, EligibilityCheckOut
 from app.services import billing_service
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
@@ -26,6 +26,11 @@ async def list_billing_cases(db: DbDep, current_user: CurrentUserDep):
 async def list_charge_review(db: DbDep, current_user: CurrentUserDep):
     data, total = await billing_service.list_charge_review(db, current_user)
     return ChargeReviewListOut(data=[ChargeReviewItemOut(**item) for item in data], total=total)
+
+
+@router.get("/work-queue", response_model=BillingWorkQueueOut)
+async def billing_work_queue(db: DbDep, current_user: CurrentUserDep):
+    return BillingWorkQueueOut(**await billing_service.work_queue(db, current_user))
 
 
 @router.post("/cases", response_model=BillingCaseOut, status_code=status.HTTP_201_CREATED)
@@ -75,6 +80,14 @@ async def billing_case_timeline(case_id: str, db: DbDep, current_user: CurrentUs
     return BillingTimelineOut(data=[BillingTimelineEventOut.model_validate(item) for item in data], total=total)
 
 
+@router.get("/cases/{case_id}/readiness", response_model=BillingClaimReadinessOut)
+async def billing_case_readiness(case_id: str, db: DbDep, current_user: CurrentUserDep):
+    result = await billing_service.claim_readiness(db, current_user, case_id)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
+    return BillingClaimReadinessOut(**result)
+
+
 @router.post("/cases/{case_id}/submit", response_model=BillingCaseOut)
 async def submit_billing_case(case_id: str, db: DbDep, current_user: ClinicalUserDep):
     try:
@@ -87,8 +100,13 @@ async def submit_billing_case(case_id: str, db: DbDep, current_user: ClinicalUse
 
 
 @router.post("/cases/{case_id}/payment", response_model=BillingCaseOut)
-async def record_billing_payment(case_id: str, db: DbDep, current_user: ClinicalUserDep):
-    case = await billing_service.record_payment(db, current_user, case_id)
+async def record_billing_payment(case_id: str, db: DbDep, current_user: ClinicalUserDep, data: BillingPaymentIn | None = None):
+    case = await billing_service.record_payment(
+        db,
+        current_user,
+        case_id,
+        data.model_dump(exclude_unset=True) if data else {},
+    )
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
     return BillingCaseOut.model_validate(case)
@@ -97,6 +115,14 @@ async def record_billing_payment(case_id: str, db: DbDep, current_user: Clinical
 @router.post("/cases/{case_id}/deny", response_model=BillingCaseOut)
 async def deny_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep):
     case = await billing_service.deny_case(db, current_user, case_id, data.notes)
+    if not case:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
+    return BillingCaseOut.model_validate(case)
+
+
+@router.post("/cases/{case_id}/rework", response_model=BillingCaseOut)
+async def rework_billing_denial(case_id: str, data: BillingReworkIn, db: DbDep, current_user: ClinicalUserDep):
+    case = await billing_service.rework_denial(db, current_user, case_id, data.notes)
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
     return BillingCaseOut.model_validate(case)

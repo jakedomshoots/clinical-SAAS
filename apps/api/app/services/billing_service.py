@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -11,12 +13,52 @@ from app.services.audit_service import log_event
 from app.services.integration_event_service import record_event
 
 
+def _utcnow() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 async def list_cases(db: AsyncSession, user: User) -> tuple[list[BillingCase], int]:
     query = select(BillingCase).where(BillingCase.organization_id == user.organization_id)
     countq = select(func.count(BillingCase.id)).where(BillingCase.organization_id == user.organization_id)
     total = (await db.execute(countq)).scalar() or 0
     result = await db.execute(query.order_by(BillingCase.created_at.desc()).limit(100))
     return list(result.scalars().all()), total
+
+
+async def work_queue(db: AsyncSession, user: User) -> dict:
+    rows = list(
+        (
+            await db.execute(
+                select(BillingCase).where(BillingCase.organization_id == user.organization_id)
+            )
+        ).scalars().all()
+    )
+    readiness = [_claim_readiness(case) for case in rows]
+    return {
+        "draft_count": sum(1 for case in rows if case.status == BillingStatus.draft),
+        "ready_count": sum(1 for case in rows if case.status == BillingStatus.ready),
+        "submitted_count": sum(1 for case in rows if case.status == BillingStatus.submitted),
+        "denied_count": sum(1 for case in rows if case.status == BillingStatus.denied),
+        "paid_count": sum(1 for case in rows if case.status == BillingStatus.paid),
+        "missing_coding_count": sum(
+            1
+            for item in readiness
+            if "CPT codes are required." in item["blockers"]
+            or "Diagnosis codes are required." in item["blockers"]
+        ),
+        "eligibility_needed_count": sum(
+            1 for item in readiness if "Eligibility must be checked and eligible." in item["blockers"]
+        ),
+        "denial_rework_count": sum(
+            1 for case in rows if case.status == BillingStatus.denied and not case.denial_worked_at
+        ),
+        "remittance_pending_count": sum(
+            1
+            for case in rows
+            if case.status == BillingStatus.submitted and case.remittance_status == "not_received"
+        ),
+        "total": len(rows),
+    }
 
 
 async def list_charge_review(db: AsyncSession, user: User) -> tuple[list[dict], int]:
@@ -142,10 +184,21 @@ async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) ->
     for field, value in data.items():
         if hasattr(case, field) and value is not None:
             setattr(case, field, BillingStatus(value) if field == "status" else value)
+    readiness = _claim_readiness(case)
+    if readiness["ready"] and case.status in {BillingStatus.draft, BillingStatus.ready}:
+        case.status = BillingStatus.ready
+        case.submission_ready_at = case.submission_ready_at or _utcnow()
     await db.commit()
     await db.refresh(case)
     await log_event(db, "billing.case_updated", "billing_case", case.id, actor_id=user.id, payload={"updated_fields": list(data.keys())})
     return case
+
+
+async def claim_readiness(db: AsyncSession, user: User, case_id: str) -> dict | None:
+    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not case:
+        return None
+    return _claim_readiness(case)
 
 
 async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[list[dict], int] | None:
@@ -208,15 +261,18 @@ async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase
     case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
     if not case:
         return None
-    if not case.cpt_codes:
-        raise ValueError("CPT codes are required before claim submission")
-    if not case.payer:
-        raise ValueError("Payer is required before claim submission")
+    readiness = _claim_readiness(case)
+    if not readiness["ready"]:
+        raise ValueError(f"Claim is not ready for submission: {'; '.join(readiness['blockers'])}")
     case.status = BillingStatus.submitted
+    case.submission_ready_at = case.submission_ready_at or _utcnow()
+    case.submitted_at = _utcnow()
+    case.claim_control_number = case.claim_control_number or f"DEMO-CLM-{case.id[-8:].upper()}"
+    case.remittance_status = "not_received"
     case.notes = "\n".join(filter(None, [case.notes, "Claim staged for clearinghouse submission."]))
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.claim_submitted", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "payer": case.payer})
+    await log_event(db, "billing.claim_submitted", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "payer": case.payer, "claim_control_number": case.claim_control_number})
     await record_event(
         db,
         user,
@@ -227,20 +283,25 @@ async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase
         entity_type="billing_case",
         entity_id=case.id,
         idempotency_key=f"claim:submit:{case.id}",
-        payload={"patient_id": case.patient_id, "payer": case.payer, "cpt_codes": case.cpt_codes},
+        payload={"patient_id": case.patient_id, "payer": case.payer, "cpt_codes": case.cpt_codes, "claim_control_number": case.claim_control_number},
     )
     return case
 
 
-async def record_payment(db: AsyncSession, user: User, case_id: str) -> BillingCase | None:
+async def record_payment(db: AsyncSession, user: User, case_id: str, data: dict | None = None) -> BillingCase | None:
     case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
     if not case:
         return None
+    data = data or {}
     case.status = BillingStatus.paid
-    case.notes = "\n".join(filter(None, [case.notes, "Payment recorded."]))
+    case.remittance_status = data.get("remittance_status") or "received"
+    case.allowed_amount = data.get("allowed_amount", case.allowed_amount)
+    case.paid_amount = data.get("paid_amount", case.paid_amount)
+    case.paid_at = _utcnow()
+    case.notes = "\n".join(filter(None, [case.notes, data.get("notes") or "Payment recorded."]))
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.payment_recorded", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id})
+    await log_event(db, "billing.payment_recorded", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "paid_amount": case.paid_amount, "remittance_status": case.remittance_status})
     return case
 
 
@@ -249,8 +310,60 @@ async def deny_case(db: AsyncSession, user: User, case_id: str, reason: str | No
     if not case:
         return None
     case.status = BillingStatus.denied
-    case.notes = "\n".join(filter(None, [case.notes, reason or "Denial received and queued for follow-up."]))
+    case.denied_at = _utcnow()
+    case.denial_reason = reason or "Denial received and queued for follow-up."
+    case.notes = "\n".join(filter(None, [case.notes, case.denial_reason]))
     await db.commit()
     await db.refresh(case)
     await log_event(db, "billing.claim_denied", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "reason": reason})
     return case
+
+
+async def rework_denial(db: AsyncSession, user: User, case_id: str, notes: str | None = None) -> BillingCase | None:
+    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    if not case:
+        return None
+    case.denial_worked_at = _utcnow()
+    case.notes = "\n".join(filter(None, [case.notes, notes or "Denial worked and ready to resubmit."]))
+    readiness = _claim_readiness(case)
+    case.status = BillingStatus.ready if readiness["ready"] else BillingStatus.draft
+    if readiness["ready"]:
+        case.submission_ready_at = _utcnow()
+    await db.commit()
+    await db.refresh(case)
+    await log_event(db, "billing.denial_reworked", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "ready": readiness["ready"]})
+    return case
+
+
+def _claim_readiness(case: BillingCase) -> dict:
+    blockers: list[str] = []
+    warnings: list[str] = []
+    if not case.payer:
+        blockers.append("Payer is required.")
+    if not case.cpt_codes:
+        blockers.append("CPT codes are required.")
+    if not case.diagnosis_codes:
+        blockers.append("Diagnosis codes are required.")
+    if case.eligibility_status != "eligible":
+        blockers.append("Eligibility must be checked and eligible.")
+    if case.status == BillingStatus.denied and not case.denial_worked_at:
+        blockers.append("Denied claim must be reworked before resubmission.")
+    if not case.appointment_id:
+        warnings.append("No appointment is linked to this case.")
+
+    ready = len(blockers) == 0
+    if ready:
+        next_step = "Submit claim to the configured clearinghouse."
+    elif "Eligibility must be checked and eligible." in blockers:
+        next_step = "Run eligibility check before submission."
+    elif "Denied claim must be reworked before resubmission." in blockers:
+        next_step = "Work the denial and document rework notes."
+    else:
+        next_step = "Complete payer and coding fields."
+    return {
+        "case_id": case.id,
+        "ready": ready,
+        "blockers": blockers,
+        "warnings": warnings,
+        "recommended_next_step": next_step,
+    }

@@ -12,7 +12,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Matched inbound faxes with file URLs create patient document records for review.
 - Medication and care-plan items are persisted and can be updated from the patient chart.
 - Chart summary aggregates document review needs, urgent tasks, faxes, and upcoming appointments into checkout readiness.
-- Billing supports charge review, case creation, eligibility checks/history, claim submit/deny/payment, and audit/integration timelines.
+- Billing supports charge review, case creation, eligibility checks/history, readiness-gated claim submission, denial rework, remittance placeholders, and audit/integration timelines.
 - Patient outreach from tasks is consent-gated by channel, records queued/blocked/delivered state, and exposes blocked/retry counts for operations review.
 - Operations and Setup report readiness, integration event state, launch requirements, and demo/pilot readiness scoring.
 - Audit export, backup, restore validation, and local verification scripts are available.

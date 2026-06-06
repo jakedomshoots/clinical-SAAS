@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type IntegrationCapabilities, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -104,6 +104,10 @@ function OperationsPage() {
   const { data: outreachSummary } = useQuery({
     queryKey: QUERY_KEYS.TASK_OUTREACH_SUMMARY,
     queryFn: () => api.get<TaskOutreachSummary>(ROUTES.TASK_PATIENT_OUTREACH_SUMMARY),
+  });
+  const { data: billingWorkQueue } = useQuery({
+    queryKey: QUERY_KEYS.BILLING_WORK_QUEUE,
+    queryFn: () => api.get<BillingWorkQueue>(ROUTES.BILLING_WORK_QUEUE),
   });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
@@ -245,6 +249,30 @@ function OperationsPage() {
           <div className="text-sm font-semibold text-clinic-900">Assistant Governance</div>
           <div className="mt-3 text-2xl font-semibold text-clinic-900">{assistantEvents?.total ?? 0}</div>
           <div className="text-xs text-clinic-500">confirmed task actions audited</div>
+        </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-clinic-900">Billing Claim Governance</div>
+            <div className="mt-1 text-xs text-clinic-500">Claim submission is gated by payer, coding, eligibility, and denial rework status</div>
+          </div>
+          <StatusBadge ok={(billingWorkQueue?.eligibility_needed_count ?? 0) === 0 && (billingWorkQueue?.missing_coding_count ?? 0) === 0} label={`${billingWorkQueue?.total ?? 0} cases`} />
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-5">
+          {[
+            ['Ready', billingWorkQueue?.ready_count ?? 0],
+            ['Submitted', billingWorkQueue?.submitted_count ?? 0],
+            ['Denial rework', billingWorkQueue?.denial_rework_count ?? 0],
+            ['Eligibility needed', billingWorkQueue?.eligibility_needed_count ?? 0],
+            ['Remit pending', billingWorkQueue?.remittance_pending_count ?? 0],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-md bg-clinic-50 px-3 py-2">
+              <div className="text-xl font-semibold text-clinic-900">{value}</div>
+              <div className="text-xs text-clinic-500">{label}</div>
+            </div>
+          ))}
         </div>
       </section>
 

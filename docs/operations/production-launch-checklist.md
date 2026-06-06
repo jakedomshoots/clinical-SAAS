@@ -27,6 +27,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - SMS/email delivery provider is selected; queued `patient_outreach.staged` events are routed through the provider and delivery callbacks update status.
 - Communications delivery callbacks have been tested for queued, blocked, failed, and delivered states.
 - `COMMUNICATIONS_PROVIDER` and `COMMUNICATIONS_PROVIDER_API_KEY` are set for the chosen SMS/email/portal vendor.
+- Clearinghouse claim submission, denial, payment, and remittance/ERA callbacks are vendor-tested against the billing work queue.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.
 - `/api/ready.operational_status` returns `ok`.

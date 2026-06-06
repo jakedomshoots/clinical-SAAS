@@ -16,6 +16,10 @@ class BillingCaseUpdate(BaseModel):
     status: str | None = None
     payer: str | None = None
     eligibility_status: str | None = None
+    claim_control_number: str | None = None
+    remittance_status: str | None = None
+    allowed_amount: float | None = None
+    paid_amount: float | None = None
     cpt_codes: list[str] | None = None
     diagnosis_codes: list[str] | None = None
     notes: str | None = None
@@ -28,6 +32,16 @@ class BillingCaseOut(BaseModel):
     status: str
     payer: str | None
     eligibility_status: str
+    claim_control_number: str | None
+    submission_ready_at: datetime | None
+    submitted_at: datetime | None
+    denied_at: datetime | None
+    denial_reason: str | None
+    denial_worked_at: datetime | None
+    remittance_status: str
+    allowed_amount: float | None
+    paid_amount: float | None
+    paid_at: datetime | None
     cpt_codes: list[str]
     diagnosis_codes: list[str]
     notes: str | None
@@ -84,3 +98,35 @@ class BillingTimelineEventOut(BaseModel):
 class BillingTimelineOut(BaseModel):
     data: list[BillingTimelineEventOut]
     total: int
+
+
+class BillingClaimReadinessOut(BaseModel):
+    case_id: str
+    ready: bool
+    blockers: list[str]
+    warnings: list[str]
+    recommended_next_step: str
+
+
+class BillingWorkQueueOut(BaseModel):
+    draft_count: int
+    ready_count: int
+    submitted_count: int
+    denied_count: int
+    paid_count: int
+    missing_coding_count: int
+    eligibility_needed_count: int
+    denial_rework_count: int
+    remittance_pending_count: int
+    total: int
+
+
+class BillingPaymentIn(BaseModel):
+    allowed_amount: float | None = None
+    paid_amount: float | None = None
+    remittance_status: str | None = None
+    notes: str | None = None
+
+
+class BillingReworkIn(BaseModel):
+    notes: str | None = None

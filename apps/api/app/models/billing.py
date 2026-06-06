@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import DateTime, Float, ForeignKey, JSON, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +31,16 @@ class BillingCase(Base):
     status: Mapped[BillingStatus] = mapped_column(SAEnum(BillingStatus), default=BillingStatus.draft, nullable=False, index=True)
     payer: Mapped[str | None] = mapped_column(String(200), nullable=True)
     eligibility_status: Mapped[str] = mapped_column(String(50), default="not_checked", nullable=False, index=True)
+    claim_control_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    submission_ready_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    denied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    denial_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    denial_worked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    remittance_status: Mapped[str] = mapped_column(String(50), default="not_received", nullable=False, index=True)
+    allowed_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    paid_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     cpt_codes: Mapped[list] = mapped_column(JSON, default=list)
     diagnosis_codes: Mapped[list] = mapped_column(JSON, default=list)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

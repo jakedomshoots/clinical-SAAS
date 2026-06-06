@@ -57,6 +57,7 @@ export const QUERY_KEYS = {
   SETTINGS: ['settings'] as const,
   INTEGRATION_EVENTS: ['integration-events'] as const,
   BILLING_CASES: ['billing-cases'] as const,
+  BILLING_WORK_QUEUE: ['billing-cases', 'work-queue'] as const,
   PORTAL_INTAKE: ['portal-intake'] as const,
   USER: ['user'] as const,
 } as const;
