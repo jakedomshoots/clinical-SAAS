@@ -11,10 +11,11 @@ import {
   ShieldCheck,
   Download,
   ClipboardList,
+  Camera,
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type IntegrationCapabilities, type OperationsIncidentList, type ReadinessSnapshot, type ReadinessSnapshotList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -109,10 +110,26 @@ function OperationsPage() {
     queryKey: QUERY_KEYS.BILLING_WORK_QUEUE,
     queryFn: () => api.get<BillingWorkQueue>(ROUTES.BILLING_WORK_QUEUE),
   });
+  const { data: incidents } = useQuery({
+    queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS,
+    queryFn: () => api.get<OperationsIncidentList>(ROUTES.OPERATIONS_INCIDENTS),
+  });
+  const { data: snapshots } = useQuery({
+    queryKey: QUERY_KEYS.READINESS_SNAPSHOTS,
+    queryFn: () => api.get<ReadinessSnapshotList>(ROUTES.OPERATIONS_READINESS_SNAPSHOTS),
+  });
   const retryMutation = useMutation({
     mutationFn: (eventId: string) => api.post(`/integrations/events/${eventId}/retry`),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATION_EVENTS });
+    },
+  });
+  const snapshotMutation = useMutation({
+    mutationFn: () => api.post<ReadinessSnapshot>(ROUTES.OPERATIONS_READINESS_SNAPSHOTS, {}),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS_SNAPSHOTS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
 
@@ -174,6 +191,68 @@ function OperationsPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Incident Register</h2>
+            <p className="text-xs text-clinic-500">Readiness blockers, failed vendor events, and launch evidence gaps with owners</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <StatusBadge ok={(incidents?.critical_count ?? 0) === 0} label={`${incidents?.critical_count ?? 0} critical`} />
+            <button
+              onClick={() => snapshotMutation.mutate()}
+              disabled={snapshotMutation.isPending}
+              className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Snapshot
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-0 divide-y divide-clinic-100">
+          {(incidents?.data ?? []).slice(0, 8).map((incident) => (
+            <div key={incident.key} className="grid gap-3 px-4 py-3 text-sm md:grid-cols-[12rem_minmax(0,1fr)_10rem]">
+              <div>
+                <div className="font-medium text-clinic-900">{incident.title}</div>
+                <div className="mt-1 text-xs capitalize text-clinic-500">{incident.source.replace('_', ' ')} · {incident.status.replace('_', ' ')}</div>
+              </div>
+              <div>
+                <div className="text-clinic-700">{incident.detail}</div>
+                <div className="mt-1 text-xs text-clinic-500">{incident.recommended_action}</div>
+              </div>
+              <div className="flex items-start justify-between gap-2 md:justify-end">
+                <span className={`rounded-md border px-2 py-1 text-xs font-medium ${incident.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  {incident.count} {incident.severity}
+                </span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs capitalize text-clinic-600">{incident.owner_role}</span>
+              </div>
+            </div>
+          ))}
+          {(incidents?.data ?? []).length === 0 && (
+            <div className="px-4 py-8 text-center text-sm text-clinic-400">No open operational incidents.</div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        {(snapshots?.data ?? []).slice(0, 4).map((snapshot) => (
+          <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-white p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-semibold text-clinic-900">Readiness Snapshot</div>
+              <StatusBadge ok={snapshot.operational_status === 'ok'} label={snapshot.operational_status} />
+            </div>
+            <div className="mt-3 text-2xl font-semibold text-clinic-900">{snapshot.launch_score}%</div>
+            <div className="mt-1 text-xs text-clinic-500">{snapshot.incident_count} incidents · {snapshot.critical_count} critical</div>
+            <div className="mt-2 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+          </div>
+        ))}
+        {(snapshots?.data ?? []).length === 0 && (
+          <div className="rounded-md border border-clinic-200 bg-white p-4 text-sm text-clinic-400 md:col-span-4">
+            No readiness snapshots have been captured yet.
+          </div>
+        )}
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">

@@ -353,6 +353,46 @@ async def test_launch_readiness_contract(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_operations_incidents_and_readiness_snapshots(client, auth_headers, db: AsyncSession):
+    patient_id = await create_patient(client, auth_headers)
+    db.add(
+        IntegrationEvent(
+            organization_id="default",
+            integration="fax_provider",
+            direction="inbound",
+            action="download_document",
+            status=IntegrationEventStatus.failed,
+            entity_type="patient",
+            entity_id=patient_id,
+            attempts=3,
+            error="Provider timeout",
+        )
+    )
+    await db.commit()
+
+    incidents = await client.get("/api/operations/incidents", headers=auth_headers)
+    snapshot = await client.post("/api/operations/readiness-snapshots", headers=auth_headers)
+    snapshots = await client.get("/api/operations/readiness-snapshots", headers=auth_headers)
+
+    assert incidents.status_code == 200
+    incident_data = incidents.json()
+    assert incident_data["open_count"] > 0
+    assert any(item["key"] == "integration_event_fax_provider" for item in incident_data["data"])
+    assert any(item["owner_role"] == "operations" for item in incident_data["data"])
+    assert all(item["recommended_action"] for item in incident_data["data"])
+
+    assert snapshot.status_code == 201
+    snapshot_data = snapshot.json()
+    assert snapshot_data["incident_count"] == incident_data["open_count"]
+    assert snapshot_data["operational_status"] in {"ok", "degraded"}
+    assert snapshot_data["launch_score"] >= 0
+
+    assert snapshots.status_code == 200
+    assert snapshots.json()["total"] == 1
+    assert snapshots.json()["data"][0]["id"] == snapshot_data["id"]
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

@@ -81,6 +81,8 @@ export const ROUTES = {
   INTEGRATION_CONFIG: '/api/integrations/config',
   INTEGRATION_CONFIG_ITEM: (integration: string) => `/api/integrations/config/${integration}`,
   INTEGRATION_CONFIG_TEST: (integration: string) => `/api/integrations/config/${integration}/test`,
+  OPERATIONS_INCIDENTS: '/api/operations/incidents',
+  OPERATIONS_READINESS_SNAPSHOTS: '/api/operations/readiness-snapshots',
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

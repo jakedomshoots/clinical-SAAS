@@ -31,6 +31,43 @@ export interface DailyCloseout {
   recommended_actions: DailyCloseoutAction[];
 }
 
+export interface OperationsIncident {
+  key: string;
+  title: string;
+  severity: 'critical' | 'warning' | 'normal';
+  source: string;
+  status: string;
+  owner_role: string;
+  count: number;
+  detail: string;
+  recommended_action: string;
+  route: string;
+}
+
+export interface OperationsIncidentList {
+  data: OperationsIncident[];
+  open_count: number;
+  critical_count: number;
+  warning_count: number;
+  generated_at: string;
+}
+
+export interface ReadinessSnapshot {
+  id: string;
+  created_at: string;
+  operational_status: 'ok' | 'degraded';
+  core_status: 'ok' | 'degraded';
+  launch_score: number;
+  incident_count: number;
+  critical_count: number;
+  warning_count: number;
+}
+
+export interface ReadinessSnapshotList {
+  data: ReadinessSnapshot[];
+  total: number;
+}
+
 export interface IntegrationCapabilities {
   [key: string]: {
     label?: string;

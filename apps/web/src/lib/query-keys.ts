@@ -57,6 +57,8 @@ export const QUERY_KEYS = {
   DAILY_CLOSEOUT: ['reports', 'daily-closeout'] as const,
   SETTINGS: ['settings'] as const,
   INTEGRATION_EVENTS: ['integration-events'] as const,
+  OPERATIONS_INCIDENTS: ['operations', 'incidents'] as const,
+  READINESS_SNAPSHOTS: ['operations', 'readiness-snapshots'] as const,
   BILLING_CASES: ['billing-cases'] as const,
   BILLING_WORK_QUEUE: ['billing-cases', 'work-queue'] as const,
   PORTAL_INTAKE: ['portal-intake'] as const,

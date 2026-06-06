@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -214,6 +214,36 @@ function dailyCloseout(): DailyCloseout {
     billing,
     risk_register,
     recommended_actions,
+  };
+}
+
+function operationsIncidents(): OperationsIncidentList {
+  const incidents: OperationsIncident[] = [
+    { key: 'integration_ehr', title: 'EHR not live', severity: 'warning' as const, source: 'readiness', status: 'setup_required', owner_role: 'operations', count: 1, detail: 'Missing EHR_API_BASE_URL.', recommended_action: 'Connect credentials, test the adapter, and rerun readiness.', route: '/integrations' },
+    { key: 'integration_fax_provider', title: 'Fax provider not live', severity: 'warning' as const, source: 'readiness', status: 'setup_required', owner_role: 'operations', count: 1, detail: 'Missing FAX_PROVIDER_API_KEY.', recommended_action: 'Connect credentials, test the adapter, and rerun readiness.', route: '/integrations' },
+    { key: 'integration_event_failures', title: 'Failed integration events', severity: 'critical' as const, source: 'integration_events', status: 'open', owner_role: 'operations', count: integrationEvents.filter((item) => item.status === 'failed').length, detail: 'Integration events failed in local/demo mode.', recommended_action: 'Review the failed event payload, retry it, or contact the vendor.', route: '/operations' },
+    { key: 'launch_backup_restore', title: 'Backup and restore evidence', severity: 'warning' as const, source: 'launch_readiness', status: 'open', owner_role: 'operations', count: 1, detail: 'Latest backup and restore markers should exist before go-live.', recommended_action: 'Run backup and restore validation before production launch.', route: '/setup' },
+  ].filter((item) => item.count > 0);
+  return {
+    data: incidents.sort((a, b) => (a.severity === 'critical' ? 0 : 1) - (b.severity === 'critical' ? 0 : 1) || a.title.localeCompare(b.title)),
+    open_count: incidents.length,
+    critical_count: incidents.filter((item) => item.severity === 'critical').length,
+    warning_count: incidents.filter((item) => item.severity === 'warning').length,
+    generated_at: new Date().toISOString(),
+  };
+}
+
+function readinessSnapshotFromEvent(event: AuditEvent): ReadinessSnapshot {
+  const payload = event.payload as Partial<ReadinessSnapshot>;
+  return {
+    id: event.id,
+    created_at: event.created_at,
+    operational_status: payload.operational_status ?? 'degraded',
+    core_status: payload.core_status ?? 'ok',
+    launch_score: Number(payload.launch_score ?? 0),
+    incident_count: Number(payload.incident_count ?? 0),
+    critical_count: Number(payload.critical_count ?? 0),
+    warning_count: Number(payload.warning_count ?? 0),
   };
 }
 
@@ -829,6 +859,35 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/analytics/pilot-readiness/seed' && method === 'POST') {
     return { created: [], created_count: 0 } as T;
+  }
+
+  if (path === '/operations/incidents' && method === 'GET') {
+    return operationsIncidents() as T;
+  }
+  if (path === '/operations/readiness-snapshots' && method === 'POST') {
+    const incidents = operationsIncidents();
+    logDemoEvent({
+      event_type: 'operations.readiness_snapshot',
+      entity_type: 'operations',
+      entity_id: uuid(900),
+      payload: {
+        operational_status: 'degraded',
+        core_status: 'ok',
+        launch_score: 35,
+        incident_count: incidents.open_count,
+        critical_count: incidents.critical_count,
+        warning_count: incidents.warning_count,
+      },
+    });
+    saveDemoData();
+    const event = auditEvents[0];
+    return readinessSnapshotFromEvent(event) as T;
+  }
+  if (path === '/operations/readiness-snapshots' && method === 'GET') {
+    const data = auditEvents
+      .filter((event) => event.event_type === 'operations.readiness_snapshot')
+      .map(readinessSnapshotFromEvent);
+    return { data, total: data.length } satisfies ReadinessSnapshotList as T;
   }
 
   if (path === '/integration-capabilities' && method === 'GET') {
