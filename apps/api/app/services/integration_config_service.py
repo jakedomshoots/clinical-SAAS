@@ -32,6 +32,14 @@ class IntegrationField:
 
 
 @dataclass(frozen=True)
+class AdapterMethod:
+    key: str
+    label: str
+    description: str
+    required: bool = True
+
+
+@dataclass(frozen=True)
 class IntegrationSpec:
     key: str
     health_key: str
@@ -41,6 +49,7 @@ class IntegrationSpec:
     workflows: list[str]
     action: str
     sandbox_tests: list[str]
+    adapter_methods: list[AdapterMethod]
     docs: list[str]
 
 
@@ -59,6 +68,13 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Import medication and lab fixtures",
                 "Write or reconcile one encounter note in sandbox",
             ],
+            adapter_methods=[
+                AdapterMethod("patient_search", "Patient search", "Find patients by name, DOB, MRN, or vendor identifier."),
+                AdapterMethod("demographics_sync", "Demographics sync", "Import and update patient demographics from the EHR source of truth."),
+                AdapterMethod("medication_sync", "Medication sync", "Import active medication lists for reconciliation."),
+                AdapterMethod("lab_import", "Lab import", "Import lab results and clinical review status."),
+                AdapterMethod("encounter_writeback", "Encounter writeback", "Write or reconcile encounter notes in the vendor sandbox."),
+            ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
@@ -73,6 +89,13 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Send a sandbox outbound fax",
                 "Receive an inbound fax webhook",
                 "Download the source document and confirm patient matching",
+            ],
+            adapter_methods=[
+                AdapterMethod("send_document", "Send document", "Send outbound documents and referrals through the provider."),
+                AdapterMethod("receive_webhook", "Receive webhook", "Map inbound fax callbacks into integration events."),
+                AdapterMethod("delivery_status", "Delivery status sync", "Capture sent, failed, and delivered states."),
+                AdapterMethod("document_download", "Document download", "Download source documents or hand off signed object URLs."),
+                AdapterMethod("patient_document_match", "Patient document match", "Create patient document review records from matched inbound faxes."),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -89,6 +112,12 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Receive an intake submission",
                 "Import a portal-uploaded document",
             ],
+            adapter_methods=[
+                AdapterMethod("send_message", "Send message", "Send portal messages through the external portal."),
+                AdapterMethod("thread_lookup", "Thread lookup", "Fetch and reconcile portal message threads."),
+                AdapterMethod("intake_webhook", "Intake webhook", "Map portal intake submissions into intake review."),
+                AdapterMethod("document_import", "Document import", "Import portal-uploaded documents into patient document review."),
+            ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
@@ -103,6 +132,12 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Create a sandbox appointment",
                 "Update and cancel the appointment",
                 "Fetch provider availability and conflict results",
+            ],
+            adapter_methods=[
+                AdapterMethod("create_event", "Create event", "Create appointments in the external calendar."),
+                AdapterMethod("update_event", "Update event", "Update and cancel external calendar appointments."),
+                AdapterMethod("availability_sync", "Availability sync", "Fetch provider availability and conflict results."),
+                AdapterMethod("reminder_source", "Reminder source of truth", "Preserve reminder and schedule source-of-truth behavior."),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -129,6 +164,13 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Receive queued, delivered, failed, and blocked callbacks",
                 "Confirm audit and retry states update",
             ],
+            adapter_methods=[
+                AdapterMethod("send_outreach", "Send outreach", "Send consent-approved SMS, email, or portal outreach."),
+                AdapterMethod("queue_callback", "Queued callback", "Capture queued provider delivery callbacks."),
+                AdapterMethod("delivery_callback", "Delivery callback", "Capture delivered provider callbacks."),
+                AdapterMethod("failure_callback", "Failure callback", "Capture failed and blocked provider callbacks."),
+                AdapterMethod("retry_state", "Retry state", "Update retry and audit state after provider callbacks."),
+            ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
         IntegrationSpec(
@@ -143,6 +185,12 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Reach the CopilotKit runtime health endpoint",
                 "Run a non-PHI assistant action in sandbox",
                 "Verify tool authorization and audit logging",
+            ],
+            adapter_methods=[
+                AdapterMethod("runtime_health", "Runtime health", "Reach the configured CopilotKit runtime."),
+                AdapterMethod("tenant_authorization", "Tenant authorization", "Forward tenant and user authorization context."),
+                AdapterMethod("tool_allowlist", "Tool allowlist", "Restrict runtime tools to approved confirmation-gated actions."),
+                AdapterMethod("audit_capture", "Audit capture", "Capture assistant tool invocation audit evidence."),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -164,6 +212,13 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Submit a sandbox claim and capture the clearinghouse reference",
                 "Receive denial or acceptance callback",
                 "Import ERA/remittance fixture into the billing timeline",
+            ],
+            adapter_methods=[
+                AdapterMethod("claim_submission", "Claim submission", "Submit claims and retain clearinghouse references."),
+                AdapterMethod("eligibility_check", "Eligibility check", "Run payer eligibility checks when supported."),
+                AdapterMethod("denial_callback", "Denial callback", "Map denial and acceptance callbacks to billing cases."),
+                AdapterMethod("payment_callback", "Payment callback", "Capture payment status callbacks."),
+                AdapterMethod("remittance_import", "ERA/remittance import", "Import ERA/remittance data into the billing timeline."),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -285,6 +340,8 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
     draft_configured = _draft_configured(spec, organization_id)
     env_configured = all(value.strip() for value in spec.env_values.values())
     configured = bool(status.get("configured")) or draft_configured
+    adapter_implemented = bool(status.get("adapter_implemented"))
+    adapter_methods = _adapter_methods_out(spec, adapter_implemented)
     mode = "environment" if env_configured else "setup_draft" if draft_configured else "demo"
     last_test = _last_tests.get(_test_key(organization_id, spec.key), {})
     return {
@@ -292,8 +349,11 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "label": spec.label,
         "configured": configured,
         "healthy": bool(status.get("ok")),
-        "adapter_implemented": bool(status.get("adapter_implemented")),
+        "adapter_implemented": adapter_implemented,
         "adapter_detail": status.get("adapter_detail"),
+        "adapter_methods": adapter_methods,
+        "adapter_method_ready_count": sum(1 for method in adapter_methods if method["status"] == "ready"),
+        "adapter_method_total": len(adapter_methods),
         "mode": mode,
         "status": _config_status(configured, bool(status.get("ok")), mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
@@ -389,6 +449,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         config.get("adapter_detail")
         or f"Configure a vendor-specific {config['label']} adapter before live use."
     )
+    adapter_methods = config.get("adapter_methods", [])
+    adapter_method_ready_count = int(config.get("adapter_method_ready_count") or 0)
+    adapter_method_total = int(config.get("adapter_method_total") or len(adapter_methods))
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
@@ -436,9 +499,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             "label": "Vendor adapter implementation",
             "status": "ready" if adapter_implemented else "blocked" if not missing_fields else "pending",
             "detail": (
-                "Vendor adapter is implemented for live-use testing."
+                f"Vendor adapter is implemented for live-use testing; {adapter_method_ready_count} of {adapter_method_total} required methods ready."
                 if adapter_implemented
-                else adapter_detail
+                else f"{adapter_detail} {adapter_method_ready_count} of {adapter_method_total} required methods ready."
                 if not missing_fields
                 else "Capture required credentials before validating the vendor adapter."
             ),
@@ -482,6 +545,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "healthy": config["healthy"],
         "adapter_implemented": adapter_implemented,
         "adapter_detail": adapter_detail,
+        "adapter_methods": adapter_methods,
+        "adapter_method_ready_count": adapter_method_ready_count,
+        "adapter_method_total": adapter_method_total,
         "mode": config["mode"],
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,
@@ -565,6 +631,19 @@ def _field_out(
         "source": source,
         "value_preview": _preview_value(value, field.secret) if value else None,
     }
+
+
+def _adapter_methods_out(spec: IntegrationSpec, adapter_implemented: bool) -> list[dict]:
+    return [
+        {
+            "key": method.key,
+            "label": method.label,
+            "description": method.description,
+            "required": method.required,
+            "status": "ready" if adapter_implemented else "blocked",
+        }
+        for method in spec.adapter_methods
+    ]
 
 
 def _preview_value(value: str, secret: bool) -> str:

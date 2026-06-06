@@ -824,6 +824,14 @@ export interface IntegrationConfigField {
   value_preview: string | null;
 }
 
+export interface AdapterMethod {
+  key: string;
+  label: string;
+  description: string;
+  required: boolean;
+  status: 'ready' | 'blocked';
+}
+
 export interface IntegrationConfig {
   key: string;
   label: string;
@@ -831,6 +839,9 @@ export interface IntegrationConfig {
   healthy: boolean;
   adapter_implemented: boolean;
   adapter_detail: string | null;
+  adapter_methods: AdapterMethod[];
+  adapter_method_ready_count: number;
+  adapter_method_total: number;
   mode: 'environment' | 'setup_draft' | 'demo';
   status: 'healthy' | 'configured' | 'draft' | 'missing';
   fields: IntegrationConfigField[];
@@ -883,6 +894,9 @@ export interface CredentialPreflightItem {
   healthy: boolean;
   adapter_implemented: boolean;
   adapter_detail: string | null;
+  adapter_methods: AdapterMethod[];
+  adapter_method_ready_count: number;
+  adapter_method_total: number;
   mode: string;
   missing_fields: string[];
   configured_fields: string[];

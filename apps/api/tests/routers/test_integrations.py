@@ -112,6 +112,31 @@ async def test_list_integration_config_reports_required_fields(
 
 
 @pytest.mark.asyncio
+async def test_integration_config_reports_adapter_contract_requirements(
+    client: AsyncClient,
+    auth_headers,
+):
+    res = await client.get("/api/integrations/config", headers=auth_headers)
+
+    assert res.status_code == 200
+    body = res.json()
+    ehr = next(item for item in body["data"] if item["key"] == "ehr")
+    method_keys = {method["key"] for method in ehr["adapter_methods"]}
+
+    assert {
+        "patient_search",
+        "demographics_sync",
+        "medication_sync",
+        "lab_import",
+        "encounter_writeback",
+    } <= method_keys
+    assert ehr["adapter_method_total"] == len(ehr["adapter_methods"])
+    assert ehr["adapter_method_ready_count"] == 0
+    assert all(method["status"] == "blocked" for method in ehr["adapter_methods"])
+    assert all(method["required"] is True for method in ehr["adapter_methods"])
+
+
+@pytest.mark.asyncio
 async def test_update_integration_config_saves_redacted_setup_draft(
     client: AsyncClient,
     auth_headers,
@@ -329,8 +354,12 @@ async def test_placeholder_adapter_blocks_credential_preflight_even_with_sandbox
     updated_fax = next(item for item in updated.json()["data"] if item["key"] == "fax")
 
     assert updated_fax["status"] == "blocked"
+    assert updated_fax["adapter_method_ready_count"] == 0
+    assert updated_fax["adapter_method_total"] >= 4
+    assert updated_fax["adapter_methods"][0]["status"] == "blocked"
     assert updated_fax["steps"][1]["key"] == "adapter"
     assert updated_fax["steps"][1]["status"] == "blocked"
+    assert "0 of" in updated_fax["steps"][1]["detail"]
     assert any("vendor-specific fax adapter" in blocker.lower() for blocker in updated_fax["blockers"])
 
 

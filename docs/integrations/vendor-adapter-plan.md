@@ -2,6 +2,8 @@
 
 Concierge OS currently exposes vendor-neutral integration boundaries. Live use requires vendor-specific adapters behind these interfaces.
 
+The Integration Setup screen and `/api/integrations/credential-preflight` publish the same adapter contract methods listed below. A vendor lane is not live-ready until every required method is implemented, the connection test passes, and sandbox workflow evidence is recorded.
+
 ## EHR
 
 - Environment: `EHR_API_BASE_URL`
@@ -72,6 +74,7 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 - Use `/api/integrations/credential-preflight` before any live-use rehearsal.
 - Every integration should have required credentials captured from environment variables or setup drafts.
 - Credential preflight blocks integrations whose Python client is still a placeholder adapter, even when credentials and sandbox notes are present.
+- Credential preflight shows the adapter method checklist and ready/blocked counts for each vendor lane.
 - Inbound callbacks must send `X-Concierge-Webhook-Secret`, `X-Concierge-Webhook-Timestamp`, `X-Concierge-Webhook-Signature`, and a stable vendor `event_id`; sign `timestamp.raw_body` with `WEBHOOK_SHARED_SECRET` as `sha256=<hmac>`. Stale timestamps outside the replay window, invalid signatures, and callbacks without `event_id` are rejected.
 - Run each connection test and resolve any failed result before go-live.
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.

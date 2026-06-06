@@ -2485,15 +2485,54 @@ function findDemoHandoffSource(patientId: string, sourceType: string, sourceId: 
 
 function demoIntegrationConfigs() {
   const specs = [
-    ['ehr', 'EHR', ['EHR_API_BASE_URL'], false, ['Chart sync', 'Medication reconciliation', 'Lab import'], 'Connect the chosen EHR API and validate sync.', ['Fetch a test patient demographic record', 'Import medication and lab fixtures', 'Write or reconcile one encounter note in sandbox']],
-    ['fax', 'Fax provider', ['FAX_PROVIDER_API_KEY'], true, ['Inbound fax matching', 'Outbound referrals', 'Delivery status'], 'Set provider credentials and verify inbound/outbound callbacks.', ['Send a sandbox outbound fax', 'Receive an inbound fax webhook', 'Download the source document and confirm patient matching']],
-    ['portal', 'Patient portal', ['PORTAL_API_BASE_URL'], false, ['Portal messages', 'Patient intake', 'Document import'], 'Connect portal API and validate webhook mapping.', ['Sync a patient portal message thread', 'Receive an intake submission', 'Import a portal-uploaded document']],
-    ['calendar', 'Calendar', ['CALENDAR_API_BASE_URL'], false, ['Appointment sync', 'Conflict checks', 'Provider availability'], 'Connect calendar API and validate appointment sync.', ['Create a sandbox appointment', 'Update and cancel the appointment', 'Fetch provider availability and conflict results']],
-    ['communications', 'Communications', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], true, ['Patient outreach', 'Appointment reminders', 'Delivery callbacks'], 'Select SMS/email provider and validate delivery callbacks.', ['Queue a consent-approved outreach message', 'Receive queued, delivered, failed, and blocked callbacks', 'Confirm audit and retry states update']],
-    ['copilotkit', 'CopilotKit runtime', ['COPILOTKIT_RUNTIME_URL'], false, ['Assistant runtime', 'Tool policy', 'Confirmation gates'], 'Deploy runtime and approve model/tool policy.', ['Reach the CopilotKit runtime health endpoint', 'Run a non-PHI assistant action in sandbox', 'Verify tool authorization and audit logging']],
-    ['clearinghouse', 'Clearinghouse', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY'], true, ['Claim submission', 'Eligibility verification', 'ERA/remittance import'], 'Connect clearinghouse credentials and validate claim, denial, and remittance workflows.', ['Submit a sandbox claim and capture the clearinghouse reference', 'Receive denial or acceptance callback', 'Import ERA/remittance fixture into the billing timeline']],
+    ['ehr', 'EHR', ['EHR_API_BASE_URL'], false, ['Chart sync', 'Medication reconciliation', 'Lab import'], 'Connect the chosen EHR API and validate sync.', ['Fetch a test patient demographic record', 'Import medication and lab fixtures', 'Write or reconcile one encounter note in sandbox'], [
+      ['patient_search', 'Patient search', 'Find patients by name, DOB, MRN, or vendor identifier.'],
+      ['demographics_sync', 'Demographics sync', 'Import and update patient demographics from the EHR source of truth.'],
+      ['medication_sync', 'Medication sync', 'Import active medication lists for reconciliation.'],
+      ['lab_import', 'Lab import', 'Import lab results and clinical review status.'],
+      ['encounter_writeback', 'Encounter writeback', 'Write or reconcile encounter notes in the vendor sandbox.'],
+    ]],
+    ['fax', 'Fax provider', ['FAX_PROVIDER_API_KEY'], true, ['Inbound fax matching', 'Outbound referrals', 'Delivery status'], 'Set provider credentials and verify inbound/outbound callbacks.', ['Send a sandbox outbound fax', 'Receive an inbound fax webhook', 'Download the source document and confirm patient matching'], [
+      ['send_document', 'Send document', 'Send outbound documents and referrals through the provider.'],
+      ['receive_webhook', 'Receive webhook', 'Map inbound fax callbacks into integration events.'],
+      ['delivery_status', 'Delivery status sync', 'Capture sent, failed, and delivered states.'],
+      ['document_download', 'Document download', 'Download source documents or hand off signed object URLs.'],
+      ['patient_document_match', 'Patient document match', 'Create patient document review records from matched inbound faxes.'],
+    ]],
+    ['portal', 'Patient portal', ['PORTAL_API_BASE_URL'], false, ['Portal messages', 'Patient intake', 'Document import'], 'Connect portal API and validate webhook mapping.', ['Sync a patient portal message thread', 'Receive an intake submission', 'Import a portal-uploaded document'], [
+      ['send_message', 'Send message', 'Send portal messages through the external portal.'],
+      ['thread_lookup', 'Thread lookup', 'Fetch and reconcile portal message threads.'],
+      ['intake_webhook', 'Intake webhook', 'Map portal intake submissions into intake review.'],
+      ['document_import', 'Document import', 'Import portal-uploaded documents into patient document review.'],
+    ]],
+    ['calendar', 'Calendar', ['CALENDAR_API_BASE_URL'], false, ['Appointment sync', 'Conflict checks', 'Provider availability'], 'Connect calendar API and validate appointment sync.', ['Create a sandbox appointment', 'Update and cancel the appointment', 'Fetch provider availability and conflict results'], [
+      ['create_event', 'Create event', 'Create appointments in the external calendar.'],
+      ['update_event', 'Update event', 'Update and cancel external calendar appointments.'],
+      ['availability_sync', 'Availability sync', 'Fetch provider availability and conflict results.'],
+      ['reminder_source', 'Reminder source of truth', 'Preserve reminder and schedule source-of-truth behavior.'],
+    ]],
+    ['communications', 'Communications', ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], true, ['Patient outreach', 'Appointment reminders', 'Delivery callbacks'], 'Select SMS/email provider and validate delivery callbacks.', ['Queue a consent-approved outreach message', 'Receive queued, delivered, failed, and blocked callbacks', 'Confirm audit and retry states update'], [
+      ['send_outreach', 'Send outreach', 'Send consent-approved SMS, email, or portal outreach.'],
+      ['queue_callback', 'Queued callback', 'Capture queued provider delivery callbacks.'],
+      ['delivery_callback', 'Delivery callback', 'Capture delivered provider callbacks.'],
+      ['failure_callback', 'Failure callback', 'Capture failed and blocked provider callbacks.'],
+      ['retry_state', 'Retry state', 'Update retry and audit state after provider callbacks.'],
+    ]],
+    ['copilotkit', 'CopilotKit runtime', ['COPILOTKIT_RUNTIME_URL'], false, ['Assistant runtime', 'Tool policy', 'Confirmation gates'], 'Deploy runtime and approve model/tool policy.', ['Reach the CopilotKit runtime health endpoint', 'Run a non-PHI assistant action in sandbox', 'Verify tool authorization and audit logging'], [
+      ['runtime_health', 'Runtime health', 'Reach the configured CopilotKit runtime.'],
+      ['tenant_authorization', 'Tenant authorization', 'Forward tenant and user authorization context.'],
+      ['tool_allowlist', 'Tool allowlist', 'Restrict runtime tools to approved confirmation-gated actions.'],
+      ['audit_capture', 'Audit capture', 'Capture assistant tool invocation audit evidence.'],
+    ]],
+    ['clearinghouse', 'Clearinghouse', ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY'], true, ['Claim submission', 'Eligibility verification', 'ERA/remittance import'], 'Connect clearinghouse credentials and validate claim, denial, and remittance workflows.', ['Submit a sandbox claim and capture the clearinghouse reference', 'Receive denial or acceptance callback', 'Import ERA/remittance fixture into the billing timeline'], [
+      ['claim_submission', 'Claim submission', 'Submit claims and retain clearinghouse references.'],
+      ['eligibility_check', 'Eligibility check', 'Run payer eligibility checks when supported.'],
+      ['denial_callback', 'Denial callback', 'Map denial and acceptance callbacks to billing cases.'],
+      ['payment_callback', 'Payment callback', 'Capture payment status callbacks.'],
+      ['remittance_import', 'ERA/remittance import', 'Import ERA/remittance data into the billing timeline.'],
+    ]],
   ] as const;
-  return specs.map(([key, label, fields, secret, workflows, action, sandboxTests]) => {
+  return specs.map(([key, label, fields, secret, workflows, action, sandboxTests, adapterMethods]) => {
     const draft = integrationDrafts[key] ?? {};
     const configured = fields.every((field) => Boolean(draft[field]));
     const lastTest = integrationLastTests[key] ?? {};
@@ -2501,6 +2540,13 @@ function demoIntegrationConfigs() {
     const adapterDetail = adapterImplemented
       ? 'CopilotKit runtime URL is configured and reachable by the API.'
       : `Configure a vendor-specific ${label.toLowerCase()} adapter before live use.`;
+    const methods = adapterMethods.map(([methodKey, methodLabel, description]) => ({
+      key: methodKey,
+      label: methodLabel,
+      description,
+      required: true,
+      status: adapterImplemented ? 'ready' : 'blocked',
+    }));
     return {
       key,
       label,
@@ -2508,6 +2554,9 @@ function demoIntegrationConfigs() {
       healthy: false,
       adapter_implemented: adapterImplemented,
       adapter_detail: adapterDetail,
+      adapter_methods: methods,
+      adapter_method_ready_count: methods.filter((method) => method.status === 'ready').length,
+      adapter_method_total: methods.length,
       mode: configured ? 'setup_draft' : 'demo',
       status: configured ? 'draft' : 'missing',
       fields: fields.map((field) => ({
@@ -2564,6 +2613,9 @@ function demoCredentialPreflight() {
       healthy: config.healthy,
       adapter_implemented: config.adapter_implemented,
       adapter_detail: config.adapter_detail,
+      adapter_methods: config.adapter_methods,
+      adapter_method_ready_count: config.adapter_method_ready_count,
+      adapter_method_total: config.adapter_method_total,
       mode: config.mode,
       missing_fields: missingFields,
       configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
@@ -2592,7 +2644,7 @@ function demoCredentialPreflight() {
           key: 'adapter',
           label: 'Vendor adapter implementation',
           status: config.adapter_implemented ? 'ready' : missingFields.length ? 'pending' : 'blocked',
-          detail: config.adapter_implemented ? 'Vendor adapter is implemented for live-use testing.' : missingFields.length ? 'Capture required credentials before validating the vendor adapter.' : config.adapter_detail,
+          detail: config.adapter_implemented ? `Vendor adapter is implemented for live-use testing; ${config.adapter_method_ready_count} of ${config.adapter_method_total} required methods ready.` : missingFields.length ? 'Capture required credentials before validating the vendor adapter.' : `${config.adapter_detail} ${config.adapter_method_ready_count} of ${config.adapter_method_total} required methods ready.`,
         },
         {
           key: 'connection_test',

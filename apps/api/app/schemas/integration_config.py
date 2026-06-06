@@ -12,6 +12,14 @@ class IntegrationConfigFieldOut(BaseModel):
     value_preview: str | None = None
 
 
+class AdapterMethodOut(BaseModel):
+    key: str
+    label: str
+    description: str
+    required: bool = True
+    status: str
+
+
 class IntegrationConfigOut(BaseModel):
     key: str
     label: str
@@ -19,6 +27,9 @@ class IntegrationConfigOut(BaseModel):
     healthy: bool
     adapter_implemented: bool = False
     adapter_detail: str | None = None
+    adapter_methods: list[AdapterMethodOut] = Field(default_factory=list)
+    adapter_method_ready_count: int = 0
+    adapter_method_total: int = 0
     mode: str
     status: str
     fields: list[IntegrationConfigFieldOut]
@@ -75,6 +86,9 @@ class CredentialPreflightItemOut(BaseModel):
     healthy: bool
     adapter_implemented: bool = False
     adapter_detail: str | None = None
+    adapter_methods: list[AdapterMethodOut] = Field(default_factory=list)
+    adapter_method_ready_count: int = 0
+    adapter_method_total: int = 0
     mode: str
     missing_fields: list[str]
     configured_fields: list[str]
