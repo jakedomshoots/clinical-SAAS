@@ -1052,6 +1052,80 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
+    packet = await go_live_packet(db, user)
+    rehearsal = await production_rehearsal_report(db, user)
+    workplan = await launch_workplan(db, user)
+    preflight = await integration_config_service.credential_preflight(db, user)
+    evidence_by_key = {item["key"]: item for item in packet["evidence"]}
+
+    gates = [
+        _live_gate(
+            "go_live_packet",
+            "Go-live packet",
+            "ready" if packet["go_live_ready"] else "blocking" if packet["blocking_count"] else "warning",
+            f"{packet['blocking_count']} blocker(s), {packet['warning_count']} warning(s), {packet['evidence_ready_count']} of {packet['evidence_total']} evidence item(s) ready.",
+            "/operations",
+            None,
+        ),
+        _live_gate(
+            "production_rehearsal",
+            "Production rehearsal",
+            "ready" if rehearsal["rehearsal_ready"] else "blocking" if rehearsal["blocking_count"] else "warning",
+            f"{rehearsal['blocking_count']} blocker(s), {rehearsal['warning_count']} warning(s).",
+            "/operations",
+            None,
+        ),
+        _live_gate(
+            "launch_workplan",
+            "Launch workplan",
+            "ready" if workplan["total"] == 0 else "blocking" if workplan["blocking_count"] else "warning",
+            f"{workplan['blocking_count']} blocking, {workplan['warning_count']} warning, {workplan['unassigned_count']} unassigned item(s).",
+            "/operations",
+            None,
+        ),
+        _live_gate(
+            "credential_preflight",
+            "Credential preflight",
+            "ready" if preflight["blocking_count"] == 0 else "blocking",
+            f"{preflight['blocking_count']} blocking integration item(s), {preflight['staged_count']} staged.",
+            "/integrations",
+            None,
+        ),
+        _live_gate_from_evidence("browser_qa", "Browser QA", evidence_by_key.get("browser_qa_session")),
+        _live_gate_from_evidence("staff_training", "Staff training", evidence_by_key.get("staff_training_session")),
+        _live_gate_from_evidence("policy_approval", "Policy approval", evidence_by_key.get("policy_approval_session")),
+        _live_gate_from_evidence("role_dry_run", "Role dry-run", evidence_by_key.get("role_dry_run_session")),
+    ]
+    blocking_count = sum(1 for gate in gates if gate["status"] == "blocking")
+    warning_count = sum(1 for gate in gates if gate["status"] in {"warning", "missing"})
+    ready_count = sum(1 for gate in gates if gate["status"] == "ready")
+    score = round((ready_count / len(gates)) * 100) if gates else 0
+    next_actions = _live_use_next_actions(gates, workplan["items"], preflight.get("data", []))
+    return {
+        "status": "ready" if blocking_count == 0 and warning_count == 0 else "blocked" if blocking_count else "attention",
+        "launch_ready": blocking_count == 0 and warning_count == 0 and packet["go_live_ready"],
+        "score": score,
+        "generated_at": datetime.now(UTC),
+        "summary": {
+            "ready_gates": ready_count,
+            "blocking_gates": blocking_count,
+            "warning_gates": warning_count,
+            "evidence_ready_count": packet["evidence_ready_count"],
+            "evidence_total": packet["evidence_total"],
+            "workplan_blockers": workplan["blocking_count"],
+            "workplan_warnings": workplan["warning_count"],
+            "workplan_unassigned": workplan["unassigned_count"],
+            "credential_blockers": preflight["blocking_count"],
+            "credential_staged": preflight["staged_count"],
+        },
+        "gates": gates,
+        "evidence": packet["evidence"],
+        "next_actions": next_actions[:10],
+        "open_workplan_items": workplan["items"][:10],
+    }
+
+
 async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
     closeout = await _rehearsal_closeout_status(db, user)
     workplan = await launch_workplan(db, user)
@@ -1365,6 +1439,38 @@ def launch_workplan_csv(workplan: dict) -> str:
     return "\n".join(rows) + "\n"
 
 
+def live_use_rehearsal_csv(dashboard: dict) -> str:
+    rows = ["section,key,label,status,detail,route"]
+    for gate in dashboard["gates"]:
+        rows.append(_csv_row([
+            "gate",
+            gate["key"],
+            gate["label"],
+            gate["status"],
+            gate["detail"],
+            gate["route"],
+        ]))
+    for evidence in dashboard["evidence"]:
+        rows.append(_csv_row([
+            "evidence",
+            evidence["key"],
+            evidence["label"],
+            evidence["status"],
+            evidence["detail"],
+            evidence["route"],
+        ]))
+    for action in dashboard["next_actions"]:
+        rows.append(_csv_row([
+            "action",
+            action["key"],
+            action["label"],
+            action["severity"],
+            action["detail"],
+            action["route"],
+        ]))
+    return "\n".join(rows) + "\n"
+
+
 async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
     query = select(AuditLog).where(
         AuditLog.organization_id == user.organization_id,
@@ -1411,6 +1517,79 @@ def _gate(key: str, label: str, status: str, score: int, detail: str, route: str
         "detail": detail,
         "route": route,
     }
+
+
+def _live_gate(key: str, label: str, status: str, detail: str, route: str, captured_at) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "detail": detail,
+        "route": route,
+        "captured_at": captured_at,
+    }
+
+
+def _live_gate_from_evidence(key: str, label: str, evidence: dict | None) -> dict:
+    if not evidence:
+        return _live_gate(
+            key,
+            label,
+            "missing",
+            f"{label} evidence is missing.",
+            "/operations",
+            None,
+        )
+    return _live_gate(
+        key,
+        label,
+        evidence["status"],
+        evidence["detail"],
+        evidence["route"],
+        evidence.get("captured_at"),
+    )
+
+
+def _live_use_next_actions(gates: list[dict], workplan_items: list[dict], preflight_items: list[dict]) -> list[dict]:
+    actions = [
+        {
+            "key": f"gate_{gate['key']}",
+            "label": f"Resolve {gate['label']}",
+            "detail": gate["detail"],
+            "route": gate["route"],
+            "severity": "blocking" if gate["status"] in {"blocking", "missing"} else "warning",
+        }
+        for gate in gates
+        if gate["status"] != "ready"
+    ]
+    actions.extend(
+        {
+            "key": f"workplan_{item['key']}",
+            "label": item["label"],
+            "detail": item["recommended_action"],
+            "route": item["route"],
+            "severity": item["severity"],
+        }
+        for item in workplan_items[:8]
+    )
+    actions.extend(
+        {
+            "key": f"credential_{item['key']}",
+            "label": f"{item['label']} credential preflight",
+            "detail": "; ".join(item.get("blockers") or ["Complete credential, connection, and sandbox evidence."]),
+            "route": "/integrations",
+            "severity": "blocking" if item.get("status") in {"missing", "blocked"} else "warning",
+        }
+        for item in preflight_items
+        if item.get("status") != "ready"
+    )
+    deduped: dict[str, dict] = {}
+    for action in actions:
+        deduped.setdefault(action["key"], action)
+    return sorted(
+        deduped.values(),
+        key=lambda item: (0 if item["severity"] == "blocking" else 1, item["label"]),
+    )
 
 
 def _backup_restore_detail(deployment: dict) -> str:

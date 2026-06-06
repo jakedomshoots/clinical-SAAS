@@ -17,6 +17,7 @@ from app.schemas.operations import (
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
     GoLiveAttestationOut,
+    LiveUseRehearsalOut,
     OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
@@ -227,6 +228,23 @@ async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
 async def get_go_live_packet(db: DbDep, current_user: OpsUserDep):
     return GoLivePacketOut(
         **await operations_service.go_live_packet(db, current_user)
+    )
+
+
+@router.get("/live-use-rehearsal", response_model=LiveUseRehearsalOut)
+async def get_live_use_rehearsal(db: DbDep, current_user: OpsUserDep):
+    return LiveUseRehearsalOut(
+        **await operations_service.live_use_rehearsal(db, current_user)
+    )
+
+
+@router.get("/live-use-rehearsal/export")
+async def export_live_use_rehearsal(db: DbDep, current_user: OpsUserDep):
+    dashboard = await operations_service.live_use_rehearsal(db, current_user)
+    return Response(
+        content=operations_service.live_use_rehearsal_csv(dashboard),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="concierge-os-live-use-rehearsal.csv"'},
     )
 
 

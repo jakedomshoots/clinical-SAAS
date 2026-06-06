@@ -444,6 +444,35 @@ export interface GoLivePacket {
   latest_attestation: GoLiveAttestation | null;
 }
 
+export interface LiveUseRehearsalGate {
+  key: string;
+  label: string;
+  status: 'ready' | 'warning' | 'blocking' | 'missing';
+  detail: string;
+  route: string;
+  captured_at: string | null;
+}
+
+export interface LiveUseRehearsalAction {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  severity: 'warning' | 'blocking';
+}
+
+export interface LiveUseRehearsal {
+  status: 'ready' | 'attention' | 'blocked';
+  launch_ready: boolean;
+  score: number;
+  generated_at: string;
+  summary: Record<string, number>;
+  gates: LiveUseRehearsalGate[];
+  evidence: GoLivePacketEvidence[];
+  next_actions: LiveUseRehearsalAction[];
+  open_workplan_items: LaunchWorkplanItem[];
+}
+
 export interface RoleDryRunChecklistItem {
   key: string;
   label: string;

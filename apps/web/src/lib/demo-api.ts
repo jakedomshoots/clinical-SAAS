@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -977,6 +977,88 @@ function goLivePacket(): GoLivePacket {
     open_workplan_items: workplan.items.slice(0, 8),
     latest_attestation: goLiveAttestations[0] ?? null,
   };
+}
+
+function demoLiveGate(key: string, label: string, status: LiveUseRehearsalGate['status'], detail: string, route: string, captured_at: string | null = null): LiveUseRehearsalGate {
+  return { key, label, status, detail, route, captured_at };
+}
+
+function demoLiveGateFromEvidence(key: string, label: string, evidence: GoLivePacket['evidence'][number] | undefined): LiveUseRehearsalGate {
+  if (!evidence) return demoLiveGate(key, label, 'missing', `${label} evidence is missing.`, '/operations');
+  return demoLiveGate(key, label, evidence.status, evidence.detail, evidence.route, evidence.captured_at);
+}
+
+function liveUseNextActions(gates: LiveUseRehearsalGate[], workplan: LaunchWorkplan): LiveUseRehearsalAction[] {
+  const actions = [
+    ...gates.filter((gate) => gate.status !== 'ready').map((gate) => ({
+      key: `gate_${gate.key}`,
+      label: `Resolve ${gate.label}`,
+      detail: gate.detail,
+      route: gate.route,
+      severity: (gate.status === 'warning' ? 'warning' : 'blocking') as LiveUseRehearsalAction['severity'],
+    })),
+    ...workplan.items.slice(0, 8).map((item) => ({
+      key: `workplan_${item.key}`,
+      label: item.label,
+      detail: item.recommended_action,
+      route: item.route,
+      severity: item.severity,
+    })),
+  ];
+  const deduped = new Map<string, LiveUseRehearsalAction>();
+  actions.forEach((action) => deduped.set(action.key, action));
+  return [...deduped.values()].sort((a, b) => (a.severity === 'blocking' ? 0 : 1) - (b.severity === 'blocking' ? 0 : 1) || a.label.localeCompare(b.label));
+}
+
+function liveUseRehearsal(): LiveUseRehearsal {
+  const packet = goLivePacket();
+  const rehearsal = productionRehearsalReport();
+  const workplan = launchWorkplan();
+  const preflight = demoCredentialPreflight();
+  const evidence = Object.fromEntries(packet.evidence.map((item) => [item.key, item]));
+  const gates: LiveUseRehearsalGate[] = [
+    demoLiveGate('go_live_packet', 'Go-live packet', packet.go_live_ready ? 'ready' : packet.blocking_count ? 'blocking' : 'warning', `${packet.blocking_count} blocker(s), ${packet.warning_count} warning(s), ${packet.evidence_ready_count} of ${packet.evidence_total} evidence item(s) ready.`, '/operations'),
+    demoLiveGate('production_rehearsal', 'Production rehearsal', rehearsal.rehearsal_ready ? 'ready' : rehearsal.blocking_count ? 'blocking' : 'warning', `${rehearsal.blocking_count} blocker(s), ${rehearsal.warning_count} warning(s).`, '/operations'),
+    demoLiveGate('launch_workplan', 'Launch workplan', workplan.total === 0 ? 'ready' : workplan.blocking_count ? 'blocking' : 'warning', `${workplan.blocking_count} blocking, ${workplan.warning_count} warning, ${workplan.unassigned_count} unassigned item(s).`, '/operations'),
+    demoLiveGate('credential_preflight', 'Credential preflight', preflight.blocking_count ? 'blocking' : 'ready', `${preflight.blocking_count} blocking integration item(s), ${preflight.staged_count} staged.`, '/integrations'),
+    demoLiveGateFromEvidence('browser_qa', 'Browser QA', evidence.browser_qa_session),
+    demoLiveGateFromEvidence('staff_training', 'Staff training', evidence.staff_training_session),
+    demoLiveGateFromEvidence('policy_approval', 'Policy approval', evidence.policy_approval_session),
+    demoLiveGateFromEvidence('role_dry_run', 'Role dry-run', evidence.role_dry_run_session),
+  ];
+  const readyGates = gates.filter((gate) => gate.status === 'ready').length;
+  const blockingGates = gates.filter((gate) => gate.status === 'blocking').length;
+  const warningGates = gates.filter((gate) => ['warning', 'missing'].includes(gate.status)).length;
+  return {
+    status: blockingGates ? 'blocked' : warningGates ? 'attention' : 'ready',
+    launch_ready: blockingGates === 0 && warningGates === 0 && packet.go_live_ready,
+    score: Math.round((readyGates / gates.length) * 100),
+    generated_at: new Date().toISOString(),
+    summary: {
+      ready_gates: readyGates,
+      blocking_gates: blockingGates,
+      warning_gates: warningGates,
+      evidence_ready_count: packet.evidence_ready_count,
+      evidence_total: packet.evidence_total,
+      workplan_blockers: workplan.blocking_count,
+      workplan_warnings: workplan.warning_count,
+      workplan_unassigned: workplan.unassigned_count,
+      credential_blockers: preflight.blocking_count,
+      credential_staged: preflight.staged_count,
+    },
+    gates,
+    evidence: packet.evidence,
+    next_actions: liveUseNextActions(gates, workplan).slice(0, 10),
+    open_workplan_items: workplan.items.slice(0, 10),
+  };
+}
+
+function liveUseRehearsalCsv(dashboard: LiveUseRehearsal) {
+  const rows = [['section', 'key', 'label', 'status', 'detail', 'route']];
+  dashboard.gates.forEach((gate) => rows.push(['gate', gate.key, gate.label, gate.status, gate.detail, gate.route]));
+  dashboard.evidence.forEach((item) => rows.push(['evidence', item.key, item.label, item.status, item.detail, item.route]));
+  dashboard.next_actions.forEach((action) => rows.push(['action', action.key, action.label, action.severity, action.detail, action.route]));
+  return rows.map((row) => row.map(csvCell).join(',')).join('\n');
 }
 
 function createGoLiveAttestation(data: GoLiveAttestationCreate): GoLiveAttestation {
@@ -2016,6 +2098,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;
+  }
+  if (path === '/operations/live-use-rehearsal' && method === 'GET') {
+    return liveUseRehearsal() as T;
+  }
+  if (path === '/operations/live-use-rehearsal/export' && method === 'GET') {
+    return liveUseRehearsalCsv(liveUseRehearsal()) as T;
   }
   if (path === '/operations/go-live-packet/attestations' && method === 'POST') {
     return createGoLiveAttestation((body ?? {}) as GoLiveAttestationCreate) as T;

@@ -950,6 +950,49 @@ async def test_policy_approval_session_evidence_feeds_go_live_packet(client, aut
 
 
 @pytest.mark.asyncio
+async def test_live_use_rehearsal_dashboard_rolls_up_launch_evidence(client, auth_headers):
+    dashboard = await client.get("/api/operations/live-use-rehearsal", headers=auth_headers)
+    export = await client.get("/api/operations/live-use-rehearsal/export", headers=auth_headers)
+
+    assert dashboard.status_code == 200
+    data = dashboard.json()
+    assert data["status"] in {"ready", "attention", "blocked"}
+    assert data["launch_ready"] is False
+    assert data["generated_at"]
+    assert data["score"] >= 0
+    assert data["summary"]["evidence_ready_count"] >= 0
+    assert data["summary"]["evidence_total"] >= 0
+    assert data["summary"]["workplan_blockers"] >= 0
+    assert data["summary"]["credential_blockers"] >= 0
+
+    gate_keys = {gate["key"] for gate in data["gates"]}
+    assert {
+        "go_live_packet",
+        "production_rehearsal",
+        "launch_workplan",
+        "credential_preflight",
+        "browser_qa",
+        "staff_training",
+        "policy_approval",
+        "role_dry_run",
+    } <= gate_keys
+    assert all(gate["route"] for gate in data["gates"])
+    assert all(gate["status"] in {"ready", "warning", "blocking", "missing"} for gate in data["gates"])
+
+    assert data["next_actions"]
+    assert all(action["label"] and action["route"] for action in data["next_actions"])
+    assert data["evidence"]
+    evidence_keys = {item["key"] for item in data["evidence"]}
+    assert {"browser_qa_session", "staff_training_session", "policy_approval_session"} <= evidence_keys
+
+    assert export.status_code == 200
+    assert export.headers["content-type"].startswith("text/csv")
+    assert "concierge-os-live-use-rehearsal.csv" in export.headers["content-disposition"]
+    assert "section,key,label,status,detail,route" in export.text
+    assert "gate,go_live_packet" in export.text
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -190,6 +190,10 @@ function OperationsPage() {
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
     queryFn: () => api.get<GoLivePacket>(ROUTES.OPERATIONS_GO_LIVE_PACKET),
+  });
+  const { data: liveUseRehearsal } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'live-use-rehearsal'],
+    queryFn: () => api.get<LiveUseRehearsal>(ROUTES.OPERATIONS_LIVE_USE_REHEARSAL),
   });
   const { data: roleChecklists } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-checklists'],
@@ -558,6 +562,86 @@ function OperationsPage() {
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
         </div>
       </header>
+
+      {liveUseRehearsal && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <ShieldCheck className="h-4 w-4 text-accent-600" />
+                Live-Use Rehearsal Board
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(liveUseRehearsal.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${liveUseRehearsal.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : liveUseRehearsal.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                {liveUseRehearsal.status}
+              </span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{liveUseRehearsal.score}%</span>
+              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{liveUseRehearsal.summary.blocking_gates ?? 0} blockers</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{liveUseRehearsal.summary.warning_gates ?? 0} warnings</span>
+              <a
+                href={ROUTES.OPERATIONS_LIVE_USE_REHEARSAL_EXPORT}
+                download="concierge-os-live-use-rehearsal.csv"
+                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Export
+              </a>
+            </div>
+          </div>
+          <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-4">
+                {[
+                  ['Evidence ready', `${liveUseRehearsal.summary.evidence_ready_count ?? 0}/${liveUseRehearsal.summary.evidence_total ?? 0}`],
+                  ['Workplan blockers', String(liveUseRehearsal.summary.workplan_blockers ?? 0)],
+                  ['Credential blockers', String(liveUseRehearsal.summary.credential_blockers ?? 0)],
+                  ['Unassigned work', String(liveUseRehearsal.summary.workplan_unassigned ?? 0)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                    <div className="text-[11px] font-semibold uppercase text-clinic-400">{label}</div>
+                    <div className="mt-1 text-lg font-semibold text-clinic-900">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                {liveUseRehearsal.gates.map((gate) => (
+                  <Link key={gate.key} to={gate.route} className="rounded-md border border-clinic-200 p-3 hover:bg-clinic-50">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-clinic-900">{gate.label}</div>
+                        <div className="mt-1 text-xs text-clinic-500">{gate.detail}</div>
+                      </div>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'blocking' || gate.status === 'missing' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        {gate.status}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-[11px] text-clinic-400">{gate.captured_at ? new Date(gate.captured_at).toLocaleString() : 'No capture timestamp'}</div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Next actions</div>
+              <div className="divide-y divide-clinic-100">
+                {liveUseRehearsal.next_actions.slice(0, 6).map((action) => (
+                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                  </Link>
+                ))}
+                {liveUseRehearsal.next_actions.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No rehearsal actions.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
 
       {operatorHealth && (
         <section className="rounded-md border border-clinic-200 bg-white">

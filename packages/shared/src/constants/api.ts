@@ -96,6 +96,8 @@ export const ROUTES = {
   OPERATIONS_POLICY_APPROVAL_SESSIONS: '/api/operations/policy-approval-sessions',
   OPERATIONS_POLICY_APPROVAL_SESSION: (sessionId: string) => `/api/operations/policy-approval-sessions/${sessionId}`,
   OPERATIONS_GO_LIVE_PACKET: '/api/operations/go-live-packet',
+  OPERATIONS_LIVE_USE_REHEARSAL: '/api/operations/live-use-rehearsal',
+  OPERATIONS_LIVE_USE_REHEARSAL_EXPORT: '/api/operations/live-use-rehearsal/export',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',
   OPERATIONS_ROLE_DRY_RUN_CHECKLISTS: '/api/operations/role-dry-run-checklists',
   OPERATIONS_ROLE_DRY_RUN_SESSIONS: '/api/operations/role-dry-run-sessions',

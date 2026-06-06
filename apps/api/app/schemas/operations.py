@@ -419,6 +419,35 @@ class GoLivePacketOut(BaseModel):
     latest_attestation: GoLiveAttestationOut | None = None
 
 
+class LiveUseRehearsalGateOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    detail: str
+    route: str
+    captured_at: datetime | str | None = None
+
+
+class LiveUseRehearsalActionOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    severity: str
+
+
+class LiveUseRehearsalOut(BaseModel):
+    status: str
+    launch_ready: bool
+    score: int
+    generated_at: datetime
+    summary: dict[str, int]
+    gates: list[LiveUseRehearsalGateOut]
+    evidence: list[GoLivePacketEvidenceOut]
+    next_actions: list[LiveUseRehearsalActionOut]
+    open_workplan_items: list[LaunchWorkplanItemOut]
+
+
 class RoleDryRunChecklistItemOut(BaseModel):
     key: str
     label: str
