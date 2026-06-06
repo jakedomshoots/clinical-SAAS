@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import { ROUTES, type Patient, type PatientDocument, type PatientDocumentQueueItem, type PatientDocumentQueueResponse } from '@concierge-os/shared';
-import { Check, FolderOpen, Search, Plus, X } from 'lucide-react';
+import { ROUTES, type Patient, type PatientDocument, type PatientDocumentProcessResult, type PatientDocumentQueueItem, type PatientDocumentQueueResponse } from '@concierge-os/shared';
+import { Check, FileText, FolderOpen, Search, Plus, X } from 'lucide-react';
 
 interface PatientListResponse {
   data: Patient[];
@@ -90,6 +90,17 @@ function PatientListPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue-workbench') });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const processDocumentMutation = useMutation({
+    mutationFn: (document: PatientDocumentQueueItem) =>
+      api.post<PatientDocumentProcessResult>(ROUTES.PATIENT_DOCUMENT_PROCESS(document.patient_id, document.id), {}),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue-workbench') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS(result.document.patient_id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_CHART_SUMMARY(result.document.patient_id) });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
@@ -210,7 +221,7 @@ function PatientListPage() {
                   </div>
                   {document.summary && <div className="mt-1 text-xs text-clinic-600">{document.summary}</div>}
                 </div>
-                <div className="grid gap-2 md:grid-cols-[8.5rem_8.5rem_7.5rem_8rem_minmax(0,1fr)_9rem]">
+                <div className="grid gap-2 md:grid-cols-[8.5rem_8.5rem_7.5rem_8rem_minmax(0,1fr)_13rem]">
                   <select
                     value={form.status}
                     onChange={(event) => updateDocumentForm(document, { status: event.target.value as PatientDocument['status'] })}
@@ -249,7 +260,7 @@ function PatientListPage() {
                     placeholder="Review note"
                     className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
                   />
-                  <div className="grid grid-cols-2 gap-1">
+                  <div className="grid grid-cols-3 gap-1">
                     <button
                       type="button"
                       onClick={() => submitDocument(document)}
@@ -266,6 +277,15 @@ function PatientListPage() {
                     >
                       <Check className="h-3.5 w-3.5" />
                       File
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => processDocumentMutation.mutate(document)}
+                      disabled={processDocumentMutation.isPending}
+                      className="inline-flex items-center justify-center gap-1 rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Task
                     </button>
                   </div>
                 </div>
