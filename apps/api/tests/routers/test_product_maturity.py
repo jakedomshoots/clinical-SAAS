@@ -587,6 +587,71 @@ async def test_role_dry_run_checklists_cover_clinic_workflows(client, auth_heade
 
 
 @pytest.mark.asyncio
+async def test_role_dry_run_session_evidence_is_audit_backed(client, auth_headers):
+    checklist = await client.get("/api/operations/role-dry-run-checklists", headers=auth_headers)
+    first_role = checklist.json()["roles"][0]
+    first_item = first_role["items"][0]
+
+    created = await client.post(
+        "/api/operations/role-dry-run-sessions",
+        json={"session_name": "Front office rehearsal", "note": "Morning team walkthrough."},
+        headers=auth_headers,
+    )
+    session = created.json()
+
+    updated = await client.patch(
+        f"/api/operations/role-dry-run-sessions/{session['session_id']}",
+        json={
+            "role_key": first_role["key"],
+            "item_key": first_item["key"],
+            "dry_run_status": "complete",
+            "item_note": "Queue review completed with front desk.",
+        },
+        headers=auth_headers,
+    )
+    completed = await client.patch(
+        f"/api/operations/role-dry-run-sessions/{session['session_id']}",
+        json={"session_status": "completed", "note": "Ready for launch packet review."},
+        headers=auth_headers,
+    )
+    sessions = await client.get("/api/operations/role-dry-run-sessions", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.role_dry_run_session",
+        headers=auth_headers,
+    )
+
+    assert created.status_code == 201
+    assert session["session_name"] == "Front office rehearsal"
+    assert session["status"] == "in_progress"
+    assert session["pending_count"] == session["item_count"]
+
+    assert updated.status_code == 200
+    updated_data = updated.json()
+    assert updated_data["complete_count"] == 1
+    updated_item = next(
+        item
+        for role in updated_data["roles"]
+        if role["key"] == first_role["key"]
+        for item in role["items"]
+        if item["key"] == first_item["key"]
+    )
+    assert updated_item["dry_run_status"] == "complete"
+    assert updated_item["note"] == "Queue review completed with front desk."
+
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+    assert completed.json()["completed_at"]
+    assert completed.json()["note"] == "Ready for launch packet review."
+
+    assert sessions.status_code == 200
+    assert sessions.json()["total"] == 1
+    assert sessions.json()["data"][0]["session_id"] == session["session_id"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.role_dry_run_session"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

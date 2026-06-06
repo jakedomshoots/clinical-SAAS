@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -598,6 +598,91 @@ function roleDryRunChecklists(): RoleDryRunChecklistList {
   };
 }
 
+function recalculateDryRunSession(session: RoleDryRunSession): RoleDryRunSession {
+  const itemCount = session.roles.reduce((sum, role) => sum + role.items.length, 0);
+  const completeCount = session.roles.reduce((sum, role) => sum + role.items.filter((item) => item.dry_run_status === 'complete').length, 0);
+  const blockedCount = session.roles.reduce((sum, role) => sum + role.items.filter((item) => item.dry_run_status === 'blocked').length, 0);
+  return {
+    ...session,
+    item_count: itemCount,
+    complete_count: completeCount,
+    blocked_count: blockedCount,
+    pending_count: itemCount - completeCount - blockedCount,
+  };
+}
+
+function createRoleDryRunSession(data: RoleDryRunSessionStart): RoleDryRunSession {
+  const checklist = roleDryRunChecklists();
+  const createdAt = new Date().toISOString();
+  const session = recalculateDryRunSession({
+    id: uuid(1800 + roleDryRunSessions.length),
+    session_id: uuid(1900 + roleDryRunSessions.length),
+    session_name: data.session_name || 'Clinic dry run',
+    status: 'in_progress',
+    note: data.note ?? null,
+    started_by: demoUsers[0]?.display_name ?? 'Demo Admin',
+    completed_by: null,
+    started_at: createdAt,
+    updated_at: createdAt,
+    completed_at: null,
+    checklist_generated_at: checklist.generated_at,
+    item_count: 0,
+    complete_count: 0,
+    blocked_count: 0,
+    pending_count: 0,
+    roles: checklist.roles.map((role) => ({
+      ...role,
+      items: role.items.map((item) => ({ ...item, dry_run_status: 'pending' as const, note: null })),
+    })),
+  });
+  roleDryRunSessions = [session, ...roleDryRunSessions];
+  logDemoEvent({
+    event_type: 'operations.role_dry_run_session',
+    entity_type: 'operations',
+    entity_id: session.session_id,
+    payload: session as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return session;
+}
+
+function updateRoleDryRunSession(sessionId: string, data: RoleDryRunSessionUpdate): RoleDryRunSession | null {
+  const session = roleDryRunSessions.find((item) => item.session_id === sessionId);
+  if (!session) return null;
+  const updated: RoleDryRunSession = {
+    ...session,
+    note: data.note !== undefined ? data.note : session.note,
+    status: data.session_status ?? session.status,
+    completed_at: data.session_status === 'completed' && !session.completed_at ? new Date().toISOString() : session.completed_at,
+    completed_by: data.session_status === 'completed' && !session.completed_by ? demoUsers[0]?.display_name ?? 'Demo Admin' : session.completed_by,
+    updated_at: new Date().toISOString(),
+    roles: session.roles.map((role) => {
+      if (role.key !== data.role_key) return role;
+      return {
+        ...role,
+        items: role.items.map((item) => {
+          if (item.key !== data.item_key) return item;
+          return {
+            ...item,
+            dry_run_status: data.dry_run_status ?? item.dry_run_status,
+            note: data.item_note !== undefined ? data.item_note : item.note,
+          };
+        }),
+      };
+    }),
+  };
+  const recalculated = recalculateDryRunSession(updated);
+  roleDryRunSessions = [recalculated, ...roleDryRunSessions.filter((item) => item.session_id !== sessionId)];
+  logDemoEvent({
+    event_type: 'operations.role_dry_run_session',
+    entity_type: 'operations',
+    entity_id: sessionId,
+    payload: recalculated as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return recalculated;
+}
+
 function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
   const payload = event.payload as Partial<ProductionRehearsalReport>;
   return {
@@ -693,6 +778,7 @@ interface DemoStore {
   integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
   rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
   goLiveAttestations?: GoLiveAttestation[];
+  roleDryRunSessions?: RoleDryRunSession[];
 }
 
 interface IntegrationEvent {
@@ -744,6 +830,7 @@ let integrationLastTests: Record<string, { last_tested_at: string; last_test_sta
 let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
 let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
 let goLiveAttestations: GoLiveAttestation[] = [];
+let roleDryRunSessions: RoleDryRunSession[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -1069,7 +1156,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations, roleDryRunSessions }),
   );
 }
 
@@ -1259,6 +1346,7 @@ if (storedDemoData) {
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
   rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
   goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
+  roleDryRunSessions = storedDemoData.roleDryRunSessions ?? roleDryRunSessions;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1391,6 +1479,23 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/role-dry-run-checklists' && method === 'GET') {
     return roleDryRunChecklists() as T;
+  }
+  if (path === '/operations/role-dry-run-sessions' && method === 'POST') {
+    return createRoleDryRunSession((body ?? {}) as RoleDryRunSessionStart) as T;
+  }
+  if (path === '/operations/role-dry-run-sessions' && method === 'GET') {
+    return { data: roleDryRunSessions, total: roleDryRunSessions.length } satisfies RoleDryRunSessionList as T;
+  }
+  const roleDryRunSessionMatch = path.match(/^\/operations\/role-dry-run-sessions\/([^/]+)$/);
+  if (roleDryRunSessionMatch && method === 'PATCH') {
+    const session = updateRoleDryRunSession(
+      decodeURIComponent(roleDryRunSessionMatch[1]),
+      (body ?? {}) as RoleDryRunSessionUpdate,
+    );
+    if (!session) {
+      throw new Error('Role dry-run session not found');
+    }
+    return session as T;
   }
   if (path === '/operations/launch-workplan' && method === 'GET') {
     return launchWorkplan() as T;

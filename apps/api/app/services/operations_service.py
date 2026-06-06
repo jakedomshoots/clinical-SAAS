@@ -1,4 +1,6 @@
+from copy import deepcopy
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,6 +21,7 @@ REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
 LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
 GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
+ROLE_DRY_RUN_SESSION_EVENT_TYPE = "operations.role_dry_run_session"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -298,11 +301,13 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     rehearsal_snapshots, _ = await list_rehearsal_snapshots(db, user)
     workplan_snapshots, _ = await list_launch_workplan_snapshots(db, user)
     attestations, _ = await list_go_live_attestations(db, user)
+    dry_run_sessions, _ = await list_role_dry_run_sessions(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
     latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
     latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
+    latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
@@ -334,6 +339,20 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             else "Save the production rehearsal report.",
             "/operations",
             latest_rehearsal["created_at"] if latest_rehearsal else None,
+        ),
+        _packet_evidence(
+            "role_dry_run_session",
+            "Role dry-run session",
+            "ready"
+            if latest_dry_run and latest_dry_run["status"] == "completed" and latest_dry_run["blocked_count"] == 0
+            else "warning"
+            if latest_dry_run
+            else "missing",
+            f"{latest_dry_run['complete_count']} complete, {latest_dry_run['blocked_count']} blocked, {latest_dry_run['pending_count']} pending item(s)."
+            if latest_dry_run
+            else "Start and complete a role dry-run session with staff evidence notes.",
+            "/operations",
+            latest_dry_run["updated_at"] if latest_dry_run else None,
         ),
         _packet_evidence(
             "credential_preflight",
@@ -441,6 +460,107 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
         "ready_roles": sum(1 for role in roles if role["status"] == "ready"),
         "attention_roles": sum(1 for role in roles if role["status"] == "attention"),
     }
+
+
+async def start_role_dry_run_session(db: AsyncSession, user: User, data: dict) -> dict:
+    checklist = await role_dry_run_checklists(db, user)
+    session_id = str(uuid4())
+    payload = _recalculate_dry_run_totals({
+        "session_id": session_id,
+        "session_name": data.get("session_name") or "Clinic dry run",
+        "status": "in_progress",
+        "note": data.get("note"),
+        "started_by": user.display_name,
+        "completed_by": None,
+        "started_at": datetime.now(UTC).isoformat(),
+        "completed_at": None,
+        "checklist_generated_at": checklist["generated_at"].isoformat()
+        if hasattr(checklist["generated_at"], "isoformat")
+        else checklist["generated_at"],
+        "roles": [
+            {
+                **role,
+                "items": [
+                    {
+                        **item,
+                        "dry_run_status": "pending",
+                        "note": None,
+                    }
+                    for item in role["items"]
+                ],
+            }
+            for role in checklist["roles"]
+        ],
+    })
+    event = await log_event(
+        db,
+        ROLE_DRY_RUN_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _dry_run_session_from_audit(event)
+
+
+async def list_role_dry_run_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == ROLE_DRY_RUN_SESSION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
+    sessions: dict[str, dict] = {}
+    for event in result.scalars().all():
+        session = _dry_run_session_from_audit(event)
+        sessions.setdefault(session["session_id"], session)
+    return list(sessions.values())[:25], len(sessions)
+
+
+async def update_role_dry_run_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+    latest = await _latest_dry_run_session_event(db, user, session_id)
+    if not latest:
+        return None
+
+    payload = deepcopy(latest.payload or {})
+    if data.get("note") is not None:
+        payload["note"] = data["note"]
+    if data.get("session_status"):
+        payload["status"] = data["session_status"]
+        if data["session_status"] == "completed" and not payload.get("completed_at"):
+            payload["completed_at"] = datetime.now(UTC).isoformat()
+            payload["completed_by"] = user.display_name
+
+    role_key = data.get("role_key")
+    item_key = data.get("item_key")
+    if role_key or item_key:
+        updated = False
+        for role in payload.get("roles", []):
+            if role.get("key") != role_key:
+                continue
+            for item in role.get("items", []):
+                if item.get("key") != item_key:
+                    continue
+                if data.get("dry_run_status"):
+                    item["dry_run_status"] = data["dry_run_status"]
+                if data.get("item_note") is not None:
+                    item["note"] = data["item_note"]
+                updated = True
+                break
+            break
+        if not updated:
+            return None
+
+    payload = _recalculate_dry_run_totals(payload)
+    event = await log_event(
+        db,
+        ROLE_DRY_RUN_SESSION_EVENT_TYPE,
+        "operations",
+        session_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _dry_run_session_from_audit(event)
 
 
 async def attest_go_live_packet(db: AsyncSession, user: User, data: dict) -> dict:
@@ -702,6 +822,62 @@ def _role_checklist(key: str, label: str, summary: str, items: list[dict]) -> di
         "attention_count": attention,
         "total": len(items),
         "items": items,
+    }
+
+
+async def _latest_dry_run_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+    result = await db.execute(
+        select(AuditLog).where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == ROLE_DRY_RUN_SESSION_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+            AuditLog.entity_id == session_id,
+        ).order_by(AuditLog.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _recalculate_dry_run_totals(payload: dict) -> dict:
+    item_count = 0
+    complete_count = 0
+    blocked_count = 0
+    pending_count = 0
+    for role in payload.get("roles", []):
+        for item in role.get("items", []):
+            item_count += 1
+            status = item.get("dry_run_status") or "pending"
+            if status == "complete":
+                complete_count += 1
+            elif status == "blocked":
+                blocked_count += 1
+            else:
+                pending_count += 1
+    payload["item_count"] = item_count
+    payload["complete_count"] = complete_count
+    payload["blocked_count"] = blocked_count
+    payload["pending_count"] = pending_count
+    return payload
+
+
+def _dry_run_session_from_audit(event: AuditLog) -> dict:
+    payload = _recalculate_dry_run_totals(deepcopy(event.payload or {}))
+    return {
+        "id": event.id,
+        "session_id": payload.get("session_id") or event.entity_id,
+        "session_name": payload.get("session_name") or "Clinic dry run",
+        "status": payload.get("status", "in_progress"),
+        "note": payload.get("note"),
+        "started_by": payload.get("started_by"),
+        "completed_by": payload.get("completed_by"),
+        "started_at": payload.get("started_at") or event.created_at,
+        "updated_at": event.created_at,
+        "completed_at": payload.get("completed_at"),
+        "checklist_generated_at": payload.get("checklist_generated_at"),
+        "item_count": int(payload.get("item_count", 0)),
+        "complete_count": int(payload.get("complete_count", 0)),
+        "blocked_count": int(payload.get("blocked_count", 0)),
+        "pending_count": int(payload.get("pending_count", 0)),
+        "roles": payload.get("roles", []),
     }
 
 

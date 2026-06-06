@@ -25,6 +25,10 @@ from app.schemas.operations import (
     RehearsalActionAssignmentOut,
     RehearsalActionAssignmentUpdate,
     RoleDryRunChecklistListOut,
+    RoleDryRunSessionListOut,
+    RoleDryRunSessionOut,
+    RoleDryRunSessionStart,
+    RoleDryRunSessionUpdate,
 )
 from app.services import operations_service
 
@@ -65,6 +69,44 @@ async def get_role_dry_run_checklists(db: DbDep, current_user: OpsUserDep):
     return RoleDryRunChecklistListOut(
         **await operations_service.role_dry_run_checklists(db, current_user)
     )
+
+
+@router.post(
+    "/role-dry-run-sessions",
+    response_model=RoleDryRunSessionOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def start_role_dry_run_session(data: RoleDryRunSessionStart, db: DbDep, current_user: OpsUserDep):
+    return RoleDryRunSessionOut(
+        **await operations_service.start_role_dry_run_session(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/role-dry-run-sessions", response_model=RoleDryRunSessionListOut)
+async def list_role_dry_run_sessions(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_role_dry_run_sessions(db, current_user)
+    return RoleDryRunSessionListOut(
+        data=[RoleDryRunSessionOut(**item) for item in rows],
+        total=total,
+    )
+
+
+@router.patch("/role-dry-run-sessions/{session_id}", response_model=RoleDryRunSessionOut)
+async def update_role_dry_run_session(
+    session_id: str,
+    data: RoleDryRunSessionUpdate,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    session = await operations_service.update_role_dry_run_session(
+        db,
+        current_user,
+        session_id,
+        data.model_dump(),
+    )
+    if not session:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role dry-run session not found")
+    return RoleDryRunSessionOut(**session)
 
 
 @router.post(

@@ -207,6 +207,60 @@ class RoleDryRunChecklistListOut(BaseModel):
     attention_roles: int
 
 
+class RoleDryRunSessionStart(BaseModel):
+    session_name: str | None = Field(default=None, max_length=120)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RoleDryRunSessionUpdate(BaseModel):
+    role_key: str | None = None
+    item_key: str | None = None
+    dry_run_status: str | None = Field(default=None, pattern="^(pending|complete|blocked)$")
+    item_note: str | None = Field(default=None, max_length=1000)
+    session_status: str | None = Field(default=None, pattern="^(in_progress|completed)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class RoleDryRunSessionItemOut(RoleDryRunChecklistItemOut):
+    dry_run_status: str
+    note: str | None = None
+
+
+class RoleDryRunSessionRoleOut(BaseModel):
+    key: str
+    label: str
+    summary: str
+    status: str
+    ready_count: int
+    attention_count: int
+    total: int
+    items: list[RoleDryRunSessionItemOut]
+
+
+class RoleDryRunSessionOut(BaseModel):
+    id: str
+    session_id: str
+    session_name: str
+    status: str
+    note: str | None = None
+    started_by: str | None = None
+    completed_by: str | None = None
+    started_at: datetime | str
+    updated_at: datetime
+    completed_at: datetime | str | None = None
+    checklist_generated_at: datetime | str | None = None
+    item_count: int
+    complete_count: int
+    blocked_count: int
+    pending_count: int
+    roles: list[RoleDryRunSessionRoleOut]
+
+
+class RoleDryRunSessionListOut(BaseModel):
+    data: list[RoleDryRunSessionOut]
+    total: int
+
+
 class ProductionRehearsalSnapshotOut(BaseModel):
     id: str
     created_at: datetime

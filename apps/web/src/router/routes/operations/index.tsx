@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
+  CheckSquare,
   CheckCircle2,
   PlugZap,
+  Play,
   RefreshCw,
   RotateCw,
   Server,
@@ -15,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -64,6 +66,11 @@ type AssignmentFormState = {
   note: string;
 };
 
+type DryRunItemFormState = {
+  dry_run_status: NonNullable<RoleDryRunSessionUpdate['dry_run_status']>;
+  item_note: string;
+};
+
 function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
@@ -82,6 +89,8 @@ function OperationsPage() {
   const queryClient = useQueryClient();
   const [auditExport, setAuditExport] = useState({ event_type: '', entity_type: '', entity_id: '', limit: '10000' });
   const [assignmentForms, setAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
+  const [dryRunSessionForm, setDryRunSessionForm] = useState<RoleDryRunSessionStart>({ session_name: 'Clinic dry run', note: '' });
+  const [dryRunItemForms, setDryRunItemForms] = useState<Record<string, DryRunItemFormState>>({});
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
@@ -130,6 +139,10 @@ function OperationsPage() {
   const { data: roleChecklists } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-checklists'],
     queryFn: () => api.get<RoleDryRunChecklistList>(ROUTES.OPERATIONS_ROLE_DRY_RUN_CHECKLISTS),
+  });
+  const { data: dryRunSessions } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-sessions'],
+    queryFn: () => api.get<RoleDryRunSessionList>(ROUTES.OPERATIONS_ROLE_DRY_RUN_SESSIONS),
   });
   const { data: workplan } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'],
@@ -202,11 +215,32 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  const startDryRunSessionMutation = useMutation({
+    mutationFn: (data: RoleDryRunSessionStart) => api.post<RoleDryRunSession>(ROUTES.OPERATIONS_ROLE_DRY_RUN_SESSIONS, data),
+    onSuccess: async () => {
+      setDryRunSessionForm({ session_name: 'Clinic dry run', note: '' });
+      setDryRunItemForms({});
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const updateDryRunSessionMutation = useMutation({
+    mutationFn: ({ sessionId, data }: { sessionId: string; data: RoleDryRunSessionUpdate }) => api.patch<RoleDryRunSession>(
+      ROUTES.OPERATIONS_ROLE_DRY_RUN_SESSION(sessionId),
+      data,
+    ),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-sessions'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
 
   const coreChecks = ready ? Object.entries(ready.checks) : [];
   const integrations = ready ? Object.entries(ready.integrations) : [];
   const deployment = ready?.deployment ? Object.entries(ready.deployment) : [];
   const failedEvents = events?.data.filter((event) => event.status === 'failed') ?? [];
+  const activeDryRunSession = dryRunSessions?.data[0] ?? null;
   const auditExportHref = useMemo(() => {
     const params = new URLSearchParams();
     Object.entries(auditExport).forEach(([key, value]) => {
@@ -276,6 +310,35 @@ function OperationsPage() {
         status: form.status,
         due_date: form.due_date || null,
         note: form.note.trim() || null,
+      },
+    });
+  };
+  const dryRunItemKey = (sessionId: string, roleKey: string, itemKey: string) => `${sessionId}:${roleKey}:${itemKey}`;
+  const formForDryRunItem = (session: RoleDryRunSession, roleKey: string, itemKey: string): DryRunItemFormState => {
+    const key = dryRunItemKey(session.session_id, roleKey, itemKey);
+    const role = session.roles.find((item) => item.key === roleKey);
+    const item = role?.items.find((entry) => entry.key === itemKey);
+    return dryRunItemForms[key] ?? {
+      dry_run_status: item?.dry_run_status ?? 'pending',
+      item_note: item?.note ?? '',
+    };
+  };
+  const updateDryRunItemForm = (sessionId: string, roleKey: string, itemKey: string, patch: Partial<DryRunItemFormState>) => {
+    const key = dryRunItemKey(sessionId, roleKey, itemKey);
+    setDryRunItemForms((current) => ({
+      ...current,
+      [key]: { ...(current[key] ?? { dry_run_status: 'pending', item_note: '' }), ...patch },
+    }));
+  };
+  const submitDryRunItem = (session: RoleDryRunSession, roleKey: string, itemKey: string) => {
+    const form = formForDryRunItem(session, roleKey, itemKey);
+    updateDryRunSessionMutation.mutate({
+      sessionId: session.session_id,
+      data: {
+        role_key: roleKey,
+        item_key: itemKey,
+        dry_run_status: form.dry_run_status,
+        item_note: form.item_note.trim() || null,
       },
     });
   };
@@ -413,6 +476,138 @@ function OperationsPage() {
           </div>
         </section>
       )}
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="text-sm font-semibold text-clinic-900">Dry-Run Session Evidence</h2>
+            <p className="text-xs text-clinic-500">{dryRunSessions?.total ?? 0} saved session(s)</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeDryRunSession && (
+              <>
+                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeDryRunSession.complete_count} complete</span>
+                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeDryRunSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeDryRunSession.pending_count} pending</span>
+              </>
+            )}
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+          <div className="space-y-3">
+            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div className="text-xs font-semibold uppercase text-clinic-500">Start rehearsal</div>
+              <input
+                value={dryRunSessionForm.session_name ?? ''}
+                onChange={(event) => setDryRunSessionForm((current) => ({ ...current, session_name: event.target.value }))}
+                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <textarea
+                value={dryRunSessionForm.note ?? ''}
+                onChange={(event) => setDryRunSessionForm((current) => ({ ...current, note: event.target.value }))}
+                rows={3}
+                placeholder="Session note"
+                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => startDryRunSessionMutation.mutate({
+                  session_name: dryRunSessionForm.session_name?.trim() || 'Clinic dry run',
+                  note: dryRunSessionForm.note?.trim() || null,
+                })}
+                disabled={startDryRunSessionMutation.isPending}
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+              >
+                <Play className="h-3.5 w-3.5" />
+                Start session
+              </button>
+            </div>
+            {activeDryRunSession && (
+              <div className="rounded-md border border-clinic-200 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-sm font-semibold text-clinic-900">{activeDryRunSession.session_name}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{activeDryRunSession.started_by ?? 'Staff'} · {new Date(activeDryRunSession.started_at).toLocaleString()}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeDryRunSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {activeDryRunSession.status.replace('_', ' ')}
+                  </span>
+                </div>
+                {activeDryRunSession.note && <div className="mt-2 text-xs text-clinic-500">{activeDryRunSession.note}</div>}
+                <button
+                  type="button"
+                  onClick={() => updateDryRunSessionMutation.mutate({
+                    sessionId: activeDryRunSession.session_id,
+                    data: { session_status: 'completed', note: activeDryRunSession.note },
+                  })}
+                  disabled={activeDryRunSession.status === 'completed' || updateDryRunSessionMutation.isPending}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Complete session
+                </button>
+              </div>
+            )}
+          </div>
+          {activeDryRunSession ? (
+            <div className="grid gap-3 xl:grid-cols-2">
+              {activeDryRunSession.roles.map((role) => (
+                <div key={role.key} className="rounded-md border border-clinic-200">
+                  <div className="border-b border-clinic-200 px-3 py-2">
+                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                  </div>
+                  <div className="divide-y divide-clinic-100">
+                    {role.items.map((item) => {
+                      const itemForm = formForDryRunItem(activeDryRunSession, role.key, item.key);
+                      return (
+                        <div key={item.key} className="space-y-2 px-3 py-2">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <Link to={item.route} className="text-xs font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
+                              <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                            </div>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.dry_run_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.dry_run_status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.dry_run_status}</span>
+                          </div>
+                          <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
+                            <select
+                              value={itemForm.dry_run_status}
+                              onChange={(event) => updateDryRunItemForm(activeDryRunSession.session_id, role.key, item.key, { dry_run_status: event.target.value as DryRunItemFormState['dry_run_status'] })}
+                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="complete">Complete</option>
+                              <option value="blocked">Blocked</option>
+                            </select>
+                            <input
+                              value={itemForm.item_note}
+                              onChange={(event) => updateDryRunItemForm(activeDryRunSession.session_id, role.key, item.key, { item_note: event.target.value })}
+                              placeholder="Evidence note"
+                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => submitDryRunItem(activeDryRunSession, role.key, item.key)}
+                              disabled={updateDryRunSessionMutation.isPending}
+                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-clinic-200 text-sm text-clinic-400">
+              Start a dry-run session to capture role evidence.
+            </div>
+          )}
+        </div>
+      </section>
 
       {workplan && (
         <section className="rounded-md border border-clinic-200 bg-white">

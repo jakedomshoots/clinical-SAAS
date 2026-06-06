@@ -87,6 +87,8 @@ export const ROUTES = {
   OPERATIONS_GO_LIVE_PACKET: '/api/operations/go-live-packet',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',
   OPERATIONS_ROLE_DRY_RUN_CHECKLISTS: '/api/operations/role-dry-run-checklists',
+  OPERATIONS_ROLE_DRY_RUN_SESSIONS: '/api/operations/role-dry-run-sessions',
+  OPERATIONS_ROLE_DRY_RUN_SESSION: (sessionId: string) => `/api/operations/role-dry-run-sessions/${sessionId}`,
   OPERATIONS_LAUNCH_WORKPLAN: '/api/operations/launch-workplan',
   OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS: '/api/operations/launch-workplan/snapshots',
   OPERATIONS_LAUNCH_WORKPLAN_EXPORT: '/api/operations/launch-workplan/export',

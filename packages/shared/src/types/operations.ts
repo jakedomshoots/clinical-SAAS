@@ -235,6 +235,53 @@ export interface RoleDryRunChecklistList {
   attention_roles: number;
 }
 
+export interface RoleDryRunSessionStart {
+  session_name?: string | null;
+  note?: string | null;
+}
+
+export interface RoleDryRunSessionUpdate {
+  role_key?: string | null;
+  item_key?: string | null;
+  dry_run_status?: 'pending' | 'complete' | 'blocked' | null;
+  item_note?: string | null;
+  session_status?: 'in_progress' | 'completed' | null;
+  note?: string | null;
+}
+
+export interface RoleDryRunSessionItem extends RoleDryRunChecklistItem {
+  dry_run_status: 'pending' | 'complete' | 'blocked';
+  note: string | null;
+}
+
+export interface RoleDryRunSessionRole extends Omit<RoleDryRunChecklist, 'items'> {
+  items: RoleDryRunSessionItem[];
+}
+
+export interface RoleDryRunSession {
+  id: string;
+  session_id: string;
+  session_name: string;
+  status: 'in_progress' | 'completed';
+  note: string | null;
+  started_by: string | null;
+  completed_by: string | null;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  checklist_generated_at: string | null;
+  item_count: number;
+  complete_count: number;
+  blocked_count: number;
+  pending_count: number;
+  roles: RoleDryRunSessionRole[];
+}
+
+export interface RoleDryRunSessionList {
+  data: RoleDryRunSession[];
+  total: number;
+}
+
 export interface ProductionRehearsalSnapshot {
   id: string;
   created_at: string;
