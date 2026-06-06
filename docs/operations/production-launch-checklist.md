@@ -39,6 +39,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - Startup admin seeding is disabled, one-time seed endpoints are disabled, and production admin accounts are provisioned through the approved identity workflow.
 - User provisioning is limited to admins/managers and reviewed.
 - Newly provisioned users receive temporary credentials that expire and must be rotated before a normal session is issued.
+- Password resets are issued only through Staff recovery controls, expire as temporary credentials, and are reviewed in audit events.
 - Manager-created users are limited to the manager's organization.
 - Manager-created users cannot be assigned admin access.
 - Production staff login blocks session issuance until MFA enrollment is recorded.

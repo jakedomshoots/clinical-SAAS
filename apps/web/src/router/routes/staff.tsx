@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ROUTES, type Role, type SessionPolicy, type User, type UserAccessReviewSummary, type UserListResponse, type UserUpdate } from '@concierge-os/shared';
+import { ROUTES, type Role, type SessionPolicy, type User, type UserAccessReviewSummary, type UserListResponse, type UserPasswordResetResponse, type UserRecoverySummary, type UserUpdate } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import { CheckCircle2, Clock3, ShieldAlert, ShieldCheck, UserCheck, UserX, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, Clock3, KeyRound, ShieldAlert, ShieldCheck, UserCheck, UserX, type LucideIcon } from 'lucide-react';
 
 export const Route = createFileRoute('/staff')({
   component: StaffPage,
@@ -27,6 +27,10 @@ function StaffPage() {
     queryKey: ['session-policy'],
     queryFn: () => api.get<SessionPolicy>(ROUTES.SESSION_POLICY),
   });
+  const { data: recoverySummary } = useQuery({
+    queryKey: [...QUERY_KEYS.USERS, 'recovery-summary'],
+    queryFn: () => api.get<UserRecoverySummary>(ROUTES.USER_RECOVERY_SUMMARY),
+  });
   const updateMutation = useMutation({
     mutationFn: ({ id, update }: { id: string; update: UserUpdate }) =>
       api.patch<User>(ROUTES.USER(id), update),
@@ -46,6 +50,14 @@ function StaffPage() {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_ACCESS_REVIEW });
     },
   });
+  const resetMutation = useMutation({
+    mutationFn: (id: string) => api.post<UserPasswordResetResponse>(ROUTES.USER_PASSWORD_RESET(id), {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USERS });
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.USERS, 'recovery-summary'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.USER_ACCESS_REVIEW });
+    },
+  });
   const staff = data?.data ?? [];
   const reviewByUserId = new Map((accessReview?.data ?? []).map((item) => [item.user.id, item]));
   const mfaEnabledCount = staff.filter((user) => user.mfa_enabled).length;
@@ -56,6 +68,7 @@ function StaffPage() {
     { label: 'Privileged MFA gaps', value: accessReview?.privileged_without_mfa_count ?? 0, icon: ShieldAlert },
     { label: 'Inactive', value: accessReview?.inactive_count ?? 0, icon: UserX },
   ];
+  const latestReset = resetMutation.data;
 
   return (
     <div className="space-y-5">
@@ -90,6 +103,26 @@ function StaffPage() {
           </section>
 
           <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
+            <div className="grid gap-px border-b border-clinic-100 bg-clinic-100 md:grid-cols-3">
+              <div className="bg-white px-4 py-3">
+                <div className="text-2xl font-semibold text-clinic-900">{recoverySummary?.temporary_password_count ?? 0}</div>
+                <div className="mt-1 text-xs text-clinic-500">Temporary credentials</div>
+              </div>
+              <div className="bg-white px-4 py-3">
+                <div className="text-2xl font-semibold text-red-700">{recoverySummary?.expired_temporary_password_count ?? 0}</div>
+                <div className="mt-1 text-xs text-clinic-500">Expired onboarding</div>
+              </div>
+              <div className="bg-white px-4 py-3">
+                <div className="text-2xl font-semibold text-clinic-900">{latestReset?.temporary_password ? 'Issued' : 'Ready'}</div>
+                <div className="mt-1 text-xs text-clinic-500">Recovery reset</div>
+              </div>
+            </div>
+            {latestReset && (
+              <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Temporary password for {latestReset.user.email}: <span className="font-mono font-semibold">{latestReset.temporary_password}</span>
+                <span className="ml-2 text-xs">Expires {formatDate(latestReset.temporary_password_expires_at)}</span>
+              </div>
+            )}
             <div className="border-b border-clinic-100 px-4 py-3">
               <h2 className="text-sm font-semibold text-clinic-900">Access Review Queue</h2>
               <p className="mt-1 text-xs text-clinic-500">Review account status, privileged access, MFA readiness, and stale access evidence before production use.</p>
@@ -111,6 +144,12 @@ function StaffPage() {
                       </div>
                       <div className="mt-1 truncate text-xs text-clinic-500">{user.email}</div>
                       <div className="mt-1 text-[11px] text-clinic-400">Last login: {formatDate(user.last_login_at)}</div>
+                      {user.password_must_change && (
+                        <div className={`mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium ${isExpired(user.temporary_password_expires_at) ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                          <KeyRound className="h-3 w-3" />
+                          {isExpired(user.temporary_password_expires_at) ? 'Temp expired' : 'Temp active'}
+                        </div>
+                      )}
                     </div>
                     <select
                       value={user.role}
@@ -147,6 +186,13 @@ function StaffPage() {
                       >
                         Mark reviewed
                       </button>
+                      <button
+                        onClick={() => resetMutation.mutate(user.id)}
+                        disabled={resetMutation.isPending}
+                        className="col-span-2 rounded-md border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 lg:col-span-1"
+                      >
+                        Reset password
+                      </button>
                     </div>
                   </div>
                 );
@@ -172,4 +218,8 @@ function PolicyLine({ label, value }: { label: string; value: string }) {
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Not recorded';
   return new Date(value).toLocaleDateString();
+}
+
+function isExpired(value: string | null | undefined) {
+  return Boolean(value && new Date(value).getTime() < Date.now());
 }

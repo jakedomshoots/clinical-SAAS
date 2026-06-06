@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -7,7 +7,7 @@ const ACTIVE_TASK_STATUSES = ['open', 'in_progress', 'blocked'];
 const AUDIT_REVIEW_CATEGORIES = [
   { key: 'document_access', label: 'Document access', event_types: ['patient_document.accessed', 'patient_document.download_handoff'], severity: 'critical' as const, route: '/audit?entity_type=patient_document', action_label: 'Review document access' },
   { key: 'assistant_actions', label: 'Assistant actions', event_types: ['assistant.task_created', 'assistant.message_drafted', 'assistant.fax_match_staged'], severity: 'warning' as const, route: '/assistant-review', action_label: 'Review assistant-confirmed actions' },
-  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'auth.login', 'auth.login_blocked', 'auth.password_rotated'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
+  { key: 'user_administration', label: 'User administration', event_types: ['user.created', 'user.updated', 'user.access_reviewed', 'user.password_reset_issued', 'auth.login', 'auth.login_blocked', 'auth.password_rotated'], severity: 'critical' as const, route: '/staff', action_label: 'Review staff access changes' },
   { key: 'patient_outreach', label: 'Patient outreach', event_types: ['patient_outreach.staged', 'patient_outreach.callback'], severity: 'warning' as const, route: '/tasks', action_label: 'Review patient outreach' },
   { key: 'integration_operations', label: 'Integration operations', event_types: ['integration_event.retry', 'integration_config.updated', 'integration_config.connection_test', 'integration_config.sandbox_evidence'], severity: 'warning' as const, route: '/integrations', action_label: 'Review integration changes' },
 ];
@@ -131,6 +131,34 @@ function auditReviewSummary(): AuditReviewSummary {
           route: category.route,
         };
       }),
+  };
+}
+
+function demoTemporaryPassword() {
+  return `demo-temp-${Date.now()}Aa1!`;
+}
+
+function demoTemporaryPasswordExpired(user: User) {
+  return Boolean(user.password_must_change && user.temporary_password_expires_at && new Date(user.temporary_password_expires_at).getTime() < Date.now());
+}
+
+function recoverySummary(): UserRecoverySummary {
+  const data = demoUsers
+    .filter((user) => user.password_must_change)
+    .map((user) => ({
+      user_id: user.id,
+      email: user.email,
+      display_name: user.display_name,
+      role: user.role,
+      status: demoTemporaryPasswordExpired(user) ? 'temporary_expired' as const : 'temporary_active' as const,
+      temporary_password_expires_at: user.temporary_password_expires_at,
+      last_login_at: user.last_login_at,
+    }));
+  return {
+    data,
+    total: data.length,
+    temporary_password_count: data.length,
+    expired_temporary_password_count: data.filter((item) => item.status === 'temporary_expired').length,
   };
 }
 
@@ -3227,6 +3255,40 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (method === 'GET' && path === '/users/access-review') {
     return accessReviewSummary() as T;
+  }
+
+  if (method === 'GET' && path === '/users/recovery-summary') {
+    return recoverySummary() as T;
+  }
+
+  const userPasswordResetMatch = path.match(/^\/users\/([^/]+)\/password-reset$/);
+  if (userPasswordResetMatch && method === 'POST') {
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+    const temporaryPassword = demoTemporaryPassword();
+    demoUsers = demoUsers.map((user) =>
+      user.id === userPasswordResetMatch[1]
+        ? {
+          ...user,
+          password_must_change: true,
+          temporary_password_expires_at: expiresAt,
+          updated_at: new Date().toISOString(),
+        }
+        : user,
+    );
+    const user = demoUsers.find((item) => item.id === userPasswordResetMatch[1]);
+    if (!user) throw new Error('User not found');
+    logDemoEvent({
+      event_type: 'user.password_reset_issued',
+      entity_type: 'user',
+      entity_id: user.id,
+      payload: { role: user.role, temporary_password_expires_at: expiresAt, source: 'demo' },
+    });
+    saveDemoData();
+    return {
+      user,
+      temporary_password: temporaryPassword,
+      temporary_password_expires_at: expiresAt,
+    } satisfies UserPasswordResetResponse as T;
   }
 
   const userAccessReviewMatch = path.match(/^\/users\/([^/]+)\/access-review$/);

@@ -12,6 +12,9 @@ from app.schemas.user import (
     UserAccessReviewUpdate,
     UserDirectoryListOut,
     UserDirectoryOut,
+    UserPasswordResetOut,
+    UserRecoveryItemOut,
+    UserRecoverySummaryOut,
     UserUpdate,
 )
 from app.services import user_service
@@ -63,6 +66,40 @@ async def access_review_summary(
         privileged_without_mfa_count=summary["privileged_without_mfa_count"],
         inactive_count=summary["inactive_count"],
         review_window_days=summary["review_window_days"],
+    )
+
+
+@router.get("/recovery-summary", response_model=UserRecoverySummaryOut)
+async def recovery_summary(
+    db: DbDep,
+    current_user: ManagerUserDep,
+):
+    summary = await user_service.recovery_summary(db, current_user)
+    return UserRecoverySummaryOut(
+        data=[UserRecoveryItemOut(**item) for item in summary["data"]],
+        total=summary["total"],
+        temporary_password_count=summary["temporary_password_count"],
+        expired_temporary_password_count=summary["expired_temporary_password_count"],
+    )
+
+
+@router.post("/{user_id}/password-reset", response_model=UserPasswordResetOut)
+async def issue_password_reset(
+    user_id: str,
+    db: DbDep,
+    current_user: ManagerUserDep,
+):
+    try:
+        reset = await user_service.issue_password_reset(db, current_user, user_id)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    if not reset:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user, temporary_password = reset
+    return UserPasswordResetOut(
+        user=UserDirectoryOut.model_validate(user),
+        temporary_password=temporary_password,
+        temporary_password_expires_at=user.temporary_password_expires_at,
     )
 
 

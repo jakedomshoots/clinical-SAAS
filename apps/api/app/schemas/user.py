@@ -53,3 +53,26 @@ class UserAccessReviewSummaryOut(BaseModel):
 class UserAccessReviewUpdate(BaseModel):
     note: str | None = Field(default=None, max_length=500)
     mfa_enabled: bool | None = None
+
+
+class UserPasswordResetOut(BaseModel):
+    user: UserDirectoryOut
+    temporary_password: str
+    temporary_password_expires_at: datetime
+
+
+class UserRecoveryItemOut(BaseModel):
+    user_id: str
+    email: str
+    display_name: str
+    role: str
+    status: str
+    temporary_password_expires_at: datetime | None
+    last_login_at: datetime | None
+
+
+class UserRecoverySummaryOut(BaseModel):
+    data: list[UserRecoveryItemOut]
+    total: int
+    temporary_password_count: int
+    expired_temporary_password_count: int

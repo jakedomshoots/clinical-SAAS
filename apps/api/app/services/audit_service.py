@@ -37,6 +37,7 @@ AUDIT_REVIEW_CATEGORIES = [
             "user.created",
             "user.updated",
             "user.access_reviewed",
+            "user.password_reset_issued",
             "auth.login",
             "auth.login_blocked",
             "auth.password_rotated",

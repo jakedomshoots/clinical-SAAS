@@ -75,3 +75,26 @@ export interface UserAccessReviewUpdate {
   note?: string | null;
   mfa_enabled?: boolean;
 }
+
+export interface UserPasswordResetResponse {
+  user: User;
+  temporary_password: string;
+  temporary_password_expires_at: string;
+}
+
+export interface UserRecoveryItem {
+  user_id: UUID;
+  email: string;
+  display_name: string;
+  role: Role;
+  status: 'temporary_active' | 'temporary_expired';
+  temporary_password_expires_at: string | null;
+  last_login_at: string | null;
+}
+
+export interface UserRecoverySummary {
+  data: UserRecoveryItem[];
+  total: number;
+  temporary_password_count: number;
+  expired_temporary_password_count: number;
+}

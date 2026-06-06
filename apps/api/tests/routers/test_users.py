@@ -1,10 +1,12 @@
 import pytest
+from datetime import UTC, datetime, timedelta
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
-from app.models.user import UserRole
+from app.models.user import User, UserRole
+from app.services.auth_service import authenticate_user
 from tests.conftest import headers_for, make_user
 
 
@@ -91,6 +93,65 @@ async def test_manager_can_update_staff_mfa_status(
 
     assert res.status_code == 200
     assert res.json()["mfa_enabled"] is True
+
+
+@pytest.mark.asyncio
+async def test_admin_can_issue_temporary_password_reset_and_recovery_summary(
+    client: AsyncClient,
+    auth_headers,
+    admin_user,
+    db: AsyncSession,
+):
+    staff = await make_user(db, UserRole.provider, "provider-reset@clinic.example.com")
+    expired = await make_user(db, UserRole.ma, "ma-expired-reset@clinic.example.com")
+    expired.password_must_change = True
+    expired.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+    await db.commit()
+
+    reset = await client.post(f"/api/users/{staff.id}/password-reset", headers=auth_headers)
+
+    assert reset.status_code == 200
+    payload = reset.json()
+    assert payload["user"]["password_must_change"] is True
+    assert payload["temporary_password"]
+    assert payload["temporary_password_expires_at"] is not None
+    assert await authenticate_user(db, staff.email, payload["temporary_password"]) is not None
+
+    summary = await client.get("/api/users/recovery-summary", headers=auth_headers)
+    assert summary.status_code == 200
+    data = summary.json()
+    assert data["temporary_password_count"] >= 2
+    assert data["expired_temporary_password_count"] >= 1
+    by_email = {item["email"]: item for item in data["data"]}
+    assert by_email["provider-reset@clinic.example.com"]["status"] == "temporary_active"
+    assert by_email["ma-expired-reset@clinic.example.com"]["status"] == "temporary_expired"
+
+    audit = (
+        await db.execute(
+            select(AuditLog).where(
+                AuditLog.event_type == "user.password_reset_issued",
+                AuditLog.entity_id == staff.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert audit is not None
+    assert audit.actor_id == admin_user.id
+
+
+@pytest.mark.asyncio
+async def test_manager_cannot_issue_admin_password_reset(
+    client: AsyncClient,
+    db: AsyncSession,
+):
+    manager = await make_user(db, UserRole.manager, "manager-reset-admin@clinic.example.com")
+    admin = await make_user(db, UserRole.admin, "admin-reset-protected@clinic.example.com")
+
+    res = await client.post(
+        f"/api/users/{admin.id}/password-reset",
+        headers=headers_for(manager),
+    )
+
+    assert res.status_code == 403
 
 
 @pytest.mark.asyncio

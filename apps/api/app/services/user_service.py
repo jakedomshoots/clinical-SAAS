@@ -5,6 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
 from app.services.audit_service import log_event
+from app.services.auth_service import (
+    generate_temporary_password,
+    hash_password,
+    temporary_password_expires_at,
+    temporary_password_is_expired,
+)
 
 ACCESS_REVIEW_WINDOW_DAYS = 90
 PRIVILEGED_ROLES = {UserRole.admin, UserRole.manager}
@@ -89,6 +95,76 @@ async def update_user(
         },
     )
     return user
+
+
+async def issue_password_reset(
+    db: AsyncSession,
+    current_user: User,
+    user_id: str,
+) -> tuple[User, str] | None:
+    user = (
+        await db.execute(
+            select(User).where(
+                User.id == user_id,
+                User.organization_id == current_user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if not user:
+        return None
+    if current_user.role != UserRole.admin and user.role == UserRole.admin:
+        raise PermissionError("Managers cannot issue admin password resets")
+    if user.id == current_user.id:
+        raise PermissionError("Cannot issue a password reset for your own account")
+
+    before = {
+        "password_must_change": user.password_must_change,
+        "temporary_password_expires_at": (
+            user.temporary_password_expires_at.isoformat()
+            if user.temporary_password_expires_at
+            else None
+        ),
+    }
+    temporary_password = generate_temporary_password()
+    user.hashed_password = hash_password(temporary_password)
+    user.password_must_change = True
+    user.temporary_password_expires_at = temporary_password_expires_at()
+    await db.commit()
+    await db.refresh(user)
+    await log_event(
+        db,
+        "user.password_reset_issued",
+        "user",
+        user.id,
+        actor_id=current_user.id,
+        payload={
+            "role": user.role.value,
+            "before": before,
+            "temporary_password_expires_at": user.temporary_password_expires_at.isoformat()
+            if user.temporary_password_expires_at
+            else None,
+        },
+    )
+    return user, temporary_password
+
+
+async def recovery_summary(db: AsyncSession, current_user: User) -> dict:
+    rows = (
+        await db.execute(
+            select(User)
+            .where(User.organization_id == current_user.organization_id)
+            .order_by(User.role.asc(), User.display_name.asc())
+        )
+    ).scalars().all()
+    data = [_recovery_item(user) for user in rows if user.password_must_change]
+    return {
+        "data": data,
+        "total": len(data),
+        "temporary_password_count": len(data),
+        "expired_temporary_password_count": sum(
+            1 for item in data if item["status"] == "temporary_expired"
+        ),
+    }
 
 
 async def access_review_summary(
@@ -190,6 +266,20 @@ def _access_review_item(user: User) -> dict:
         "review_status": "needs_review" if actionable else "current",
         "findings": findings,
         "recommended_action": _recommended_action(findings),
+    }
+
+
+def _recovery_item(user: User) -> dict:
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "display_name": user.display_name,
+        "role": user.role.value,
+        "status": "temporary_expired"
+        if temporary_password_is_expired(user)
+        else "temporary_active",
+        "temporary_password_expires_at": user.temporary_password_expires_at,
+        "last_login_at": user.last_login_at,
     }
 
 
