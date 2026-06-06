@@ -92,6 +92,7 @@ export const ROUTES = {
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_INCIDENT_TIMELINE: '/api/operations/incident-timeline',
   OPERATIONS_ALERT_RULES: '/api/operations/alert-rules',
+  OPERATIONS_DOCUMENT_STORAGE_READINESS: '/api/operations/document-storage-readiness',
   OPERATIONS_OPERATOR_HEALTH: '/api/operations/operator-health',
   OPERATIONS_PRODUCTION_CONFIG_AUDIT: '/api/operations/production-config-audit',
   OPERATIONS_BROWSER_QA_CHECKLIST: '/api/operations/browser-qa-checklist',

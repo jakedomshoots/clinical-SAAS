@@ -18,6 +18,7 @@ from app.schemas.operations import (
     CutoverRunbookSessionOut,
     CutoverRunbookSessionStart,
     CutoverRunbookSessionUpdate,
+    DocumentStorageReadinessOut,
     GoLivePacketOut,
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
@@ -111,6 +112,13 @@ async def get_alert_rules(db: DbDep, current_user: OpsUserDep):
         critical_count=result["critical_count"],
         warning_count=result["warning_count"],
         generated_at=result["generated_at"],
+    )
+
+
+@router.get("/document-storage-readiness", response_model=DocumentStorageReadinessOut)
+async def get_document_storage_readiness(db: DbDep, current_user: OpsUserDep):
+    return DocumentStorageReadinessOut(
+        **await operations_service.document_storage_readiness(db, current_user)
     )
 
 

@@ -482,6 +482,92 @@ async def test_operations_timeline_and_alert_rules_roll_up_observability_signals
 
 
 @pytest.mark.asyncio
+async def test_document_storage_readiness_surfaces_handoff_and_storage_gaps(
+    client,
+    auth_headers,
+    admin_user,
+    db: AsyncSession,
+):
+    patient_id = await create_patient(client, auth_headers)
+    metadata_document = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside records without file",
+            "source": "Outside clinic",
+            "document_type": "Records",
+            "status": "needs_review",
+        },
+        headers=auth_headers,
+    )
+    file_document = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Uploaded referral PDF",
+            "source": "Referral office",
+            "document_type": "Referral",
+            "status": "needs_review",
+            "file_url": "s3://concierge-documents/patients/p-1/referral.pdf",
+        },
+        headers=auth_headers,
+    )
+    db.add(
+        AuditLog(
+            organization_id="default",
+            actor_id=admin_user.id,
+            event_type="patient_document.download_handoff",
+            entity_type="patient_document",
+            entity_id=file_document.json()["id"],
+            payload={
+                "patient_id": patient_id,
+                "storage_status": "signed_handoff",
+                "presigned": False,
+                "expires_at": (datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5)).isoformat(),
+            },
+        )
+    )
+    db.add(
+        AuditLog(
+            organization_id="default",
+            actor_id=admin_user.id,
+            event_type="patient_document.accessed",
+            entity_type="patient_document",
+            entity_id=metadata_document.json()["id"],
+            payload={
+                "patient_id": patient_id,
+                "storage_status": "metadata_only",
+                "has_file": False,
+            },
+        )
+    )
+    await db.commit()
+
+    readiness = await client.get("/api/operations/document-storage-readiness", headers=auth_headers)
+    alert_rules = await client.get("/api/operations/alert-rules", headers=auth_headers)
+
+    assert readiness.status_code == 200
+    data = readiness.json()
+    assert data["status"] in {"attention", "blocked"}
+    assert data["score"] < 100
+    assert data["summary"]["metadata_only_documents"] >= 1
+    assert data["summary"]["unsigned_handoffs"] >= 1
+    assert data["summary"]["expired_handoffs"] >= 1
+    check_keys = {check["key"] for check in data["checks"]}
+    assert {
+        "object_storage_credentials",
+        "metadata_only_documents",
+        "unsigned_handoffs",
+        "expired_handoffs",
+    } <= check_keys
+    assert any(item["document_id"] == file_document.json()["id"] for item in data["recent_handoffs"])
+
+    rules = alert_rules.json()["data"]
+    storage_rule = next(item for item in rules if item["key"] == "document_storage_readiness")
+    assert storage_rule["status"] == "triggered"
+    assert storage_rule["severity"] in {"warning", "critical"}
+    assert storage_rule["count"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_production_rehearsal_report_contract(client, auth_headers):
     rehearsal = await client.get("/api/operations/production-rehearsal", headers=auth_headers)
 

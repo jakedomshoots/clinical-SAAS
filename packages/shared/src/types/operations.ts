@@ -93,6 +93,36 @@ export interface OperationsAlertRuleList {
   generated_at: string;
 }
 
+export interface DocumentStorageReadinessCheck {
+  key: string;
+  label: string;
+  status: 'triggered' | 'clear';
+  severity: 'critical' | 'warning';
+  count: number;
+  detail: string;
+  recommended_action: string;
+  route: string;
+}
+
+export interface DocumentStorageHandoff {
+  document_id: string;
+  patient_id: string | null;
+  occurred_at: string;
+  storage_status: string;
+  presigned: boolean;
+  expires_at: string | null;
+  expired: boolean;
+}
+
+export interface DocumentStorageReadiness {
+  status: 'ready' | 'attention' | 'blocked';
+  score: number;
+  generated_at: string;
+  summary: Record<string, number>;
+  checks: DocumentStorageReadinessCheck[];
+  recent_handoffs: DocumentStorageHandoff[];
+}
+
 export interface OperatorHealthCheck {
   key: string;
   label: string;

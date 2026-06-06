@@ -65,6 +65,36 @@ class OperationsAlertRuleListOut(BaseModel):
     generated_at: datetime
 
 
+class DocumentStorageReadinessCheckOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    severity: str
+    count: int
+    detail: str
+    recommended_action: str
+    route: str
+
+
+class DocumentStorageHandoffOut(BaseModel):
+    document_id: str
+    patient_id: str | None = None
+    occurred_at: datetime | str
+    storage_status: str
+    presigned: bool
+    expires_at: datetime | str | None = None
+    expired: bool
+
+
+class DocumentStorageReadinessOut(BaseModel):
+    status: str
+    score: int
+    generated_at: datetime
+    summary: dict[str, int]
+    checks: list[DocumentStorageReadinessCheckOut]
+    recent_handoffs: list[DocumentStorageHandoffOut]
+
+
 class OperatorHealthCheckOut(BaseModel):
     key: str
     label: str

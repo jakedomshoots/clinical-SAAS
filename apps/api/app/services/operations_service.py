@@ -2,7 +2,7 @@ from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit import AuditLog
@@ -118,6 +118,7 @@ async def incident_timeline(db: AsyncSession, user: User, limit: int = 30) -> di
 async def alert_rules(db: AsyncSession, user: User) -> dict:
     readiness = await check_readiness()
     deployment = readiness.get("deployment", {})
+    document_storage = await document_storage_readiness(db, user)
     failed_events = (
         await db.execute(
             select(IntegrationEvent)
@@ -204,6 +205,21 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
             "/operations",
             document_access[0].created_at if document_access else None,
         ),
+        _alert_rule(
+            "document_storage_readiness",
+            "Document storage readiness",
+            document_storage["status"] != "ready",
+            "critical" if document_storage["status"] == "blocked" else "warning",
+            document_storage["summary"]["config_gaps"]
+            + document_storage["summary"]["metadata_only_documents"]
+            + document_storage["summary"]["unsigned_handoffs"]
+            + document_storage["summary"]["expired_handoffs"],
+            _document_storage_alert_detail(document_storage),
+            "/operations",
+            document_storage["recent_handoffs"][0]["occurred_at"]
+            if document_storage["recent_handoffs"]
+            else None,
+        ),
     ]
     return {
         "data": rules,
@@ -212,6 +228,105 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
         "critical_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "critical"),
         "warning_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "warning"),
         "generated_at": datetime.now(UTC),
+    }
+
+
+async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
+    total_documents = (
+        await db.execute(
+            select(func.count(PatientDocument.id)).where(
+                PatientDocument.organization_id == user.organization_id,
+            )
+        )
+    ).scalar() or 0
+    metadata_only_documents = (
+        await db.execute(
+            select(func.count(PatientDocument.id)).where(
+                PatientDocument.organization_id == user.organization_id,
+                or_(
+                    PatientDocument.file_url.is_(None),
+                    PatientDocument.file_url == "",
+                    PatientDocument.upload_status == "metadata_only",
+                ),
+            )
+        )
+    ).scalar() or 0
+    stored_documents = max(0, total_documents - metadata_only_documents)
+    handoff_events = (
+        await db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type.in_(["patient_document.accessed", "patient_document.download_handoff"]),
+            )
+            .order_by(AuditLog.created_at.desc())
+            .limit(200)
+        )
+    ).scalars().all()
+
+    recent_handoffs = [_document_storage_handoff(event) for event in handoff_events]
+    unsigned_handoffs = sum(
+        1
+        for item in recent_handoffs
+        if item["storage_status"] == "signed_handoff" and not item["presigned"]
+    )
+    expired_handoffs = sum(1 for item in recent_handoffs if item["expired"])
+    config_gaps = _document_storage_config_gap_count()
+
+    checks = [
+        _document_storage_check(
+            "object_storage_credentials",
+            "Object-storage credentials",
+            config_gaps,
+            "critical",
+            "Production object storage is not fully configured with secure, non-default credentials."
+            if config_gaps
+            else "Object storage credentials and secure transport are configured.",
+            "Set production MINIO/S3 endpoint, bucket, access key, secret key, and secure transport.",
+        ),
+        _document_storage_check(
+            "metadata_only_documents",
+            "Metadata-only documents",
+            metadata_only_documents,
+            "warning",
+            f"{metadata_only_documents} document(s) do not have a file URL attached.",
+            "Upload or reconcile missing files before relying on document previews/downloads.",
+        ),
+        _document_storage_check(
+            "unsigned_handoffs",
+            "Unsigned object handoffs",
+            unsigned_handoffs,
+            "warning",
+            f"{unsigned_handoffs} recent handoff(s) did not receive a presigned object-storage URL.",
+            "Verify object-storage signing is reachable and configured before go-live.",
+        ),
+        _document_storage_check(
+            "expired_handoffs",
+            "Expired signed handoffs",
+            expired_handoffs,
+            "warning",
+            f"{expired_handoffs} signed handoff(s) are expired and should be regenerated on demand.",
+            "Have staff request a fresh document access link when the original handoff expires.",
+        ),
+    ]
+    critical = sum(1 for check in checks if check["status"] == "triggered" and check["severity"] == "critical")
+    warnings = sum(1 for check in checks if check["status"] == "triggered" and check["severity"] == "warning")
+    score = max(0, 100 - critical * 35 - warnings * 15)
+    return {
+        "status": "blocked" if critical else "attention" if warnings else "ready",
+        "score": score,
+        "generated_at": datetime.now(UTC),
+        "summary": {
+            "total_documents": total_documents,
+            "stored_documents": stored_documents,
+            "metadata_only_documents": metadata_only_documents,
+            "recent_handoffs": len(recent_handoffs),
+            "unsigned_handoffs": unsigned_handoffs,
+            "expired_handoffs": expired_handoffs,
+            "config_gaps": config_gaps,
+        },
+        "checks": checks,
+        "recent_handoffs": recent_handoffs[:10],
     }
 
 
@@ -2087,6 +2202,84 @@ def _backup_restore_detail(deployment: dict) -> str:
     if backup.get("ok"):
         return "Backup evidence exists, but restore validation is missing."
     return "Backup and restore validation evidence is missing."
+
+
+def _document_storage_config_gap_count() -> int:
+    checks = [
+        bool(settings.minio_endpoint),
+        bool(settings.minio_bucket),
+        settings.minio_access_key != DEFAULT_MINIO_ACCESS_KEY,
+        settings.minio_secret_key != DEFAULT_MINIO_SECRET_KEY,
+        settings.minio_secure,
+    ]
+    return sum(1 for ready in checks if not ready)
+
+
+def _document_storage_handoff(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    expires_at = _parse_optional_datetime(payload.get("expires_at"))
+    expired = bool(expires_at and expires_at < datetime.now(UTC).replace(tzinfo=None))
+    storage_status = payload.get("storage_status") or (
+        "metadata_only"
+        if payload.get("has_file") is False
+        else "signed_handoff"
+        if event.event_type == "patient_document.download_handoff"
+        else "unknown"
+    )
+    return {
+        "document_id": event.entity_id,
+        "patient_id": payload.get("patient_id"),
+        "occurred_at": event.created_at,
+        "storage_status": storage_status,
+        "presigned": bool(payload.get("presigned")),
+        "expires_at": expires_at or payload.get("expires_at"),
+        "expired": expired,
+    }
+
+
+def _parse_optional_datetime(value) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value.replace(tzinfo=None)
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            return None
+    return None
+
+
+def _document_storage_check(
+    key: str,
+    label: str,
+    count: int,
+    severity: str,
+    detail: str,
+    recommended_action: str,
+) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": "triggered" if count else "clear",
+        "severity": severity,
+        "count": count,
+        "detail": detail,
+        "recommended_action": recommended_action,
+        "route": "/operations",
+    }
+
+
+def _document_storage_alert_detail(readiness: dict) -> str:
+    summary = readiness["summary"]
+    if readiness["status"] == "ready":
+        return "Document storage readiness checks are clear."
+    return (
+        f"{summary['config_gaps']} config gap(s), "
+        f"{summary['metadata_only_documents']} metadata-only document(s), "
+        f"{summary['unsigned_handoffs']} unsigned handoff(s), and "
+        f"{summary['expired_handoffs']} expired handoff(s)."
+    )
 
 
 def _timeline_item_from_audit(event: AuditLog) -> dict:

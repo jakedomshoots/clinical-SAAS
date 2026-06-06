@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -186,6 +186,10 @@ function OperationsPage() {
   const { data: alertRules } = useQuery({
     queryKey: [...QUERY_KEYS.OPERATIONS_INCIDENTS, 'alert-rules'],
     queryFn: () => api.get<OperationsAlertRuleList>(ROUTES.OPERATIONS_ALERT_RULES),
+  });
+  const { data: documentStorageReadiness } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'document-storage-readiness'],
+    queryFn: () => api.get<DocumentStorageReadiness>(ROUTES.OPERATIONS_DOCUMENT_STORAGE_READINESS),
   });
   const { data: operatorHealth } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'operator-health'],
@@ -874,6 +878,66 @@ function OperationsPage() {
                 ))}
                 {operatorHealth.recommended_actions.length === 0 && (
                   <div className="px-3 py-6 text-sm text-clinic-400">No operator actions.</div>
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      )}
+
+      {documentStorageReadiness && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+                <Server className="h-4 w-4 text-accent-600" />
+                Document Storage Readiness
+              </h2>
+              <p className="text-xs text-clinic-500">{new Date(documentStorageReadiness.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${documentStorageReadiness.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : documentStorageReadiness.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                {documentStorageReadiness.status}
+              </span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{documentStorageReadiness.score}%</span>
+              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{documentStorageReadiness.summary.stored_documents ?? 0} stored</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{documentStorageReadiness.summary.metadata_only_documents ?? 0} metadata-only</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              {documentStorageReadiness.checks.map((check) => (
+                <Link key={check.key} to={check.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-clinic-900">{check.label}</div>
+                      <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                    </div>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'clear' ? 'border-accent-200 bg-accent-50 text-accent-800' : check.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      {check.status === 'clear' ? 'clear' : check.count}
+                    </span>
+                  </div>
+                  <div className="mt-2 text-[11px] text-clinic-400">{check.recommended_action}</div>
+                </Link>
+              ))}
+            </div>
+            <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Recent handoffs</div>
+              <div className="divide-y divide-clinic-100">
+                {documentStorageReadiness.recent_handoffs.slice(0, 5).map((handoff) => (
+                  <div key={`${handoff.document_id}:${handoff.occurred_at}`} className="px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium text-clinic-900">{handoff.document_id}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${handoff.presigned && !handoff.expired ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        {handoff.presigned ? 'signed' : 'unsigned'}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-xs text-clinic-500">{handoff.storage_status} · {new Date(handoff.occurred_at).toLocaleString()}</div>
+                    <div className="mt-1 text-[11px] text-clinic-400">{handoff.expired ? 'Expired' : 'Active'}{handoff.expires_at ? ` · expires ${new Date(handoff.expires_at).toLocaleString()}` : ''}</div>
+                  </div>
+                ))}
+                {documentStorageReadiness.recent_handoffs.length === 0 && (
+                  <div className="px-3 py-6 text-sm text-clinic-400">No document handoffs recorded.</div>
                 )}
               </div>
             </aside>

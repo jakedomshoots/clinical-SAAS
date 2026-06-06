@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -410,12 +410,14 @@ function alertRules(): OperationsAlertRuleList {
   const blockedLogins = auditEvents.filter((item) => item.event_type === 'auth.login_blocked');
   const documentAccess = auditEvents.filter((item) => ['patient_document.accessed', 'patient_document.download_handoff'].includes(item.event_type));
   const recovery = recoverySummary();
+  const storage = documentStorageReadiness();
   const rules: OperationsAlertRule[] = [
     demoAlertRule('failed_integrations', 'Failed integrations', failedEvents.length > 0, 'critical', failedEvents.length, failedEvents[0]?.error ?? `${failedEvents.length} failed integration event(s).`, '/operations', failedEvents[0]?.updated_at ?? null),
     demoAlertRule('blocked_logins', 'Blocked logins', blockedLogins.length > 0, 'critical', blockedLogins.length, blockedLogins.length ? `${blockedLogins.length} blocked login event(s).` : 'No blocked login events recorded.', '/staff', blockedLogins[0]?.created_at ?? null),
     demoAlertRule('expired_onboarding', 'Expired onboarding credentials', recovery.expired_temporary_password_count > 0, 'warning', recovery.expired_temporary_password_count, `${recovery.expired_temporary_password_count} expired temporary credential(s).`, '/staff', null),
     demoAlertRule('backup_restore_gap', 'Backup and restore gap', true, 'warning', 1, 'Backup and restore validation evidence is missing in demo mode.', '/operations', null),
     demoAlertRule('document_access_review', 'Document access review', documentAccess.length > 0, 'warning', documentAccess.length, `${documentAccess.length} document access event(s) should be reviewed before closeout.`, '/operations', documentAccess[0]?.created_at ?? null),
+    demoAlertRule('document_storage_readiness', 'Document storage readiness', storage.status !== 'ready', storage.status === 'blocked' ? 'critical' : 'warning', storage.summary.config_gaps + storage.summary.metadata_only_documents + storage.summary.unsigned_handoffs + storage.summary.expired_handoffs, `${storage.summary.config_gaps} config gap(s), ${storage.summary.metadata_only_documents} metadata-only document(s), ${storage.summary.unsigned_handoffs} unsigned handoff(s), and ${storage.summary.expired_handoffs} expired handoff(s).`, '/operations', storage.recent_handoffs[0]?.occurred_at ?? null),
   ];
   return {
     data: rules,
@@ -429,6 +431,84 @@ function alertRules(): OperationsAlertRuleList {
 
 function demoAlertRule(key: string, label: string, triggered: boolean, severity: OperationsAlertRule['severity'], count: number, detail: string, route: string, last_triggered_at: string | null): OperationsAlertRule {
   return { key, label, status: triggered ? 'triggered' : 'clear', severity, count, detail, route, last_triggered_at };
+}
+
+function documentStorageReadiness(): DocumentStorageReadiness {
+  const metadataOnly = patientDocuments.filter((item) => !item.file_url || item.upload_status === 'metadata_only');
+  const stored = patientDocuments.filter((item) => item.file_url);
+  const auditHandoffs = auditEvents
+    .filter((event) => ['patient_document.accessed', 'patient_document.download_handoff'].includes(event.event_type))
+    .slice(0, 8)
+    .map((event) => {
+      const payload = event.payload as Record<string, unknown>;
+      const expiresAt = typeof payload.expires_at === 'string' ? payload.expires_at : null;
+      return {
+        document_id: event.entity_id,
+        patient_id: typeof payload.patient_id === 'string' ? payload.patient_id : null,
+        occurred_at: event.created_at,
+        storage_status: typeof payload.storage_status === 'string' ? payload.storage_status : 'signed_handoff',
+        presigned: Boolean(payload.presigned),
+        expires_at: expiresAt,
+        expired: expiresAt ? new Date(expiresAt).getTime() < Date.now() : false,
+      };
+    });
+  const syntheticHandoffs = stored.slice(0, 2).map((document, index) => ({
+    document_id: document.id,
+    patient_id: document.patient_id,
+    occurred_at: iso(index * -0.2),
+    storage_status: 'signed_handoff',
+    presigned: false,
+    expires_at: iso(-1 - index),
+    expired: true,
+  }));
+  const recentHandoffs = [...auditHandoffs, ...syntheticHandoffs].slice(0, 10);
+  const unsignedHandoffs = recentHandoffs.filter((item) => item.storage_status === 'signed_handoff' && !item.presigned).length;
+  const expiredHandoffs = recentHandoffs.filter((item) => item.expired).length;
+  const configGaps = 3;
+  const checks: DocumentStorageReadiness['checks'] = [
+    demoDocumentStorageCheck('object_storage_credentials', 'Object-storage credentials', configGaps, 'critical', 'Demo object storage uses local credentials and insecure transport.', 'Set production MINIO/S3 endpoint, bucket, access key, secret key, and secure transport.'),
+    demoDocumentStorageCheck('metadata_only_documents', 'Metadata-only documents', metadataOnly.length, 'warning', `${metadataOnly.length} document(s) do not have a file URL attached.`, 'Upload or reconcile missing files before relying on document previews/downloads.'),
+    demoDocumentStorageCheck('unsigned_handoffs', 'Unsigned object handoffs', unsignedHandoffs, 'warning', `${unsignedHandoffs} recent handoff(s) did not receive a presigned object-storage URL.`, 'Verify object-storage signing is reachable and configured before go-live.'),
+    demoDocumentStorageCheck('expired_handoffs', 'Expired signed handoffs', expiredHandoffs, 'warning', `${expiredHandoffs} signed handoff(s) are expired and should be regenerated on demand.`, 'Have staff request a fresh document access link when the original handoff expires.'),
+  ];
+  const critical = checks.filter((item) => item.status === 'triggered' && item.severity === 'critical').length;
+  const warnings = checks.filter((item) => item.status === 'triggered' && item.severity === 'warning').length;
+  return {
+    status: critical ? 'blocked' : warnings ? 'attention' : 'ready',
+    score: Math.max(0, 100 - critical * 35 - warnings * 15),
+    generated_at: new Date().toISOString(),
+    summary: {
+      total_documents: patientDocuments.length,
+      stored_documents: stored.length,
+      metadata_only_documents: metadataOnly.length,
+      recent_handoffs: recentHandoffs.length,
+      unsigned_handoffs: unsignedHandoffs,
+      expired_handoffs: expiredHandoffs,
+      config_gaps: configGaps,
+    },
+    checks,
+    recent_handoffs: recentHandoffs,
+  };
+}
+
+function demoDocumentStorageCheck(
+  key: string,
+  label: string,
+  count: number,
+  severity: DocumentStorageReadiness['checks'][number]['severity'],
+  detail: string,
+  recommended_action: string,
+): DocumentStorageReadiness['checks'][number] {
+  return {
+    key,
+    label,
+    status: count ? 'triggered' : 'clear',
+    severity,
+    count,
+    detail,
+    recommended_action,
+    route: '/operations',
+  };
 }
 
 function operatorHealth(): OperatorHealth {
@@ -2543,6 +2623,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/alert-rules' && method === 'GET') {
     return alertRules() as T;
+  }
+  if (path === '/operations/document-storage-readiness' && method === 'GET') {
+    return documentStorageReadiness() as T;
   }
   if (path === '/operations/operator-health' && method === 'GET') {
     return operatorHealth() as T;

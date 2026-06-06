@@ -20,7 +20,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
-- Operations includes a live-use rehearsal board, Operator Health, a go-live packet, incident timeline, local alert rules, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
+- Operations includes a live-use rehearsal board, Operator Health, document storage readiness, a go-live packet, incident timeline, local alert rules, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, document handoff/storage gaps, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -66,7 +66,8 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
 - Use Audit Review Control to review sensitive document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
-- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, and document access review signals before closeout or live-use rehearsal.
+- Use Document Storage Readiness in Operations to review metadata-only documents, unsigned handoffs, expired handoffs, and object-storage credential gaps before live-use rehearsal.
+- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, document access review signals, and document-storage readiness before closeout or live-use rehearsal.
 - Run backup and restore validation before any live-use rehearsal.
 
 ## Not Ready Without Real Credentials
@@ -90,6 +91,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Confirm staff MFA enrollment is recorded; production login blocks session issuance for accounts without MFA.
 - Set `WEBHOOK_SHARED_SECRET` before enabling vendor callbacks.
 - Confirm `/api/operations/production-config-audit` reports zero critical checks.
+- Confirm `/api/operations/document-storage-readiness` reports `ready` before relying on document preview/download behavior for real patients.
 - Configure vendor adapters listed in `docs/integrations/vendor-adapter-plan.md`.
 - Approve patient outreach consent policy and test queued, blocked, failed, and delivered callback states.
 - Confirm `/api/ready` reports `operational_status: ok`.
@@ -113,6 +115,7 @@ An internal clinic pilot is ready when:
 - A patient can use Patient Portal to send intake, request an appointment, and upload a document.
 - Managers can export audit data, retry failed integration events, and inspect readiness.
 - Managers can use Operator Health to route critical production signals to Operations, Integrations, or evidence workflows before a live-use rehearsal.
+- Managers can use Document Storage Readiness to clear metadata-only document gaps, unsigned object handoffs, expired signed handoffs, and object-storage configuration blockers before a live-use rehearsal.
 - Managers can review and sign off the Go-Live Packet, use/export the Live-Use Rehearsal Board, save and export the Launch Workplan, assign owners to rehearsal blockers, complete browser QA, staff training, policy approval, cutover runbook, and role dry-run sessions, and save/export the production rehearsal report before scheduling a live-use dry run.
 
 ## Recommended Next Build Items For Production
