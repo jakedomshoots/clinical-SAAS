@@ -987,6 +987,32 @@ export interface CredentialPreflight {
   data: CredentialPreflightItem[];
 }
 
+export interface VendorHandoffPacket {
+  integration: string;
+  label: string;
+  generated_at: string;
+  export_filename: string;
+  status: CredentialPreflightItem['status'];
+  readiness_mode: IntegrationConfig['readiness_mode'];
+  production_ready: boolean;
+  sandbox_ready: boolean;
+  mode: string;
+  configured_fields: string[];
+  missing_fields: string[];
+  vendor_profile: VendorProfile;
+  cutover_evidence: CutoverEvidence;
+  risk_register: VendorRiskRegister;
+  adapter_methods: AdapterMethod[];
+  adapter_method_ready_count: number;
+  adapter_method_total: number;
+  sandbox_tests: string[];
+  sandbox_evidence: SandboxEvidence[];
+  preflight_steps: CredentialPreflightStep[];
+  blockers: string[];
+  docs: string[];
+  sections: string[];
+}
+
 export interface SessionPolicy {
   user_id: string;
   role: string;

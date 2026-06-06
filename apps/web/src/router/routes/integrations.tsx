@@ -13,6 +13,7 @@ import {
   type SandboxEvidenceCreate,
   type SandboxWorkflowRunAllResult,
   type SandboxWorkflowRunCreate,
+  type VendorHandoffPacket,
 } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -90,6 +91,13 @@ function IntegrationsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const handoffPacketMutation = useMutation({
+    mutationFn: (integration: string) =>
+      api.get<VendorHandoffPacket>(ROUTES.INTEGRATION_HANDOFF_PACKET(integration)),
+    onSuccess: (packet) => {
+      downloadJson(packet.export_filename, packet);
     },
   });
   const configs = data?.data ?? [];
@@ -186,15 +194,26 @@ function IntegrationsPage() {
                       )}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => testMutation.mutate(config.key)}
-                    className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
-                    disabled={testMutation.isPending}
-                  >
-                    <TestTube2 className="h-3.5 w-3.5" />
-                    Test
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handoffPacketMutation.mutate(config.key)}
+                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      disabled={handoffPacketMutation.isPending}
+                    >
+                      <ClipboardCheck className="h-3.5 w-3.5" />
+                      Export packet
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => testMutation.mutate(config.key)}
+                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      disabled={testMutation.isPending}
+                    >
+                      <TestTube2 className="h-3.5 w-3.5" />
+                      Test
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-4 grid gap-3">
@@ -563,6 +582,16 @@ function preflightStatusClass(status: CredentialPreflightItem['status']) {
 function toDateTimeLocal(value: string) {
   if (!value) return '';
   return value.replace(/Z$/, '').slice(0, 16);
+}
+
+function downloadJson(filename: string, payload: unknown) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 function ReadinessModeBadge({

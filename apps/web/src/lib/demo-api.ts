@@ -2720,6 +2720,9 @@ function demoCredentialPreflight() {
       sandbox_ready: sandboxReady,
       production_ready: productionReady,
       mode: config.mode,
+      vendor_profile: config.vendor_profile,
+      cutover_evidence: config.cutover_evidence,
+      risk_register: config.risk_register,
       missing_fields: missingFields,
       configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
       workflows: config.workflows,
@@ -3243,6 +3246,38 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/integrations/credential-preflight' && method === 'GET') {
     return demoCredentialPreflight() as T;
+  }
+  const handoffPacketMatch = path.match(/^\/integrations\/config\/([^/]+)\/handoff-packet$/);
+  if (handoffPacketMatch && method === 'GET') {
+    const integration = handoffPacketMatch[1];
+    const config = demoIntegrationConfigs().find((item) => item.key === integration);
+    const preflight = demoCredentialPreflight().data.find((item) => item.key === integration);
+    if (!config || !preflight) throw new Error('Integration handoff packet not found');
+    return {
+      integration: config.key,
+      label: config.label,
+      generated_at: new Date().toISOString(),
+      export_filename: `${config.key}-vendor-handoff-packet.json`,
+      status: preflight.status,
+      readiness_mode: preflight.readiness_mode,
+      production_ready: preflight.production_ready,
+      sandbox_ready: preflight.sandbox_ready,
+      mode: config.mode,
+      configured_fields: preflight.configured_fields,
+      missing_fields: preflight.missing_fields,
+      vendor_profile: preflight.vendor_profile,
+      cutover_evidence: preflight.cutover_evidence,
+      risk_register: preflight.risk_register,
+      adapter_methods: preflight.adapter_methods,
+      adapter_method_ready_count: preflight.adapter_method_ready_count,
+      adapter_method_total: preflight.adapter_method_total,
+      sandbox_tests: preflight.sandbox_tests,
+      sandbox_evidence: preflight.sandbox_evidence,
+      preflight_steps: preflight.steps,
+      blockers: preflight.blockers,
+      docs: preflight.docs,
+      sections: ['Vendor profile', 'Cutover evidence', 'Vendor risks', 'Adapter contract', 'Sandbox evidence', 'Preflight blockers'],
+    } as T;
   }
   const sandboxEvidenceMatch = path.match(/^\/integrations\/config\/([^/]+)\/sandbox-evidence$/);
   if (sandboxEvidenceMatch && method === 'POST') {

@@ -17,6 +17,7 @@ from app.schemas.integration_config import (
     SandboxEvidenceOut,
     SandboxWorkflowRunAllOut,
     SandboxWorkflowRunCreate,
+    VendorHandoffPacketOut,
 )
 from app.schemas.integration_event import IntegrationEventListOut, IntegrationEventOut
 from app.services import integration_config_service, integration_event_service
@@ -44,6 +45,25 @@ async def get_credential_preflight(db: DbDep, current_user: OpsUserDep):
         total=result["total"],
         data=[CredentialPreflightItemOut(**item) for item in result["data"]],
     )
+
+
+@router.get("/config/{integration}/handoff-packet", response_model=VendorHandoffPacketOut)
+async def get_vendor_handoff_packet(
+    integration: str,
+    db: DbDep,
+    current_user: OpsUserDep,
+):
+    result = await integration_config_service.vendor_handoff_packet(
+        db,
+        current_user,
+        integration,
+    )
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Integration handoff packet not found",
+        )
+    return VendorHandoffPacketOut(**result)
 
 
 @router.patch("/config/{integration}", response_model=IntegrationConfigOut)

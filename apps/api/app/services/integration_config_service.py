@@ -422,6 +422,49 @@ async def credential_preflight(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def vendor_handoff_packet(db: AsyncSession, user: User, integration: str) -> dict | None:
+    config = next(
+        (item for item in await list_integration_configs(db, user) if item["key"] == integration),
+        None,
+    )
+    if not config:
+        return None
+    evidence = await _sandbox_evidence_by_integration(db, user)
+    preflight = _preflight_item(config, evidence.get(config["key"], {}))
+    return {
+        "integration": config["key"],
+        "label": config["label"],
+        "generated_at": datetime.now(UTC).isoformat(),
+        "export_filename": f"{config['key']}-vendor-handoff-packet.json",
+        "status": preflight["status"],
+        "readiness_mode": preflight["readiness_mode"],
+        "production_ready": preflight["production_ready"],
+        "sandbox_ready": preflight["sandbox_ready"],
+        "mode": config["mode"],
+        "configured_fields": preflight["configured_fields"],
+        "missing_fields": preflight["missing_fields"],
+        "vendor_profile": preflight["vendor_profile"],
+        "cutover_evidence": preflight["cutover_evidence"],
+        "risk_register": preflight["risk_register"],
+        "adapter_methods": preflight["adapter_methods"],
+        "adapter_method_ready_count": preflight["adapter_method_ready_count"],
+        "adapter_method_total": preflight["adapter_method_total"],
+        "sandbox_tests": preflight["sandbox_tests"],
+        "sandbox_evidence": preflight["sandbox_evidence"],
+        "preflight_steps": preflight["steps"],
+        "blockers": preflight["blockers"],
+        "docs": preflight["docs"],
+        "sections": [
+            "Vendor profile",
+            "Cutover evidence",
+            "Vendor risks",
+            "Adapter contract",
+            "Sandbox evidence",
+            "Preflight blockers",
+        ],
+    }
+
+
 async def record_sandbox_evidence(
     db: AsyncSession,
     user: User,

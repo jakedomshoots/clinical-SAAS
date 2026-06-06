@@ -161,6 +161,32 @@ class CredentialPreflightOut(BaseModel):
     data: list[CredentialPreflightItemOut]
 
 
+class VendorHandoffPacketOut(BaseModel):
+    integration: str
+    label: str
+    generated_at: str
+    export_filename: str
+    status: str
+    readiness_mode: str
+    production_ready: bool = False
+    sandbox_ready: bool = False
+    mode: str
+    configured_fields: list[str]
+    missing_fields: list[str]
+    vendor_profile: VendorProfileOut
+    cutover_evidence: CutoverEvidenceOut
+    risk_register: VendorRiskRegisterOut
+    adapter_methods: list[AdapterMethodOut]
+    adapter_method_ready_count: int = 0
+    adapter_method_total: int = 0
+    sandbox_tests: list[str]
+    sandbox_evidence: list[SandboxEvidenceOut]
+    preflight_steps: list[CredentialPreflightStepOut]
+    blockers: list[str]
+    docs: list[str]
+    sections: list[str]
+
+
 class SandboxEvidenceCreate(BaseModel):
     test_label: str
     status: str = "passed"

@@ -285,6 +285,69 @@ async def test_update_integration_config_saves_vendor_risk_register(
 
 
 @pytest.mark.asyncio
+async def test_vendor_handoff_packet_combines_preflight_sections(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    await client.patch(
+        "/api/integrations/config/fax",
+        json={
+            "values": {
+                "FAX_PROVIDER_API_KEY": "fax-secret-1234",
+                "VENDOR_NAME": "MetroFax Health",
+                "VENDOR_ENVIRONMENT": "sandbox",
+                "OWNER_NAME": "Avery Ops",
+                "OWNER_EMAIL": "avery@example.test",
+                "SUPPORT_CONTACT": "support@metrofax.example",
+                "CUTOVER_PLANNED_AT": "2026-07-15T14:00:00Z",
+                "LAST_VENDOR_TEST_AT": "2026-07-01T18:30:00Z",
+                "ROLLBACK_OWNER": "Morgan Manager",
+                "GO_NO_GO_NOTES": "Rollback to manual fax queue approved.",
+                "LIVE_REHEARSAL_APPROVED": "true",
+                "RISK_TITLE": "Inbound callbacks may lag during vendor maintenance.",
+                "RISK_SEVERITY": "warning",
+                "RISK_MITIGATION_OWNER": "Avery Ops",
+                "RISK_MITIGATION_STATUS": "mitigated",
+                "RISK_BLOCKS_REHEARSAL": "true",
+            }
+        },
+        headers=auth_headers,
+    )
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+    for test_label in fax["sandbox_tests"]:
+        evidence = await client.post(
+            "/api/integrations/config/fax/sandbox-evidence",
+            json={
+                "test_label": test_label,
+                "status": "passed",
+                "notes": f"Vendor sandbox proof for {test_label}.",
+                "reference_url": f"https://vendor.example.test/fax/{test_label.replace(' ', '-').lower()}",
+            },
+            headers=auth_headers,
+        )
+        assert evidence.status_code == 201
+
+    packet = await client.get("/api/integrations/config/fax/handoff-packet", headers=auth_headers)
+
+    assert packet.status_code == 200
+    body = packet.json()
+    assert body["integration"] == "fax"
+    assert body["label"] == "Fax provider"
+    assert body["export_filename"] == "fax-vendor-handoff-packet.json"
+    assert body["vendor_profile"]["vendor_name"] == "MetroFax Health"
+    assert body["cutover_evidence"]["rollback_owner"] == "Morgan Manager"
+    assert body["risk_register"]["risk_count"] == 1
+    assert len(body["sandbox_evidence"]) == len(fax["sandbox_tests"])
+    assert body["adapter_method_total"] >= 4
+    assert any(step["key"] == "vendor_risks" for step in body["preflight_steps"])
+    assert "Vendor profile" in body["sections"]
+    assert "Sandbox evidence" in body["sections"]
+
+
+@pytest.mark.asyncio
 async def test_connection_test_records_integration_event(
     client: AsyncClient,
     auth_headers,
