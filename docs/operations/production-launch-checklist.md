@@ -75,9 +75,9 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/launch-workplan` has no unassigned blocking launch items before the rehearsal starts; saved/exported workplan snapshots with unassigned blocking items remain blocking evidence in the go-live packet until ownership is assigned.
 - The credential-preflight rehearsal action is assigned to the integration owner before vendor blockers are reviewed in the Launch Workplan.
 - `/api/operations/go-live-packet` has been reviewed by the manager/clinic owner as the final launch packet summary, and an audit-backed approval or needs-changes attestation has been recorded.
-- `/api/operations/browser-qa-sessions` includes a completed QA session with passed/failed status and evidence notes for login, patients, scheduling, documents, faxes, billing, audit, assistant actions, portal intake, and reports.
+- `/api/operations/browser-qa-sessions` includes a completed QA session with passed status and evidence notes for every browser QA item; failed items block go-live evidence and pending items remain warning evidence.
 - `/api/operations/role-dry-run-checklists` has been reviewed with front desk, MA/nurse, provider, billing, and manager staff.
-- `/api/operations/role-dry-run-sessions` includes a completed dry-run session with complete/blocked status and evidence notes for each role before the live-use rehearsal.
+- `/api/operations/role-dry-run-sessions` includes a completed dry-run session with complete status and evidence notes for every role checklist item; blocked items block go-live evidence and pending items remain warning evidence.
 - `/api/operations/staff-training-sessions` includes a completed staff training session with reviewed/signed status and evidence notes for front desk, MA/nurse, provider, billing, and manager responsibilities before the live-use rehearsal.
 - `/api/operations/policy-approval-sessions` includes a completed policy approval session with approved/needs-changes status and evidence notes for PHI retention, incident response, access review, backup/restore, patient outreach consent, and assistant policy before the live-use rehearsal.
 - `/api/operations/restore-drill-sessions` includes a completed restore drill session with complete/blocked checklist item status, RTO/RPO evidence, and exportable notes before the live-use rehearsal.

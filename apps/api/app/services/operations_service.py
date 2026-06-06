@@ -1630,7 +1630,9 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "role_dry_run_session",
             "Role dry-run session",
             "ready"
-            if latest_dry_run and latest_dry_run["status"] == "completed" and latest_dry_run["blocked_count"] == 0
+            if latest_dry_run and latest_dry_run["status"] == "completed" and latest_dry_run["pending_count"] == 0 and latest_dry_run["blocked_count"] == 0
+            else "blocking"
+            if latest_dry_run and latest_dry_run["blocked_count"] > 0
             else "warning"
             if latest_dry_run
             else "missing",
@@ -1644,7 +1646,9 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "browser_qa_session",
             "Browser QA session",
             "ready"
-            if latest_browser_qa and latest_browser_qa["status"] == "completed" and latest_browser_qa["failed_count"] == 0
+            if latest_browser_qa and latest_browser_qa["status"] == "completed" and latest_browser_qa["pending_count"] == 0 and latest_browser_qa["failed_count"] == 0
+            else "blocking"
+            if latest_browser_qa and latest_browser_qa["failed_count"] > 0
             else "warning"
             if latest_browser_qa
             else "missing",

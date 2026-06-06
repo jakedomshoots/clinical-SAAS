@@ -1145,6 +1145,66 @@ async def test_browser_qa_session_evidence_is_audit_backed(client, auth_headers)
 
 
 @pytest.mark.asyncio
+async def test_go_live_packet_keeps_partial_dry_run_and_browser_qa_as_warning(client, auth_headers):
+    dry_run_checklist = await client.get("/api/operations/role-dry-run-checklists", headers=auth_headers)
+    dry_run_role = dry_run_checklist.json()["roles"][0]
+    dry_run_item = dry_run_role["items"][0]
+    dry_run_created = await client.post(
+        "/api/operations/role-dry-run-sessions",
+        json={"session_name": "Partial role dry-run"},
+        headers=auth_headers,
+    )
+    dry_run_session = dry_run_created.json()
+    await client.patch(
+        f"/api/operations/role-dry-run-sessions/{dry_run_session['session_id']}",
+        json={
+            "role_key": dry_run_role["key"],
+            "item_key": dry_run_item["key"],
+            "dry_run_status": "complete",
+            "item_note": "Only the first workflow was rehearsed.",
+        },
+        headers=auth_headers,
+    )
+    await client.patch(
+        f"/api/operations/role-dry-run-sessions/{dry_run_session['session_id']}",
+        json={"session_status": "completed"},
+        headers=auth_headers,
+    )
+
+    browser_checklist = await client.get("/api/operations/browser-qa-checklist", headers=auth_headers)
+    browser_item = browser_checklist.json()["items"][0]
+    browser_created = await client.post(
+        "/api/operations/browser-qa-sessions",
+        json={"session_name": "Partial browser QA", "browser": "Chrome"},
+        headers=auth_headers,
+    )
+    browser_session = browser_created.json()
+    await client.patch(
+        f"/api/operations/browser-qa-sessions/{browser_session['session_id']}",
+        json={
+            "item_key": browser_item["key"],
+            "qa_status": "passed",
+            "item_note": "Only the login route was checked.",
+        },
+        headers=auth_headers,
+    )
+    await client.patch(
+        f"/api/operations/browser-qa-sessions/{browser_session['session_id']}",
+        json={"session_status": "completed"},
+        headers=auth_headers,
+    )
+
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+
+    assert packet.status_code == 200
+    evidence = {item["key"]: item for item in packet.json()["evidence"]}
+    assert evidence["role_dry_run_session"]["status"] == "warning"
+    assert evidence["browser_qa_session"]["status"] == "warning"
+    assert "pending" in evidence["role_dry_run_session"]["detail"]
+    assert "pending" in evidence["browser_qa_session"]["detail"]
+
+
+@pytest.mark.asyncio
 async def test_staff_training_session_evidence_is_audit_backed(client, auth_headers):
     checklist = await client.get("/api/operations/staff-training-checklist", headers=auth_headers)
     first_role = checklist.json()["roles"][0]

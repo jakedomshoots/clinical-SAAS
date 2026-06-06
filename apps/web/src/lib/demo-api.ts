@@ -1530,6 +1530,8 @@ function goLivePacket(): GoLivePacket {
   const latestReadiness = auditEvents.find((event) => event.event_type === 'operations.readiness_snapshot');
   const latestWorkplan = auditEvents.find((event) => event.event_type === 'operations.launch_workplan_snapshot');
   const latestRehearsal = auditEvents.find((event) => event.event_type === 'operations.production_rehearsal_snapshot');
+  const latestDryRun = roleDryRunSessions[0] ?? null;
+  const latestBrowserQa = browserQaSessions[0] ?? null;
   const latestTraining = staffTrainingSessions[0] ?? null;
   const latestPolicyApproval = policyApprovalSessions[0] ?? null;
   const latestRestoreDrill = restoreDrillSessions[0] ?? null;
@@ -1589,6 +1591,22 @@ function goLivePacket(): GoLivePacket {
       detail: `${preflight.blocking_count} blocking integration item(s), ${preflight.staged_count} staged.`,
       route: '/integrations',
       captured_at: null,
+    },
+    {
+      key: 'role_dry_run_session',
+      label: 'Role dry-run session',
+      status: latestDryRun?.status === 'completed' && latestDryRun.pending_count === 0 && latestDryRun.blocked_count === 0 ? 'ready' as const : latestDryRun?.blocked_count ? 'blocking' as const : latestDryRun ? 'warning' as const : 'missing' as const,
+      detail: latestDryRun ? `${latestDryRun.complete_count} complete, ${latestDryRun.blocked_count} blocked, ${latestDryRun.pending_count} pending role dry-run item(s).` : 'Start and complete a role dry-run session with staff evidence notes.',
+      route: '/operations',
+      captured_at: latestDryRun?.updated_at ?? null,
+    },
+    {
+      key: 'browser_qa_session',
+      label: 'Browser QA session',
+      status: latestBrowserQa?.status === 'completed' && latestBrowserQa.pending_count === 0 && latestBrowserQa.failed_count === 0 ? 'ready' as const : latestBrowserQa?.failed_count ? 'blocking' as const : latestBrowserQa ? 'warning' as const : 'missing' as const,
+      detail: latestBrowserQa ? `${latestBrowserQa.passed_count} passed, ${latestBrowserQa.failed_count} failed, ${latestBrowserQa.pending_count} pending browser QA item(s).` : 'Complete a browser QA session for major staff workflows.',
+      route: '/operations',
+      captured_at: latestBrowserQa?.updated_at ?? null,
     },
     {
       key: 'staff_training_session',
