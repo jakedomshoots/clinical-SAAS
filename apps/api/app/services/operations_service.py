@@ -373,6 +373,76 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
+    closeout = await _rehearsal_closeout_status(db, user)
+    workplan = await launch_workplan(db, user)
+    preflight = await integration_config_service.credential_preflight(db, user)
+    roles = [
+        _role_checklist(
+            "front_desk",
+            "Front desk",
+            "Own arrivals, checkout handoff, scheduling, portal intake, and patient communication routing.",
+            [
+                _checklist_item("today_queue", "Review today's queue", "Confirm scheduled, checked-in, in-progress, and blocked patients from Command Center.", "/", "ready"),
+                _checklist_item("checkout_handoff", "Complete checkout handoff", "Open a patient chart and complete checkout tasks before the patient leaves.", "/patients", "ready"),
+                _checklist_item("schedule_followup", "Schedule follow-up", "Create or adjust a follow-up appointment after checkout.", "/scheduling", "ready"),
+                _checklist_item("portal_intake", "Process portal intake", "Apply intake updates, convert document uploads, or reject invalid submissions.", "/portal-intake", "ready"),
+            ],
+        ),
+        _role_checklist(
+            "ma_nurse",
+            "MA / nurse",
+            "Reconcile clinical intake, outside documents, medication review, labs, and care-plan blockers.",
+            [
+                _checklist_item("outside_documents", "Review outside documents", "File, reconcile, or escalate outside records from the patient chart.", "/patients", "attention" if closeout["documents"] else "ready"),
+                _checklist_item("med_reconciliation", "Reconcile medications", "Confirm review or held medication items during rooming/check-out.", "/patients", "ready"),
+                _checklist_item("lab_review", "Review labs", "Confirm new or needs-review lab results and route blockers to provider.", "/patients", "ready"),
+                _checklist_item("care_plan", "Work care plan", "Update nursing-owned care-plan items and escalate blocked items.", "/patients", "ready"),
+            ],
+        ),
+        _role_checklist(
+            "provider",
+            "Provider",
+            "Resolve clinical flags, documents, labs, medications, encounters, and provider-owned checkout work.",
+            [
+                _checklist_item("clinical_flags", "Review chart blockers", "Open a patient chart and resolve clinical flags before checkout.", "/patients", "ready"),
+                _checklist_item("sign_encounter", "Sign encounter", "Complete draft or provider-review encounters for downstream billing.", "/patients", "attention" if closeout["unsigned"] else "ready"),
+                _checklist_item("orders_tasks", "Create follow-up tasks", "Create clinical follow-up tasks for calls, orders, and outside records.", "/tasks", "ready"),
+                _checklist_item("assistant_review", "Review assistant actions", "Confirm or reject staged assistant actions before they affect workflows.", "/assistant-review", "ready"),
+            ],
+        ),
+        _role_checklist(
+            "billing",
+            "Billing",
+            "Run charge capture, claim readiness, eligibility, denial rework, and remittance review.",
+            [
+                _checklist_item("charge_review", "Review charges", "Convert signed encounters into billing cases and clear coding gaps.", "/billing", "ready"),
+                _checklist_item("claim_readiness", "Submit ready claim", "Run claim readiness and submit only cases with eligibility and coding complete.", "/billing", "ready"),
+                _checklist_item("denial_rework", "Rework denial", "Move a denied case through rework and resubmission.", "/billing", "ready"),
+                _checklist_item("remittance", "Record payment", "Record payment or remittance placeholder and confirm timeline/audit visibility.", "/billing", "ready"),
+            ],
+        ),
+        _role_checklist(
+            "manager",
+            "Manager",
+            "Own readiness evidence, launch blockers, integrations, access review, audit export, and go-live sign-off.",
+            [
+                _checklist_item("go_live_packet", "Review go-live packet", "Review evidence, blockers, and latest manager attestation.", "/operations", "attention" if workplan["blocking_count"] else "ready"),
+                _checklist_item("credential_preflight", "Review credential preflight", "Confirm each integration has credentials, connection tests, and sandbox evidence.", "/integrations", "attention" if preflight["blocking_count"] else "ready"),
+                _checklist_item("access_review", "Review staff access", "Review role assignments, MFA gaps, stale access reviews, and inactive accounts.", "/staff", "ready"),
+                _checklist_item("audit_export", "Export audit evidence", "Export audit events for sensitive workflow activity and launch packet support.", "/operations", "ready"),
+            ],
+        ),
+    ]
+    return {
+        "generated_at": datetime.now(UTC),
+        "roles": roles,
+        "total_roles": len(roles),
+        "ready_roles": sum(1 for role in roles if role["status"] == "ready"),
+        "attention_roles": sum(1 for role in roles if role["status"] == "attention"),
+    }
+
+
 async def attest_go_live_packet(db: AsyncSession, user: User, data: dict) -> dict:
     packet = await go_live_packet(db, user)
     payload = {
@@ -544,6 +614,10 @@ async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
     return {
         "status": "clear" if blockers == 0 else "attention",
         "score": max(0, 100 - blockers * 10),
+        "urgent_tasks": urgent_tasks,
+        "documents": documents,
+        "unsigned": unsigned,
+        "failed_integrations": failed_integrations,
         "detail": f"{urgent_tasks} urgent task(s), {documents} document(s), {unsigned} unsigned encounter(s), {failed_integrations} failed integration event(s).",
     }
 
@@ -604,6 +678,30 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
         "detail": detail,
         "route": route,
         "captured_at": captured_at,
+    }
+
+
+def _checklist_item(key: str, label: str, detail: str, route: str, status: str) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "detail": detail,
+        "route": route,
+        "status": status,
+    }
+
+
+def _role_checklist(key: str, label: str, summary: str, items: list[dict]) -> dict:
+    attention = sum(1 for item in items if item["status"] != "ready")
+    return {
+        "key": key,
+        "label": label,
+        "summary": summary,
+        "status": "attention" if attention else "ready",
+        "ready_count": sum(1 for item in items if item["status"] == "ready"),
+        "attention_count": attention,
+        "total": len(items),
+        "items": items,
     }
 
 

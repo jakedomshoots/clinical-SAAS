@@ -208,6 +208,33 @@ export interface GoLivePacket {
   latest_attestation: GoLiveAttestation | null;
 }
 
+export interface RoleDryRunChecklistItem {
+  key: string;
+  label: string;
+  detail: string;
+  route: string;
+  status: 'ready' | 'attention';
+}
+
+export interface RoleDryRunChecklist {
+  key: string;
+  label: string;
+  summary: string;
+  status: 'ready' | 'attention';
+  ready_count: number;
+  attention_count: number;
+  total: number;
+  items: RoleDryRunChecklistItem[];
+}
+
+export interface RoleDryRunChecklistList {
+  generated_at: string;
+  roles: RoleDryRunChecklist[];
+  total_roles: number;
+  ready_roles: number;
+  attention_roles: number;
+}
+
 export interface ProductionRehearsalSnapshot {
   id: string;
   created_at: string;

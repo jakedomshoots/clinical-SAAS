@@ -62,5 +62,6 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `/api/operations/production-rehearsal` has been reviewed, saved as rehearsal evidence, exported for the launch packet, and every blocking gate has an assigned owner, status, due date, and launch note before the rehearsal starts.
 - `/api/operations/launch-workplan` has no unassigned blocking launch items before the rehearsal starts, and a saved/exported workplan snapshot is included in the launch packet.
 - `/api/operations/go-live-packet` has been reviewed by the manager/clinic owner as the final launch packet summary, and an audit-backed approval or needs-changes attestation has been recorded.
+- `/api/operations/role-dry-run-checklists` has been reviewed with front desk, MA/nurse, provider, billing, and manager staff.
 - Daily-use workflow in `docs/operations/daily-use-readiness.md` is reviewed with front desk, MA/nurse, provider, and manager roles.
 - PHI retention and incident response policies are approved.

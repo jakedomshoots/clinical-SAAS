@@ -24,6 +24,7 @@ from app.schemas.operations import (
     ReadinessSnapshotOut,
     RehearsalActionAssignmentOut,
     RehearsalActionAssignmentUpdate,
+    RoleDryRunChecklistListOut,
 )
 from app.services import operations_service
 
@@ -56,6 +57,13 @@ async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
 async def get_go_live_packet(db: DbDep, current_user: OpsUserDep):
     return GoLivePacketOut(
         **await operations_service.go_live_packet(db, current_user)
+    )
+
+
+@router.get("/role-dry-run-checklists", response_model=RoleDryRunChecklistListOut)
+async def get_role_dry_run_checklists(db: DbDep, current_user: OpsUserDep):
+    return RoleDryRunChecklistListOut(
+        **await operations_service.role_dry_run_checklists(db, current_user)
     )
 
 

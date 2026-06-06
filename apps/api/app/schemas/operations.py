@@ -180,6 +180,33 @@ class GoLivePacketOut(BaseModel):
     latest_attestation: GoLiveAttestationOut | None = None
 
 
+class RoleDryRunChecklistItemOut(BaseModel):
+    key: str
+    label: str
+    detail: str
+    route: str
+    status: str
+
+
+class RoleDryRunChecklistOut(BaseModel):
+    key: str
+    label: str
+    summary: str
+    status: str
+    ready_count: int
+    attention_count: int
+    total: int
+    items: list[RoleDryRunChecklistItemOut]
+
+
+class RoleDryRunChecklistListOut(BaseModel):
+    generated_at: datetime
+    roles: list[RoleDryRunChecklistOut]
+    total_roles: int
+    ready_roles: int
+    attention_roles: int
+
+
 class ProductionRehearsalSnapshotOut(BaseModel):
     id: str
     created_at: datetime

@@ -571,6 +571,22 @@ async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_role_dry_run_checklists_cover_clinic_workflows(client, auth_headers):
+    response = await client.get("/api/operations/role-dry-run-checklists", headers=auth_headers)
+
+    assert response.status_code == 200
+    data = response.json()
+    role_keys = {role["key"] for role in data["roles"]}
+    assert {"front_desk", "ma_nurse", "provider", "billing", "manager"} <= role_keys
+    assert data["total_roles"] == len(data["roles"])
+    assert data["ready_roles"] + data["attention_roles"] == data["total_roles"]
+    for role in data["roles"]:
+        assert role["items"]
+        assert role["ready_count"] + role["attention_count"] == role["total"]
+        assert all(item["route"] for item in role["items"])
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200

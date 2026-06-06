@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RoleDryRunChecklistList, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -126,6 +126,10 @@ function OperationsPage() {
   const { data: goLivePacket } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'],
     queryFn: () => api.get<GoLivePacket>(ROUTES.OPERATIONS_GO_LIVE_PACKET),
+  });
+  const { data: roleChecklists } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'role-dry-run-checklists'],
+    queryFn: () => api.get<RoleDryRunChecklistList>(ROUTES.OPERATIONS_ROLE_DRY_RUN_CHECKLISTS),
   });
   const { data: workplan } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'],
@@ -367,6 +371,45 @@ function OperationsPage() {
                 )}
               </div>
             </aside>
+          </div>
+        </section>
+      )}
+
+      {roleChecklists && (
+        <section className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Role Dry-Run Checklists</h2>
+              <p className="text-xs text-clinic-500">{roleChecklists.total_roles} role(s) · {new Date(roleChecklists.generated_at).toLocaleString()}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{roleChecklists.ready_roles} ready</span>
+              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{roleChecklists.attention_roles} attention</span>
+            </div>
+          </div>
+          <div className="grid gap-3 p-4 xl:grid-cols-5">
+            {roleChecklists.roles.map((role) => (
+              <div key={role.key} className="rounded-md border border-clinic-200 bg-clinic-50">
+                <div className="border-b border-clinic-200 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold text-clinic-900">{role.label}</h3>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${role.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{role.ready_count}/{role.total}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-clinic-500">{role.summary}</p>
+                </div>
+                <div className="divide-y divide-clinic-100">
+                  {role.items.map((item) => (
+                    <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-white">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-clinic-800">{item.label}</span>
+                        <span className={`h-2 w-2 rounded-full ${item.status === 'ready' ? 'bg-accent-500' : 'bg-amber-500'}`} />
+                      </div>
+                      <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

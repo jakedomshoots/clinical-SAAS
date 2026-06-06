@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -533,6 +533,69 @@ function createGoLiveAttestation(data: GoLiveAttestationCreate): GoLiveAttestati
   });
   saveDemoData();
   return attestation;
+}
+
+function demoChecklistItem(key: string, label: string, detail: string, route: string, status: RoleDryRunChecklistItem['status'] = 'ready'): RoleDryRunChecklistItem {
+  return { key, label, detail, route, status };
+}
+
+function demoRoleChecklist(key: string, label: string, summary: string, items: RoleDryRunChecklistItem[]): RoleDryRunChecklist {
+  const attention = items.filter((item) => item.status !== 'ready').length;
+  return {
+    key,
+    label,
+    summary,
+    status: attention ? 'attention' : 'ready',
+    ready_count: items.length - attention,
+    attention_count: attention,
+    total: items.length,
+    items,
+  };
+}
+
+function roleDryRunChecklists(): RoleDryRunChecklistList {
+  const closeout = dailyCloseout();
+  const workplan = launchWorkplan();
+  const preflight = demoCredentialPreflight();
+  const roles = [
+    demoRoleChecklist('front_desk', 'Front desk', 'Own arrivals, checkout handoff, scheduling, portal intake, and communication routing.', [
+      demoChecklistItem('today_queue', "Review today's queue", 'Confirm scheduled, checked-in, in-progress, and blocked patients from Command Center.', '/'),
+      demoChecklistItem('checkout_handoff', 'Complete checkout handoff', 'Open a patient chart and complete checkout tasks before the patient leaves.', '/patients'),
+      demoChecklistItem('schedule_followup', 'Schedule follow-up', 'Create or adjust a follow-up appointment after checkout.', '/scheduling'),
+      demoChecklistItem('portal_intake', 'Process portal intake', 'Apply intake updates, convert document uploads, or reject invalid submissions.', '/portal-intake'),
+    ]),
+    demoRoleChecklist('ma_nurse', 'MA / nurse', 'Reconcile clinical intake, documents, medications, labs, and care-plan blockers.', [
+      demoChecklistItem('outside_documents', 'Review outside documents', 'File, reconcile, or escalate outside records from the patient chart.', '/patients', closeout.totals.documents_needing_review ? 'attention' : 'ready'),
+      demoChecklistItem('med_reconciliation', 'Reconcile medications', 'Confirm review or held medication items during rooming/check-out.', '/patients'),
+      demoChecklistItem('lab_review', 'Review labs', 'Confirm new or needs-review lab results and route blockers to provider.', '/patients'),
+      demoChecklistItem('care_plan', 'Work care plan', 'Update nursing-owned care-plan items and escalate blocked items.', '/patients'),
+    ]),
+    demoRoleChecklist('provider', 'Provider', 'Resolve clinical flags, documents, labs, medications, encounters, and provider-owned checkout work.', [
+      demoChecklistItem('clinical_flags', 'Review chart blockers', 'Open a patient chart and resolve clinical flags before checkout.', '/patients'),
+      demoChecklistItem('sign_encounter', 'Sign encounter', 'Complete draft or provider-review encounters for downstream billing.', '/patients', closeout.totals.unsigned_encounters ? 'attention' : 'ready'),
+      demoChecklistItem('orders_tasks', 'Create follow-up tasks', 'Create clinical follow-up tasks for calls, orders, and outside records.', '/tasks'),
+      demoChecklistItem('assistant_review', 'Review assistant actions', 'Confirm or reject staged assistant actions before they affect workflows.', '/assistant-review'),
+    ]),
+    demoRoleChecklist('billing', 'Billing', 'Run charge capture, claim readiness, eligibility, denial rework, and remittance review.', [
+      demoChecklistItem('charge_review', 'Review charges', 'Convert signed encounters into billing cases and clear coding gaps.', '/billing'),
+      demoChecklistItem('claim_readiness', 'Submit ready claim', 'Run claim readiness and submit only cases with eligibility and coding complete.', '/billing'),
+      demoChecklistItem('denial_rework', 'Rework denial', 'Move a denied case through rework and resubmission.', '/billing'),
+      demoChecklistItem('remittance', 'Record payment', 'Record payment or remittance placeholder and confirm timeline/audit visibility.', '/billing'),
+    ]),
+    demoRoleChecklist('manager', 'Manager', 'Own readiness evidence, launch blockers, integrations, access review, audit export, and go-live sign-off.', [
+      demoChecklistItem('go_live_packet', 'Review go-live packet', 'Review evidence, blockers, and latest manager attestation.', '/operations', workplan.blocking_count ? 'attention' : 'ready'),
+      demoChecklistItem('credential_preflight', 'Review credential preflight', 'Confirm each integration has credentials, connection tests, and sandbox evidence.', '/integrations', preflight.blocking_count ? 'attention' : 'ready'),
+      demoChecklistItem('access_review', 'Review staff access', 'Review role assignments, MFA gaps, stale access reviews, and inactive accounts.', '/staff'),
+      demoChecklistItem('audit_export', 'Export audit evidence', 'Export audit events for sensitive workflow activity and launch packet support.', '/operations'),
+    ]),
+  ];
+  return {
+    generated_at: new Date().toISOString(),
+    roles,
+    total_roles: roles.length,
+    ready_roles: roles.filter((role) => role.status === 'ready').length,
+    attention_roles: roles.filter((role) => role.status === 'attention').length,
+  };
 }
 
 function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
@@ -1325,6 +1388,9 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/go-live-packet/attestations' && method === 'GET') {
     return { data: goLiveAttestations, total: goLiveAttestations.length } satisfies GoLiveAttestationList as T;
+  }
+  if (path === '/operations/role-dry-run-checklists' && method === 'GET') {
+    return roleDryRunChecklists() as T;
   }
   if (path === '/operations/launch-workplan' && method === 'GET') {
     return launchWorkplan() as T;
