@@ -75,3 +75,4 @@ Concierge OS currently exposes vendor-neutral integration boundaries. Live use r
 - Run each connection test and resolve any failed result before go-live.
 - Record sandbox workflow evidence for the listed workflows in the Integration Setup screen.
 - Passing evidence must include a short note or vendor sandbox reference URL/ticket link; empty pass records are rejected.
+- Failed sandbox evidence blocks credential preflight until the vendor issue is resolved and a new passing evidence record is captured.

@@ -269,6 +269,36 @@ async def test_passed_sandbox_evidence_requires_note_or_reference(
 
 
 @pytest.mark.asyncio
+async def test_failed_sandbox_evidence_blocks_credential_preflight(
+    client: AsyncClient,
+    auth_headers,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    await client.patch(
+        "/api/integrations/config/fax",
+        json={"values": {"FAX_PROVIDER_API_KEY": "fax-secret-1234"}},
+        headers=auth_headers,
+    )
+    evidence = await client.post(
+        "/api/integrations/config/fax/sandbox-evidence",
+        json={
+            "test_label": "Send a sandbox outbound fax",
+            "status": "failed",
+            "notes": "Vendor sandbox rejected the outbound fax fixture.",
+        },
+        headers=auth_headers,
+    )
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+
+    assert evidence.status_code == 201
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+    assert fax["status"] == "blocked"
+    assert fax["steps"][2]["status"] == "blocked"
+    assert any("failed sandbox" in blocker.lower() for blocker in fax["blockers"])
+
+
+@pytest.mark.asyncio
 async def test_provider_cannot_manage_integration_config(
     client: AsyncClient,
     db: AsyncSession,

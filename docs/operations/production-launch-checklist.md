@@ -30,6 +30,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `COMMUNICATIONS_PROVIDER` and `COMMUNICATIONS_PROVIDER_API_KEY` are set for the chosen SMS/email/portal vendor.
 - Clearinghouse claim submission, denial, payment, and remittance/ERA callbacks are vendor-tested against the billing work queue.
 - `/api/integrations/credential-preflight` has no missing or blocked integration items, and every sandbox workflow has recorded passing evidence with notes or a vendor reference; empty pass records are rejected.
+- Failed sandbox evidence is resolved with a new passing evidence record before live-use rehearsal.
 - `CALENDAR_API_BASE_URL` is set and appointment sync is vendor-tested.
 - `COPILOTKIT_RUNTIME_URL` is set and the runtime is reachable.
 - `/api/ready.operational_status` returns `ok`.

@@ -379,6 +379,9 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     passed_evidence_count = sum(
         1 for item in sandbox_evidence if item["status"] == "passed"
     )
+    failed_evidence = [
+        item for item in sandbox_evidence if item["status"] == "failed"
+    ]
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
@@ -387,6 +390,8 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         status = "ready"
     elif missing_fields:
         status = "missing"
+    elif failed_evidence:
+        status = "blocked"
     elif last_test_status == "failed":
         status = "blocked"
     else:
@@ -395,7 +400,11 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     if missing_fields:
         blockers.append(f"Missing required values: {', '.join(missing_fields)}")
     if status == "blocked":
-        blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
+        if failed_evidence:
+            failed_labels = ", ".join(item["test_label"] for item in failed_evidence)
+            blockers.append(f"Failed sandbox workflow evidence requires vendor review: {failed_labels}.")
+        if last_test_status == "failed":
+            blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
     if status == "staged":
         blockers.append("Credentials are staged, but sandbox evidence is still pending.")
     if not missing_fields and not sandbox_complete:
@@ -432,10 +441,12 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         {
             "key": "sandbox_workflows",
             "label": "Sandbox workflow evidence",
-            "status": "ready" if sandbox_complete else "pending",
+            "status": "ready" if sandbox_complete else "blocked" if failed_evidence else "pending",
             "detail": (
                 "All sandbox workflow checks have recorded passing evidence."
                 if sandbox_complete
+                else f"{len(failed_evidence)} sandbox workflow check(s) failed and need vendor review."
+                if failed_evidence
                 else f"{passed_evidence_count} of {len(sandbox_evidence)} sandbox checks have passing evidence with notes or reference."
             ),
         },

@@ -2478,8 +2478,9 @@ function demoCredentialPreflight() {
       }
     ));
     const passedEvidenceCount = sandboxEvidence.filter((item) => item.status === 'passed').length;
+    const failedEvidence = sandboxEvidence.filter((item) => item.status === 'failed');
     const sandboxComplete = sandboxEvidence.length > 0 && passedEvidenceCount === sandboxEvidence.length;
-    const status = config.healthy && sandboxComplete ? 'ready' : missingFields.length ? 'missing' : config.last_test_status === 'failed' ? 'blocked' : 'staged';
+    const status = config.healthy && sandboxComplete ? 'ready' : missingFields.length ? 'missing' : failedEvidence.length || config.last_test_status === 'failed' ? 'blocked' : 'staged';
     return {
       key: config.key,
       label: config.label,
@@ -2494,6 +2495,8 @@ function demoCredentialPreflight() {
       sandbox_evidence: sandboxEvidence,
       blockers: missingFields.length
         ? [`Missing required values: ${missingFields.join(', ')}`]
+        : failedEvidence.length
+        ? [`Failed sandbox workflow evidence requires vendor review: ${failedEvidence.map((item) => item.test_label).join(', ')}.`]
         : status === 'blocked'
         ? ['Latest connection test failed; vendor adapter or credentials need review.']
         : status === 'staged'
@@ -2515,8 +2518,8 @@ function demoCredentialPreflight() {
         {
           key: 'sandbox_workflows',
           label: 'Sandbox workflow evidence',
-          status: sandboxComplete ? 'ready' : 'pending',
-          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
+          status: sandboxComplete ? 'ready' : failedEvidence.length ? 'blocked' : 'pending',
+          detail: sandboxComplete ? 'All sandbox workflow checks have recorded passing evidence.' : failedEvidence.length ? `${failedEvidence.length} sandbox workflow check(s) failed and need vendor review.` : `${passedEvidenceCount} of ${sandboxEvidence.length} sandbox checks have passing evidence with notes or reference.`,
         },
       ],
       docs: config.docs,

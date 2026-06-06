@@ -124,7 +124,7 @@ An internal clinic pilot is ready when:
 ## Recommended Next Build Items For Production
 
 - Vendor-backed EHR, fax, portal, calendar, communications, clearinghouse, and object-storage adapters.
-- Completed credential preflight with vendor sandbox evidence for each live adapter; passed evidence includes notes or a vendor reference.
+- Completed credential preflight with vendor sandbox evidence for each live adapter; passed evidence includes notes or a vendor reference, and failed sandbox evidence is resolved before rehearsal.
 - Production validation of signed document upload and download URLs.
 - Production MFA and identity-provider integration.
 - Real remittance/ERA import and claim reconciliation.
