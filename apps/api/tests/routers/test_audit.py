@@ -250,12 +250,20 @@ async def test_patient_chart_reads_feed_access_history_and_review_summary(
     profile = await client.get(f"/api/patients/{patient_id}", headers=auth_headers)
     chart = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
     medications = await client.get(f"/api/patients/{patient_id}/medications", headers=auth_headers)
+    care_plan = await client.get(f"/api/patients/{patient_id}/care-plan", headers=auth_headers)
+    labs = await client.get(f"/api/patients/{patient_id}/labs", headers=auth_headers)
+    encounters = await client.get(f"/api/patients/{patient_id}/encounters", headers=auth_headers)
+    checkout = await client.get(f"/api/patients/{patient_id}/checkout-handoff", headers=auth_headers)
     history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
     review = await client.get("/api/audit/review-summary", headers=auth_headers)
 
     assert profile.status_code == 200
     assert chart.status_code == 200
     assert medications.status_code == 200
+    assert care_plan.status_code == 200
+    assert labs.status_code == 200
+    assert encounters.status_code == 200
+    assert checkout.status_code == 200
 
     assert history.status_code == 200
     event_types = {event["event_type"] for event in history.json()["data"]}
@@ -263,10 +271,14 @@ async def test_patient_chart_reads_feed_access_history_and_review_summary(
         "patient.profile_viewed",
         "patient_chart.viewed",
         "patient_clinical.medications_viewed",
+        "patient_clinical.care_plan_viewed",
+        "patient_clinical.labs_viewed",
+        "patient_clinical.encounters_viewed",
+        "patient_checkout_handoff.viewed",
     } <= event_types
 
     categories = {item["key"]: item for item in review.json()["categories"]}
-    assert categories["patient_chart_access"]["count"] >= 3
+    assert categories["patient_chart_access"]["count"] >= 7
 
 
 @pytest.mark.asyncio

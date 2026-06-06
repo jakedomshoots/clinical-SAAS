@@ -53,6 +53,17 @@ async def get_checkout_handoff(
     ).scalar_one_or_none()
     if not patient:
         return None
+    await log_event(
+        db,
+        "patient_checkout_handoff.viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "checkout_handoff",
+        },
+    )
     chart_summary = await get_patient_chart_summary(db, user, patient_id)
     if not chart_summary:
         return None

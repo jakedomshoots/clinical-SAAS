@@ -97,6 +97,17 @@ async def update_medication(db: AsyncSession, user: User, patient_id: str, medic
 async def list_care_plan(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
     if not await _patient_exists(db, user, patient_id):
         return None
+    await log_event(
+        db,
+        "patient_clinical.care_plan_viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "care_plan",
+        },
+    )
     rows = (
         await db.execute(
             select(PatientCarePlanItem)
@@ -177,6 +188,17 @@ async def _user_exists(db: AsyncSession, user: User, user_id: str) -> bool:
 async def list_labs(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
     if not await _patient_exists(db, user, patient_id):
         return None
+    await log_event(
+        db,
+        "patient_clinical.labs_viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "labs",
+        },
+    )
     rows = (
         await db.execute(
             select(PatientLabResult)
@@ -231,6 +253,17 @@ async def update_lab(db: AsyncSession, user: User, patient_id: str, lab_id: str,
 async def list_encounters(db: AsyncSession, user: User, patient_id: str) -> tuple[list[dict], int] | None:
     if not await _patient_exists(db, user, patient_id):
         return None
+    await log_event(
+        db,
+        "patient_clinical.encounters_viewed",
+        "patient",
+        patient_id,
+        actor_id=user.id,
+        payload={
+            "patient_id": patient_id,
+            "surface": "encounters",
+        },
+    )
     rows = (
         await db.execute(
             select(PatientEncounter)
