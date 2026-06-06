@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
-import type { Patient } from '@concierge-os/shared';
-import { Search, Plus, X } from 'lucide-react';
+import { ROUTES, type Patient, type PatientDocument, type PatientDocumentQueueItem, type PatientDocumentQueueResponse } from '@concierge-os/shared';
+import { Check, FolderOpen, Search, Plus, X } from 'lucide-react';
 
 interface PatientListResponse {
   data: Patient[];
@@ -13,6 +13,14 @@ interface PatientListResponse {
   page: number;
   page_size: number;
 }
+
+type DocumentQueueFormState = {
+  status: PatientDocument['status'];
+  routed_to_role: string;
+  review_priority: string;
+  reviewed_by: string;
+  review_note: string;
+};
 
 export const Route = createFileRoute('/patients/')({
   component: PatientListPage,
@@ -24,6 +32,8 @@ function PatientListPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [documentFilters, setDocumentFilters] = useState({ status: 'needs_review', routed_to_role: '', review_priority: '' });
+  const [documentQueueForms, setDocumentQueueForms] = useState<Record<string, DocumentQueueFormState>>({});
   const [showNewPatient, setShowNewPatient] = useState(false);
   const [newPatient, setNewPatient] = useState({
     first_name: '',
@@ -49,6 +59,21 @@ function PatientListPage() {
     queryKey: [...QUERY_KEYS.PATIENTS, search, page],
     queryFn: () => api.get<PatientListResponse>(`/patients?search=${encodeURIComponent(search)}&page=${page}&page_size=20`),
   });
+  const { data: documentQueue, isLoading: documentsLoading, isError: documentsError } = useQuery({
+    queryKey: [
+      ...QUERY_KEYS.PATIENT_DOCUMENTS('review-queue-workbench'),
+      documentFilters.status,
+      documentFilters.routed_to_role,
+      documentFilters.review_priority,
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams({ page: '1', page_size: '12' });
+      if (documentFilters.status) params.set('status', documentFilters.status);
+      if (documentFilters.routed_to_role) params.set('routed_to_role', documentFilters.routed_to_role);
+      if (documentFilters.review_priority) params.set('review_priority', documentFilters.review_priority);
+      return api.get<PatientDocumentQueueResponse>(`${ROUTES.PATIENT_DOCUMENT_REVIEW_QUEUE}?${params.toString()}`);
+    },
+  });
 
   const createMutation = useMutation({
     mutationFn: () => api.post<Patient>('/patients', newPatient),
@@ -59,9 +84,45 @@ function PatientListPage() {
       navigate({ to: '/patients/$patientId', params: { patientId: patient.id } });
     },
   });
+  const updateDocumentMutation = useMutation({
+    mutationFn: ({ document, data }: { document: PatientDocumentQueueItem; data: Partial<PatientDocument> }) =>
+      api.patch<PatientDocument>(ROUTES.PATIENT_DOCUMENT(document.patient_id, document.id), data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue-workbench') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PATIENT_DOCUMENTS('review-queue') });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const formForDocument = (document: PatientDocumentQueueItem): DocumentQueueFormState => documentQueueForms[document.id] ?? {
+    status: document.status,
+    routed_to_role: document.routed_to_role ?? '',
+    review_priority: document.review_priority ?? 'normal',
+    reviewed_by: document.reviewed_by ?? '',
+    review_note: document.review_note ?? '',
+  };
+  const updateDocumentForm = (document: PatientDocumentQueueItem, patch: Partial<DocumentQueueFormState>) => {
+    setDocumentQueueForms((current) => ({
+      ...current,
+      [document.id]: { ...formForDocument(document), ...patch },
+    }));
+  };
+  const submitDocument = (document: PatientDocumentQueueItem, statusOverride?: PatientDocument['status']) => {
+    const form = formForDocument(document);
+    updateDocumentMutation.mutate({
+      document,
+      data: {
+        status: statusOverride ?? form.status,
+        routed_to_role: form.routed_to_role.trim() || null,
+        review_priority: form.review_priority || 'normal',
+        reviewed_by: form.reviewed_by.trim() || null,
+        review_note: form.review_note.trim() || null,
+      },
+    });
+  };
+  const documentRows = documentQueue?.data ?? [];
 
   return (
-    <div>
+    <div className="space-y-5">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-clinic-800">Patients</h1>
         <button onClick={() => setShowNewPatient(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
@@ -69,6 +130,150 @@ function PatientListPage() {
           New Patient
         </button>
       </div>
+
+      <section className="rounded-md border border-clinic-200 bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
+              <FolderOpen className="h-4 w-4 text-accent-700" />
+              Document Intake Workbench
+            </h2>
+            <p className="text-xs text-clinic-500">{documentQueue?.total ?? 0} outside record(s) match the current filters</p>
+          </div>
+          <div className="grid w-full gap-2 md:w-auto md:grid-cols-3">
+            <select
+              value={documentFilters.status}
+              onChange={(event) => setDocumentFilters((current) => ({ ...current, status: event.target.value }))}
+              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+            >
+              <option value="needs_review">Needs review</option>
+              <option value="received">Received</option>
+              <option value="filed">Filed</option>
+              <option value="reconciled">Reconciled</option>
+              <option value="rejected">Rejected</option>
+              <option value="">All statuses</option>
+            </select>
+            <select
+              value={documentFilters.routed_to_role}
+              onChange={(event) => setDocumentFilters((current) => ({ ...current, routed_to_role: event.target.value }))}
+              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+            >
+              <option value="">All roles</option>
+              <option value="front_desk">Front desk</option>
+              <option value="ma_nurse">MA/nurse</option>
+              <option value="provider">Provider</option>
+              <option value="care_coordinator">Care coordinator</option>
+              <option value="billing">Billing</option>
+            </select>
+            <select
+              value={documentFilters.review_priority}
+              onChange={(event) => setDocumentFilters((current) => ({ ...current, review_priority: event.target.value }))}
+              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+            >
+              <option value="">All priorities</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+            </select>
+          </div>
+        </div>
+        <div className="divide-y divide-clinic-100">
+          {documentsLoading && <div className="px-4 py-6 text-sm text-clinic-500">Loading document queue...</div>}
+          {documentsError && <div className="px-4 py-6 text-sm text-red-700">Unable to load document queue.</div>}
+          {!documentsLoading && !documentsError && documentRows.length === 0 && (
+            <div className="px-4 py-6 text-sm text-clinic-500">No outside documents match these filters.</div>
+          )}
+          {!documentsLoading && !documentsError && documentRows.map((document) => {
+            const form = formForDocument(document);
+            return (
+              <div key={document.id} className="grid gap-3 px-4 py-3 xl:grid-cols-[minmax(0,1fr)_32rem]">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate({ to: '/patients/$patientId', params: { patientId: document.patient_id } })}
+                      className="text-left text-sm font-semibold text-clinic-900 hover:text-accent-700"
+                    >
+                      {document.title}
+                    </button>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${document.review_priority === 'urgent' ? 'border-red-200 bg-red-50 text-red-700' : document.review_priority === 'high' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>
+                      {document.review_priority}
+                    </span>
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-[11px] font-medium text-clinic-600">{document.status.replace('_', ' ')}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-clinic-500">
+                    <span>{document.patient_name} · {document.patient_mrn}</span>
+                    <span>{document.source}</span>
+                    <span>{document.source_reference ?? 'No reference'}</span>
+                    <span>{document.routed_to_role ?? 'Unrouted'}</span>
+                    {document.source_contact && <span>{document.source_contact}</span>}
+                  </div>
+                  {document.summary && <div className="mt-1 text-xs text-clinic-600">{document.summary}</div>}
+                </div>
+                <div className="grid gap-2 md:grid-cols-[8.5rem_8.5rem_7.5rem_8rem_minmax(0,1fr)_9rem]">
+                  <select
+                    value={form.status}
+                    onChange={(event) => updateDocumentForm(document, { status: event.target.value as PatientDocument['status'] })}
+                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  >
+                    <option value="received">Received</option>
+                    <option value="needs_review">Needs review</option>
+                    <option value="filed">Filed</option>
+                    <option value="reconciled">Reconciled</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                  <input
+                    value={form.routed_to_role}
+                    onChange={(event) => updateDocumentForm(document, { routed_to_role: event.target.value })}
+                    placeholder="Route"
+                    className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  />
+                  <select
+                    value={form.review_priority}
+                    onChange={(event) => updateDocumentForm(document, { review_priority: event.target.value })}
+                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                  <input
+                    value={form.reviewed_by}
+                    onChange={(event) => updateDocumentForm(document, { reviewed_by: event.target.value })}
+                    placeholder="Reviewer"
+                    className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  />
+                  <input
+                    value={form.review_note}
+                    onChange={(event) => updateDocumentForm(document, { review_note: event.target.value })}
+                    placeholder="Review note"
+                    className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  />
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      type="button"
+                      onClick={() => submitDocument(document)}
+                      disabled={updateDocumentMutation.isPending}
+                      className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                    >
+                      Save
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitDocument(document, 'filed')}
+                      disabled={updateDocumentMutation.isPending}
+                      className="inline-flex items-center justify-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1.5 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-60"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      File
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-clinic-400" />

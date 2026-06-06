@@ -260,6 +260,14 @@ async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
         "review_priority": "high",
         "summary": "Outside note needs medication reconciliation.",
     }, headers=auth_headers)
+    await client.post(f"/api/patients/{patient_id}/documents", json={
+        "title": "Normal front desk packet",
+        "source": "Front Office",
+        "document_type": "Insurance",
+        "status": "needs_review",
+        "routed_to_role": "front_desk",
+        "review_priority": "normal",
+    }, headers=auth_headers)
     await client.post(f"/api/patients/{other_patient_id}/documents", json={
         "title": "Already filed note",
         "source": "Filed Office",
@@ -286,8 +294,8 @@ async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
 
     assert queue_res.status_code == 200
     queue = queue_res.json()
-    assert queue["total"] == 1
-    item = queue["data"][0]
+    assert queue["total"] == 2
+    item = next(entry for entry in queue["data"] if entry["title"] == "Incoming orthopedic note")
     assert item["title"] == "Incoming orthopedic note"
     assert item["patient_id"] == patient_id
     assert item["patient_name"] == "Queue Patient"
@@ -298,6 +306,15 @@ async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
     assert item["source_reference"] == "ORTHO-22"
     assert item["routed_to_role"] == "ma_nurse"
     assert item["review_priority"] == "high"
+
+    filtered_res = await client.get(
+        "/api/patients/documents/review-queue?status=needs_review&routed_to_role=ma_nurse&review_priority=high",
+        headers=auth_headers,
+    )
+    assert filtered_res.status_code == 200
+    filtered = filtered_res.json()
+    assert filtered["total"] == 1
+    assert filtered["data"][0]["title"] == "Incoming orthopedic note"
 
 
 @pytest.mark.asyncio
