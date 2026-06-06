@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, BillingCase, ClinicSettings, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, Message, MessageThread, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PortalIntakeSubmission, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, SandboxEvidence, Task, TodayQueue, User, UserAccessReviewSummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -504,7 +504,35 @@ function goLivePacket(): GoLivePacket {
     evidence_total: evidence.length,
     evidence,
     open_workplan_items: workplan.items.slice(0, 8),
+    latest_attestation: goLiveAttestations[0] ?? null,
   };
+}
+
+function createGoLiveAttestation(data: GoLiveAttestationCreate): GoLiveAttestation {
+  const packet = goLivePacket();
+  const attestation: GoLiveAttestation = {
+    id: uuid(1700 + goLiveAttestations.length),
+    created_at: new Date().toISOString(),
+    decision: data.decision,
+    note: data.note ?? null,
+    reviewer_id: demoUsers[0]?.id ?? null,
+    reviewer_name: demoUsers[0]?.display_name ?? 'Demo Admin',
+    packet_status: packet.status,
+    go_live_ready: packet.go_live_ready,
+    blocking_count: packet.blocking_count,
+    warning_count: packet.warning_count,
+    evidence_ready_count: packet.evidence_ready_count,
+    evidence_total: packet.evidence_total,
+  };
+  goLiveAttestations = [attestation, ...goLiveAttestations];
+  logDemoEvent({
+    event_type: 'operations.go_live_packet_attestation',
+    entity_type: 'operations',
+    entity_id: uuid(903),
+    payload: attestation as unknown as Record<string, unknown>,
+  });
+  saveDemoData();
+  return attestation;
 }
 
 function productionRehearsalSnapshotFromEvent(event: AuditEvent): ProductionRehearsalSnapshot {
@@ -601,6 +629,7 @@ interface DemoStore {
   integrationLastTests?: Record<string, { last_tested_at: string; last_test_status: string }>;
   integrationSandboxEvidence?: Record<string, Record<string, SandboxEvidence>>;
   rehearsalAssignments?: Record<string, RehearsalActionAssignment>;
+  goLiveAttestations?: GoLiveAttestation[];
 }
 
 interface IntegrationEvent {
@@ -651,6 +680,7 @@ let integrationDrafts: Record<string, Record<string, string>> = {};
 let integrationLastTests: Record<string, { last_tested_at: string; last_test_status: string }> = {};
 let integrationSandboxEvidence: Record<string, Record<string, SandboxEvidence>> = {};
 let rehearsalAssignments: Record<string, RehearsalActionAssignment> = {};
+let goLiveAttestations: GoLiveAttestation[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   { id: 'office_visit', name: 'Office Visit SOAP', encounter_type: 'office_visit', subjective: 'Chief concern:\nHistory of present illness:\nReview of systems:', objective: 'Vitals reviewed.\nExam:', assessment: 'Assessment:', plan: 'Plan:\nFollow-up:' },
   { id: 'annual_wellness', name: 'Annual Wellness', encounter_type: 'annual_wellness', subjective: 'Interval history:\nPreventive concerns:', objective: 'Vitals reviewed.\nScreenings reviewed:', assessment: 'Preventive care assessment:', plan: 'Preventive plan:\nOrders/referrals:' },
@@ -976,7 +1006,7 @@ function saveDemoData() {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(
     DEMO_STORAGE_KEY,
-    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments }),
+    JSON.stringify({ patients, tasks, appointments, faxes, patientDocuments, patientMedications, patientCarePlan, patientLabs, patientEncounters, messages, auditEvents, integrationEvents, providerAvailability, clinicSettings, billingCases, portalIntake, integrationDrafts, integrationLastTests, integrationSandboxEvidence, rehearsalAssignments, goLiveAttestations }),
   );
 }
 
@@ -1165,6 +1195,7 @@ if (storedDemoData) {
   integrationLastTests = storedDemoData.integrationLastTests ?? integrationLastTests;
   integrationSandboxEvidence = storedDemoData.integrationSandboxEvidence ?? integrationSandboxEvidence;
   rehearsalAssignments = storedDemoData.rehearsalAssignments ?? rehearsalAssignments;
+  goLiveAttestations = storedDemoData.goLiveAttestations ?? goLiveAttestations;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -1288,6 +1319,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   }
   if (path === '/operations/go-live-packet' && method === 'GET') {
     return goLivePacket() as T;
+  }
+  if (path === '/operations/go-live-packet/attestations' && method === 'POST') {
+    return createGoLiveAttestation((body ?? {}) as GoLiveAttestationCreate) as T;
+  }
+  if (path === '/operations/go-live-packet/attestations' && method === 'GET') {
+    return { data: goLiveAttestations, total: goLiveAttestations.length } satisfies GoLiveAttestationList as T;
   }
   if (path === '/operations/launch-workplan' && method === 'GET') {
     return launchWorkplan() as T;

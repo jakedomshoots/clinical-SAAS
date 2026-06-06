@@ -18,6 +18,7 @@ SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
 REHEARSAL_SNAPSHOT_EVENT_TYPE = "operations.production_rehearsal_snapshot"
 REHEARSAL_ASSIGNMENT_EVENT_TYPE = "operations.rehearsal_action_assignment"
 LAUNCH_WORKPLAN_SNAPSHOT_EVENT_TYPE = "operations.launch_workplan_snapshot"
+GO_LIVE_ATTESTATION_EVENT_TYPE = "operations.go_live_packet_attestation"
 
 
 async def incident_register(db: AsyncSession, user: User) -> dict:
@@ -296,6 +297,7 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     readiness_snapshots, _ = await list_readiness_snapshots(db, user)
     rehearsal_snapshots, _ = await list_rehearsal_snapshots(db, user)
     workplan_snapshots, _ = await list_launch_workplan_snapshots(db, user)
+    attestations, _ = await list_go_live_attestations(db, user)
     deployment = readiness.get("deployment", {})
 
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
@@ -367,7 +369,44 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
         "evidence_total": len(evidence),
         "evidence": evidence,
         "open_workplan_items": workplan["items"][:8],
+        "latest_attestation": attestations[0] if attestations else None,
     }
+
+
+async def attest_go_live_packet(db: AsyncSession, user: User, data: dict) -> dict:
+    packet = await go_live_packet(db, user)
+    payload = {
+        "decision": data["decision"],
+        "note": data.get("note"),
+        "reviewer_id": user.id,
+        "reviewer_name": user.display_name,
+        "packet_status": packet["status"],
+        "go_live_ready": packet["go_live_ready"],
+        "blocking_count": packet["blocking_count"],
+        "warning_count": packet["warning_count"],
+        "evidence_ready_count": packet["evidence_ready_count"],
+        "evidence_total": packet["evidence_total"],
+    }
+    event = await log_event(
+        db,
+        GO_LIVE_ATTESTATION_EVENT_TYPE,
+        "operations",
+        user.organization_id,
+        actor_id=user.id,
+        payload=payload,
+    )
+    return _go_live_attestation_from_audit(event)
+
+
+async def list_go_live_attestations(db: AsyncSession, user: User) -> tuple[list[dict], int]:
+    query = select(AuditLog).where(
+        AuditLog.organization_id == user.organization_id,
+        AuditLog.event_type == GO_LIVE_ATTESTATION_EVENT_TYPE,
+        AuditLog.entity_type == "operations",
+    )
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
+    result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(10))
+    return [_go_live_attestation_from_audit(item) for item in result.scalars().all()], total
 
 
 async def create_launch_workplan_snapshot(db: AsyncSession, user: User) -> dict:
@@ -628,6 +667,24 @@ def _launch_workplan_snapshot_from_audit(event: AuditLog) -> dict:
         "warning_count": int(payload.get("warning_count", 0)),
         "assigned_count": int(payload.get("assigned_count", 0)),
         "unassigned_count": int(payload.get("unassigned_count", 0)),
+    }
+
+
+def _go_live_attestation_from_audit(event: AuditLog) -> dict:
+    payload = event.payload or {}
+    return {
+        "id": event.id,
+        "created_at": event.created_at,
+        "decision": payload.get("decision", "needs_changes"),
+        "note": payload.get("note"),
+        "reviewer_id": payload.get("reviewer_id") or event.actor_id,
+        "reviewer_name": payload.get("reviewer_name"),
+        "packet_status": payload.get("packet_status", "attention"),
+        "go_live_ready": bool(payload.get("go_live_ready")),
+        "blocking_count": int(payload.get("blocking_count", 0)),
+        "warning_count": int(payload.get("warning_count", 0)),
+        "evidence_ready_count": int(payload.get("evidence_ready_count", 0)),
+        "evidence_total": int(payload.get("evidence_total", 0)),
     }
 
 

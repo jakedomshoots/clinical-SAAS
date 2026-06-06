@@ -138,6 +138,31 @@ class GoLivePacketEvidenceOut(BaseModel):
     captured_at: datetime | str | None = None
 
 
+class GoLiveAttestationOut(BaseModel):
+    id: str
+    created_at: datetime
+    decision: str
+    note: str | None = None
+    reviewer_id: str | None = None
+    reviewer_name: str | None = None
+    packet_status: str
+    go_live_ready: bool
+    blocking_count: int
+    warning_count: int
+    evidence_ready_count: int
+    evidence_total: int
+
+
+class GoLiveAttestationCreate(BaseModel):
+    decision: str = Field(pattern="^(approved|needs_changes|rejected)$")
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class GoLiveAttestationListOut(BaseModel):
+    data: list[GoLiveAttestationOut]
+    total: int
+
+
 class GoLivePacketOut(BaseModel):
     status: str
     go_live_ready: bool
@@ -152,6 +177,7 @@ class GoLivePacketOut(BaseModel):
     evidence_total: int
     evidence: list[GoLivePacketEvidenceOut]
     open_workplan_items: list[LaunchWorkplanItemOut]
+    latest_attestation: GoLiveAttestationOut | None = None
 
 
 class ProductionRehearsalSnapshotOut(BaseModel):

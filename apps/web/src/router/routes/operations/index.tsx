@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type BillingWorkQueue, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type OperationsIncidentList, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type SessionPolicy, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -82,6 +82,7 @@ function OperationsPage() {
   const queryClient = useQueryClient();
   const [auditExport, setAuditExport] = useState({ event_type: '', entity_type: '', entity_id: '', limit: '10000' });
   const [assignmentForms, setAssignmentForms] = useState<Record<string, AssignmentFormState>>({});
+  const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
     queryFn: () => api.get<ReadyResponse>('/ready'),
@@ -185,6 +186,14 @@ function OperationsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'production-rehearsal'] });
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'launch-workplan'] });
+      await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
+    },
+  });
+  const attestationMutation = useMutation({
+    mutationFn: (data: GoLiveAttestationCreate) => api.post<GoLiveAttestation>(ROUTES.OPERATIONS_GO_LIVE_ATTESTATIONS, data),
+    onSuccess: async () => {
+      setAttestationForm({ decision: 'needs_changes', note: '' });
       await queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.READINESS, 'go-live-packet'] });
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
@@ -310,6 +319,40 @@ function OperationsPage() {
               ))}
             </div>
             <aside className="rounded-md border border-clinic-200">
+              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Manager sign-off</div>
+              <div className="space-y-2 border-b border-clinic-100 px-3 py-3">
+                <select
+                  value={attestationForm.decision}
+                  onChange={(event) => setAttestationForm((current) => ({ ...current, decision: event.target.value as GoLiveAttestationCreate['decision'] }))}
+                  className="w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                >
+                  <option value="needs_changes">Needs changes</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+                <textarea
+                  value={attestationForm.note}
+                  onChange={(event) => setAttestationForm((current) => ({ ...current, note: event.target.value }))}
+                  placeholder="Review note"
+                  rows={3}
+                  className="w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => attestationMutation.mutate({ decision: attestationForm.decision, note: attestationForm.note.trim() || null })}
+                  disabled={attestationMutation.isPending}
+                  className="w-full rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                >
+                  Record sign-off
+                </button>
+                {goLivePacket.latest_attestation && (
+                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-2 text-xs text-clinic-500">
+                    <div className="font-medium text-clinic-800">{goLivePacket.latest_attestation.decision.replace('_', ' ')}</div>
+                    <div className="mt-1">{goLivePacket.latest_attestation.reviewer_name ?? 'Reviewer'} · {new Date(goLivePacket.latest_attestation.created_at).toLocaleString()}</div>
+                    {goLivePacket.latest_attestation.note && <div className="mt-1">{goLivePacket.latest_attestation.note}</div>}
+                  </div>
+                )}
+              </div>
               <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Packet blockers</div>
               <div className="divide-y divide-clinic-100">
                 {goLivePacket.open_workplan_items.slice(0, 4).map((item) => (

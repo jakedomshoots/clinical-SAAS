@@ -9,6 +9,9 @@ from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.operations import (
     GoLivePacketOut,
+    GoLiveAttestationCreate,
+    GoLiveAttestationListOut,
+    GoLiveAttestationOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
     LaunchWorkplanOut,
@@ -53,6 +56,26 @@ async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
 async def get_go_live_packet(db: DbDep, current_user: OpsUserDep):
     return GoLivePacketOut(
         **await operations_service.go_live_packet(db, current_user)
+    )
+
+
+@router.post(
+    "/go-live-packet/attestations",
+    response_model=GoLiveAttestationOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_go_live_attestation(data: GoLiveAttestationCreate, db: DbDep, current_user: OpsUserDep):
+    return GoLiveAttestationOut(
+        **await operations_service.attest_go_live_packet(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/go-live-packet/attestations", response_model=GoLiveAttestationListOut)
+async def list_go_live_attestations(db: DbDep, current_user: OpsUserDep):
+    rows, total = await operations_service.list_go_live_attestations(db, current_user)
+    return GoLiveAttestationListOut(
+        data=[GoLiveAttestationOut(**item) for item in rows],
+        total=total,
     )
 
 

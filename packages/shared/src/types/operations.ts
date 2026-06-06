@@ -166,6 +166,31 @@ export interface GoLivePacketEvidence {
   captured_at: string | null;
 }
 
+export interface GoLiveAttestation {
+  id: string;
+  created_at: string;
+  decision: 'approved' | 'needs_changes' | 'rejected';
+  note: string | null;
+  reviewer_id: string | null;
+  reviewer_name: string | null;
+  packet_status: 'ready' | 'attention';
+  go_live_ready: boolean;
+  blocking_count: number;
+  warning_count: number;
+  evidence_ready_count: number;
+  evidence_total: number;
+}
+
+export interface GoLiveAttestationCreate {
+  decision: 'approved' | 'needs_changes' | 'rejected';
+  note?: string | null;
+}
+
+export interface GoLiveAttestationList {
+  data: GoLiveAttestation[];
+  total: number;
+}
+
 export interface GoLivePacket {
   status: 'ready' | 'attention';
   go_live_ready: boolean;
@@ -180,6 +205,7 @@ export interface GoLivePacket {
   evidence_total: number;
   evidence: GoLivePacketEvidence[];
   open_workplan_items: LaunchWorkplanItem[];
+  latest_attestation: GoLiveAttestation | null;
 }
 
 export interface ProductionRehearsalSnapshot {

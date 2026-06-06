@@ -540,6 +540,37 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
+    attestation = await client.post(
+        "/api/operations/go-live-packet/attestations",
+        json={"decision": "needs_changes", "note": "Credential preflight and restore evidence still need work."},
+        headers=auth_headers,
+    )
+    attestations = await client.get("/api/operations/go-live-packet/attestations", headers=auth_headers)
+    packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?page=1&page_size=5&event_type=operations.go_live_packet_attestation",
+        headers=auth_headers,
+    )
+
+    assert attestation.status_code == 201
+    data = attestation.json()
+    assert data["decision"] == "needs_changes"
+    assert data["note"] == "Credential preflight and restore evidence still need work."
+    assert data["blocking_count"] >= 0
+
+    assert attestations.status_code == 200
+    assert attestations.json()["total"] == 1
+    assert attestations.json()["data"][0]["id"] == data["id"]
+
+    assert packet.status_code == 200
+    assert packet.json()["latest_attestation"]["id"] == data["id"]
+
+    assert audit.status_code == 200
+    assert audit.json()["data"][0]["event_type"] == "operations.go_live_packet_attestation"
+
+
+@pytest.mark.asyncio
 async def test_pilot_readiness_score_contract(client, auth_headers):
     readiness = await client.get("/api/analytics/pilot-readiness", headers=auth_headers)
     assert readiness.status_code == 200
