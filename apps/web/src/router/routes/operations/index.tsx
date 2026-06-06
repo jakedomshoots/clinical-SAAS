@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsIncidentList, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
+import { ROUTES, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
   component: OperationsPage,
@@ -178,6 +178,14 @@ function OperationsPage() {
   const { data: incidents } = useQuery({
     queryKey: QUERY_KEYS.OPERATIONS_INCIDENTS,
     queryFn: () => api.get<OperationsIncidentList>(ROUTES.OPERATIONS_INCIDENTS),
+  });
+  const { data: incidentTimeline } = useQuery({
+    queryKey: [...QUERY_KEYS.OPERATIONS_INCIDENTS, 'timeline'],
+    queryFn: () => api.get<OperationsIncidentTimeline>(ROUTES.OPERATIONS_INCIDENT_TIMELINE),
+  });
+  const { data: alertRules } = useQuery({
+    queryKey: [...QUERY_KEYS.OPERATIONS_INCIDENTS, 'alert-rules'],
+    queryFn: () => api.get<OperationsAlertRuleList>(ROUTES.OPERATIONS_ALERT_RULES),
   });
   const { data: operatorHealth } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'operator-health'],
@@ -2319,6 +2327,63 @@ function OperationsPage() {
             No readiness snapshots have been captured yet.
           </div>
         )}
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div className="rounded-md border border-clinic-200 bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-clinic-900">Incident Timeline</h2>
+              <p className="text-xs text-clinic-500">{incidentTimeline?.total ?? 0} recent signal(s)</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusBadge ok={(incidentTimeline?.critical_count ?? 0) === 0} label={`${incidentTimeline?.critical_count ?? 0} critical`} />
+              <StatusBadge ok={(incidentTimeline?.warning_count ?? 0) === 0} label={`${incidentTimeline?.warning_count ?? 0} warning`} />
+            </div>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {(incidentTimeline?.data ?? []).slice(0, 8).map((item) => (
+              <Link key={`${item.key}:${item.occurred_at}:${item.entity_id ?? ''}`} to={item.route} className="grid gap-3 px-4 py-3 text-sm hover:bg-clinic-50 md:grid-cols-[10rem_minmax(0,1fr)_8rem]">
+                <div>
+                  <div className="font-medium text-clinic-900">{item.title}</div>
+                  <div className="mt-1 text-xs capitalize text-clinic-500">{item.category} · {item.source.replace('_', ' ')}</div>
+                </div>
+                <div className="text-clinic-700">
+                  {item.detail}
+                  <div className="mt-1 text-xs text-clinic-400">{new Date(item.occurred_at).toLocaleString()}</div>
+                </div>
+                <div className="flex items-start justify-end">
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{item.severity}</span>
+                </div>
+              </Link>
+            ))}
+            {(incidentTimeline?.data ?? []).length === 0 && (
+              <div className="px-4 py-8 text-center text-sm text-clinic-400">No incident timeline signals.</div>
+            )}
+          </div>
+        </div>
+        <aside className="rounded-md border border-clinic-200 bg-white">
+          <div className="border-b border-clinic-200 px-4 py-3">
+            <h2 className="text-sm font-semibold text-clinic-900">Alert Rules</h2>
+            <p className="text-xs text-clinic-500">{alertRules?.triggered_count ?? 0} triggered of {alertRules?.total ?? 0}</p>
+          </div>
+          <div className="divide-y divide-clinic-100">
+            {(alertRules?.data ?? []).map((rule) => (
+              <Link key={rule.key} to={rule.route} className="block px-4 py-3 hover:bg-clinic-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium text-clinic-900">{rule.label}</div>
+                    <div className="mt-1 text-xs text-clinic-500">{rule.detail}</div>
+                    <div className="mt-1 text-[11px] text-clinic-400">{rule.last_triggered_at ? new Date(rule.last_triggered_at).toLocaleString() : 'No trigger timestamp'}</div>
+                  </div>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${rule.status === 'clear' ? 'border-accent-200 bg-accent-50 text-accent-800' : rule.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    {rule.status === 'clear' ? 'clear' : `${rule.count} ${rule.severity}`}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </aside>
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">

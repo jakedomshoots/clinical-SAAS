@@ -52,6 +52,169 @@ async def incident_register(db: AsyncSession, user: User) -> dict:
     }
 
 
+async def incident_timeline(db: AsyncSession, user: User, limit: int = 30) -> dict:
+    items: list[dict] = []
+    failed_events = (
+        await db.execute(
+            select(IntegrationEvent)
+            .where(
+                IntegrationEvent.organization_id == user.organization_id,
+                IntegrationEvent.status == IntegrationEventStatus.failed,
+            )
+            .order_by(IntegrationEvent.updated_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    for event in failed_events:
+        items.append({
+            "key": f"integration_event:{event.integration}:{event.action}",
+            "occurred_at": event.updated_at,
+            "severity": "critical",
+            "category": "integration",
+            "title": f"{event.integration.replace('_', ' ').title()} failed",
+            "detail": event.error or f"{event.action} failed after {event.attempts} attempt(s).",
+            "source": "integration_events",
+            "route": "/operations",
+            "entity_type": event.entity_type,
+            "entity_id": event.entity_id,
+        })
+
+    sensitive_event_types = [
+        "auth.login_blocked",
+        "user.password_reset_issued",
+        "auth.password_rotated",
+        "patient_document.download_handoff",
+        "patient_document.accessed",
+        "integration_event.retry",
+    ]
+    audit_events = (
+        await db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type.in_(sensitive_event_types),
+            )
+            .order_by(AuditLog.created_at.desc())
+            .limit(limit)
+        )
+    ).scalars().all()
+    for event in audit_events:
+        items.append(_timeline_item_from_audit(event))
+
+    sorted_items = sorted(
+        items,
+        key=lambda item: item["occurred_at"],
+        reverse=True,
+    )[:limit]
+    return {
+        "data": sorted_items,
+        "total": len(sorted_items),
+        "critical_count": sum(1 for item in sorted_items if item["severity"] == "critical"),
+        "warning_count": sum(1 for item in sorted_items if item["severity"] == "warning"),
+        "generated_at": datetime.now(UTC),
+    }
+
+
+async def alert_rules(db: AsyncSession, user: User) -> dict:
+    readiness = await check_readiness()
+    deployment = readiness.get("deployment", {})
+    failed_events = (
+        await db.execute(
+            select(IntegrationEvent)
+            .where(
+                IntegrationEvent.organization_id == user.organization_id,
+                IntegrationEvent.status == IntegrationEventStatus.failed,
+            )
+            .order_by(IntegrationEvent.updated_at.desc())
+        )
+    ).scalars().all()
+    blocked_logins = (
+        await db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type == "auth.login_blocked",
+            )
+            .order_by(AuditLog.created_at.desc())
+        )
+    ).scalars().all()
+    document_access = (
+        await db.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.organization_id == user.organization_id,
+                AuditLog.event_type.in_(["patient_document.accessed", "patient_document.download_handoff"]),
+            )
+            .order_by(AuditLog.created_at.desc())
+        )
+    ).scalars().all()
+    recovery = await user_service.recovery_summary(db, user)
+    backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
+    restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
+
+    rules = [
+        _alert_rule(
+            "failed_integrations",
+            "Failed integrations",
+            bool(failed_events),
+            "critical",
+            len(failed_events),
+            failed_events[0].error if failed_events and failed_events[0].error else f"{len(failed_events)} failed integration event(s).",
+            "/operations",
+            failed_events[0].updated_at if failed_events else None,
+        ),
+        _alert_rule(
+            "blocked_logins",
+            "Blocked logins",
+            bool(blocked_logins),
+            "critical",
+            len(blocked_logins),
+            _blocked_login_detail(blocked_logins),
+            "/staff",
+            blocked_logins[0].created_at if blocked_logins else None,
+        ),
+        _alert_rule(
+            "expired_onboarding",
+            "Expired onboarding credentials",
+            recovery["expired_temporary_password_count"] > 0,
+            "warning",
+            recovery["expired_temporary_password_count"],
+            f"{recovery['expired_temporary_password_count']} expired temporary credential(s).",
+            "/staff",
+            None,
+        ),
+        _alert_rule(
+            "backup_restore_gap",
+            "Backup and restore gap",
+            not (backup_ok and restore_ok),
+            "warning",
+            0 if backup_ok and restore_ok else 1,
+            _backup_restore_detail(deployment),
+            "/operations",
+            deployment.get("latest_restore", {}).get("last_success_at")
+            or deployment.get("latest_backup", {}).get("last_success_at"),
+        ),
+        _alert_rule(
+            "document_access_review",
+            "Document access review",
+            bool(document_access),
+            "warning",
+            len(document_access),
+            f"{len(document_access)} document access event(s) should be reviewed before closeout.",
+            "/operations",
+            document_access[0].created_at if document_access else None,
+        ),
+    ]
+    return {
+        "data": rules,
+        "total": len(rules),
+        "triggered_count": sum(1 for item in rules if item["status"] == "triggered"),
+        "critical_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "critical"),
+        "warning_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "warning"),
+        "generated_at": datetime.now(UTC),
+    }
+
+
 async def operator_health(db: AsyncSession, user: User) -> dict:
     readiness = await check_readiness()
     preflight = await integration_config_service.credential_preflight(db, user)
@@ -1924,6 +2087,71 @@ def _backup_restore_detail(deployment: dict) -> str:
     if backup.get("ok"):
         return "Backup evidence exists, but restore validation is missing."
     return "Backup and restore validation evidence is missing."
+
+
+def _timeline_item_from_audit(event: AuditLog) -> dict:
+    critical_types = {"auth.login_blocked", "user.password_reset_issued"}
+    title_map = {
+        "auth.login_blocked": "Blocked login",
+        "user.password_reset_issued": "Password reset issued",
+        "auth.password_rotated": "Password rotated",
+        "patient_document.download_handoff": "Document download handoff",
+        "patient_document.accessed": "Document accessed",
+        "integration_event.retry": "Integration retry",
+    }
+    return {
+        "key": f"audit_event:{event.event_type}",
+        "occurred_at": event.created_at,
+        "severity": "critical" if event.event_type in critical_types else "warning",
+        "category": "security" if event.event_type.startswith(("auth.", "user.")) else "document",
+        "title": title_map.get(event.event_type, event.event_type.replace("_", " ").replace(".", " ").title()),
+        "detail": _audit_timeline_detail(event),
+        "source": "audit",
+        "route": "/staff" if event.event_type.startswith(("auth.", "user.")) else "/operations",
+        "entity_type": event.entity_type,
+        "entity_id": event.entity_id,
+    }
+
+
+def _audit_timeline_detail(event: AuditLog) -> str:
+    if event.event_type == "auth.login_blocked":
+        return f"Login blocked: {event.payload.get('reason', 'policy')}"
+    if event.event_type == "user.password_reset_issued":
+        return "A temporary password reset was issued and requires review."
+    if event.event_type == "patient_document.download_handoff":
+        return "A signed document download handoff was prepared."
+    if event.event_type == "patient_document.accessed":
+        return "Patient document access was recorded."
+    return f"{event.event_type} recorded."
+
+
+def _alert_rule(
+    key: str,
+    label: str,
+    triggered: bool,
+    severity: str,
+    count: int,
+    detail: str,
+    route: str,
+    last_triggered_at,
+) -> dict:
+    return {
+        "key": key,
+        "label": label,
+        "status": "triggered" if triggered else "clear",
+        "severity": severity,
+        "count": count,
+        "detail": detail,
+        "route": route,
+        "last_triggered_at": last_triggered_at,
+    }
+
+
+def _blocked_login_detail(events: list[AuditLog]) -> str:
+    if not events:
+        return "No blocked login events recorded."
+    reason = events[0].payload.get("reason", "policy")
+    return f"{len(events)} blocked login event(s). Latest reason: {reason}."
 
 
 def _restore_drill_item(key: str, label: str, detail: str, docs: list[str]) -> dict:

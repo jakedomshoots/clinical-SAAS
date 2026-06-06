@@ -24,6 +24,47 @@ class OperationsIncidentListOut(BaseModel):
     generated_at: datetime
 
 
+class OperationsTimelineItemOut(BaseModel):
+    key: str
+    occurred_at: datetime | str
+    severity: str
+    category: str
+    title: str
+    detail: str
+    source: str
+    route: str
+    entity_type: str | None = None
+    entity_id: str | None = None
+
+
+class OperationsIncidentTimelineOut(BaseModel):
+    data: list[OperationsTimelineItemOut]
+    total: int
+    critical_count: int
+    warning_count: int
+    generated_at: datetime
+
+
+class OperationsAlertRuleOut(BaseModel):
+    key: str
+    label: str
+    status: str
+    severity: str
+    count: int
+    detail: str
+    route: str
+    last_triggered_at: datetime | str | None = None
+
+
+class OperationsAlertRuleListOut(BaseModel):
+    data: list[OperationsAlertRuleOut]
+    total: int
+    triggered_count: int
+    critical_count: int
+    warning_count: int
+    generated_at: datetime
+
+
 class OperatorHealthCheckOut(BaseModel):
     key: str
     label: str

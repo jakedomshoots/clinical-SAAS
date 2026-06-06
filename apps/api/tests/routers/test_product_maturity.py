@@ -1,10 +1,12 @@
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.audit import AuditLog
 from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
-from app.models.user import UserRole
+from app.models.user import User, UserRole
+from app.services.auth_service import hash_password
 from tests.conftest import headers_for, make_user
 
 
@@ -392,6 +394,91 @@ async def test_operations_incidents_and_readiness_snapshots(client, auth_headers
     assert snapshots.status_code == 200
     assert snapshots.json()["total"] == 1
     assert snapshots.json()["data"][0]["id"] == snapshot_data["id"]
+
+
+@pytest.mark.asyncio
+async def test_operations_timeline_and_alert_rules_roll_up_observability_signals(
+    client,
+    auth_headers,
+    admin_user,
+    db: AsyncSession,
+):
+    expired_user = User(
+        email="expired-onboarding@clinic.example.com",
+        hashed_password=hash_password("password123!"),
+        display_name="Expired Onboarding",
+        role=UserRole.front_desk,
+        organization_id="default",
+        is_active=True,
+        password_must_change=True,
+        temporary_password_expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1),
+    )
+    db.add(expired_user)
+    db.add(
+        IntegrationEvent(
+            organization_id="default",
+            integration="fax_provider",
+            direction="inbound",
+            action="fax.webhook",
+            status=IntegrationEventStatus.failed,
+            entity_type="fax",
+            entity_id="fax-observe-1",
+            attempts=2,
+            error="Webhook signature mismatch",
+            payload={"source": "observability-test"},
+        )
+    )
+    db.add(
+        AuditLog(
+            organization_id="default",
+            actor_id=admin_user.id,
+            event_type="auth.login_blocked",
+            entity_type="user",
+            entity_id=admin_user.id,
+            payload={"reason": "mfa_required"},
+        )
+    )
+    db.add(
+        AuditLog(
+            organization_id="default",
+            actor_id=admin_user.id,
+            event_type="patient_document.download_handoff",
+            entity_type="patient_document",
+            entity_id="document-observe-1",
+            payload={"patient_id": "patient-observe-1"},
+        )
+    )
+    await db.commit()
+
+    timeline = await client.get("/api/operations/incident-timeline", headers=auth_headers)
+    alert_rules = await client.get("/api/operations/alert-rules", headers=auth_headers)
+
+    assert timeline.status_code == 200
+    timeline_data = timeline.json()
+    assert timeline_data["total"] >= 3
+    assert timeline_data["critical_count"] >= 1
+    timeline_keys = {item["key"] for item in timeline_data["data"]}
+    assert "integration_event:fax_provider:fax.webhook" in timeline_keys
+    assert "audit_event:auth.login_blocked" in timeline_keys
+    assert "audit_event:patient_document.download_handoff" in timeline_keys
+    assert all(item["occurred_at"] for item in timeline_data["data"])
+    assert all(item["route"] for item in timeline_data["data"])
+
+    assert alert_rules.status_code == 200
+    rules_data = alert_rules.json()
+    assert rules_data["total"] >= 5
+    assert rules_data["triggered_count"] >= 3
+    rule_keys = {item["key"] for item in rules_data["data"]}
+    assert {
+        "failed_integrations",
+        "blocked_logins",
+        "expired_onboarding",
+        "backup_restore_gap",
+        "document_access_review",
+    } <= rule_keys
+    failed_integrations = next(item for item in rules_data["data"] if item["key"] == "failed_integrations")
+    assert failed_integrations["status"] == "triggered"
+    assert "Webhook signature mismatch" in failed_integrations["detail"]
 
 
 @pytest.mark.asyncio

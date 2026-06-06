@@ -52,6 +52,47 @@ export interface OperationsIncidentList {
   generated_at: string;
 }
 
+export interface OperationsTimelineItem {
+  key: string;
+  occurred_at: string;
+  severity: 'critical' | 'warning' | 'normal';
+  category: string;
+  title: string;
+  detail: string;
+  source: string;
+  route: string;
+  entity_type: string | null;
+  entity_id: string | null;
+}
+
+export interface OperationsIncidentTimeline {
+  data: OperationsTimelineItem[];
+  total: number;
+  critical_count: number;
+  warning_count: number;
+  generated_at: string;
+}
+
+export interface OperationsAlertRule {
+  key: string;
+  label: string;
+  status: 'triggered' | 'clear';
+  severity: 'critical' | 'warning';
+  count: number;
+  detail: string;
+  route: string;
+  last_triggered_at: string | null;
+}
+
+export interface OperationsAlertRuleList {
+  data: OperationsAlertRule[];
+  total: number;
+  triggered_count: number;
+  critical_count: number;
+  warning_count: number;
+  generated_at: string;
+}
+
 export interface OperatorHealthCheck {
   key: string;
   label: string;

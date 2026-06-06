@@ -22,10 +22,14 @@ from app.schemas.operations import (
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
     GoLiveAttestationOut,
+    OperationsAlertRuleListOut,
+    OperationsAlertRuleOut,
+    OperationsIncidentTimelineOut,
     LiveUseRehearsalOut,
     OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    OperationsTimelineItemOut,
     PolicyApprovalChecklistOut,
     PolicyApprovalSessionListOut,
     PolicyApprovalSessionOut,
@@ -82,6 +86,31 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
 async def get_operator_health(db: DbDep, current_user: OpsUserDep):
     return OperatorHealthOut(
         **await operations_service.operator_health(db, current_user)
+    )
+
+
+@router.get("/incident-timeline", response_model=OperationsIncidentTimelineOut)
+async def get_incident_timeline(db: DbDep, current_user: OpsUserDep):
+    result = await operations_service.incident_timeline(db, current_user)
+    return OperationsIncidentTimelineOut(
+        data=[OperationsTimelineItemOut(**item) for item in result["data"]],
+        total=result["total"],
+        critical_count=result["critical_count"],
+        warning_count=result["warning_count"],
+        generated_at=result["generated_at"],
+    )
+
+
+@router.get("/alert-rules", response_model=OperationsAlertRuleListOut)
+async def get_alert_rules(db: DbDep, current_user: OpsUserDep):
+    result = await operations_service.alert_rules(db, current_user)
+    return OperationsAlertRuleListOut(
+        data=[OperationsAlertRuleOut(**item) for item in result["data"]],
+        total=result["total"],
+        triggered_count=result["triggered_count"],
+        critical_count=result["critical_count"],
+        warning_count=result["warning_count"],
+        generated_at=result["generated_at"],
     )
 
 

@@ -1,4 +1,4 @@
-import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsIncident, OperationsIncidentList, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
+import type { Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -363,6 +363,72 @@ function operationsIncidents(): OperationsIncidentList {
     warning_count: incidents.filter((item) => item.severity === 'warning').length,
     generated_at: new Date().toISOString(),
   };
+}
+
+function incidentTimeline(): OperationsIncidentTimeline {
+  const integrationItems: OperationsTimelineItem[] = integrationEvents
+    .filter((event) => event.status === 'failed')
+    .map((event) => ({
+      key: `integration_event:${event.integration}:${event.action}`,
+      occurred_at: event.updated_at,
+      severity: 'critical' as const,
+      category: 'integration',
+      title: `${event.integration.replace('_', ' ')} failed`,
+      detail: event.error ?? `${event.action} failed after ${event.attempts} attempt(s).`,
+      source: 'integration_events',
+      route: '/operations',
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+    }));
+  const auditTypes = ['auth.login_blocked', 'user.password_reset_issued', 'auth.password_rotated', 'patient_document.download_handoff', 'patient_document.accessed', 'integration_event.retry'];
+  const auditItems: OperationsTimelineItem[] = auditEvents
+    .filter((event) => auditTypes.includes(event.event_type))
+    .map((event) => ({
+      key: `audit_event:${event.event_type}`,
+      occurred_at: event.created_at,
+      severity: ['auth.login_blocked', 'user.password_reset_issued'].includes(event.event_type) ? 'critical' as const : 'warning' as const,
+      category: event.event_type.startsWith('auth.') || event.event_type.startsWith('user.') ? 'security' : 'document',
+      title: event.event_type.replace('.', ' ').replace('_', ' '),
+      detail: event.event_type === 'auth.login_blocked' ? `Login blocked: ${String(event.payload?.reason ?? 'policy')}` : `${event.event_type} recorded.`,
+      source: 'audit',
+      route: event.event_type.startsWith('auth.') || event.event_type.startsWith('user.') ? '/staff' : '/operations',
+      entity_type: event.entity_type,
+      entity_id: event.entity_id,
+    }));
+  const data = [...integrationItems, ...auditItems].sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime()).slice(0, 30);
+  return {
+    data,
+    total: data.length,
+    critical_count: data.filter((item) => item.severity === 'critical').length,
+    warning_count: data.filter((item) => item.severity === 'warning').length,
+    generated_at: new Date().toISOString(),
+  };
+}
+
+function alertRules(): OperationsAlertRuleList {
+  const failedEvents = integrationEvents.filter((item) => item.status === 'failed');
+  const blockedLogins = auditEvents.filter((item) => item.event_type === 'auth.login_blocked');
+  const documentAccess = auditEvents.filter((item) => ['patient_document.accessed', 'patient_document.download_handoff'].includes(item.event_type));
+  const recovery = recoverySummary();
+  const rules: OperationsAlertRule[] = [
+    demoAlertRule('failed_integrations', 'Failed integrations', failedEvents.length > 0, 'critical', failedEvents.length, failedEvents[0]?.error ?? `${failedEvents.length} failed integration event(s).`, '/operations', failedEvents[0]?.updated_at ?? null),
+    demoAlertRule('blocked_logins', 'Blocked logins', blockedLogins.length > 0, 'critical', blockedLogins.length, blockedLogins.length ? `${blockedLogins.length} blocked login event(s).` : 'No blocked login events recorded.', '/staff', blockedLogins[0]?.created_at ?? null),
+    demoAlertRule('expired_onboarding', 'Expired onboarding credentials', recovery.expired_temporary_password_count > 0, 'warning', recovery.expired_temporary_password_count, `${recovery.expired_temporary_password_count} expired temporary credential(s).`, '/staff', null),
+    demoAlertRule('backup_restore_gap', 'Backup and restore gap', true, 'warning', 1, 'Backup and restore validation evidence is missing in demo mode.', '/operations', null),
+    demoAlertRule('document_access_review', 'Document access review', documentAccess.length > 0, 'warning', documentAccess.length, `${documentAccess.length} document access event(s) should be reviewed before closeout.`, '/operations', documentAccess[0]?.created_at ?? null),
+  ];
+  return {
+    data: rules,
+    total: rules.length,
+    triggered_count: rules.filter((item) => item.status === 'triggered').length,
+    critical_count: rules.filter((item) => item.status === 'triggered' && item.severity === 'critical').length,
+    warning_count: rules.filter((item) => item.status === 'triggered' && item.severity === 'warning').length,
+    generated_at: new Date().toISOString(),
+  };
+}
+
+function demoAlertRule(key: string, label: string, triggered: boolean, severity: OperationsAlertRule['severity'], count: number, detail: string, route: string, last_triggered_at: string | null): OperationsAlertRule {
+  return { key, label, status: triggered ? 'triggered' : 'clear', severity, count, detail, route, last_triggered_at };
 }
 
 function operatorHealth(): OperatorHealth {
@@ -2471,6 +2537,12 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
 
   if (path === '/operations/incidents' && method === 'GET') {
     return operationsIncidents() as T;
+  }
+  if (path === '/operations/incident-timeline' && method === 'GET') {
+    return incidentTimeline() as T;
+  }
+  if (path === '/operations/alert-rules' && method === 'GET') {
+    return alertRules() as T;
   }
   if (path === '/operations/operator-health' && method === 'GET') {
     return operatorHealth() as T;

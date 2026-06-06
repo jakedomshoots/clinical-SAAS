@@ -20,7 +20,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Reports include a daily closeout view for open tasks, aging documents, unsigned encounters, billing risk, failed integrations, recommended actions, and CSV export.
 - Operations and Setup report readiness, integration event state, audit review categories, sensitive-event review actions, launch requirements, incident ownership, readiness snapshots, and demo/pilot readiness scoring.
 - Integration Setup includes credential preflight for vendor env/draft fields, connection-test status, and sandbox workflow evidence.
-- Operations includes a live-use rehearsal board, Operator Health, a go-live packet, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
+- Operations includes a live-use rehearsal board, Operator Health, a go-live packet, incident timeline, local alert rules, browser QA evidence, role dry-run checklists, dry-run session evidence, staff training evidence, policy approval evidence, restore drill evidence, cutover runbook evidence, launch workplan, and production rehearsal report that combine readiness, incidents, closeout, credential preflight, access review, backup/restore freshness, restore RTO/RPO evidence, launch evidence freshness, owner assignment, rollback decisions, manager sign-off, workplan snapshots, CSV export, and audit-backed rehearsal/training/policy/restore/cutover evidence.
 - Audit export, backup, restore validation, and local verification scripts are available.
 
 ## Staff Workflow
@@ -66,6 +66,7 @@ This guide describes the operational workflows Concierge OS can support for a co
 - Use Reports at closeout to clear urgent tasks, aging documents, unsigned encounters, billing coding gaps, and failed integrations before the day is marked complete.
 - Review audit exports for sensitive workflow activity.
 - Use Audit Review Control to review sensitive document access, assistant-confirmed actions, staff access changes, patient outreach, and integration operations before closeout or launch review.
+- Use Incident Timeline and Alert Rules in Operations to review failed integrations, blocked logins, expired onboarding credentials, backup/restore gaps, and document access review signals before closeout or live-use rehearsal.
 - Run backup and restore validation before any live-use rehearsal.
 
 ## Not Ready Without Real Credentials

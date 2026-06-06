@@ -90,6 +90,8 @@ export const ROUTES = {
   INTEGRATION_SANDBOX_EVIDENCE: (integration: string) => `/api/integrations/config/${integration}/sandbox-evidence`,
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
+  OPERATIONS_INCIDENT_TIMELINE: '/api/operations/incident-timeline',
+  OPERATIONS_ALERT_RULES: '/api/operations/alert-rules',
   OPERATIONS_OPERATOR_HEALTH: '/api/operations/operator-health',
   OPERATIONS_PRODUCTION_CONFIG_AUDIT: '/api/operations/production-config-audit',
   OPERATIONS_BROWSER_QA_CHECKLIST: '/api/operations/browser-qa-checklist',
