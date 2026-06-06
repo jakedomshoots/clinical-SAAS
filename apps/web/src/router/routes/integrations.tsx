@@ -339,6 +339,14 @@ function StatusBadge({ config }: { config: IntegrationConfig }) {
       </span>
     );
   }
+  if (config.configured && !config.adapter_implemented) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">
+        <TriangleAlert className="h-3 w-3" />
+        adapter needed
+      </span>
+    );
+  }
   if (config.configured) {
     return (
       <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">

@@ -829,6 +829,8 @@ export interface IntegrationConfig {
   label: string;
   configured: boolean;
   healthy: boolean;
+  adapter_implemented: boolean;
+  adapter_detail: string | null;
   mode: 'environment' | 'setup_draft' | 'demo';
   status: 'healthy' | 'configured' | 'draft' | 'missing';
   fields: IntegrationConfigField[];
@@ -879,6 +881,8 @@ export interface CredentialPreflightItem {
   status: 'ready' | 'staged' | 'missing' | 'blocked';
   configured: boolean;
   healthy: boolean;
+  adapter_implemented: boolean;
+  adapter_detail: string | null;
   mode: string;
   missing_fields: string[];
   configured_fields: string[];

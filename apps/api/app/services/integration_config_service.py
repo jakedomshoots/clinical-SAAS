@@ -292,6 +292,8 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "label": spec.label,
         "configured": configured,
         "healthy": bool(status.get("ok")),
+        "adapter_implemented": bool(status.get("adapter_implemented")),
+        "adapter_detail": status.get("adapter_detail"),
         "mode": mode,
         "status": _config_status(configured, bool(status.get("ok")), mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
@@ -382,14 +384,21 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     failed_evidence = [
         item for item in sandbox_evidence if item["status"] == "failed"
     ]
+    adapter_implemented = bool(config.get("adapter_implemented"))
+    adapter_detail = (
+        config.get("adapter_detail")
+        or f"Configure a vendor-specific {config['label']} adapter before live use."
+    )
     sandbox_complete = (
         len(sandbox_evidence) > 0
         and passed_evidence_count == len(sandbox_evidence)
     )
-    if config["healthy"] and sandbox_complete:
+    if config["healthy"] and adapter_implemented and sandbox_complete:
         status = "ready"
     elif missing_fields:
         status = "missing"
+    elif not adapter_implemented:
+        status = "blocked"
     elif failed_evidence:
         status = "blocked"
     elif last_test_status == "failed":
@@ -400,6 +409,8 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     if missing_fields:
         blockers.append(f"Missing required values: {', '.join(missing_fields)}")
     if status == "blocked":
+        if not adapter_implemented:
+            blockers.append(adapter_detail)
         if failed_evidence:
             failed_labels = ", ".join(item["test_label"] for item in failed_evidence)
             blockers.append(f"Failed sandbox workflow evidence requires vendor review: {failed_labels}.")
@@ -418,6 +429,18 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
                 "All required credential fields are present."
                 if not missing_fields
                 else f"Missing {', '.join(missing_fields)}."
+            ),
+        },
+        {
+            "key": "adapter",
+            "label": "Vendor adapter implementation",
+            "status": "ready" if adapter_implemented else "blocked" if not missing_fields else "pending",
+            "detail": (
+                "Vendor adapter is implemented for live-use testing."
+                if adapter_implemented
+                else adapter_detail
+                if not missing_fields
+                else "Capture required credentials before validating the vendor adapter."
             ),
         },
         {
@@ -457,6 +480,8 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         "status": status,
         "configured": config["configured"],
         "healthy": config["healthy"],
+        "adapter_implemented": adapter_implemented,
+        "adapter_detail": adapter_detail,
         "mode": config["mode"],
         "missing_fields": missing_fields,
         "configured_fields": configured_fields,

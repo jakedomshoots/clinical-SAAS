@@ -23,7 +23,7 @@ async def test_external_integrations_default_to_demo_mode(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_external_integrations_report_configured_values(monkeypatch):
+async def test_external_integrations_report_placeholder_adapters_when_configured(monkeypatch):
     monkeypatch.setattr(readiness_service.settings, "ehr_api_base_url", "https://ehr.example.com")
     monkeypatch.setattr(readiness_service.settings, "fax_provider_api_key", "fax-key")
     monkeypatch.setattr(readiness_service.settings, "portal_api_base_url", "https://portal.example.com")
@@ -34,8 +34,15 @@ async def test_external_integrations_report_configured_values(monkeypatch):
 
     integrations = await readiness_service.check_external_integrations()
 
-    assert all(item["ok"] for item in integrations.values())
+    assert integrations["ehr"]["ok"] is False
+    assert integrations["ehr"]["configured"] is True
+    assert integrations["ehr"]["adapter_implemented"] is False
+    assert "vendor-specific EHR adapter" in integrations["ehr"]["error"]
+    assert integrations["fax_provider"]["ok"] is False
+    assert integrations["fax_provider"]["adapter_implemented"] is False
+    assert integrations["copilotkit"]["ok"] is True
     assert integrations["copilotkit"]["configured"] is True
+    assert integrations["copilotkit"]["adapter_implemented"] is True
 
 
 def test_deployment_assets_report_operational_files():

@@ -70,6 +70,7 @@ COPILOTKIT_RUNTIME_URL=
 ```
 
 `/api/ready.status` reflects core infrastructure. `/api/ready.operational_status` includes these external integration checks.
+Configured credentials do not make an integration live-ready by themselves; placeholder vendor adapters keep `/api/ready.operational_status` and `/api/integrations/credential-preflight` blocked until the adapter is implemented and sandbox evidence is recorded.
 
 ## Verification
 

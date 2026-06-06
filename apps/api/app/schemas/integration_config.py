@@ -17,6 +17,8 @@ class IntegrationConfigOut(BaseModel):
     label: str
     configured: bool
     healthy: bool
+    adapter_implemented: bool = False
+    adapter_detail: str | None = None
     mode: str
     status: str
     fields: list[IntegrationConfigFieldOut]
@@ -71,6 +73,8 @@ class CredentialPreflightItemOut(BaseModel):
     status: str
     configured: bool
     healthy: bool
+    adapter_implemented: bool = False
+    adapter_detail: str | None = None
     mode: str
     missing_fields: list[str]
     configured_fields: list[str]

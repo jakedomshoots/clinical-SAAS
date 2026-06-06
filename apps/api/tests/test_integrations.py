@@ -16,11 +16,14 @@ async def test_unconfigured_integration_health_is_demo_mode():
 
 
 @pytest.mark.asyncio
-async def test_configured_integration_health_is_ok():
+async def test_configured_placeholder_integration_health_requires_adapter():
     health = await EHRClient("https://ehr.example.com").health()
 
-    assert health.ok is True
+    assert health.ok is False
     assert health.configured is True
+    assert health.adapter_implemented is False
+    assert health.error is not None
+    assert "vendor-specific EHR adapter" in health.error
 
 
 @pytest.mark.asyncio

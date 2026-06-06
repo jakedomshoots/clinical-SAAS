@@ -188,11 +188,12 @@ async def test_credential_preflight_reports_missing_and_staged_integrations(
     staged = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
 
     clearinghouse = next(item for item in staged.json()["data"] if item["key"] == "clearinghouse")
-    assert clearinghouse["status"] == "staged"
+    assert clearinghouse["status"] == "blocked"
     assert clearinghouse["missing_fields"] == []
     assert "CLEARINGHOUSE_API_KEY" in clearinghouse["configured_fields"]
-    assert clearinghouse["steps"][1]["status"] == "pending"
-    assert staged.json()["staged_count"] == 1
+    assert clearinghouse["steps"][1]["key"] == "adapter"
+    assert clearinghouse["steps"][1]["status"] == "blocked"
+    assert staged.json()["blocking_count"] == body["total"]
 
 
 @pytest.mark.asyncio
@@ -232,7 +233,8 @@ async def test_sandbox_evidence_updates_credential_preflight(
 
     updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
     updated_clearinghouse = next(item for item in updated.json()["data"] if item["key"] == "clearinghouse")
-    assert updated_clearinghouse["steps"][2]["status"] == "ready"
+    sandbox_step = next(step for step in updated_clearinghouse["steps"] if step["key"] == "sandbox_workflows")
+    assert sandbox_step["status"] == "ready"
     assert all(item["status"] == "passed" for item in updated_clearinghouse["sandbox_evidence"])
 
 
@@ -294,8 +296,42 @@ async def test_failed_sandbox_evidence_blocks_credential_preflight(
     assert evidence.status_code == 201
     fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
     assert fax["status"] == "blocked"
-    assert fax["steps"][2]["status"] == "blocked"
+    sandbox_step = next(step for step in fax["steps"] if step["key"] == "sandbox_workflows")
+    assert sandbox_step["status"] == "blocked"
     assert any("failed sandbox" in blocker.lower() for blocker in fax["blockers"])
+
+
+@pytest.mark.asyncio
+async def test_placeholder_adapter_blocks_credential_preflight_even_with_sandbox_evidence(
+    client: AsyncClient,
+    auth_headers,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    integration_config_service._draft_values.clear()
+    integration_config_service._last_tests.clear()
+    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234")
+    preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
+
+    for test_label in fax["sandbox_tests"]:
+        evidence = await client.post(
+            "/api/integrations/config/fax/sandbox-evidence",
+            json={
+                "test_label": test_label,
+                "status": "passed",
+                "notes": f"Vendor sandbox proof for {test_label}.",
+            },
+            headers=auth_headers,
+        )
+        assert evidence.status_code == 201
+
+    updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
+    updated_fax = next(item for item in updated.json()["data"] if item["key"] == "fax")
+
+    assert updated_fax["status"] == "blocked"
+    assert updated_fax["steps"][1]["key"] == "adapter"
+    assert updated_fax["steps"][1]["status"] == "blocked"
+    assert any("vendor-specific fax adapter" in blocker.lower() for blocker in updated_fax["blockers"])
 
 
 @pytest.mark.asyncio

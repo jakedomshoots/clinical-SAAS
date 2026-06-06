@@ -2497,11 +2497,17 @@ function demoIntegrationConfigs() {
     const draft = integrationDrafts[key] ?? {};
     const configured = fields.every((field) => Boolean(draft[field]));
     const lastTest = integrationLastTests[key] ?? {};
+    const adapterImplemented = key === 'copilotkit';
+    const adapterDetail = adapterImplemented
+      ? 'CopilotKit runtime URL is configured and reachable by the API.'
+      : `Configure a vendor-specific ${label.toLowerCase()} adapter before live use.`;
     return {
       key,
       label,
       configured,
       healthy: false,
+      adapter_implemented: adapterImplemented,
+      adapter_detail: adapterDetail,
       mode: configured ? 'setup_draft' : 'demo',
       status: configured ? 'draft' : 'missing',
       fields: fields.map((field) => ({
@@ -2543,13 +2549,21 @@ function demoCredentialPreflight() {
     const passedEvidenceCount = sandboxEvidence.filter((item) => item.status === 'passed').length;
     const failedEvidence = sandboxEvidence.filter((item) => item.status === 'failed');
     const sandboxComplete = sandboxEvidence.length > 0 && passedEvidenceCount === sandboxEvidence.length;
-    const status = config.healthy && sandboxComplete ? 'ready' : missingFields.length ? 'missing' : failedEvidence.length || config.last_test_status === 'failed' ? 'blocked' : 'staged';
+    const status = config.healthy && config.adapter_implemented && sandboxComplete
+      ? 'ready'
+      : missingFields.length
+      ? 'missing'
+      : !config.adapter_implemented || failedEvidence.length || config.last_test_status === 'failed'
+      ? 'blocked'
+      : 'staged';
     return {
       key: config.key,
       label: config.label,
       status,
       configured: config.configured,
       healthy: config.healthy,
+      adapter_implemented: config.adapter_implemented,
+      adapter_detail: config.adapter_detail,
       mode: config.mode,
       missing_fields: missingFields,
       configured_fields: config.fields.filter((field) => field.configured).map((field) => field.key),
@@ -2558,6 +2572,8 @@ function demoCredentialPreflight() {
       sandbox_evidence: sandboxEvidence,
       blockers: missingFields.length
         ? [`Missing required values: ${missingFields.join(', ')}`]
+        : !config.adapter_implemented
+        ? [config.adapter_detail]
         : failedEvidence.length
         ? [`Failed sandbox workflow evidence requires vendor review: ${failedEvidence.map((item) => item.test_label).join(', ')}.`]
         : status === 'blocked'
@@ -2571,6 +2587,12 @@ function demoCredentialPreflight() {
           label: 'Credentials captured',
           status: missingFields.length ? 'missing' : 'ready',
           detail: missingFields.length ? `Missing ${missingFields.join(', ')}.` : 'All required credential fields are present.',
+        },
+        {
+          key: 'adapter',
+          label: 'Vendor adapter implementation',
+          status: config.adapter_implemented ? 'ready' : missingFields.length ? 'pending' : 'blocked',
+          detail: config.adapter_implemented ? 'Vendor adapter is implemented for live-use testing.' : missingFields.length ? 'Capture required credentials before validating the vendor adapter.' : config.adapter_detail,
         },
         {
           key: 'connection_test',
