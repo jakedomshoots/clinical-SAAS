@@ -159,6 +159,7 @@ Not ready for real daily clinical operations with live patients yet:
 
 Operational docs:
 
+- [Completion roadmap](docs/operations/completion-roadmap.md)
 - [Production launch checklist](docs/operations/production-launch-checklist.md)
 - [Vendor adapter plan](docs/integrations/vendor-adapter-plan.md)
 - [PHI retention and incident response](docs/compliance/phi-retention-and-incident-response.md)
