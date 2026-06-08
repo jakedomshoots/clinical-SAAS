@@ -95,7 +95,25 @@ function routeLabelFor(pathname: string) {
   if (pathname.startsWith('/scheduling')) return 'Schedule';
   if (pathname.startsWith('/faxes')) return 'Fax center';
   if (pathname.startsWith('/messaging')) return 'Messages';
+  if (pathname.startsWith('/portal-intake')) return 'Portal intake';
+  if (pathname.startsWith('/portal-mock')) return 'Portal simulator';
+  if (pathname.startsWith('/billing')) return 'Billing cases';
+  if (pathname.startsWith('/integrations')) return 'Integration setup';
+  if (pathname.startsWith('/setup')) return 'Setup checklist';
+  if (pathname.startsWith('/assistant-review')) return 'AI review';
   return 'Command center';
+}
+
+function routeAssistantHelp(pathname: string) {
+  if (pathname.startsWith('/patients')) return 'I can help stage outreach, create follow-up tasks, or summarize chart blockers before staff acts.';
+  if (pathname.startsWith('/tasks')) return 'I can help prioritize urgent work, draft patient updates, and keep every task owner-visible.';
+  if (pathname.startsWith('/scheduling')) return 'I can help spot same-day schedule gaps, reminders, and checkout blockers.';
+  if (pathname.startsWith('/faxes')) return 'I can help stage fax matches and flag documents that need human confirmation.';
+  if (pathname.startsWith('/messaging')) return 'I can draft replies for staff review, but I will not send without confirmation.';
+  if (pathname.startsWith('/billing')) return 'I can flag missing charge details and keep billing actions tied to signed clinical work.';
+  if (pathname.startsWith('/integrations') || pathname.startsWith('/setup')) return 'I can point to the next setup blocker and keep launch readiness explicit.';
+  if (pathname.startsWith('/assistant-review')) return 'I can help review staged AI actions, confirmations, and audit trails.';
+  return 'I can help identify the next best clinic action while keeping risky changes confirmation-gated.';
 }
 
 function patientName(patient: Patient) {
@@ -275,7 +293,7 @@ export function useClinicalAssistantTools({
 
   const fallbackSuggestion: AssistantSuggestion = {
     label: 'All clear',
-    detail: 'No pinned urgent work right now',
+    detail: routeAssistantHelp(pathname),
     tone: 'green',
     actionLabel: 'Create follow-up',
     action: {

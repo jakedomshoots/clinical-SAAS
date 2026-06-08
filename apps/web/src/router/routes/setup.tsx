@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Circle, ShieldCheck } from 'lucide-react';
 import { ROUTES, type IntegrationCapabilities, type LaunchReadiness, type PilotReadiness, type SessionPolicy, type UserListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import { ClinicNeedsStrip, ErrorState } from '@/lib/ui-state';
 
 export const Route = createFileRoute('/setup')({
   component: SetupPage,
@@ -24,7 +25,7 @@ interface ReadyResponse {
 function SetupPage() {
   const api = useApi();
   const queryClient = useQueryClient();
-  const { data: ready } = useQuery({
+  const { data: ready, isError: readyError, error: readyQueryError } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'setup'],
     queryFn: () => api.get<ReadyResponse>('/ready'),
   });
@@ -85,7 +86,12 @@ function SetupPage() {
       <header>
         <p className="text-sm font-medium text-clinic-500">Launch readiness</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Setup Checklist</h1>
+        <p className="mt-2 max-w-3xl text-sm text-clinic-500">This is the canonical readiness path: prove the system is working, show the next blocker, and keep live-patient risk explicit before launch.</p>
       </header>
+      <ClinicNeedsStrip />
+      {readyError && (
+        <ErrorState title="Readiness API unavailable" detail={readyQueryError instanceof Error ? readyQueryError.message : 'Setup checks could not be loaded.'} />
+      )}
       <section className="grid gap-3 md:grid-cols-2">
         <div className="rounded-md border border-clinic-200 bg-white p-4 md:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">

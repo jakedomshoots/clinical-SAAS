@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
@@ -47,11 +47,10 @@ function PatientListPage() {
     email_consent: false,
     preferred_contact_channel: '',
   });
-  const patientTextFields: { key: 'first_name' | 'last_name' | 'dob' | 'gender' | 'phone' | 'email'; label: string; type: string }[] = [
-    { key: 'first_name', label: 'First name', type: 'text' },
-    { key: 'last_name', label: 'Last name', type: 'text' },
-    { key: 'dob', label: 'Date of birth', type: 'date' },
-    { key: 'gender', label: 'Gender', type: 'text' },
+  const patientTextFields: { key: 'first_name' | 'last_name' | 'dob' | 'phone' | 'email'; label: string; type: string; required?: boolean }[] = [
+    { key: 'first_name', label: 'First name', type: 'text', required: true },
+    { key: 'last_name', label: 'Last name', type: 'text', required: true },
+    { key: 'dob', label: 'Date of birth', type: 'date', required: true },
     { key: 'phone', label: 'Phone', type: 'tel' },
     { key: 'email', label: 'Email', type: 'email' },
   ];
@@ -404,7 +403,10 @@ function PatientListPage() {
                     <td colSpan={5}>
                       <EmptyState
                         title="No patients found"
-                        detail={search ? 'Try a different name, MRN, phone, or email search.' : 'Create a patient to start building the clinic chart surface.'}
+                        detail={search ? 'Try a different name, MRN, phone, or email search.' : 'Create a patient or seed the pilot workspace so the clinic team has real chart context.'}
+                        action={search
+                          ? undefined
+                          : <div className="flex flex-wrap justify-center gap-2"><button type="button" onClick={() => setShowNewPatient(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create patient</button><Link to="/setup" className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">Seed demo data</Link></div>}
                       />
                     </td>
                   </tr>
@@ -446,19 +448,22 @@ function PatientListPage() {
             }}
             className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
           >
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">New Patient</h2>
+            <div className="flex items-start justify-between border-b border-clinic-200 px-4 py-3">
+              <div>
+                <h2 className="text-sm font-semibold text-clinic-900">New Patient</h2>
+                <p className="mt-1 text-xs text-clinic-500">Required fields are marked with *. Consent controls protect outreach before any message is sent.</p>
+              </div>
               <button type="button" onClick={() => setShowNewPatient(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
-              {patientTextFields.map(({ key, label, type }) => (
+              {patientTextFields.map(({ key, label, type, required }) => (
                 <label key={key} className="text-sm font-medium text-clinic-700">
-                  {label}
+                  {label}{required && <span className="ml-1 text-red-600">*</span>}
                   <input
                     type={type}
-                    required={['first_name', 'last_name', 'dob', 'gender'].includes(key)}
+                    required={required}
                     value={newPatient[key]}
                     onChange={(event) => setNewPatient({ ...newPatient, [key]: event.target.value })}
                     className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"

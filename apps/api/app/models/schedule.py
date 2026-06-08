@@ -57,6 +57,8 @@ class Appointment(Base):
         default=AppointmentStatus.scheduled,
     )
     notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    video_room_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    video_room_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

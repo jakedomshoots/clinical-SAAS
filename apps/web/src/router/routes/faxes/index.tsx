@@ -1,9 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
+import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 import type { Fax } from '@concierge-os/shared';
 import { Send, ArrowDownToLine, ArrowUpFromLine, FileText, Search, X } from 'lucide-react';
 
@@ -79,8 +79,11 @@ function FaxCenterPage() {
   return (
     <div className="flex flex-col gap-6 xl:flex-row">
       <div className="min-w-0 flex-1">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-clinic-800">Fax Center</h1>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-clinic-800">Fax Center</h1>
+            <p className="mt-1 text-sm text-clinic-500">Match inbound documents to charts, queue outbound faxes, and keep uncertain matches staged for staff review.</p>
+          </div>
           <button onClick={() => setShowSendFax(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
             <Send className="h-4 w-4" />
             Send Fax
@@ -134,14 +137,14 @@ function FaxCenterPage() {
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center gap-1 text-xs text-clinic-500">
                         {DIRECTION_ICONS[fax.direction]}
-                        {fax.direction}
+                        {humanizeWorkflowLabel(fax.direction)}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-clinic-600">{fax.from_number}</td>
                     <td className="px-4 py-3 font-mono text-xs text-clinic-600">{fax.to_number}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[fax.status]}`}>
-                        {fax.status}
+                        {humanizeWorkflowLabel(fax.status)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-clinic-600">{fax.patient_name || 'Unmatched'}</td>
@@ -155,7 +158,10 @@ function FaxCenterPage() {
                     <td colSpan={7}>
                       <EmptyState
                         title={`No faxes in ${tab}`}
-                        detail={tab === 'inbox' ? 'Inbound documents will appear here for OCR review and chart matching.' : 'Outbound fax activity will appear here after sending.'}
+                        detail={tab === 'inbox' ? 'Inbound documents will appear here for OCR review and chart matching. If this is a demo, open Setup to seed documents.' : 'Outbound fax activity will appear here after sending. Queue a fax when the clinical packet is ready.'}
+                        action={tab === 'inbox'
+                          ? <Link to="/setup" className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">Seed demo data</Link>
+                          : <button type="button" onClick={() => setShowSendFax(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Queue fax</button>}
                       />
                     </td>
                   </tr>
@@ -176,7 +182,7 @@ function FaxCenterPage() {
             {[
               ['From', selectedFax.from_number],
               ['To', selectedFax.to_number],
-              ['Status', selectedFax.status],
+              ['Status', humanizeWorkflowLabel(selectedFax.status)],
               ['Pages', String(selectedFax.pages)],
               ['Matched by', selectedFax.matched_by || '—'],
               ['Patient', selectedFax.patient_name || 'Unmatched'],

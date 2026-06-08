@@ -29,33 +29,61 @@ import {
   ShieldCheck,
   X,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
+
+type NavItem = { to: string; label: string; icon: LucideIcon; badge?: string };
+
+type NavSection = { label: string; items: NavItem[] };
 
 function SideNav() {
   const { user, logout } = useAuth();
 
-  const navItems = [
-    { to: '/', label: 'Command', icon: Gauge },
-    { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
-    { to: '/patients', label: 'Patients', icon: Users },
-    { to: '/staff', label: 'Staff', icon: ShieldCheck },
-    { to: '/tasks', label: 'Tasks', icon: ClipboardList },
-    { to: '/scheduling', label: 'Schedule', icon: Calendar },
-    { to: '/portal-intake', label: 'Intake', icon: ClipboardList },
-    { to: '/portal-mock', label: 'Portal Mock', icon: ClipboardList },
-    { to: '/billing', label: 'Billing', icon: CreditCard },
-    { to: '/faxes', label: 'Faxes', icon: Printer },
-    { to: '/messaging', label: 'Messages', icon: MessageSquare },
-    { to: '/integrations', label: 'Integrations', icon: PlugZap },
-    { to: '/reports', label: 'Reports', icon: BarChart3 },
-    { to: '/assistant-review', label: 'AI Review', icon: Bot },
-    { to: '/operations', label: 'Operations', icon: ShieldCheck },
-    { to: '/setup', label: 'Setup', icon: Settings },
-  ].filter((item) => {
-    if (['/staff', '/operations', '/integrations', '/assistant-review', '/setup'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
-    if (item.to === '/billing') return user?.role !== 'front_desk';
-    return true;
-  });
+  const navSections: NavSection[] = [
+    {
+      label: 'Daily Work',
+      items: [
+        { to: '/', label: 'Command', icon: Gauge },
+        { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
+        { to: '/scheduling', label: 'Schedule', icon: Calendar },
+        { to: '/tasks', label: 'Tasks', icon: ClipboardList },
+        { to: '/messaging', label: 'Messages', icon: MessageSquare },
+        { to: '/faxes', label: 'Faxes', icon: Printer },
+        { to: '/portal-intake', label: 'Intake', icon: ClipboardList },
+      ],
+    },
+    {
+      label: 'Records',
+      items: [
+        { to: '/patients', label: 'Patients', icon: Users },
+        { to: '/staff', label: 'Staff', icon: ShieldCheck },
+        { to: '/billing', label: 'Billing', icon: CreditCard },
+      ],
+    },
+    {
+      label: 'Oversight',
+      items: [
+        { to: '/reports', label: 'Reports', icon: BarChart3 },
+        { to: '/assistant-review', label: 'AI Review', icon: Bot },
+        { to: '/operations', label: 'Operations', icon: ShieldCheck },
+      ],
+    },
+    {
+      label: 'Admin',
+      items: [
+        { to: '/setup', label: 'Setup', icon: Settings },
+        { to: '/integrations', label: 'Integrations', icon: PlugZap },
+        { to: '/portal-mock', label: 'Portal Mock', icon: ClipboardList, badge: 'Demo' },
+      ],
+    },
+  ].map((section) => ({
+    ...section,
+    items: section.items.filter((item) => {
+      if (['/staff', '/operations', '/integrations', '/assistant-review', '/setup', '/portal-mock'].includes(item.to)) return user?.role === 'admin' || user?.role === 'manager';
+      if (item.to === '/billing') return user?.role !== 'front_desk';
+      return true;
+    }),
+  })).filter((section) => section.items.length > 0);
 
   return (
     <aside className="hidden h-screen w-60 shrink-0 flex-col border-r border-clinic-200 bg-white md:flex">
@@ -69,16 +97,24 @@ function SideNav() {
         </div>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-2 py-3">
-        {navItems.map(({ to, label, icon: Icon }) => (
-          <Link
-            key={to}
-            to={to}
-            className="flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium text-clinic-600 transition-colors hover:bg-clinic-100 hover:text-clinic-900 [&.active]:bg-clinic-100 [&.active]:text-clinic-900"
-          >
-            <Icon className="h-4 w-4" />
-            {label}
-          </Link>
+      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-3">
+        {navSections.map((section) => (
+          <div key={section.label}>
+            <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-clinic-400">{section.label}</div>
+            <div className="space-y-0.5">
+              {section.items.map(({ to, label, icon: Icon, badge }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex h-9 items-center gap-3 rounded-md px-3 text-sm font-medium text-clinic-600 transition-colors hover:bg-clinic-100 hover:text-clinic-900 [&.active]:bg-clinic-100 [&.active]:text-clinic-900"
+                >
+                  <Icon className="h-4 w-4" />
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                  {badge && <span className="rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">{badge}</span>}
+                </Link>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
 
@@ -90,11 +126,10 @@ function SideNav() {
             Online
           </span>
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-clinic-500">
-          <span>API healthy</span>
-          <span>Sync current</span>
-          <span>Backups on</span>
-          <span>Fax ready</span>
+        <div className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-clinic-500">
+          <span>Confidence: local UI online</span>
+          <span>Direction: setup guides next steps</span>
+          <span>Protection: confirmations on AI actions</span>
         </div>
       </div>
 
@@ -549,9 +584,10 @@ function ClinicalAssistantPanel({
           <div className="text-xs font-semibold uppercase text-amber-800">Confirm action</div>
           <div className="mt-1 text-sm font-semibold text-clinic-900">{pendingAction.title}</div>
           <p className="mt-1 text-xs leading-5 text-clinic-600">{pendingAction.detail}</p>
-          <div className="mt-2 rounded border border-amber-200 bg-white px-2 py-1 font-mono text-[0.6875rem] text-clinic-500">
-            {pendingAction.toolId}
-          </div>
+          <details className="mt-2 rounded border border-amber-200 bg-white px-2 py-1 text-[0.6875rem] text-clinic-500">
+            <summary className="cursor-pointer font-semibold text-clinic-600">Audit detail</summary>
+            <div className="mt-1 font-mono">{pendingAction.toolId}</div>
+          </details>
           <div className="mt-3 flex gap-2">
             <button
               onClick={pendingAction.run}

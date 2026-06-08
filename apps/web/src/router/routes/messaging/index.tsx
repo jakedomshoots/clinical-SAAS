@@ -69,6 +69,7 @@ function MessagesPage() {
       <div className="flex min-h-[32rem] flex-col gap-0 overflow-hidden rounded-lg border border-clinic-200 bg-white lg:flex-row">
         <div className="max-h-80 shrink-0 border-b border-clinic-200 flex flex-col lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
           <div className="border-b border-clinic-200 p-3">
+            <p className="mb-2 text-xs text-clinic-500">Patient and staff conversations stay draftable until a human sends them.</p>
             <button
               onClick={() => setShowCompose(true)}
               className="w-full rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700"
@@ -113,7 +114,11 @@ function MessagesPage() {
               ))
             )}
             {!threadsLoading && !threadsError && (!threads?.data || threads.data.length === 0) && (
-              <EmptyState title="No messages yet" detail="Start a new patient or staff conversation." />
+              <EmptyState
+                title="No messages yet"
+                detail="Start a new patient or staff conversation, or seed demo conversations from Setup."
+                action={<button type="button" onClick={() => setShowCompose(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">New message</button>}
+              />
             )}
           </div>
         </div>

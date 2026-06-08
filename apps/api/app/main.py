@@ -10,24 +10,41 @@ from app.minio_client import ensure_bucket
 from app.models.user import User, UserRole
 from app.redis_client import redis
 from app.routers import (
+    amendments,
     analytics,
     assistant,
     audit,
     auth,
     billing,
+    claim_scrubber,
+    clinical_decision_support,
+    clinical_quality_measures,
+    clinical_reconciliation,
     clinical_templates,
+    emergency_access,
+    esignature,
+    family_history,
     faxes,
+    form_builder,
+    immunization_registry,
+    implantable_devices,
     integration_capabilities,
     integrations,
     launch_readiness,
     messages,
+    mips,
     operations,
+    patient_education,
     patients,
     portal_auth,
     portal_intake,
+    prior_auth,
+    public_health,
     scheduling,
+    sdoh_screening,
     settings as settings_router,
     tasks,
+    telehealth,
     users,
     webhooks,
     websocket,
@@ -95,4 +112,32 @@ app.include_router(launch_readiness.router)
 app.include_router(operations.router)
 app.include_router(messages.router)
 app.include_router(webhooks.router)
-app.include_router(websocket.router)
+app.include_router(claim_scrubber.router)
+app.include_router(clinical_decision_support.router)
+app.include_router(clinical_quality_measures.router)
+app.include_router(clinical_reconciliation.router)
+app.include_router(esignature.router)
+app.include_router(emergency_access.router)
+app.include_router(family_history.router)
+app.include_router(form_builder.router)
+app.include_router(immunization_registry.router)
+app.include_router(implantable_devices.router)
+app.include_router(patient_education.router)
+app.include_router(prior_auth.router)
+app.include_router(public_health.router)
+app.include_router(sdoh_screening.router)
+app.include_router(telehealth.router)
+app.include_router(mips.router)
+app.include_router(amendments.router)
+
+# FHIR API (ONC certification)
+from app.integrations.fhir import router as fhir_router
+app.include_router(fhir_router)
+
+# PWA endpoints
+from app.integrations.pwa import router as pwa_router
+app.include_router(pwa_router)
+
+# Patient portal complete
+from app.routers.patient_portal_complete import router as portal_complete_router
+app.include_router(portal_complete_router)

@@ -23,6 +23,12 @@ from app.schemas.operations import (
     CutoverRunbookSessionStart,
     CutoverRunbookSessionUpdate,
     DocumentStorageReadinessOut,
+    DrChronoImportBatchCreate,
+    DrChronoImportBatchListOut,
+    DrChronoImportBatchOut,
+    DrChronoMigrationDryRunOut,
+    DrChronoMigrationDryRunStart,
+    DrChronoMigrationPacketOut,
     GoLivePacketOut,
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
@@ -62,6 +68,7 @@ from app.schemas.operations import (
     RoleDryRunSessionOut,
     RoleDryRunSessionStart,
     RoleDryRunSessionUpdate,
+    ScopeAcceptancePacketOut,
     StaffTrainingChecklistOut,
     StaffTrainingSessionListOut,
     StaffTrainingSessionOut,
@@ -698,4 +705,61 @@ async def export_restore_drill_session(session_id: str, db: DbDep, current_user:
         content=operations_service.restore_drill_session_csv(session),
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="concierge-os-restore-drill.csv"'},
+    )
+
+
+@router.get("/scope-acceptance-packet", response_model=ScopeAcceptancePacketOut)
+async def get_scope_acceptance_packet(db: DbDep, current_user: OpsUserDep):
+    return ScopeAcceptancePacketOut(
+        **await operations_service.scope_acceptance_packet(db, current_user)
+    )
+
+
+@router.get("/scope-acceptance-packet/export")
+async def export_scope_acceptance_packet(db: DbDep, current_user: OpsUserDep):
+    packet = await operations_service.scope_acceptance_packet(db, current_user)
+    return Response(
+        content=operations_service.scope_acceptance_packet_csv(packet),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
+    )
+
+
+@router.get("/drchrono-migration-packet", response_model=DrChronoMigrationPacketOut)
+async def get_drchrono_migration_packet(db: DbDep, current_user: OpsUserDep):
+    return DrChronoMigrationPacketOut(
+        **await operations_service.drchrono_migration_packet(db, current_user)
+    )
+
+
+@router.post("/drchrono-migration-packet/dry-run", response_model=DrChronoMigrationDryRunOut)
+async def run_drchrono_migration_dry_run(data: DrChronoMigrationDryRunStart, db: DbDep, current_user: OpsUserDep):
+    return DrChronoMigrationDryRunOut(
+        **await operations_service.drchrono_migration_dry_run(db, current_user, data.model_dump())
+    )
+
+
+@router.post("/drchrono-migration-packet/import-batches", response_model=DrChronoImportBatchOut, status_code=status.HTTP_201_CREATED)
+async def create_drchrono_import_batch(data: DrChronoImportBatchCreate, db: DbDep, current_user: OpsUserDep):
+    return DrChronoImportBatchOut(
+        **await operations_service.create_drchrono_import_batch(db, current_user, data.model_dump())
+    )
+
+
+@router.get("/drchrono-migration-packet/import-batches", response_model=DrChronoImportBatchListOut)
+async def list_drchrono_import_batches(db: DbDep, current_user: OpsUserDep):
+    batches = await operations_service.list_drchrono_import_batches(db, current_user)
+    return DrChronoImportBatchListOut(
+        data=[DrChronoImportBatchOut(**batch) for batch in batches],
+        total=len(batches),
+    )
+
+
+@router.get("/drchrono-migration-packet/export")
+async def export_drchrono_migration_packet(db: DbDep, current_user: OpsUserDep):
+    packet = await operations_service.drchrono_migration_packet(db, current_user)
+    return Response(
+        content=operations_service.drchrono_migration_packet_csv(packet),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{packet["export_filename"]}"'},
     )

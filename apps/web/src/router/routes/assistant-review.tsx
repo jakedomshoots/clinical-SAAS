@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Bot } from 'lucide-react';
+import { Bot, ShieldCheck } from 'lucide-react';
 import type { AuditEvent } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { LoadingState } from '@/lib/ui-state';
+import { LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
 interface ListResponse<T> {
   data: T[];
@@ -28,13 +28,33 @@ function AssistantReviewPage() {
     .filter((event) => event.event_type.startsWith('assistant.'))
     .filter((event) => actionFilter === 'all' || event.event_type === actionFilter)
     .filter((event) => `${event.event_type} ${JSON.stringify(event.payload)}`.toLowerCase().includes(search.toLowerCase()));
+  const riskFor = (eventType: string) => {
+    if (eventType.includes('fax')) return 'Medium';
+    if (eventType.includes('message')) return 'High';
+    if (eventType.includes('task')) return 'Low';
+    return 'Review';
+  };
+  const statusFor = (event: AuditEvent) => (event.payload as { status?: string })?.status ?? 'Confirmed';
 
   return (
     <div className="space-y-5">
       <header>
         <p className="text-sm font-medium text-clinic-500">AI governance</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Assistant Review</h1>
+        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Every AI-assisted action should show status, risk, confirmation history, and audit payload before staff trusts it.</p>
       </header>
+      <section className="grid gap-3 md:grid-cols-3">
+        {[
+          ['Pending review', rows.filter((row) => statusFor(row).toLowerCase().includes('pending')).length],
+          ['Confirmed actions', rows.filter((row) => statusFor(row).toLowerCase().includes('confirmed')).length],
+          ['High-risk drafts', rows.filter((row) => riskFor(row.event_type) === 'High').length],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-md border border-clinic-200 bg-white p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-clinic-900"><ShieldCheck className="h-4 w-4 text-accent-700" />{label}</div>
+            <div className="mt-2 text-2xl font-semibold text-clinic-900">{value}</div>
+          </div>
+        ))}
+      </section>
       <section className="flex flex-wrap gap-2 rounded-md border border-clinic-200 bg-white p-3">
         <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
           <option value="all">All actions</option>
@@ -48,12 +68,21 @@ function AssistantReviewPage() {
         <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
           <div className="divide-y divide-clinic-100">
             {rows.map((event) => (
-              <div key={event.id} className="grid gap-3 px-4 py-3 md:grid-cols-[12rem_1fr_12rem]">
+              <div key={event.id} className="grid gap-3 px-4 py-3 md:grid-cols-[12rem_1fr_14rem]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
                   <Bot className="h-4 w-4 text-accent-700" />
-                  {event.event_type.replace('assistant.', '')}
+                  {humanizeWorkflowLabel(event.event_type.replace('assistant.', ''))}
                 </div>
-                <div className="text-xs text-clinic-600">{JSON.stringify(event.payload)}</div>
+                <div>
+                  <div className="mb-2 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 font-medium text-clinic-700">Status: {humanizeWorkflowLabel(statusFor(event))}</span>
+                    <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">Risk: {riskFor(event.event_type)}</span>
+                  </div>
+                  <details className="text-xs text-clinic-600">
+                    <summary className="cursor-pointer font-medium text-clinic-700">Audit payload</summary>
+                    <pre className="mt-2 max-h-32 overflow-auto rounded bg-clinic-50 p-2 text-[11px]">{JSON.stringify(event.payload, null, 2)}</pre>
+                  </details>
+                </div>
                 <div className="text-xs text-clinic-500 md:text-right">{new Date(event.created_at).toLocaleString()}</div>
               </div>
             ))}

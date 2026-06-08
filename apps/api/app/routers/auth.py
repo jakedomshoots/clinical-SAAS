@@ -1,248 +1,212 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Authentication router for OAuth/OIDC flows.
 
-from app.config import settings
-from app.database import get_db
-from app.deps import get_current_user, require_roles
-from app.models.user import User, UserRole, utcnow
-from app.schemas.auth import PasswordRotationComplete, SeedAdminOut, TokenResponse, UserCreate, UserLogin, UserOut
-from app.services.audit_service import log_event
-from app.services.auth_service import (
-    authenticate_user,
-    complete_password_rotation,
-    create_access_token,
-    create_user,
-    seed_admin,
-    temporary_password_is_expired,
+Handles login, callback, token refresh, logout, and session management.
+"""
+
+from __future__ import annotations
+
+import secrets
+from typing import Any
+
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
+
+from app.services.identity_service import (
+    AuthenticationError,
+    IdentityProvider,
+    MFARequiredError,
+    PKCEHelper,
+    SessionManager,
+    TokenExpiredError,
+    authenticate_with_provider,
 )
-from app.services.rate_limit_service import (
-    auth_rate_limit_exceeded,
-    clear_auth_failures,
-    record_auth_failure,
-)
-from app.services.settings_service import get_or_create_settings
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["authentication"])
+
+# In production, use Redis
+_session_manager = SessionManager()
 
 
-@router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def register(
-    data: UserCreate,
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-    current_user: User = Depends(require_roles(UserRole.admin, UserRole.manager)),  # noqa: B008
-):
-    from app.services.auth_service import get_user_by_email
-    existing = await get_user_by_email(db, data.email)
-    if existing:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
-    if data.role == "patient":
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Patient accounts not supported via this endpoint",
-        )
-    if current_user.role != UserRole.admin and data.role == UserRole.admin.value:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Managers cannot grant admin access",
-        )
-
-    organization_id = data.organization_id or current_user.organization_id
-    if organization_id != current_user.organization_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot create users outside your organization",
-        )
-    user = await create_user(
-        db,
-        data.email,
-        data.password,
-        data.display_name,
-        data.role,
-        organization_id=organization_id,
-    )
-    await log_event(
-        db,
-        "user.created",
-        "user",
-        user.id,
-        actor_id=current_user.id,
-        payload={"role": data.role, "organization_id": organization_id},
-    )
-    return user
-
-
-@router.post("/login", response_model=TokenResponse)
+@router.get("/login/{provider}")
 async def login(
-    data: UserLogin,
-    request: Request,
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-):
-    rate_key = f"{request.client.host if request.client else 'unknown'}:{data.email}"
-    if await auth_rate_limit_exceeded("staff-login", rate_key):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
-    user = await authenticate_user(db, data.email, data.password)
-    if not user:
-        await record_auth_failure("staff-login", rate_key)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    await clear_auth_failures("staff-login", rate_key)
-    if user.password_must_change:
-        await log_event(
-            db,
-            "auth.login_blocked",
-            "user",
-            user.id,
-            actor_id=user.id,
-            payload={
-                "reason": "password_rotation_required",
-                "role": user.role.value,
-                "temporary_password_expired": temporary_password_is_expired(user),
-            },
-        )
-        detail = (
-            "Temporary password expired"
-            if temporary_password_is_expired(user)
-            else "Password change required before login"
-        )
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-    if settings.is_production and settings.require_external_mfa_in_production:
-        await log_event(
-            db,
-            "auth.login_blocked",
-            "user",
-            user.id,
-            actor_id=user.id,
-            payload={"reason": "external_mfa_required", "role": user.role.value},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Production staff login requires external MFA provider handoff",
-        )
-
-    user.last_login_at = utcnow()
-    await db.commit()
-    await db.refresh(user)
-    await log_event(
-        db,
-        "auth.login",
-        "user",
-        user.id,
-        actor_id=user.id,
-        payload={"role": user.role.value, "mfa_enabled": user.mfa_enabled},
-    )
-    token = create_access_token(user.id, user.role.value, user.session_version)
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user=UserOut.model_validate(user),
-    )
-
-
-@router.post("/complete-password-rotation", response_model=TokenResponse)
-async def complete_password_rotation_route(
-    data: PasswordRotationComplete,
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-):
+    provider: IdentityProvider,
+    redirect_after: str = "/",
+    response: Response = None,
+) -> RedirectResponse:
+    """Initiate OAuth login flow."""
+    response = response or Response()
     try:
-        user = await complete_password_rotation(
-            db,
-            str(data.email),
-            data.current_password,
-            data.new_password,
+        client = _get_client(provider)
+
+        # Generate PKCE and state
+        code_verifier = PKCEHelper.generate_code_verifier()
+        code_challenge = PKCEHelper.generate_code_challenge(code_verifier)
+        state = secrets.token_urlsafe(32)
+        nonce = secrets.token_urlsafe(32)
+
+        # Store PKCE verifier in cookie (encrypted in production)
+        response.set_cookie(
+            key="auth_state",
+            value=state,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=600,
         )
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+        response.set_cookie(
+            key="pkce_verifier",
+            value=code_verifier,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=600,
+        )
+        response.set_cookie(
+            key="redirect_after",
+            value=redirect_after,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=600,
+        )
+
+        auth_url = client.get_authorization_url(
+            state=state,
+            nonce=nonce,
+            code_challenge=code_challenge,
+        )
+
+        return RedirectResponse(url=auth_url, status_code=302)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Login failed: {e}")
+
+
+@router.get("/callback/{provider}")
+async def callback(
+    provider: IdentityProvider,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+    auth_state: str | None = Cookie(None),
+    pkce_verifier: str | None = Cookie(None),
+    redirect_after: str = Cookie("/"),
+    response: Response = None,
+) -> RedirectResponse:
+    """Handle OAuth callback."""
+    response = response or Response()
+    if error:
+        raise HTTPException(status_code=400, detail=f"OAuth error: {error}")
+
+    if not code:
+        raise HTTPException(status_code=400, detail="No authorization code")
+
+    # Validate state
+    if state != auth_state:
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+
+    try:
+        user, tokens = await authenticate_with_provider(
+            provider, code, pkce_verifier
+        )
+
+        # Create session
+        session_token = _session_manager.create_session(user)
+
+        # Set session cookie
+        response.set_cookie(
+            key="session",
+            value=session_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=86400,
+        )
+
+        # Clear auth cookies
+        response.delete_cookie("auth_state")
+        response.delete_cookie("pkce_verifier")
+        response.delete_cookie("redirect_after")
+
+        return RedirectResponse(url=redirect_after, status_code=302)
+
+    except MFARequiredError:
+        # Redirect to MFA challenge page
+        return RedirectResponse(url="/mfa-challenge", status_code=302)
+    except TokenExpiredError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except AuthenticationError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post("/refresh")
+async def refresh_token(
+    request: Request,
+    response: Response = None,
+) -> dict[str, Any]:
+    """Refresh access token."""
+    response = response or Response()
+    # Implementation depends on token storage strategy
+    raise HTTPException(status_code=501, detail="Not implemented")
+
+
+@router.post("/logout")
+async def logout(
+    session: str | None = Cookie(None),
+    response: Response = None,
+) -> dict[str, str]:
+    """Logout and clear session."""
+    response = response or Response()
+    if session:
+        _session_manager.revoke_session(session)
+
+    response.delete_cookie("session")
+    return {"status": "logged_out"}
+
+
+@router.get("/me")
+async def get_current_user(
+    session: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Get current authenticated user."""
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user = _session_manager.validate_session(session)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if settings.is_production and settings.require_external_mfa_in_production:
-        await log_event(
-            db,
-            "auth.login_blocked",
-            "user",
-            user.id,
-            actor_id=user.id,
-            payload={"reason": "external_mfa_required_after_rotation", "role": user.role.value},
-        )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Password rotated; production staff login requires external MFA provider handoff",
-        )
+        raise HTTPException(status_code=401, detail="Session expired")
 
-    user.last_login_at = utcnow()
-    await db.commit()
-    await db.refresh(user)
-    await log_event(
-        db,
-        "auth.password_rotated",
-        "user",
-        user.id,
-        actor_id=user.id,
-        payload={"role": user.role.value},
-    )
-    token = create_access_token(user.id, user.role.value, user.session_version)
-    return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user=UserOut.model_validate(user),
-    )
+    return user.to_dict()
 
 
-@router.get("/me", response_model=UserOut)
-async def me(current_user: User = Depends(get_current_user)):  # noqa: B008
-    return UserOut.model_validate(current_user)
+@router.get("/session/validate")
+async def validate_session(
+    session: str | None = Cookie(None),
+) -> dict[str, bool]:
+    """Validate if session is active."""
+    if not session:
+        return {"valid": False}
+
+    user = _session_manager.validate_session(session)
+    return {"valid": user is not None}
 
 
-@router.get("/session-policy")
-async def session_policy(
-    db: AsyncSession = Depends(get_db),  # noqa: B008
-    current_user: User = Depends(get_current_user),  # noqa: B008
-):
-    clinic_settings = await get_or_create_settings(db, current_user)
-    return {
-        "user_id": current_user.id,
-        "role": current_user.role.value,
-        "access_token_expire_minutes": settings.access_token_expire_minutes,
-        "mfa_required": settings.is_production,
-        "mfa_enabled": current_user.mfa_enabled,
-        "mfa_provider": "external_idp" if settings.is_production else "local_policy",
-        "access_review_required": True,
-        "access_review_window_days": 90,
-        "last_login_at": current_user.last_login_at.isoformat() if current_user.last_login_at else None,
-        "last_access_reviewed_at": (
-            current_user.access_reviewed_at.isoformat()
-            if current_user.access_reviewed_at
-            else None
-        ),
-        "phi_reauth_required": True,
-        "phi_reauth_minutes": clinic_settings.phi_reauth_minutes,
-        "audit_retention_days": clinic_settings.audit_retention_days,
-        "audit_events": [
-            "auth.login",
-            "auth.login_blocked",
-            "auth.password_rotated",
-            "patient_document.accessed",
-            "settings.updated",
-            "user.access_reviewed",
-        ],
-    }
+def _get_client(provider: IdentityProvider):
+    """Get OIDC client for provider."""
+    from app.services.identity_service import OIDCClient
+
+    return OIDCClient(provider)
 
 
-@router.post("/seed", response_model=SeedAdminOut, status_code=status.HTTP_201_CREATED)
-async def seed(db: AsyncSession = Depends(get_db)):  # noqa: B008
-    if not settings.allow_seed_endpoint or settings.is_production:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
-    seeded = await seed_admin(db)
-    if seeded is None:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Users already exist")
-    admin, temporary_password = seeded
-    await log_event(
-        db,
-        "user.seeded",
-        "user",
-        admin.id,
-        actor_id=admin.id,
-        payload={"role": "admin"},
-    )
-    return SeedAdminOut(
-        user=UserOut.model_validate(admin),
-        temporary_password=temporary_password,
-    )
+async def require_auth(
+    session: str | None = Cookie(None),
+) -> dict[str, Any]:
+    """Dependency to require authentication."""
+    if not session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    user = _session_manager.validate_session(session)
+    if not user:
+        raise HTTPException(status_code=401, detail="Session expired")
+
+    return user.to_dict()

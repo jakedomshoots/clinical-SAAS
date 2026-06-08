@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, ClipboardCheck, PlugZap, Save, TestTube2, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
@@ -18,7 +18,7 @@ import {
 } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { LoadingState } from '@/lib/ui-state';
+import { ErrorState, LoadingState, OperationalEmptyState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
 export const Route = createFileRoute('/integrations')({
   component: IntegrationsPage,
@@ -46,7 +46,7 @@ function IntegrationsPage() {
   const queryClient = useQueryClient();
   const [drafts, setDrafts] = useState<Record<string, Record<string, string>>>({});
   const [evidenceDrafts, setEvidenceDrafts] = useState<Record<string, SandboxEvidenceCreate>>({});
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'integration-config'],
     queryFn: () => api.get<IntegrationConfigListResponse>(ROUTES.INTEGRATION_CONFIG),
   });
@@ -170,7 +170,24 @@ function IntegrationsPage() {
       <header>
         <p className="text-sm font-medium text-clinic-500">Vendor readiness</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Integration Setup</h1>
+        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Preflight every credential, sandbox run, cutover owner, and rollback path before any live clinic workflow depends on it.</p>
       </header>
+      <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div>
+            <div className="text-xs font-semibold uppercase text-clinic-400">Confidence</div>
+            <p className="mt-1 text-sm text-clinic-700">Run tests and collect sandbox evidence before go-live.</p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase text-clinic-400">Direction</div>
+            <p className="mt-1 text-sm text-clinic-700">Use blocking/staged counts to decide which vendor to fix next.</p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase text-clinic-400">Protection</div>
+            <p className="mt-1 text-sm text-clinic-700">Archive handoff packets and keep rollback owners attached to cutover.</p>
+          </div>
+        </div>
+      </section>
       {preflight && (
         <section className="grid gap-3 md:grid-cols-4">
           <PreflightStat label="Ready" value={preflight.ready_count} tone="ready" />
@@ -179,7 +196,15 @@ function IntegrationsPage() {
           <PreflightStat label="Total" value={preflight.total} tone="neutral" />
         </section>
       )}
-      {isLoading ? <LoadingState label="Loading integrations" /> : (
+      {isLoading ? <LoadingState label="Loading integrations" /> : isError ? (
+        <ErrorState title="Unable to load integration readiness" detail={error instanceof Error ? error.message : 'Integration preflight could not be loaded.'} />
+      ) : configs.length === 0 ? (
+        <OperationalEmptyState
+          title="No integrations configured"
+          detail="Add the first vendor connector or open Setup to confirm which launch dependency is blocking the clinic day."
+          primaryAction={<Link to="/setup" className="rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-700">Open setup checklist</Link>}
+        />
+      ) : (
         <section className="grid gap-3 xl:grid-cols-2">
           {configs.map((config) => {
             const changedValues = drafts[config.key] ?? {};
@@ -376,7 +401,7 @@ function IntegrationsPage() {
                 <div className="mt-4 flex flex-wrap gap-2">
                   {config.workflows.map((workflow) => (
                     <span key={workflow} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs text-clinic-600">
-                      {workflow}
+                      {humanizeWorkflowLabel(workflow)}
                     </span>
                   ))}
                 </div>

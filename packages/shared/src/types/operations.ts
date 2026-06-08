@@ -1247,3 +1247,129 @@ export interface PilotReadiness {
   pilot_items: ReadinessScoreItem[];
   generated_at: string;
 }
+
+export interface ScopeAcceptanceParityItem {
+  feature: string;
+  drchrono: boolean;
+  concierge_os: boolean;
+  gaps: string;
+  owner: string | null;
+}
+
+export interface ScopeAcceptanceOutageTarget {
+  target: string;
+  goal: string;
+  fallback: string;
+  owner: string;
+}
+
+export interface ScopeAcceptanceRollbackCriterion {
+  item: string;
+  required: boolean;
+  pass: boolean;
+}
+
+export interface ScopeAcceptancePacket {
+  packet_id: string;
+  generated_at: string;
+  generated_by: string;
+  status: string;
+  parity_matrix: ScopeAcceptanceParityItem[];
+  outage_reduction_targets: ScopeAcceptanceOutageTarget[];
+  rollback_scorecard: {
+    criteria: ScopeAcceptanceRollbackCriterion[];
+    approval_required_from: string[];
+  };
+  gaps: ScopeAcceptanceParityItem[];
+  gap_count: number;
+  signoff_required_from: string[];
+  export_filename: string;
+}
+
+export interface DrChronoMigrationSection {
+  total: number;
+  create: number;
+  update: number;
+  skip: number;
+  errors: string[];
+}
+
+export interface DrChronoMigrationDryRunAnalysis {
+  total_rows_analyzed: number;
+  create_count: number;
+  update_count: number;
+  skip_count: number;
+  duplicate_count: number;
+  missing_dependency_count: number;
+  needs_review_count: number;
+  sections: Record<string, DrChronoMigrationSection>;
+  accepted_gaps: string[];
+  fallback_owner: string | null;
+  freeze_timing: string | null;
+  sample_chart_reviewed: boolean;
+  clinic_sign_off: boolean;
+}
+
+export interface DrChronoMigrationDryRunStart {
+  total_rows?: number;
+  create_count?: number;
+  update_count?: number;
+  skip_count?: number;
+  duplicate_count?: number;
+  missing_dependency_count?: number;
+  needs_review_count?: number;
+  sections?: Record<string, Partial<DrChronoMigrationSection>>;
+  note?: string | null;
+}
+
+export interface DrChronoMigrationDryRun {
+  dry_run_id: string;
+  analysis: DrChronoMigrationDryRunAnalysis;
+  event_id: string;
+  generated_at: string;
+}
+
+export interface DrChronoImportBatch {
+  batch_id: string;
+  status: string;
+  mode: string;
+  section: string;
+  create_count: number;
+  update_count: number;
+  skip_count: number;
+  error_count: number;
+  summary: string;
+  source_dry_run_id: string | null;
+  note: string | null;
+  created_by: string;
+  created_at: string;
+  event_id: string | null;
+}
+
+export interface DrChronoImportBatchList {
+  data: DrChronoImportBatch[];
+  total: number;
+}
+
+export interface DrChronoImportBatchCreate {
+  section?: string;
+  create_count?: number;
+  update_count?: number;
+  skip_count?: number;
+  error_count?: number;
+  summary?: string;
+  source_dry_run_id?: string | null;
+  note?: string | null;
+}
+
+export interface DrChronoMigrationPacket {
+  packet_id: string;
+  generated_at: string;
+  generated_by: string;
+  status: string;
+  dry_run_analysis: DrChronoMigrationDryRunAnalysis;
+  import_batches: DrChronoImportBatch[];
+  write_import_blocked: boolean;
+  write_import_block_reason: string;
+  export_filename: string;
+}

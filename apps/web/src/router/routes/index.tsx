@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import { ClinicNeedsStrip, OperationalEmptyState } from '@/lib/ui-state';
 import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type PatientDocumentQueueResponse, type Task, type TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
@@ -117,6 +118,13 @@ function CommandCenterPage() {
     },
   });
 
+  const nextBestActions = [
+    { to: '/setup', label: 'Check readiness', detail: 'Confirm API, demo data, integrations, and launch blockers.' },
+    { to: '/scheduling', label: 'Build today\'s schedule', detail: 'Add appointments or provider availability before clinic starts.' },
+    { to: '/portal-intake', label: 'Review intake', detail: 'Triage portal requests, documents, and appointment asks.' },
+    { to: '/tasks', label: 'Assign open work', detail: 'Move urgent and unassigned tasks to clear owners.' },
+  ];
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -135,6 +143,26 @@ function CommandCenterPage() {
           </span>
         </div>
       </header>
+
+      <ClinicNeedsStrip />
+
+      <section className="rounded-md border border-accent-200 bg-accent-50 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-accent-900">Next best actions</h2>
+            <p className="mt-1 text-sm text-accent-800">Start here when the clinic day is quiet, demo data is missing, or the team needs direction.</p>
+          </div>
+          <Link to="/setup" className="rounded-md bg-accent-700 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-800">Open setup</Link>
+        </div>
+        <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+          {nextBestActions.map((action) => (
+            <Link key={action.to} to={action.to} className="rounded-md border border-accent-200 bg-white p-3 hover:bg-accent-50">
+              <div className="text-sm font-semibold text-clinic-900">{action.label}</div>
+              <div className="mt-1 text-xs leading-5 text-clinic-500">{action.detail}</div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {queueMetrics.map(({ label, value, note, icon: Icon, tone }) => (
@@ -204,7 +232,14 @@ function CommandCenterPage() {
                 ))}
                 {todayItems.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-10 text-center text-sm text-clinic-400">No appointments scheduled today</td>
+                    <td colSpan={4} className="px-4 py-6">
+                      <OperationalEmptyState
+                        title="No appointments scheduled today"
+                        detail="Create the first appointment, import the clinic calendar, or seed the pilot workspace so staff can trust this dashboard before clinic starts."
+                        primaryAction={<Link to="/scheduling" className="rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-700">Create appointment</Link>}
+                        secondaryAction={<Link to="/setup" className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm font-semibold text-clinic-700 hover:bg-clinic-50">Seed demo data</Link>}
+                      />
+                    </td>
                   </tr>
                 )}
               </tbody>

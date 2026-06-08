@@ -1,4 +1,4 @@
-import type { AdapterImplementationItem, AdapterImplementationPacket, Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, IntegrationCutoverReadinessItem, IntegrationCutoverReadinessPacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
+import type { AdapterImplementationItem, AdapterImplementationPacket, Appointment, AuditEvent, AuditReviewSummary, BillingCase, BrowserQaChecklist, BrowserQaChecklistItem, BrowserQaSession, BrowserQaSessionList, BrowserQaSessionStart, BrowserQaSessionUpdate, ClinicSettings, CredentialBinderItem, CredentialBinderSnapshot, CredentialBinderSnapshotList, CredentialDryRunBinder, CredentialPreflight, CredentialPreflightItem, CutoverRunbook, CutoverRunbookPhase, CutoverRunbookSession, CutoverRunbookSessionList, CutoverRunbookSessionStart, CutoverRunbookSessionUpdate, CutoverRunbookStep, DailyCloseout, DailyCloseoutAction, DailyCloseoutRisk, DocumentStorageReadiness, DrChronoImportBatch, DrChronoImportBatchCreate, DrChronoImportBatchList, DrChronoMigrationDryRun, DrChronoMigrationDryRunStart, DrChronoMigrationPacket, EncounterTemplate, Fax, GoLiveAttestation, GoLiveAttestationCreate, GoLiveAttestationList, GoLivePacket, HandoffPacketArchive, IntegrationCutoverReadinessItem, IntegrationCutoverReadinessPacket, LaunchWorkplan, LaunchWorkplanSnapshot, LaunchWorkplanSnapshotList, LiveUseRehearsal, LiveUseRehearsalAction, LiveUseRehearsalGate, Message, MessageThread, OperatorHealth, OperatorHealthAction, OperatorHealthCheck, OperationsAlertRule, OperationsAlertRuleList, OperationsIncident, OperationsIncidentList, OperationsIncidentTimeline, OperationsTimelineItem, Patient, PatientCarePlanItem, PatientCheckoutHandoff, PatientChartSummary, PatientDocument, PatientDocumentQueueItem, PatientEncounter, PatientLabResult, PatientMedication, PatientUpdate, PolicyApprovalChecklist, PolicyApprovalChecklistItem, PolicyApprovalSession, PolicyApprovalSessionList, PolicyApprovalSessionStart, PolicyApprovalSessionUpdate, PortalIntakeSubmission, ProductionConfigAudit, ProductionConfigCheck, ProductionRehearsalReport, ProductionRehearsalSnapshot, ProductionRehearsalSnapshotList, ProviderAvailability, ReadinessSnapshot, ReadinessSnapshotList, RehearsalActionAssignment, RehearsalActionAssignmentUpdate, RestoreDrillChecklist, RestoreDrillChecklistItem, RestoreDrillSession, RestoreDrillSessionList, RestoreDrillSessionStart, RestoreDrillSessionUpdate, Role, RoleAccessMatrix, RoleDryRunChecklist, RoleDryRunChecklistList, RoleDryRunChecklistItem, RoleDryRunSession, RoleDryRunSessionList, RoleDryRunSessionStart, RoleDryRunSessionUpdate, SandboxEvidence, ScopeAcceptancePacket, StaffTrainingChecklist, StaffTrainingChecklistItem, StaffTrainingChecklistRole, StaffTrainingSession, StaffTrainingSessionList, StaffTrainingSessionStart, StaffTrainingSessionUpdate, Task, TaskWorkQueue, TodayQueue, User, UserAccessReviewSummary, UserPasswordResetResponse, UserRecoverySummary, VendorCredentialRequestItem, VendorCredentialRequestPacket, WorkloadSummary } from '@concierge-os/shared';
 
 const DEMO_STORAGE_KEY = 'concierge-os.demo-data.v1';
 const DEMO_PORTAL_ACCESS_CODE = 'demo-portal-code';
@@ -3120,6 +3120,26 @@ function demoIntegrationConfigs() {
       ['payment_callback', 'Payment callback', 'Capture payment status callbacks.'],
       ['remittance_import', 'ERA/remittance import', 'Import ERA/remittance data into the billing timeline.'],
     ]],
+    ['labs_hie', 'Labs / HIE', ['LABS_HIE_API_BASE_URL'], false, ['Lab order submission', 'Lab result import', 'HIE patient query'], 'Configure a vendor-specific labs/HIE adapter and set LABS_HIE_API_BASE_URL.', ['Submit a sandbox lab order', 'Receive a lab result callback', 'Query HIE for patient records'], [
+      ['submit_lab_order', 'Submit lab order', 'Submit lab orders to the external vendor.'],
+      ['receive_lab_result', 'Receive lab result', 'Import lab results from vendor callbacks.'],
+      ['hie_patient_query', 'HIE patient query', 'Query HIE for patient clinical summaries.'],
+    ]],
+    ['payments', 'Payments', ['PAYMENTS_API_KEY'], true, ['Patient payment collection', 'Refund processing', 'Payment reconciliation'], 'Configure a PCI-compliant payment processor and set PAYMENTS_API_KEY.', ['Process a sandbox payment', 'Process a sandbox refund', 'Reconcile payment report'], [
+      ['process_payment', 'Process payment', 'Charge a patient payment method.'],
+      ['process_refund', 'Process refund', 'Refund a previous payment.'],
+      ['reconcile_report', 'Reconcile report', 'Import and reconcile payment reports.'],
+    ]],
+    ['erx', 'eRx', ['ERX_API_BASE_URL'], false, ['New prescription transmission', 'Refill processing', 'Medication history query'], 'Configure a certified eRx adapter and set ERX_API_BASE_URL.', ['Send a sandbox prescription', 'Process a refill request', 'Query medication history'], [
+      ['send_prescription', 'Send prescription', 'Transmit new prescriptions to the pharmacy.'],
+      ['process_refill', 'Process refill', 'Handle refill requests from the pharmacy.'],
+      ['medication_history', 'Medication history', 'Query patient medication history.'],
+    ]],
+    ['identity', 'Identity / MFA', ['IDENTITY_PROVIDER_ISSUER_URL'], false, ['Single sign-on', 'Multi-factor authentication', 'Access review automation'], 'Configure an identity provider and set IDENTITY_PROVIDER_ISSUER_URL.', ['Authenticate via SSO sandbox', 'Verify MFA challenge flow', 'Run access review automation'], [
+      ['sso_authentication', 'SSO authentication', 'Authenticate users through the identity provider.'],
+      ['mfa_challenge', 'MFA challenge', 'Verify multi-factor authentication flows.'],
+      ['access_review', 'Access review', 'Automate periodic access reviews.'],
+    ]],
   ] as const;
   return specs.map(([key, label, fields, secret, workflows, action, sandboxTests, adapterMethods]) => {
     const draft = integrationDrafts[key] ?? {};
@@ -3800,6 +3820,72 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
   if (path === '/operations/production-rehearsal/export' && method === 'GET') {
     return productionRehearsalCsv(productionRehearsalReport()) as T;
   }
+  if (path === '/operations/scope-acceptance-packet' && method === 'GET') {
+    return scopeAcceptancePacket() as T;
+  }
+  if (path === '/operations/scope-acceptance-packet/export' && method === 'GET') {
+    const packet = scopeAcceptancePacket();
+    const rows = [
+      'Scope Acceptance Packet',
+      `Generated at,${packet.generated_at}`,
+      `Generated by,${packet.generated_by}`,
+      `Status,${packet.status}`,
+      `Gap count,${packet.gap_count}`,
+      '',
+      'Parity Matrix',
+      'Feature,DrChrono,Concierge OS,Gaps,Owner',
+      ...packet.parity_matrix.map((item) => `${item.feature},${item.drchrono},${item.concierge_os},${csvCell(item.gaps)},${item.owner ?? ''}`),
+      '',
+      'Outage Reduction Targets',
+      'Target,Goal,Fallback,Owner',
+      ...packet.outage_reduction_targets.map((item) => `${item.target},${item.goal},${item.fallback},${item.owner}`),
+      '',
+      'Rollback Scorecard',
+      'Item,Required,Pass',
+      ...packet.rollback_scorecard.criteria.map((item) => `${item.item},${item.required},${item.pass}`),
+    ];
+    return rows.join('\n') + '\n' as T;
+  }
+  if (path === '/operations/drchrono-migration-packet' && method === 'GET') {
+    return drchronoMigrationPacket() as T;
+  }
+  if (path === '/operations/drchrono-migration-packet/dry-run' && method === 'POST') {
+    return runDrchronoMigrationDryRun((body ?? {}) as DrChronoMigrationDryRunStart) as T;
+  }
+  if (path === '/operations/drchrono-migration-packet/import-batches' && method === 'POST') {
+    return createDrchronoImportBatch((body ?? {}) as DrChronoImportBatchCreate) as T;
+  }
+  if (path === '/operations/drchrono-migration-packet/import-batches' && method === 'GET') {
+    return listDrchronoImportBatches() as T;
+  }
+  if (path === '/operations/drchrono-migration-packet/export' && method === 'GET') {
+    const packet = drchronoMigrationPacket();
+    const rows = [
+      'DrChrono Migration Packet',
+      `Packet ID,${packet.packet_id}`,
+      `Generated at,${packet.generated_at}`,
+      `Generated by,${packet.generated_by}`,
+      `Status,${packet.status}`,
+      `Write import blocked,${packet.write_import_blocked}`,
+      `Block reason,${csvCell(packet.write_import_block_reason)}`,
+      '',
+      'Dry Run Analysis',
+      `Total rows analyzed,${packet.dry_run_analysis.total_rows_analyzed}`,
+      `Create count,${packet.dry_run_analysis.create_count}`,
+      `Update count,${packet.dry_run_analysis.update_count}`,
+      `Skip count,${packet.dry_run_analysis.skip_count}`,
+      `Duplicate count,${packet.dry_run_analysis.duplicate_count}`,
+      `Missing dependency count,${packet.dry_run_analysis.missing_dependency_count}`,
+      `Needs review count,${packet.dry_run_analysis.needs_review_count}`,
+      `Sample chart reviewed,${packet.dry_run_analysis.sample_chart_reviewed}`,
+      `Clinic sign off,${packet.dry_run_analysis.clinic_sign_off}`,
+      '',
+      'Import Batches',
+      'Batch ID,Section,Mode,Create,Update,Skip,Error,Status',
+      ...packet.import_batches.map((batch) => `${batch.batch_id},${batch.section},${batch.mode},${batch.create_count},${batch.update_count},${batch.skip_count},${batch.error_count},${batch.status}`),
+    ];
+    return rows.join('\n') + '\n' as T;
+  }
   const rehearsalAssignmentMatch = path.match(/^\/operations\/production-rehearsal\/actions\/([^/]+)\/assignment$/);
   if (rehearsalAssignmentMatch && method === 'POST') {
     const assignment = assignProductionRehearsalAction(
@@ -3863,6 +3949,10 @@ export async function demoRequest<T>(method: string, rawPath: string, body?: unk
       communications: { label: 'Communications', configured: false, healthy: false, mode: 'demo', env_vars: ['COMMUNICATIONS_PROVIDER', 'COMMUNICATIONS_PROVIDER_API_KEY'], supports: ['sms', 'email', 'delivery_callbacks'], workflows: ['Patient outreach', 'Appointment reminders', 'Delivery tracking'], action: 'Select the delivery provider and configure callback secrets.' },
       copilotkit: { label: 'CopilotKit runtime', configured: false, healthy: false, mode: 'demo', env_vars: ['COPILOTKIT_RUNTIME_URL'], supports: ['assistant_runtime', 'tool_policy', 'confirmation_gates'], workflows: ['Clinical assistant', 'Tool execution', 'Review queue'], action: 'Deploy the runtime and approve model/tool policy before live use.' },
       clearinghouse: { label: 'Clearinghouse', configured: false, healthy: false, mode: 'demo', env_vars: ['CLEARINGHOUSE_API_BASE_URL', 'CLEARINGHOUSE_API_KEY'], supports: ['claim_submission', 'eligibility', 'denials', 'era_remittance'], workflows: ['Claim submission', 'Denial callbacks', 'ERA/remittance import'], action: 'Connect clearinghouse credentials and validate claim, denial, and remittance workflows.' },
+      labs_hie: { label: 'Labs / HIE', configured: false, healthy: false, mode: 'demo', env_vars: ['LABS_HIE_API_BASE_URL'], supports: ['lab_orders', 'lab_results', 'hie_query'], workflows: ['Lab order submission', 'Lab result import', 'HIE patient query'], action: 'Configure a vendor-specific labs/HIE adapter and set LABS_HIE_API_BASE_URL.' },
+      payments: { label: 'Payments', configured: false, healthy: false, mode: 'demo', env_vars: ['PAYMENTS_API_KEY'], supports: ['card_processing', 'refunds', 'reporting'], workflows: ['Patient payment collection', 'Refund processing', 'Payment reconciliation'], action: 'Configure a PCI-compliant payment processor and set PAYMENTS_API_KEY.' },
+      erx: { label: 'eRx', configured: false, healthy: false, mode: 'demo', env_vars: ['ERX_API_BASE_URL'], supports: ['prescription_send', 'refill_request', 'medication_history'], workflows: ['New prescription transmission', 'Refill processing', 'Medication history query'], action: 'Configure a certified eRx adapter and set ERX_API_BASE_URL.' },
+      identity: { label: 'Identity / MFA', configured: false, healthy: false, mode: 'demo', env_vars: ['IDENTITY_PROVIDER_ISSUER_URL'], supports: ['sso', 'mfa', 'access_review'], workflows: ['Single sign-on', 'Multi-factor authentication', 'Access review automation'], action: 'Configure an identity provider and set IDENTITY_PROVIDER_ISSUER_URL.' },
     } as T;
   }
   if (path === '/integrations/config' && method === 'GET') {
@@ -5666,4 +5756,138 @@ function csvCell(value: string) {
   if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
   if (!/[",\n]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
+}
+
+function scopeAcceptancePacket(): ScopeAcceptancePacket {
+  const parity: ScopeAcceptancePacket['parity_matrix'] = [
+    { feature: 'Patient chart', drchrono: true, concierge_os: true, gaps: '', owner: null },
+    { feature: 'Scheduling', drchrono: true, concierge_os: true, gaps: '', owner: null },
+    { feature: 'Documents', drchrono: true, concierge_os: true, gaps: '', owner: null },
+    { feature: 'Messages', drchrono: true, concierge_os: true, gaps: '', owner: null },
+    { feature: 'Fax', drchrono: true, concierge_os: true, gaps: 'External vendor required', owner: 'operations' },
+    { feature: 'Billing', drchrono: true, concierge_os: true, gaps: 'Clearinghouse integration required', owner: 'operations' },
+    { feature: 'Labs', drchrono: true, concierge_os: true, gaps: 'Labs/HIE integration required', owner: 'operations' },
+    { feature: 'Prescriptions', drchrono: true, concierge_os: true, gaps: 'eRx integration required', owner: 'operations' },
+    { feature: 'Reporting', drchrono: true, concierge_os: true, gaps: '', owner: null },
+    { feature: 'Staff administration', drchrono: true, concierge_os: true, gaps: 'Identity/MFA integration required', owner: 'operations' },
+  ];
+  const gaps = parity.filter((p) => p.gaps);
+  return {
+    packet_id: uuid(9000),
+    generated_at: iso(),
+    generated_by: 'Demo Manager',
+    status: gaps.length > 0 ? 'blocked' : 'accepted',
+    parity_matrix: parity,
+    outage_reduction_targets: [
+      { target: 'Planned downtime', goal: '< 15 minutes per month', fallback: 'DrChrono read-only mode', owner: 'operations' },
+      { target: 'Unplanned downtime', goal: '< 5 minutes RTO', fallback: 'DrChrono read-only mode', owner: 'operations' },
+      { target: 'Data loss', goal: 'Zero', fallback: 'Daily backups + 4-hour RPO', owner: 'operations' },
+    ],
+    rollback_scorecard: {
+      criteria: [
+        { item: 'Go-Live Packet approved', required: true, pass: false },
+        { item: 'Backup validated within 24h', required: true, pass: false },
+        { item: 'Staff trained and signed off', required: true, pass: false },
+        { item: 'Vendor credentials staged', required: true, pass: false },
+        { item: 'DrChrono freeze plan documented', required: true, pass: false },
+        { item: 'Rollback owner assigned', required: true, pass: false },
+      ],
+      approval_required_from: ['clinic_owner', 'operations_manager'],
+    },
+    gaps,
+    gap_count: gaps.length,
+    signoff_required_from: ['clinic_owner'],
+    export_filename: 'concierge-os-scope-acceptance-packet.json',
+  };
+}
+
+function drchronoMigrationPacket(): DrChronoMigrationPacket {
+  return {
+    packet_id: uuid(9001),
+    generated_at: iso(),
+    generated_by: 'Demo Manager',
+    status: 'blocked',
+    dry_run_analysis: {
+      total_rows_analyzed: 0,
+      create_count: 0,
+      update_count: 0,
+      skip_count: 0,
+      duplicate_count: 0,
+      missing_dependency_count: 0,
+      needs_review_count: 0,
+      sections: {
+        patients: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+        appointments: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+        documents: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+        billing: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+        medications: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+        labs: { total: 0, create: 0, update: 0, skip: 0, errors: [] },
+      },
+      accepted_gaps: [],
+      fallback_owner: null,
+      freeze_timing: null,
+      sample_chart_reviewed: false,
+      clinic_sign_off: false,
+    },
+    import_batches: [],
+    write_import_blocked: true,
+    write_import_block_reason:
+      'Final write import is blocked until: (1) production migration approval, (2) final DrChrono export reconciliation, and (3) a write-capable importer exists.',
+    export_filename: 'concierge-os-drchrono-migration-packet.json',
+  };
+}
+
+let demoDrchronoDryRuns: DrChronoMigrationDryRun[] = [];
+let demoImportBatches: DrChronoImportBatch[] = [];
+
+function runDrchronoMigrationDryRun(data: DrChronoMigrationDryRunStart): DrChronoMigrationDryRun {
+  const dryRunId = uuid(9002 + demoDrchronoDryRuns.length);
+  const analysis = drchronoMigrationPacket().dry_run_analysis;
+  analysis.total_rows_analyzed = data.total_rows ?? 0;
+  analysis.create_count = data.create_count ?? 0;
+  analysis.update_count = data.update_count ?? 0;
+  analysis.skip_count = data.skip_count ?? 0;
+  analysis.duplicate_count = data.duplicate_count ?? 0;
+  analysis.missing_dependency_count = data.missing_dependency_count ?? 0;
+  analysis.needs_review_count = data.needs_review_count ?? 0;
+  if (data.sections) {
+    for (const [section, values] of Object.entries(data.sections)) {
+      if (analysis.sections[section]) {
+        analysis.sections[section] = { ...analysis.sections[section], ...values };
+      }
+    }
+  }
+  const dryRun: DrChronoMigrationDryRun = {
+    dry_run_id: dryRunId,
+    analysis,
+    event_id: uuid(9100 + demoDrchronoDryRuns.length),
+    generated_at: iso(),
+  };
+  demoDrchronoDryRuns.push(dryRun);
+  return dryRun;
+}
+
+function createDrchronoImportBatch(data: DrChronoImportBatchCreate): DrChronoImportBatch {
+  const batch: DrChronoImportBatch = {
+    batch_id: uuid(9200 + demoImportBatches.length),
+    status: 'planned',
+    mode: 'no_write',
+    section: data.section ?? 'patients',
+    create_count: data.create_count ?? 0,
+    update_count: data.update_count ?? 0,
+    skip_count: data.skip_count ?? 0,
+    error_count: data.error_count ?? 0,
+    summary: data.summary ?? '',
+    source_dry_run_id: data.source_dry_run_id ?? null,
+    note: data.note ?? null,
+    created_by: 'Demo Manager',
+    created_at: iso(),
+    event_id: uuid(9300 + demoImportBatches.length),
+  };
+  demoImportBatches.push(batch);
+  return batch;
+}
+
+function listDrchronoImportBatches(): DrChronoImportBatchList {
+  return { data: demoImportBatches, total: demoImportBatches.length };
 }

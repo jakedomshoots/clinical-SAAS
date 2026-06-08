@@ -199,6 +199,30 @@ def _integration_requirements(integrations: dict) -> list[LaunchRequirement]:
             ["CLEARINGHOUSE_API_BASE_URL", "CLEARINGHOUSE_API_KEY"],
             "Connect claim submission, denial, payment, and ERA/remittance callbacks.",
         ),
+        (
+            "labs_hie",
+            "Labs / HIE",
+            ["LABS_HIE_API_BASE_URL"],
+            "Connect lab order submission, result import, and status tracking.",
+        ),
+        (
+            "payments",
+            "Payments",
+            ["PAYMENTS_API_KEY"],
+            "Connect patient payment processing, refunds, and reconciliation.",
+        ),
+        (
+            "erx",
+            "eRx",
+            ["ERX_API_BASE_URL"],
+            "Connect medication history, prescription transmission, and status callbacks.",
+        ),
+        (
+            "identity",
+            "Identity / MFA",
+            ["IDENTITY_PROVIDER_ISSUER_URL"],
+            "Connect staff authentication, MFA enforcement, and user provisioning.",
+        ),
     ]
     requirements: list[LaunchRequirement] = []
     for key, label, env_vars, action in specs:

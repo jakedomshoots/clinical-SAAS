@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
+import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 import { ROUTES, type Appointment, type AppointmentConflictCheck, type AppointmentReminderQueue, type AppointmentStatus, type Patient, type ProviderAvailability, type UserListResponse } from '@concierge-os/shared';
 import { Bell, CalendarClock, ChevronLeft, ChevronRight, Plus, X } from 'lucide-react';
 
@@ -190,8 +190,11 @@ function SchedulePage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-clinic-800">Schedule</h1>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-clinic-800">Schedule</h1>
+          <p className="mt-1 text-sm text-clinic-500">Build the day around provider availability, conflict warnings, and reminder staging.</p>
+        </div>
         <button onClick={() => setShowNewAppointment(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
           <Plus className="h-4 w-4" />
           New Appointment
@@ -302,6 +305,7 @@ function SchedulePage() {
                           {new Date(appt.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                         </div>
                         <div className="truncate">{appt.patient_name || 'Unknown'}</div>
+                        <div className="text-[10px] opacity-70">{humanizeWorkflowLabel(appt.status)}</div>
                         <div className="text-[10px] opacity-70">{appt.type}</div>
                         {nextVisitStatus(appt.status) && (
                           <button
@@ -345,7 +349,11 @@ function SchedulePage() {
 
       {!isLoading && !isError && data?.data.length === 0 && (
         <div className="mt-4 rounded-lg border border-clinic-200 bg-white">
-          <EmptyState title="No appointments this week" detail="Create an appointment to populate the clinic schedule." />
+            <EmptyState
+              title="No appointments this week"
+              detail="Create an appointment, add provider availability, or seed the pilot workspace so coordinators know whether the quiet calendar is intentional."
+              action={<button type="button" onClick={() => setShowNewAppointment(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create appointment</button>}
+            />
         </div>
       )}
 

@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ConciergeOS — Desktop</title>
+  <style>
+    :root {
+      --bg: #f5f4ed;
+      --surface: #faf9f5;
+      --surface-warm: #e8e6dc;
+      --fg: #141413;
+      --fg-2: #3d3d3a;
+      --muted: #5e5d59;
+      --meta: #87867f;
+      --border: #f0eee6;
+      --border-soft: #e8e6dc;
+      --accent: #c96442;
+      --accent-on: #faf9f5;
+      --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+      --fg-soft: color-mix(in oklch, var(--fg) 6%, transparent);
+      --success: #17a34a;
+      --warn: #eab308;
+      --danger: #b53333;
+      --elev-raised: rgba(0, 0, 0, 0.05) 0px 4px 24px;
+      --font-display: "Anthropic Serif", Georgia, "Times New Roman", serif;
+      --font-body: "Anthropic Sans", "Arial", system-ui, -apple-system, sans-serif;
+      --font-mono: "Anthropic Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+      --fs-h1: clamp(28px, 3vw, 44px);
+      --fs-h2: clamp(22px, 2.5vw, 32px);
+      --fs-h3: 18px;
+      --fs-body: 14px;
+      --fs-meta: 12px;
+      --gap-xs: 6px;
+      --gap-sm: 10px;
+      --gap-md: 16px;
+      --gap-lg: 24px;
+      --gap-xl: 40px;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: var(--fs-body);
+      line-height: 1.5;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    img, svg { display: block; max-width: 100%; }
+    button { font: inherit; cursor: pointer; }
+
+    .app-shell { display: flex; height: 100vh; overflow: hidden; }
+    .sidebar {
+      width: 220px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-header {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .sidebar-header .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--fg);
+      border-radius: 7px;
+      display: grid; place-items: center;
+      color: var(--surface);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 500;
+    }
+    .sidebar-header .logo-text {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--fg);
+    }
+    .sidebar-nav {
+      flex: 1;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+    }
+    .nav-group-label {
+      padding: 10px 12px 4px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--meta);
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease;
+      border: none;
+      background: transparent;
+      width: 100%;
+      text-align: left;
+    }
+    .nav-item:hover { background: var(--fg-soft); color: var(--fg); }
+    .nav-item.active { background: var(--accent-soft); color: var(--accent); }
+    .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .nav-badge {
+      margin-left: auto;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+    }
+    .sidebar-footer {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--surface-warm);
+      display: grid; place-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+    .topbar {
+      height: 56px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      flex-shrink: 0;
+    }
+    .topbar-search {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 7px 12px;
+      width: 280px;
+      color: var(--meta);
+      font-size: 13px;
+    }
+    .topbar-search svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .topbar-actions { display: flex; align-items: center; gap: 8px; }
+    .icon-btn {
+      width: 34px; height: 34px;
+      display: grid; place-items: center;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    .icon-btn:hover { background: var(--fg-soft); color: var(--fg); }
+    .icon-btn svg { width: 16px; height: 16px; }
+
+    .content { flex: 1; overflow-y: auto; padding: 24px; }
+    .content-inner { max-width: 1200px; margin: 0 auto; }
+
+    .page-header { margin-bottom: 24px; }
+    .page-header h1 {
+      font-family: var(--font-display);
+      font-size: var(--fs-h1);
+      font-weight: 500;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+    .page-header .subtitle {
+      font-size: 14px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: box-shadow 0.15s ease;
+    }
+    .kpi-card:hover { box-shadow: var(--elev-raised); }
+    .kpi-value {
+      font-family: var(--font-display);
+      font-size: clamp(26px, 2.5vw, 34px);
+      font-weight: 500;
+      line-height: 1.1;
+      color: var(--fg);
+      letter-spacing: -0.02em;
+    }
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+      letter-spacing: 0.01em;
+    }
+    .kpi-delta {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kpi-delta.up { color: var(--success); }
+    .kpi-delta.down { color: var(--danger); }
+    .kpi-delta.neutral { color: var(--meta); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-header h2 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 500;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .card-body { padding: 16px 20px; }
+    .card-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-row:last-child { border-bottom: none; }
+    .card-row .row-title { font-size: 14px; color: var(--fg); }
+    .card-row .row-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .card-row .row-side { font-family: var(--font-mono); font-size: 12px; color: var(--meta); }
+
+    .app-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .app-table th, .app-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    .app-table th {
+      color: var(--muted);
+      font-weight: 500;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: var(--bg);
+    }
+    .app-table tbody tr:hover { background: var(--fg-soft); }
+    .app-table .num-col { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge-accent { background: var(--accent-soft); color: var(--accent); }
+    .badge-success { background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--success); }
+    .badge-warn { background: color-mix(in oklch, var(--warn) 12%, transparent); color: color-mix(in oklch, var(--warn) 70%, black); }
+    .badge-muted { background: var(--fg-soft); color: var(--muted); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: 1px solid transparent;
+      font-size: 13px;
+      font-weight: 500;
+      background: transparent;
+      color: var(--fg);
+      cursor: pointer;
+      transition: transform 0.05s ease, background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+    .btn-primary:hover { background: color-mix(in oklch, var(--accent) 88%, black); }
+    .btn-secondary { background: var(--surface-warm); color: var(--fg-2); border-color: var(--border-soft); }
+    .btn-secondary:hover { border-color: var(--fg-2); }
+    .btn-ghost { color: var(--muted); border-color: transparent; }
+    .btn-ghost:hover { color: var(--fg); background: var(--fg-soft); }
+
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+    .input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--fg);
+      font: inherit;
+      font-size: 14px;
+    }
+    .input:focus {
+      outline: 2px solid var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .quick-actions { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+
+    .calendar-grid { display: grid; grid-template-columns: 60px repeat(5, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    .calendar-header { background: var(--surface); padding: 10px; text-align: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+    .calendar-time { background: var(--bg); padding: 8px 10px; text-align: right; font-family: var(--font-mono); font-size: 10px; color: var(--meta); }
+    .calendar-cell { background: var(--surface); min-height: 56px; padding: 6px; position: relative; }
+    .calendar-appt {
+      background: var(--fg-soft);
+      color: var(--fg-2);
+      border-radius: 4px;
+      padding: 4px 6px;
+      font-size: 11px;
+      line-height: 1.3;
+      margin-bottom: 4px;
+      cursor: pointer;
+    }
+    .calendar-appt:hover { background: color-mix(in oklch, var(--fg) 12%, transparent); }
+
+    .task-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .task-row:last-child { border-bottom: none; }
+    .task-check { width: 16px; height: 16px; border: 1px solid var(--border-soft); border-radius: 4px; flex-shrink: 0; cursor: pointer; }
+    .task-check:hover { border-color: var(--accent); }
+    .task-title { font-size: 14px; color: var(--fg); }
+    .task-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    @media (max-width: 920px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .sidebar { width: 180px; }
+    }
+    @media (max-width: 640px) {
+      .app-shell { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+      .sidebar-nav { flex-direction: row; flex-wrap: wrap; padding: 8px; }
+      .nav-group-label { display: none; }
+      .nav-item { width: auto; }
+      .kpi-grid { grid-template-columns: 1fr; }
+      .topbar-search { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-mark">C</div>
+        <span class="logo-text">ConciergeOS</span>
+      </div>
+      <nav class="sidebar-nav">
+        <span class="nav-group-label">Practice</span>
+        <button class="nav-item active" data-target="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-target="patients">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Patients
+          <span class="nav-badge">142</span>
+        </button>
+        <button class="nav-item" data-target="schedule">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          Schedule
+        </button>
+        <button class="nav-item" data-target="tasks">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          Tasks
+          <span class="nav-badge">5</span>
+        </button>
+        <button class="nav-item" data-target="messages">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Messages
+        </button>
+        <span class="nav-group-label">Operations</span>
+        <button class="nav-item" data-target="billing">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>
+          Billing
+        </button>
+        <button class="nav-item" data-target="staff">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          Staff
+        </button>
+        <button class="nav-item" data-target="reports">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Reports
+        </button>
+        <span class="nav-group-label">System</span>
+        <button class="nav-item" data-target="settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Settings
+        </button>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="avatar">DC</div>
+        <div>
+          <div style="font-size: 13px; color: var(--fg);">Dr. Chen</div>
+          <div style="font-size: 11px; color: var(--muted);">Admin</div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="main">
+      <header class="topbar">
+        <div class="topbar-search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          Search patients, appointments, tasks…
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-btn" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+          <button class="icon-btn" aria-label="Help">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        <div class="content-inner">
+          <div class="view active" data-view="dashboard" data-od-id="dashboard">
+            <div class="page-header">
+              <h1>Good morning, Dr. Chen</h1>
+              <p class="subtitle">Monday, June 8, 2026</p>
+            </div>
+            <div class="quick-actions">
+              <button class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                New Appointment
+              </button>
+              <button class="btn btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>
+                New Patient
+              </button>
+              <button class="btn btn-secondary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                Send Message
+              </button>
+              <button class="btn btn-ghost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                Create Task
+              </button>
+            </div>
+            <div class="kpi-grid">
+              <div class="kpi-card">
+                <div class="kpi-value">12</div>
+                <div class="kpi-label">Patients Today</div>
+                <div class="kpi-delta up">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg>
+                  +2 vs last week
+                </div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-value">8</div>
+                <div class="kpi-label">Appointments</div>
+                <div class="kpi-delta neutral">All confirmed</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-value">5</div>
+                <div class="kpi-label">Pending Tasks</div>
+                <div class="kpi-delta down">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  2 urgent
+                </div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-value">$24,380</div>
+                <div class="kpi-label">Monthly Revenue</div>
+                <div class="kpi-delta up">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg>
+                  +8%
+                </div>
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <section class="card" data-od-id="upcoming-appointments">
+                <div class="card-header">
+                  <h2>Upcoming Appointments</h2>
+                  <button class="btn btn-ghost">View all</button>
+                </div>
+                <div class="card-body">
+                  <div class="card-row"><div><div class="row-title">Sarah Mitchell</div><div class="row-meta">Annual physical</div></div><span class="row-side">9:00 AM</span></div>
+                  <div class="card-row"><div><div class="row-title">James Rodriguez</div><div class="row-meta">Follow-up visit</div></div><span class="row-side">10:30 AM</span></div>
+                  <div class="card-row"><div><div class="row-title">Emily Park</div><div class="row-meta">New patient intake</div></div><span class="row-side">11:45 AM</span></div>
+                  <div class="card-row"><div><div class="row-title">David Kim</div><div class="row-meta">Lab review</div></div><span class="row-side">2:00 PM</span></div>
+                  <div class="card-row"><div><div class="row-title">Lisa Thompson</div><div class="row-meta">Consultation</div></div><span class="row-side">3:30 PM</span></div>
+                </div>
+              </section>
+              <section class="card" data-od-id="recent-activity">
+                <div class="card-header">
+                  <h2>Recent Activity</h2>
+                </div>
+                <div class="card-body">
+                  <div class="card-row"><div><div class="row-title">Lab results uploaded</div><div class="row-meta">James Rodriguez — CBC panel</div></div><span class="row-side">8:42 AM</span></div>
+                  <div class="card-row"><div><div class="row-title">Appointment rescheduled</div><div class="row-meta">Emily Park moved to 11:45 AM</div></div><span class="row-side">Yesterday</span></div>
+                  <div class="card-row"><div><div class="row-title">Insurance verified</div><div class="row-meta">David Kim — Blue Cross PPO</div></div><span class="row-side">Yesterday</span></div>
+                  <div class="card-row"><div><div class="row-title">New patient form</div><div class="row-meta">Sarah Mitchell submitted intake</div></div><span class="row-side">Jun 6</span></div>
+                  <div class="card-row"><div><div class="row-title">Task completed</div><div class="row-meta">Call pharmacy — by Maria G.</div></div><span class="row-side">Jun 6</span></div>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div class="view" data-view="patients" data-od-id="patients">
+            <div class="page-header">
+              <h1>Patients</h1>
+              <p class="subtitle">142 active patients</p>
+            </div>
+            <div class="quick-actions">
+              <div class="topbar-search" style="width: 320px; background: var(--surface);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                Search by name, phone, or MRN…
+              </div>
+              <button class="btn btn-secondary">Add Patient</button>
+            </div>
+            <div class="card">
+              <table class="app-table">
+                <thead><tr><th>Name</th><th>DOB</th><th>Last Visit</th><th>Status</th><th>Next Appt</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Sarah Mitchell</strong></td><td>Mar 14, 1985</td><td>May 12, 2026</td><td><span class="badge badge-success">Active</span></td><td class="num-col">Jun 8</td></tr>
+                  <tr><td><strong>James Rodriguez</strong></td><td>Aug 22, 1972</td><td>Jun 1, 2026</td><td><span class="badge badge-success">Active</span></td><td class="num-col">Jun 8</td></tr>
+                  <tr><td><strong>Emily Park</strong></td><td>Nov 3, 1990</td><td>—</td><td><span class="badge badge-warn">New</span></td><td class="num-col">Jun 8</td></tr>
+                  <tr><td><strong>David Kim</strong></td><td>Jan 9, 1968</td><td>Apr 28, 2026</td><td><span class="badge badge-success">Active</span></td><td class="num-col">Jun 8</td></tr>
+                  <tr><td><strong>Lisa Thompson</strong></td><td>Jul 30, 1988</td><td>May 20, 2026</td><td><span class="badge badge-success">Active</span></td><td class="num-col">Jun 8</td></tr>
+                  <tr><td><strong>Robert Chen</strong></td><td>Dec 5, 1955</td><td>Feb 14, 2026</td><td><span class="badge badge-muted">Inactive</span></td><td class="num-col">—</td></tr>
+                  <tr><td><strong>Maria Garcia</strong></td><td>May 18, 1979</td><td>Jun 3, 2026</td><td><span class="badge badge-success">Active</span></td><td class="num-col">Jun 15</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="view" data-view="schedule" data-od-id="schedule">
+            <div class="page-header">
+              <h1>Schedule</h1>
+              <p class="subtitle">Week of June 8 — June 12, 2026</p>
+            </div>
+            <div class="quick-actions">
+              <button class="btn btn-secondary">Previous</button>
+              <button class="btn btn-secondary">Today</button>
+              <button class="btn btn-secondary">Next</button>
+              <button class="btn btn-primary" style="margin-left: auto;">New Appointment</button>
+            </div>
+            <div class="card" style="padding: 0;">
+              <div class="calendar-grid">
+                <div class="calendar-header"></div>
+                <div class="calendar-header">Mon 6/8</div>
+                <div class="calendar-header">Tue 6/9</div>
+                <div class="calendar-header">Wed 6/10</div>
+                <div class="calendar-header">Thu 6/11</div>
+                <div class="calendar-header">Fri 6/12</div>
+                <div class="calendar-time">8:00</div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">9:00</div>
+                <div class="calendar-cell"><div class="calendar-appt">Sarah Mitchell<br/><span style="opacity:.7">Annual physical</span></div></div>
+                <div class="calendar-cell"></div>
+                <div class="calendar-cell"><div class="calendar-appt">Maria Garcia<br/><span style="opacity:.7">Follow-up</span></div></div>
+                <div class="calendar-cell"></div>
+                <div class="calendar-cell"><div class="calendar-appt">David Kim<br/><span style="opacity:.7">Lab review</span></div></div>
+                <div class="calendar-time">10:00</div>
+                <div class="calendar-cell"></div>
+                <div class="calendar-cell"><div class="calendar-appt">Lisa Thompson<br/><span style="opacity:.7">Consultation</span></div></div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">10:30</div>
+                <div class="calendar-cell"><div class="calendar-appt">James Rodriguez<br/><span style="opacity:.7">Follow-up</span></div></div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">11:00</div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-cell"><div class="calendar-appt">Robert Chen<br/><span style="opacity:.7">Physical therapy</span></div></div>
+                <div class="calendar-cell"></div>
+                <div class="calendar-time">11:45</div>
+                <div class="calendar-cell"><div class="calendar-appt">Emily Park<br/><span style="opacity:.7">New patient</span></div></div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">1:00</div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">2:00</div>
+                <div class="calendar-cell"><div class="calendar-appt">David Kim<br/><span style="opacity:.7">Lab review</span></div></div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">3:00</div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">3:30</div>
+                <div class="calendar-cell"><div class="calendar-appt">Lisa Thompson<br/><span style="opacity:.7">Consultation</span></div></div>
+                <div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">4:00</div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+                <div class="calendar-time">5:00</div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div><div class="calendar-cell"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" data-view="tasks" data-od-id="tasks">
+            <div class="page-header">
+              <h1>Tasks</h1>
+              <p class="subtitle">5 pending, 2 urgent</p>
+            </div>
+            <div class="quick-actions">
+              <button class="btn btn-secondary">Create Task</button>
+              <button class="btn btn-ghost">Filter</button>
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <div class="task-row">
+                  <div class="task-check"></div>
+                  <div style="flex:1">
+                    <div class="task-title">Call pharmacy for James Rodriguez refill</div>
+                    <div class="task-meta">Assigned to Maria G. · Due today</div>
+                  </div>
+                  <span class="badge badge-warn">Urgent</span>
+                </div>
+                <div class="task-row">
+                  <div class="task-check"></div>
+                  <div style="flex:1">
+                    <div class="task-title">Verify Emily Park insurance coverage</div>
+                    <div class="task-meta">Assigned to you · Due today</div>
+                  </div>
+                  <span class="badge badge-warn">Urgent</span>
+                </div>
+                <div class="task-row">
+                  <div class="task-check"></div>
+                  <div style="flex:1">
+                    <div class="task-title">Review David Kim lab results before appointment</div>
+                    <div class="task-meta">Assigned to you · Due 2:00 PM</div>
+                  </div>
+                  <span class="badge badge-warn">High</span>
+                </div>
+                <div class="task-row">
+                  <div class="task-check"></div>
+                  <div style="flex:1">
+                    <div class="task-title">Schedule follow-up for Robert Chen</div>
+                    <div class="task-meta">Assigned to Maria G. · Due Jun 9</div>
+                  </div>
+                  <span class="badge badge-muted">Normal</span>
+                </div>
+                <div class="task-row">
+                  <div class="task-check"></div>
+                  <div style="flex:1">
+                    <div class="task-title">Update Sarah Mitchell allergy documentation</div>
+                    <div class="task-meta">Assigned to you · Due Jun 10</div>
+                  </div>
+                  <span class="badge badge-muted">Normal</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" data-view="messages" data-od-id="messages">
+            <div class="page-header">
+              <h1>Messages</h1>
+              <p class="subtitle">Secure patient communications</p>
+            </div>
+            <div class="card" style="min-height: 400px; display: grid; place-items: center;">
+              <div style="text-align: center; color: var(--muted);">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" style="margin: 0 auto 16px; opacity: .4;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                <p style="margin: 0; font-size: 15px;">Message center module</p>
+                <p style="margin: 8px 0 0; font-size: 13px;">Select a conversation from the sidebar to begin.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" data-view="billing" data-od-id="billing">
+            <div class="page-header">
+              <h1>Billing</h1>
+              <p class="subtitle">Claims, invoices, and payments</p>
+            </div>
+            <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
+              <div class="kpi-card">
+                <div class="kpi-value">$8,420</div>
+                <div class="kpi-label">Outstanding Claims</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-value">94%</div>
+                <div class="kpi-label">Collection Rate</div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-value">12</div>
+                <div class="kpi-label">Pending Invoices</div>
+              </div>
+            </div>
+            <div class="card">
+              <table class="app-table">
+                <thead><tr><th>Patient</th><th>Service</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>Sarah Mitchell</td><td>Annual physical</td><td>Jun 8</td><td class="num-col">$185.00</td><td><span class="badge badge-success">Paid</span></td></tr>
+                  <tr><td>James Rodriguez</td><td>Follow-up</td><td>Jun 8</td><td class="num-col">$125.00</td><td><span class="badge badge-warn">Pending</span></td></tr>
+                  <tr><td>David Kim</td><td>Lab review</td><td>Jun 8</td><td class="num-col">$95.00</td><td><span class="badge badge-warn">Pending</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="view" data-view="staff" data-od-id="staff">
+            <div class="page-header">
+              <h1>Staff</h1>
+              <p class="subtitle">6 team members</p>
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <div class="card-row"><div><div class="row-title">Dr. Diana Chen</div><div class="row-meta">Physician · Admin</div></div><span class="badge badge-success">Active</span></div>
+                <div class="card-row"><div><div class="row-title">Maria Garcia</div><div class="row-meta">Nurse Practitioner</div></div><span class="badge badge-success">Active</span></div>
+                <div class="card-row"><div><div class="row-title">James Wilson</div><div class="row-meta">Front Desk</div></div><span class="badge badge-success">Active</span></div>
+                <div class="card-row"><div><div class="row-title">Priya Patel</div><div class="row-meta">Medical Assistant</div></div><span class="badge badge-success">Active</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" data-view="reports" data-od-id="reports">
+            <div class="page-header">
+              <h1>Reports</h1>
+              <p class="subtitle">Practice analytics and insights</p>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+              <div class="card" style="min-height: 200px; display: grid; place-items: center; color: var(--muted); font-size: 13px;">
+                <div style="text-align:center"><div style="font-family:var(--font-display); font-size:18px; color:var(--fg); margin-bottom:8px;">Patient Volume</div>Monthly trend chart placeholder</div>
+              </div>
+              <div class="card" style="min-height: 200px; display: grid; place-items: center; color: var(--muted); font-size: 13px;">
+                <div style="text-align:center"><div style="font-family:var(--font-display); font-size:18px; color:var(--fg); margin-bottom:8px;">Revenue Breakdown</div>Category distribution placeholder</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" data-view="settings" data-od-id="settings">
+            <div class="page-header">
+              <h1>Settings</h1>
+              <p class="subtitle">Clinic preferences and system configuration</p>
+            </div>
+            <div class="card" style="max-width: 600px;">
+              <div class="card-body">
+                <div class="field" style="margin-bottom: 16px;">
+                  <label>Clinic Name</label>
+                  <input class="input" value="Chen Family Practice" />
+                </div>
+                <div class="field" style="margin-bottom: 16px;">
+                  <label>Phone</label>
+                  <input class="input" value="(415) 555-0142" />
+                </div>
+                <div class="field" style="margin-bottom: 16px;">
+                  <label>Address</label>
+                  <input class="input" value="450 Sutter St, Suite 1200, San Francisco, CA" />
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 8px;">
+                  <button class="btn btn-primary">Save Changes</button>
+                  <button class="btn btn-ghost">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        item.classList.add('active');
+        const viewName = item.dataset.target;
+        document.querySelectorAll('.view').forEach(v => {
+          v.classList.toggle('active', v.dataset.view === viewName);
+        });
+      });
+    });
+    const params = new URLSearchParams(window.location.search);
+    const initialView = params.get('view');
+    if (initialView) {
+      const navItem = document.querySelector('.nav-item[data-target="' + initialView + '"]');
+      if (navItem) navItem.click();
+    }
+  </script>
+</body>
+</html>

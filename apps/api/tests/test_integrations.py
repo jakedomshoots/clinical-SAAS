@@ -11,6 +11,10 @@ from app.integrations.sandbox import (
     SandboxEHRClient,
     SandboxFaxProviderClient,
     SandboxPortalClient,
+    SandboxLabsHIEClient,
+    SandboxPaymentsClient,
+    SandboxERxClient,
+    SandboxIdentityClient,
 )
 
 
@@ -76,6 +80,39 @@ async def test_sandbox_adapters_implement_contract_operations():
     assert calendar["external_id"].startswith("sandbox-calendar-")
     assert communication["status"] == "queued"
     assert claim["status"] == "submitted"
+
+
+@pytest.mark.asyncio
+async def test_new_sandbox_adapters_implement_contract_operations():
+    labs = await SandboxLabsHIEClient("sandbox").submit_lab_order("patient-1", {"test": "CBC"})
+    payment = await SandboxPaymentsClient("sandbox").process_payment("patient-1", 10000, "card")
+    erx = await SandboxERxClient("sandbox").send_prescription("patient-1", {"medication": "Amoxicillin"})
+    identity = await SandboxIdentityClient("sandbox").authenticate_user("user-1", "password")
+
+    assert labs["status"] == "submitted"
+    assert payment["status"] == "succeeded"
+    assert erx["status"] == "transmitted"
+    assert identity["authenticated"] is True
+
+
+@pytest.mark.asyncio
+async def test_new_sandbox_adapter_health_reports_implemented():
+    health = await SandboxLabsHIEClient("sandbox").health()
+    assert health.ok is True
+    assert health.adapter_implemented is True
+    assert "sandbox" in health.adapter_detail.lower()
+
+    health = await SandboxPaymentsClient("sandbox").health()
+    assert health.ok is True
+    assert health.adapter_implemented is True
+
+    health = await SandboxERxClient("sandbox").health()
+    assert health.ok is True
+    assert health.adapter_implemented is True
+
+    health = await SandboxIdentityClient("sandbox").health()
+    assert health.ok is True
+    assert health.adapter_implemented is True
 
 
 @pytest.mark.asyncio

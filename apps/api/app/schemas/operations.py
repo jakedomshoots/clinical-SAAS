@@ -950,3 +950,126 @@ class ProductionRehearsalSnapshotOut(BaseModel):
 class ProductionRehearsalSnapshotListOut(BaseModel):
     data: list[ProductionRehearsalSnapshotOut]
     total: int
+
+
+class ScopeAcceptanceParityItem(BaseModel):
+    feature: str
+    drchrono: bool
+    concierge_os: bool
+    gaps: str
+    owner: str | None
+
+
+class ScopeAcceptanceOutageTarget(BaseModel):
+    target: str
+    goal: str
+    fallback: str
+    owner: str
+
+
+class ScopeAcceptanceRollbackCriterion(BaseModel):
+    item: str
+    required: bool
+    pass_: bool = Field(alias="pass")
+
+
+class ScopeAcceptancePacketOut(BaseModel):
+    packet_id: str
+    generated_at: str
+    generated_by: str
+    status: str
+    parity_matrix: list[ScopeAcceptanceParityItem]
+    outage_reduction_targets: list[ScopeAcceptanceOutageTarget]
+    rollback_scorecard: dict
+    gaps: list[ScopeAcceptanceParityItem]
+    gap_count: int
+    signoff_required_from: list[str]
+    export_filename: str
+
+
+class DrChronoMigrationSection(BaseModel):
+    total: int
+    create: int
+    update: int
+    skip: int
+    errors: list[str]
+
+
+class DrChronoMigrationDryRunAnalysis(BaseModel):
+    total_rows_analyzed: int
+    create_count: int
+    update_count: int
+    skip_count: int
+    duplicate_count: int
+    missing_dependency_count: int
+    needs_review_count: int
+    sections: dict[str, DrChronoMigrationSection]
+    accepted_gaps: list[str]
+    fallback_owner: str | None
+    freeze_timing: str | None
+    sample_chart_reviewed: bool
+    clinic_sign_off: bool
+
+
+class DrChronoMigrationDryRunStart(BaseModel):
+    total_rows: int = 0
+    create_count: int = 0
+    update_count: int = 0
+    skip_count: int = 0
+    duplicate_count: int = 0
+    missing_dependency_count: int = 0
+    needs_review_count: int = 0
+    sections: dict[str, dict] = Field(default_factory=dict)
+    note: str | None = None
+
+
+class DrChronoMigrationDryRunOut(BaseModel):
+    dry_run_id: str
+    analysis: DrChronoMigrationDryRunAnalysis
+    event_id: str
+    generated_at: str
+
+
+class DrChronoImportBatchOut(BaseModel):
+    batch_id: str
+    status: str
+    mode: str
+    section: str
+    create_count: int
+    update_count: int
+    skip_count: int
+    error_count: int
+    summary: str
+    source_dry_run_id: str | None
+    note: str | None
+    created_by: str
+    created_at: str
+    event_id: str | None = None
+
+
+class DrChronoImportBatchListOut(BaseModel):
+    data: list[DrChronoImportBatchOut]
+    total: int
+
+
+class DrChronoImportBatchCreate(BaseModel):
+    section: str = "patients"
+    create_count: int = 0
+    update_count: int = 0
+    skip_count: int = 0
+    error_count: int = 0
+    summary: str = ""
+    source_dry_run_id: str | None = None
+    note: str | None = None
+
+
+class DrChronoMigrationPacketOut(BaseModel):
+    packet_id: str
+    generated_at: str
+    generated_by: str
+    status: str
+    dry_run_analysis: DrChronoMigrationDryRunAnalysis
+    import_batches: list[DrChronoImportBatchOut]
+    write_import_blocked: bool
+    write_import_block_reason: str
+    export_filename: str

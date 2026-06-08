@@ -37,6 +37,31 @@ That checkpoint added:
 - Launch readiness requires extended clinical integrations, including Labs/HIE, payments, Identity/MFA, and eRx.
 - Adapter evidence contracts have been hardened across EHR, fax, portal, communications, clearinghouse, Labs/HIE, payments, eRx, identity, calendar, and CopilotKit runtime lanes.
 
+**Subsequent work completed (not yet in a tagged release):**
+
+- Phase 5 adapter hardening: Added 4 missing integration adapters (`labs_hie`, `payments`, `erx`, `identity`) with sandbox stubs and production placeholders. All 11 lanes now have adapter contracts.
+- Phase 3 DrChrono migration: Built `drchrono-migration-packet` and `scope-acceptance-packet` endpoints with dry-run analysis, import batch tracking, write-import blocker, CSV export, and audit logging.
+- Phase 4 native workflows: Verified existing checklists cover all 5 clinic roles (front desk, MA/nurse, provider, billing, manager) with no gaps.
+- Full layer sync: Updated `operations_service.py`, `operations.py` router, `operations.py` schemas, `demo-api.ts`, `packages/shared/src/types/operations.ts`, `config.py`, `integration_config_service.py`, `launch_readiness_service.py`, and `sandbox.py`.
+- Tests: Added integration tests for all 4 new sandbox adapters; all pass.
+
+Files modified in this work block:
+- `apps/api/app/integrations/labs_hie.py` (new)
+- `apps/api/app/integrations/payments.py` (new)
+- `apps/api/app/integrations/erx.py` (new)
+- `apps/api/app/integrations/identity.py` (new)
+- `apps/api/app/integrations/factory.py`
+- `apps/api/app/integrations/sandbox.py`
+- `apps/api/app/config.py`
+- `apps/api/app/services/integration_config_service.py`
+- `apps/api/app/services/launch_readiness_service.py`
+- `apps/api/app/services/operations_service.py`
+- `apps/api/app/routers/operations.py`
+- `apps/api/app/schemas/operations.py`
+- `apps/web/src/lib/demo-api.ts`
+- `packages/shared/src/types/operations.ts`
+- `apps/api/tests/test_integrations.py`
+
 The main checkout now also contains this roadmap at `docs/operations/completion-roadmap.md` so other agents can locate it without needing the Codex worktree path.
 
 ## Current Baseline
@@ -149,7 +174,7 @@ Build items:
 - Add queue, retry, webhook verification, manual fallback, and audit evidence for each live lane.
 - Use Credential Dry-Run Binder, Vendor Credential Request Packet, Adapter Implementation Packet, and Integration Cutover Readiness Packet to track each lane.
 - In progress: sandbox/local evidence contracts exist for EHR, fax, portal, communications, clearinghouse, Labs/HIE, payments, eRx, identity, calendar, and CopilotKit runtime.
-- Still external: production adapters/accounts, credentials, sandbox references, callback URLs, BAAs, enrollment approvals, prescriber identity proofing, approved tool policy, and support contacts.
+- Completed: all 11 lanes have adapter contracts, sandbox stubs, and production placeholders. Production adapters/accounts, credentials, sandbox references, callback URLs, BAAs, enrollment approvals, prescriber identity proofing, approved tool policy, and support contacts remain external.
 
 External inputs: vendor accounts, BAAs, API keys, callback URLs, enrollment approvals, sandbox references, support contacts, and go-live windows.
 

@@ -5,7 +5,7 @@ import { AlertTriangle, ClipboardCheck, CreditCard, ShieldCheck } from 'lucide-r
 import { ROUTES, type BillingCase, type BillingCaseListResponse, type BillingClaimReadiness, type BillingTimelineResponse, type BillingWorkQueue, type ChargeReviewListResponse, type EligibilityCheck, type PatientListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { EmptyState, LoadingState } from '@/lib/ui-state';
+import { EmptyState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
 export const Route = createFileRoute('/billing')({
   component: BillingPage,
@@ -122,6 +122,7 @@ function BillingPage() {
       <header>
         <p className="text-sm font-medium text-clinic-500">Revenue workflow</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Billing Cases</h1>
+        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Move signed clinical work through charge capture, eligibility, submission, denial rework, and payment without hiding blockers.</p>
       </header>
       <section className="grid gap-2 md:grid-cols-5">
         {[
@@ -196,9 +197,9 @@ function BillingPage() {
                   {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
                 </div>
                 <select value={item.status} onChange={(event) => updateMutation.mutate({ id: item.id, update: { status: event.target.value as BillingCase['status'] } })} className="rounded-md border border-clinic-200 px-2 py-1 text-sm text-clinic-700">
-                  {['draft', 'ready', 'submitted', 'denied', 'paid'].map((status) => <option key={status} value={status}>{status}</option>)}
+                  {['draft', 'ready', 'submitted', 'denied', 'paid'].map((status) => <option key={status} value={status}>{humanizeWorkflowLabel(status)}</option>)}
                 </select>
-                <span className="text-sm text-clinic-500">{item.eligibility_status}</span>
+                <span className="text-sm text-clinic-500">{humanizeWorkflowLabel(item.eligibility_status)}</span>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => eligibilityMutation.mutate(item.patient_id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
                     <ShieldCheck className="h-3.5 w-3.5" />

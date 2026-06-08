@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
+import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 import type { Task, TaskOutreachSummary, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, TaskWorkQueue, User } from '@concierge-os/shared';
 import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
@@ -168,6 +168,7 @@ function TaskListPage() {
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mr-2 flex items-center text-xs font-semibold uppercase tracking-wide text-clinic-400">Status</div>
         {['', 'open', 'in_progress', 'blocked', 'completed'].map((s) => (
           <button
             key={s}
@@ -178,10 +179,11 @@ function TaskListPage() {
                 : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
             }`}
           >
-            {s || 'All'}
+            {s ? humanizeWorkflowLabel(s) : 'All'}
           </button>
         ))}
         <div className="h-8 w-px bg-clinic-200" />
+        <div className="mr-2 flex items-center text-xs font-semibold uppercase tracking-wide text-clinic-400">Priority</div>
         {['', 'high', 'urgent'].map((priority) => (
           <button
             key={priority || 'any-priority'}
@@ -192,7 +194,7 @@ function TaskListPage() {
                 : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
             }`}
           >
-            {priority ? `${priority} priority` : 'Any priority'}
+            {priority ? `${humanizeWorkflowLabel(priority)} priority` : 'Any priority'}
           </button>
         ))}
         <button
@@ -203,7 +205,8 @@ function TaskListPage() {
               : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
           }`}
         >
-          Checkout tasks
+          <span>Checkout follow-ups</span>
+          <span className="ml-1 text-[10px] opacity-80">post-visit</span>
         </button>
       </div>
 
@@ -414,7 +417,7 @@ function TaskListPage() {
                       onChange={(event) => updateTask(task.id, { status: event.target.value as Task['status'] })}
                       className={`rounded-md border-0 px-2 py-1 text-xs font-medium ${STATUS_COLORS[task.status]}`}
                     >
-                      {['open', 'in_progress', 'blocked', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{status.replace('_', ' ')}</option>)}
+                      {['open', 'in_progress', 'blocked', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{humanizeWorkflowLabel(status)}</option>)}
                     </select>
                   </td>
                   <td className="px-4 py-3">
@@ -425,7 +428,7 @@ function TaskListPage() {
                         onChange={(event) => updateTask(task.id, { priority: event.target.value as Task['priority'] })}
                         className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
                       >
-                        {['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority}>{priority}</option>)}
+                        {['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority} value={priority}>{humanizeWorkflowLabel(priority)}</option>)}
                       </select>
                     </label>
                   </td>
@@ -452,7 +455,7 @@ function TaskListPage() {
                     {task.delivery_status ? (
                       <div>
                         <span className={`inline-flex rounded border px-2 py-0.5 font-medium ${deliveryTone(task.delivery_status)}`}>
-                          {task.delivery_status}
+                          {humanizeWorkflowLabel(task.delivery_status)}
                         </span>
                         <div className="mt-1 text-clinic-500">{task.delivery_channel ?? 'outreach'} · {task.delivery_attempts} attempt{task.delivery_attempts === 1 ? '' : 's'}</div>
                         {task.delivery_error && <div className="mt-1 max-w-48 truncate text-amber-700">{task.delivery_error}</div>}
@@ -523,7 +526,8 @@ function TaskListPage() {
                   <td colSpan={9}>
                     <EmptyState
                       title="No tasks found"
-                      detail={statusFilter ? 'Try another status filter or create a new task.' : 'No work is queued for the current filter.'}
+                      detail={statusFilter ? 'Try another status filter or create a new task.' : 'No work is queued for the current filter. Create a task or check Setup if demo data is missing.'}
+                      action={<button type="button" onClick={() => setShowNewTask(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create task</button>}
                     />
                   </td>
                 </tr>

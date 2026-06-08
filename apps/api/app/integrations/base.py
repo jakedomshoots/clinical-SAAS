@@ -46,6 +46,10 @@ class ConfiguredIntegration:
         self.value = value.strip()
 
     @property
+    def api_key(self) -> str:
+        return self.value
+
+    @property
     def configured(self) -> bool:
         return bool(self.value)
 
@@ -89,3 +93,8 @@ class ConfiguredIntegration:
             adapter_detail=adapter_detail,
             readiness_mode=self.readiness_mode,
         )
+
+
+class BaseIntegrationClient:
+    """Base class for vendor-specific integration clients."""
+    pass

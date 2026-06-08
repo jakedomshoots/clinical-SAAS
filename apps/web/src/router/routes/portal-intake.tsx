@@ -5,7 +5,7 @@ import { ClipboardList } from 'lucide-react';
 import { ROUTES, type AppointmentConflictCheck, type PatientListResponse, type PortalIntakeListResponse, type PortalIntakeSubmission } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { EmptyState, LoadingState } from '@/lib/ui-state';
+import { EmptyState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
 export const Route = createFileRoute('/portal-intake')({
   component: PortalIntakePage,
@@ -65,6 +65,7 @@ function PortalIntakePage() {
       <header>
         <p className="text-sm font-medium text-clinic-500">Patient digital front door</p>
         <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Portal Intake</h1>
+        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Triage patient-submitted requests into chart updates, appointments, or document review with conflicts visible before scheduling.</p>
       </header>
       <section className="rounded-md border border-clinic-200 bg-white p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
@@ -74,7 +75,7 @@ function PortalIntakePage() {
         <div className="flex flex-wrap gap-2">
           {['intake_form', 'appointment_request', 'document_upload'].map((type) => (
             <button key={type} onClick={() => createMutation.mutate(type)} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
-              {type.replace('_', ' ')}
+              {humanizeWorkflowLabel(type)}
             </button>
           ))}
         </div>
@@ -85,7 +86,7 @@ function PortalIntakePage() {
             {rows.map((item) => (
               <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_8rem_22rem]">
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{item.request_type.replace('_', ' ')}</div>
+                  <div className="text-sm font-semibold text-clinic-900">{humanizeWorkflowLabel(item.request_type)}</div>
                   <div className="mt-1 text-xs text-clinic-500">{JSON.stringify(item.submitted_payload)}</div>
                   {conflictChecks[item.id] && (
                     <div className="mt-2 space-y-1">
@@ -102,7 +103,7 @@ function PortalIntakePage() {
                     </div>
                   )}
                 </div>
-                <span className="text-sm font-medium text-clinic-700">{item.status}</span>
+                <span className="text-sm font-medium text-clinic-700">{humanizeWorkflowLabel(item.status)}</span>
                 <div className="flex flex-wrap gap-2">
                   <button onClick={() => actionMutation.mutate({ id: item.id, action: 'apply' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Apply chart</button>
                   {item.request_type === 'appointment_request' && <button onClick={() => conflictMutation.mutate(item)} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Check slot</button>}
@@ -112,7 +113,13 @@ function PortalIntakePage() {
                 </div>
               </div>
             ))}
-            {rows.length === 0 && <EmptyState title="No portal requests" detail="Stage intake, appointment, or document upload requests for review." />}
+            {rows.length === 0 && (
+              <EmptyState
+                title="No portal requests"
+                detail="Stage intake, appointment, or document upload requests for review. Empty means either the queue is clear or demo data has not been seeded yet."
+                action={<button type="button" onClick={() => createMutation.mutate('intake_form')} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Stage intake request</button>}
+              />
+            )}
           </div>
         </section>
       )}
