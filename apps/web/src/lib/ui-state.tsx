@@ -1,26 +1,31 @@
-import { AlertTriangle, CheckCircle2, Loader2, ShieldCheck, Workflow } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { AlertTriangle, Loader2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 function friendlyErrorDetail(detail?: string) {
   if (!detail) return undefined;
   const normalized = detail.toLowerCase();
-  if (normalized.includes('file not found') || normalized.includes('failed to fetch') || normalized.includes('not found')) {
-    return 'The clinic API or demo data is not available from this workspace. Retry when the backend is running, or open Setup to seed/check the pilot workspace.';
+  if (
+    normalized.includes("file not found") ||
+    normalized.includes("failed to fetch") ||
+    normalized.includes("not found")
+  ) {
+    return "The clinic API or demo data is not available from this workspace. Retry when the backend is running, or open Setup to seed/check the pilot workspace.";
   }
   return detail;
 }
 
 export function humanizeWorkflowLabel(value?: string | null) {
-  if (!value) return '';
+  if (!value) return "";
   return value
-    .replaceAll('_', ' ')
+    .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-export function LoadingState({ label = 'Loading' }: { label?: string }) {
+export function LoadingState({ label = "Loading" }: { label?: string }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-12 text-sm text-clinic-500">
-      <Loader2 className="h-5 w-5 animate-spin text-clinic-400" />
+    <div className="flex items-center justify-center gap-2 py-12 text-small text-ink-muted">
+      <Loader2 className="h-5 w-5 animate-spin" />
       <span>{label}</span>
     </div>
   );
@@ -30,15 +35,24 @@ export function EmptyState({
   title,
   detail,
   action,
+  icon: Icon,
 }: {
   title: string;
   detail?: string;
   action?: ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
-    <div className="px-4 py-12 text-center">
-      <div className="text-sm font-medium text-clinic-700">{title}</div>
-      {detail && <div className="mx-auto mt-1 max-w-md text-sm text-clinic-500">{detail}</div>}
+    <div className="flex flex-col items-center px-4 py-12 text-center">
+      {Icon && (
+        <Icon className="mb-3 h-8 w-8 text-ink-faint" />
+      )}
+      <div className="text-subhead font-medium text-ink">{title}</div>
+      {detail && (
+        <div className="mx-auto mt-1 max-w-md text-small text-ink-muted">
+          {detail}
+        </div>
+      )}
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -49,21 +63,27 @@ export function OperationalEmptyState({
   detail,
   primaryAction,
   secondaryAction,
+  icon: Icon,
 }: {
   title: string;
   detail: string;
   primaryAction?: ReactNode;
   secondaryAction?: ReactNode;
+  icon?: LucideIcon;
 }) {
   return (
-    <div className="rounded-lg border border-clinic-200 bg-white px-6 py-10 text-center shadow-sm">
-      <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-accent-50 text-accent-700">
-        <Workflow className="h-5 w-5" />
-      </div>
-      <div className="mt-3 text-sm font-semibold text-clinic-900">{title}</div>
-      <div className="mx-auto mt-1 max-w-md text-sm leading-6 text-clinic-500">{detail}</div>
+    <div className="flex flex-col items-center px-4 py-12 text-center">
+      {Icon && (
+        <Icon className="mb-3 h-8 w-8 text-ink-faint" />
+      )}
+      <div className="text-subhead font-medium text-ink">{title}</div>
+      {detail && (
+        <div className="mx-auto mt-1 max-w-md text-small text-ink-muted">
+          {detail}
+        </div>
+      )}
       {(primaryAction || secondaryAction) && (
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
           {primaryAction}
           {secondaryAction}
         </div>
@@ -73,27 +93,11 @@ export function OperationalEmptyState({
 }
 
 export function ClinicNeedsStrip() {
-  return (
-    <section className="grid gap-3 md:grid-cols-3">
-      {[
-        { label: 'Confidence', detail: 'Show whether data, API, sync, and integrations are usable before staff starts work.', icon: CheckCircle2 },
-        { label: 'Direction', detail: 'Surface the next best action instead of leaving teams on blank queues.', icon: Workflow },
-        { label: 'Protection', detail: 'Keep PHI and AI-assisted actions confirmation-gated, auditable, and reversible where possible.', icon: ShieldCheck },
-      ].map(({ label, detail, icon: Icon }) => (
-        <div key={label} className="rounded-md border border-clinic-200 bg-white p-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-            <Icon className="h-4 w-4 text-accent-700" />
-            {label}
-          </div>
-          <p className="mt-1 text-xs leading-5 text-clinic-500">{detail}</p>
-        </div>
-      ))}
-    </section>
-  );
+  return null;
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
+  title = "Something went wrong",
   detail,
   action,
 }: {
@@ -102,12 +106,16 @@ export function ErrorState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+    <div className="rounded-md border border-danger/20 bg-danger/10 px-4 py-3 text-small text-danger">
       <div className="flex items-start gap-2">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
         <div>
-          <div className="font-semibold">{title}</div>
-          {detail && <div className="mt-1 text-red-700">{friendlyErrorDetail(detail)}</div>}
+          <div className="font-medium">{title}</div>
+          {detail && (
+            <div className="mt-1 text-danger/80">
+              {friendlyErrorDetail(detail)}
+            </div>
+          )}
           {action && <div className="mt-3">{action}</div>}
         </div>
       </div>

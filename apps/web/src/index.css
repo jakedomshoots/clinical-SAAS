@@ -1,56 +1,105 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-clinic-50: #f8fafc;
-  --color-clinic-100: #f1f5f9;
-  --color-clinic-200: #e2e8f0;
-  --color-clinic-300: #cbd5e1;
-  --color-clinic-400: #94a3b8;
-  --color-clinic-500: #64748b;
-  --color-clinic-600: #475569;
-  --color-clinic-700: #334155;
-  --color-clinic-800: #1e293b;
-  --color-clinic-900: #0f172a;
+  /* Canvas (Backgrounds) */
+  --color-canvas: #f5f4ed;
+  --color-canvas-raised: #faf9f5;
+  --color-canvas-sunk: #e8e6dc;
+  --color-canvas-dark: #1a1a18;
 
-  --color-accent-50: #f0fdf4;
-  --color-accent-100: #dcfce7;
-  --color-accent-200: #bbf7d0;
-  --color-accent-300: #86efac;
-  --color-accent-400: #4ade80;
-  --color-accent-500: #22c55e;
-  --color-accent-600: #16a34a;
-  --color-accent-700: #15803d;
-  --color-accent-800: #166534;
-  --color-accent-900: #14532d;
+  /* Ink (Text) */
+  --color-ink: #141413;
+  --color-ink-secondary: #3d3d3a;
+  --color-ink-muted: #5e5d59;
+  --color-ink-faint: #87867f;
+  --color-ink-on-dark: #faf9f5;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Accent (Terracotta) */
+  --color-accent: #c96442;
+  --color-accent-hover: #b55332;
+  --color-accent-soft: rgba(201, 100, 66, 0.12);
+  --color-accent-on: #faf9f5;
 
-  --color-background: var(--clinic-50);
-  --color-foreground: var(--clinic-900);
-  --color-primary: var(--accent-600);
-  --color-primary-foreground: white;
-  --color-secondary: var(--clinic-100);
-  --color-secondary-foreground: var(--clinic-800);
-  --color-muted: var(--clinic-100);
-  --color-muted-foreground: var(--clinic-500);
-  --color-card: white;
-  --color-card-foreground: var(--clinic-900);
-  --color-border: var(--clinic-200);
-  --color-input: var(--clinic-300);
-  --color-ring: var(--accent-500);
-  --color-destructive: oklch(0.577 0.245 27.325);
-  --radius: 0.375rem;
+  /* Semantic */
+  --color-success: #4a7c59;
+  --color-warn: #c9a227;
+  --color-danger: #b53333;
+
+  /* Borders */
+  --color-border: #e8e6dc;
+  --color-border-strong: #d5d3c8;
+  --color-border-subtle: rgba(20, 20, 19, 0.06);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08);
+
+  /* Typography — Font Families */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: "Georgia", "Times New Roman", "Libre Baskerville", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+
+  /* Typography — Text Sizes */
+  --text-display: 1.75rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.02em;
+  --text-display--font-weight: 500;
+
+  --text-headline: 1.125rem;
+  --text-headline--line-height: 1.3;
+  --text-headline--letter-spacing: -0.01em;
+  --text-headline--font-weight: 600;
+
+  --text-subhead: 0.9375rem;
+  --text-subhead--line-height: 1.3;
+  --text-subhead--font-weight: 500;
+
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
+  --text-body--font-weight: 400;
+
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.5;
+  --text-small--font-weight: 400;
+
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--letter-spacing: 0.01em;
+  --text-meta--font-weight: 500;
+
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--letter-spacing: 0.04em;
+  --text-micro--font-weight: 500;
+
+  /* Spacing */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+  --radius-sharp: 0px;
 }
 
 @layer base {
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-canvas text-ink font-sans;
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent-500);
-    outline-offset: 2px;
-    border-radius: 2px;
+    @apply ring-2 ring-accent-soft ring-offset-1;
+    outline: none;
   }
 
   * {
