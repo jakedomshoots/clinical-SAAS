@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -19,9 +19,23 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  LayoutTemplate,
+  Search,
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
+import { useViewMode, type UserRole, type ViewMode } from '@/lib/view-mode';
+import { getStoredTab, setStoredTab, getStoredExpandedCards, setStoredExpandedCards, clearOperationsState } from '@/lib/persistence';
+import { GlobalSearch } from '@/components/global-search';
+import { EmptyState } from '@/components/empty-state';
+import { Tooltip } from '@/components/tooltip';
+import { RecentActivity } from '@/components/recent-activity';
+import { OnboardingTour } from '@/components/onboarding-tour';
+import { WorkspacePreset } from '@/components/workspace-preset';
+import { PinnableSection, HiddenSectionsButton } from '@/components/pinnable-section';
+import { RoleDashboard } from '@/components/role-dashboard';
+import { Button } from '@/components/button';
+import { cn } from '@/lib/utils';
 import { ROUTES, type AdapterImplementationPacket, type AnalyticsSummary, type AuditEvent, type AuditReviewSummary, type BillingWorkQueue, type BrowserQaChecklist, type BrowserQaSession, type BrowserQaSessionList, type BrowserQaSessionStart, type BrowserQaSessionUpdate, type CredentialBinderSnapshot, type CredentialBinderSnapshotList, type CredentialDryRunBinder, type CutoverRunbook, type CutoverRunbookSession, type CutoverRunbookSessionList, type CutoverRunbookSessionStart, type CutoverRunbookSessionUpdate, type DocumentStorageReadiness, type GoLiveAttestation, type GoLiveAttestationCreate, type GoLivePacket, type IntegrationCapabilities, type IntegrationCutoverReadinessItem, type IntegrationCutoverReadinessPacket, type LaunchWorkplan, type LaunchWorkplanSnapshot, type LaunchWorkplanSnapshotList, type LiveUseRehearsal, type OperatorHealth, type OperationsAlertRuleList, type OperationsIncidentList, type OperationsIncidentTimeline, type PolicyApprovalChecklist, type PolicyApprovalSession, type PolicyApprovalSessionList, type PolicyApprovalSessionStart, type PolicyApprovalSessionUpdate, type ProductionConfigAudit, type ProductionRehearsalReport, type ProductionRehearsalSnapshot, type ProductionRehearsalSnapshotList, type ReadinessSnapshot, type ReadinessSnapshotList, type RehearsalAction, type RehearsalActionAssignmentUpdate, type RestoreDrillChecklist, type RestoreDrillSession, type RestoreDrillSessionList, type RestoreDrillSessionStart, type RestoreDrillSessionUpdate, type RoleDryRunChecklistList, type RoleDryRunSession, type RoleDryRunSessionList, type RoleDryRunSessionStart, type RoleDryRunSessionUpdate, type SessionPolicy, type StaffTrainingChecklist, type StaffTrainingSession, type StaffTrainingSessionList, type StaffTrainingSessionStart, type StaffTrainingSessionUpdate, type TaskOutreachSummary, type VendorCredentialRequestPacket } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/operations/')({
@@ -156,6 +170,35 @@ function ExpandableCard({ title, icon: Icon, subtitle, status, countComplete, co
   );
 }
 
+function isSectionVisible(sectionId: string, role: UserRole, mode: ViewMode): boolean {
+  const rules: Record<string, { roles: UserRole[]; modes: ViewMode[] }> = {
+    'live-use-rehearsal': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'staff-training': { roles: ['admin', 'manager', 'provider'], modes: ['simple', 'standard', 'power'] },
+    'role-dry-run': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'dry-run-session': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'credential-binder': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'vendor-credential': { roles: ['admin', 'manager'], modes: ['power'] },
+    'browser-qa': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'system-integration': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'document-storage': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'production-config': { roles: ['admin', 'manager'], modes: ['power'] },
+    'operator-health': { roles: ['admin', 'manager'], modes: ['power'] },
+    'policy-approval': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'restore-drill': { roles: ['admin', 'manager'], modes: ['power'] },
+    'cutover-readiness': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'cutover-runbook': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'go-live-packet': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'launch-workplan': { roles: ['admin', 'manager'], modes: ['simple', 'standard', 'power'] },
+    'production-rehearsal': { roles: ['admin', 'manager'], modes: ['power'] },
+    'incident-register': { roles: ['admin', 'manager', 'front_desk'], modes: ['simple', 'standard', 'power'] },
+    'integration-events': { roles: ['admin', 'manager'], modes: ['standard', 'power'] },
+    'billing-work-queue': { roles: ['admin', 'manager', 'billing'], modes: ['simple', 'standard', 'power'] },
+  };
+  const rule = rules[sectionId];
+  if (!rule) return true;
+  return rule.roles.includes(role) && rule.modes.includes(mode);
+}
+
 function OperationsPage() {
 const TABS = [
   { id: 'staff-training', label: 'Staff & Training', badge: '🟡' },
@@ -189,6 +232,36 @@ const TABS = [
     rollback_decision: '',
   });
   const [attestationForm, setAttestationForm] = useState<{ decision: GoLiveAttestationCreate['decision']; note: string }>({ decision: 'needs_changes', note: '' });
+  const { viewMode, effectiveRole } = useViewMode();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [presetOpen, setPresetOpen] = useState(false);
+  const [showRoleDashboard, setShowRoleDashboard] = useState(true);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+
+  // Restore active tab from localStorage
+  useEffect(() => {
+    const stored = getStoredTab();
+    if (stored && TABS.some(t => t.id === stored)) {
+      setActiveTab(stored as typeof activeTab);
+    }
+  }, []);
+
+  // Store active tab when it changes
+  useEffect(() => {
+    setStoredTab(activeTab);
+  }, [activeTab]);
+
+  const handleSearchNavigate = useCallback((tabId: string, sectionId: string) => {
+    setActiveTab(tabId as typeof activeTab);
+    // The section will auto-expand because of defaultExpanded
+  }, [setActiveTab]);
+
+  const handleApplyPreset = useCallback((config: { mode: ViewMode; activeTab: string; expandedCards: string[]; hiddenSections: string[] }) => {
+    // View mode is handled by the context, but we can suggest a toast or notification
+    setActiveTab(config.activeTab as typeof activeTab);
+    setPresetOpen(false);
+  }, [setActiveTab]);
+
   const { data: ready } = useQuery({
     queryKey: QUERY_KEYS.READINESS,
     queryFn: () => api.get<ReadyResponse>('/ready'),
@@ -870,8 +943,40 @@ const TABS = [
         <div className="flex items-center gap-2">
           <StatusBadge ok={ready?.status === 'ok'} label={`Core ${ready?.status ?? 'checking'}`} />
           <StatusBadge ok={ready?.operational_status === 'ok'} label={`Operational ${ready?.operational_status ?? 'checking'}`} />
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk transition-colors"
+            aria-label="Search operations"
+          >
+            <Search className="h-4 w-4" />
+            Search
+          </button>
+          <button
+            onClick={() => setPresetOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk transition-colors"
+            aria-label="Workspace presets"
+          >
+            <LayoutTemplate className="h-4 w-4" />
+            Presets
+          </button>
+          <button
+            onClick={() => {
+              clearOperationsState();
+              setActiveTab('staff-training');
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk transition-colors"
+            aria-label="Reset view"
+          >
+            <RotateCw className="h-4 w-4" />
+            Reset View
+          </button>
         </div>
       </header>
+
+      <OnboardingTour
+        onComplete={() => setOnboardingComplete(true)}
+        onDismiss={() => setOnboardingComplete(true)}
+      />
 
       <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-canvas-raised">
         {TABS.map((tab) => (
@@ -929,9 +1034,18 @@ const TABS = [
         )}
       </div>
 
+      {showRoleDashboard && (
+        <RoleDashboard
+          role={effectiveRole}
+          onDismiss={() => setShowRoleDashboard(false)}
+          onGoToOperations={() => setShowRoleDashboard(false)}
+        />
+      )}
+
       {activeTab === 'staff-training' && (
         <div className="space-y-4 p-6">
-      {liveUseRehearsal && (
+      {isSectionVisible('live-use-rehearsal', effectiveRole, viewMode) && liveUseRehearsal && (
+        <PinnableSection sectionId="live-use-rehearsal" role={effectiveRole}>
 <ExpandableCard
           title="Live-Use Rehearsal Board"
           icon={ShieldCheck}
@@ -986,15 +1100,17 @@ const TABS = [
                   </Link>
                 ))}
                 {liveUseRehearsal.next_actions.length === 0 && (
-                  <div className="px-4 py-6 text-body text-ink-faint">No rehearsal actions.</div>
+                  <EmptyState title="No rehearsal actions" />
                 )}
               </div>
             </aside>
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {roleChecklists && (
+      {isSectionVisible('role-dry-run', effectiveRole, viewMode) && roleChecklists && (
+        <PinnableSection sectionId="role-dry-run" role={effectiveRole}>
 <ExpandableCard
           title="Role Dry-Run Checklists"
           icon={ClipboardList}
@@ -1029,8 +1145,11 @@ const TABS = [
             ))}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('dry-run-session', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="dry-run-session" role={effectiveRole}>
       <ExpandableCard
           title="Dry-Run Session Evidence"
           icon={Play}
@@ -1093,6 +1212,7 @@ const TABS = [
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete session
                 </button>
+        <HiddenSectionsButton role={effectiveRole} onUnhide={(id) => { /* unhide logic */ }} />
               </div>
             )}
           </div>
@@ -1155,7 +1275,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('staff-training', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="staff-training" role={effectiveRole}>
       <ExpandableCard
           title="Staff Training Evidence"
           icon={CheckSquare}
@@ -1304,12 +1428,15 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
         </div>
       )}
 
       {activeTab === 'systems-data' && (
         <div className="space-y-4 p-6">
-      {adapterPacket && (
+      {isSectionVisible('system-integration', effectiveRole, viewMode) && adapterPacket && (
+        <PinnableSection sectionId="system-integration" role={effectiveRole}>
 <ExpandableCard
           title="Adapter Implementation Packet"
           icon={PlugZap}
@@ -1352,9 +1479,11 @@ const TABS = [
             ))}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {operatorHealth && (
+      {isSectionVisible('operator-health', effectiveRole, viewMode) && operatorHealth && (
+        <PinnableSection sectionId="operator-health" role={effectiveRole}>
 <ExpandableCard
           title="Operator Health"
           icon={Activity}
@@ -1397,15 +1526,17 @@ const TABS = [
                   </Link>
                 ))}
                 {operatorHealth.recommended_actions.length === 0 && (
-                  <div className="px-4 py-6 text-body text-ink-faint">No operator actions.</div>
+                  <EmptyState title="No operator actions" />
                 )}
               </div>
             </aside>
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {documentStorageReadiness && (
+      {isSectionVisible('document-storage', effectiveRole, viewMode) && documentStorageReadiness && (
+        <PinnableSection sectionId="document-storage" role={effectiveRole}>
 <ExpandableCard
           title="Document Storage Readiness"
           icon={Server}
@@ -1448,15 +1579,17 @@ const TABS = [
                   </div>
                 ))}
                 {documentStorageReadiness.recent_handoffs.length === 0 && (
-                  <div className="px-3 py-6 text-body text-ink-faint">No document handoffs recorded.</div>
+                  <EmptyState title="No document handoffs recorded" />
                 )}
               </div>
             </aside>
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {productionConfigAudit && (
+      {isSectionVisible('production-config', effectiveRole, viewMode) && productionConfigAudit && (
+        <PinnableSection sectionId="production-config" role={effectiveRole}>
 <ExpandableCard
           title="Production Config Audit"
           icon={LockKeyhole}
@@ -1489,8 +1622,11 @@ const TABS = [
             ))}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('browser-qa', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="browser-qa" role={effectiveRole}>
       <ExpandableCard
           title="Browser QA Evidence"
           icon={Camera}
@@ -1560,6 +1696,7 @@ const TABS = [
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete QA
                 </button>
+        <HiddenSectionsButton role={effectiveRole} onUnhide={(id) => { /* unhide logic */ }} />
               </div>
             )}
           </div>
@@ -1619,7 +1756,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('core-infrastructure', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="core-infrastructure" role={effectiveRole}>
       <ExpandableCard
           title="Core Infrastructure & Integrations"
           icon={Server}
@@ -1662,7 +1803,11 @@ const TABS = [
           </div>
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('integration-capability', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="integration-capability" role={effectiveRole}>
       <ExpandableCard
           title="Integration Capability Map"
           icon={PlugZap}
@@ -1685,12 +1830,15 @@ const TABS = [
           ))}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
         </div>
       )}
 
       {activeTab === 'compliance-security' && (
         <div className="space-y-4 p-6">
-      {credentialBinder && (
+      {isSectionVisible('credential-binder', effectiveRole, viewMode) && credentialBinder && (
+        <PinnableSection sectionId="credential-binder" role={effectiveRole}>
 <ExpandableCard
           title="Credential Dry-Run Binder"
           icon={ClipboardList}
@@ -1749,9 +1897,11 @@ const TABS = [
             ))}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {vendorCredentialPacket && (
+      {isSectionVisible('vendor-credential', effectiveRole, viewMode) && vendorCredentialPacket && (
+        <PinnableSection sectionId="vendor-credential" role={effectiveRole}>
 <ExpandableCard
           title="Vendor Credential Request Packet"
           icon={LockKeyhole}
@@ -1808,8 +1958,11 @@ const TABS = [
             </aside>
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('restore-drill', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="restore-drill" role={effectiveRole}>
       <ExpandableCard
           title="Restore Drill Evidence"
           icon={RotateCw}
@@ -1930,6 +2083,7 @@ const TABS = [
                     Complete
                   </button>
                 </div>
+        <HiddenSectionsButton role={effectiveRole} onUnhide={(id) => { /* unhide logic */ }} />
               </div>
             )}
           </div>
@@ -1989,7 +2143,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('policy-approval', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="policy-approval" role={effectiveRole}>
       <ExpandableCard
           title="Policy Approval Evidence"
           icon={ShieldCheck}
@@ -2118,8 +2276,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
-      {rehearsal && (
+      {isSectionVisible('production-rehearsal', effectiveRole, viewMode) && rehearsal && (
+        <PinnableSection sectionId="production-rehearsal" role={effectiveRole}>
 <ExpandableCard
           title="Production Rehearsal"
           icon={Server}
@@ -2205,7 +2366,7 @@ const TABS = [
                   );
                 })}
                 {rehearsal.recommended_actions.length === 0 && (
-                  <div className="px-3 py-6 text-body text-ink-faint">No rehearsal blockers.</div>
+                  <EmptyState title="No rehearsal blockers" />
                 )}
               </div>
             </aside>
@@ -2228,8 +2389,11 @@ const TABS = [
             </div>
           )}
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('audit-links', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="audit-links" role={effectiveRole}>
       <ExpandableCard
           title="Audit & Compliance Quick Links"
           icon={ClipboardList}
@@ -2266,8 +2430,11 @@ const TABS = [
           <div className="mt-1 text-small text-ink-muted">Production readiness tracked in operations docs</div>
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
-      {auditReviewSummary && (
+      {isSectionVisible('audit-review', effectiveRole, viewMode) && auditReviewSummary && (
+        <PinnableSection sectionId="audit-review" role={effectiveRole}>
 <ExpandableCard
           title="Audit Review Control"
           icon={ShieldCheck}
@@ -2317,8 +2484,11 @@ const TABS = [
             )}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('deployment-readiness', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="deployment-readiness" role={effectiveRole}>
       <ExpandableCard
           title="Deployment Readiness & PHI Access"
           icon={Server}
@@ -2343,7 +2513,7 @@ const TABS = [
                 <StatusBadge ok={check.ok} label={check.ok ? 'Found' : 'Missing'} />
               </div>
             ))}
-            {deployment.length === 0 && <div className="text-body text-ink-faint">Deployment checks are not available.</div>}
+            {deployment.length === 0 && <EmptyState title="Deployment checks are not available" />}
           </div>
         </div>
         <div className="rounded-md border border-border bg-canvas-raised">
@@ -2364,16 +2534,19 @@ const TABS = [
                 <div className="text-small text-ink-muted md:text-right">{new Date(event.created_at).toLocaleString()}</div>
               </div>
             ))}
-            {(auditEvents?.data ?? []).length === 0 && <div className="px-4 py-8 text-center text-body text-ink-faint">No PHI access events recorded yet.</div>}
+            {(auditEvents?.data ?? []).length === 0 && <EmptyState title="No PHI access events recorded yet" />}
           </div>
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
         </div>
       )}
 
       {activeTab === 'go-live' && (
         <div className="space-y-4 p-6">
-      {cutoverReadinessPacket && (
+      {isSectionVisible('cutover-readiness', effectiveRole, viewMode) && cutoverReadinessPacket && (
+        <PinnableSection sectionId="cutover-readiness" role={effectiveRole}>
 <ExpandableCard
           title="Integration Cutover Readiness"
           icon={ShieldCheck}
@@ -2470,9 +2643,11 @@ const TABS = [
             })}
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
-      {goLivePacket && (
+      {isSectionVisible('go-live-packet', effectiveRole, viewMode) && goLivePacket && (
+        <PinnableSection sectionId="go-live-packet" role={effectiveRole}>
 <ExpandableCard
           title="Go-Live Packet"
           icon={CheckCircle2}
@@ -2529,6 +2704,7 @@ const TABS = [
                     <div className="font-medium text-ink">{goLivePacket.latest_attestation.decision.replace('_', ' ')}</div>
                     <div className="mt-1">{goLivePacket.latest_attestation.reviewer_name ?? 'Reviewer'} · {new Date(goLivePacket.latest_attestation.created_at).toLocaleString()}</div>
                     {goLivePacket.latest_attestation.note && <div className="mt-1">{goLivePacket.latest_attestation.note}</div>}
+        <HiddenSectionsButton role={effectiveRole} onUnhide={(id) => { /* unhide logic */ }} />
                   </div>
                 )}
               </div>
@@ -2542,14 +2718,17 @@ const TABS = [
                   </Link>
                 ))}
                 {goLivePacket.open_workplan_items.length === 0 && (
-                  <div className="px-3 py-6 text-body text-ink-faint">No packet blockers.</div>
+                  <EmptyState title="No packet blockers" />
                 )}
               </div>
             </aside>
           </div>
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('cutover-runbook', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="cutover-runbook" role={effectiveRole}>
       <ExpandableCard
           title="Cutover Runbook"
           icon={RefreshCw}
@@ -2775,8 +2954,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
-      {workplan && (
+      {isSectionVisible('launch-workplan', effectiveRole, viewMode) && workplan && (
+        <PinnableSection sectionId="launch-workplan" role={effectiveRole}>
 <ExpandableCard
           title="Launch Workplan"
           icon={ClipboardList}
@@ -2830,8 +3012,11 @@ const TABS = [
             </div>
           )}
         </ExpandableCard>
+        </PinnableSection>
       )}
 
+      {isSectionVisible('readiness-snapshots', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="readiness-snapshots" role={effectiveRole}>
       <ExpandableCard
           title="Readiness Snapshots"
           icon={Camera}
@@ -2858,11 +3043,17 @@ const TABS = [
           </div>
         )}
         </ExpandableCard>
+        </PinnableSection>
+      )}
         </div>
       )}
 
       {activeTab === 'post-launch' && (
         <div className="space-y-4 p-6">
+      <RecentActivity incidents={incidents} />
+
+      {isSectionVisible('incident-register', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="incident-register" role={effectiveRole}>
       <ExpandableCard
           title="Incident Register"
           icon={AlertTriangle}
@@ -2896,7 +3087,11 @@ const TABS = [
           )}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('incident-timeline', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="incident-timeline" role={effectiveRole}>
       <ExpandableCard
           title="Incident Timeline & Alert Rules"
           icon={Activity}
@@ -2961,7 +3156,11 @@ const TABS = [
           </div>
         </aside>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('communications-governance', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="communications-governance" role={effectiveRole}>
       <ExpandableCard
           title="Communications Governance"
           icon={CheckCircle2}
@@ -2993,7 +3192,11 @@ const TABS = [
           ))}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('operations-dashboard', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="operations-dashboard" role={effectiveRole}>
       <ExpandableCard
           title="Operations Dashboard"
           icon={Activity}
@@ -3024,7 +3227,11 @@ const TABS = [
           <div className="text-small text-ink-muted">confirmed task actions audited</div>
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('billing-work-queue', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="billing-work-queue" role={effectiveRole}>
       <ExpandableCard
           title="Billing Claim Governance"
           icon={ClipboardList}
@@ -3056,7 +3263,11 @@ const TABS = [
           ))}
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
 
+      {isSectionVisible('integration-events', effectiveRole, viewMode) && (
+        <PinnableSection sectionId="integration-events" role={effectiveRole}>
       <ExpandableCard
           title="Integration Events"
           icon={RefreshCw}
@@ -3117,6 +3328,9 @@ const TABS = [
           </table>
         </div>
         </ExpandableCard>
+        </PinnableSection>
+      )}
+        <HiddenSectionsButton role={effectiveRole} onUnhide={(id) => { /* unhide logic */ }} />
         </div>
       )}
 
@@ -3130,6 +3344,14 @@ const TABS = [
         <RefreshCw className="h-4 w-4" />
         Refresh operations status
       </button>
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} onNavigate={handleSearchNavigate} />
+      {presetOpen && (
+        <WorkspacePreset
+          currentMode={viewMode}
+          onApplyPreset={handleApplyPreset}
+          onClose={() => setPresetOpen(false)}
+        />
+      )}
     </div>
   );
 }

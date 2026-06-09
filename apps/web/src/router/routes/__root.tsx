@@ -1,5 +1,6 @@
 import { Link, Navigate, Outlet, createRootRoute, useNavigate, useRouterState } from '@tanstack/react-router';
 import {useAuth} from '@/lib/auth';
+import { ViewModeProvider, useViewMode } from '@/lib/view-mode';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClinicalAssistantTools, type AssistantAction } from '@/lib/assistant-tools';
@@ -144,6 +145,7 @@ function TopBar({
   onMenuOpen: () => void;
   onAssistantOpen: () => void;
 }) {
+  const { viewMode, setViewMode } = useViewMode();
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-canvas-raised px-5">
       <button onClick={onMenuOpen} aria-label="Open navigation" className="mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-muted hover:bg-canvas-sunk md:hidden">
@@ -157,6 +159,21 @@ function TopBar({
           K
         </span>
       </button>
+      <div className="ml-4 hidden items-center gap-1 md:flex">
+        {(['simple', 'standard', 'power'] as const).map((mode) => (
+          <button
+            key={mode}
+            onClick={() => setViewMode(mode)}
+            className={`px-3 py-1.5 rounded-md text-small font-medium capitalize ${
+              viewMode === mode
+                ? 'bg-accent text-accent-on'
+                : 'text-ink-muted hover:text-ink'
+            }`}
+          >
+            {mode === 'simple' ? 'Simple' : mode === 'standard' ? 'Standard' : 'Power'}
+          </button>
+        ))}
+      </div>
       <div className="ml-4 flex items-center gap-2">
         <button onClick={onAssistantOpen} aria-label="Open clinical assistant" className="flex h-9 w-9 items-center justify-center rounded-md text-ink-muted hover:bg-canvas-sunk xl:hidden">
           <Bot className="h-4 w-4" />
@@ -652,36 +669,38 @@ function RootLayout() {
   }
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-canvas ${density === 'compact' ? 'text-[0.9375rem]' : ''}`}>
-      <SideNav />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar
+    <ViewModeProvider>
+      <div className={`flex h-screen overflow-hidden bg-canvas ${density === 'compact' ? 'text-[0.9375rem]' : ''}`}>
+        <SideNav />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <TopBar
+            density={density}
+            onDensityChange={() => setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))}
+            onCommandOpen={() => setCommandOpen(true)}
+            onSettingsOpen={() => setSettingsOpen(true)}
+            onMenuOpen={() => setMobileNavOpen(true)}
+            onAssistantOpen={() => setAssistantOpen(true)}
+          />
+          <div className="flex min-h-0 flex-1">
+            <main className="min-w-0 flex-1 overflow-auto">
+              <div className={density === 'compact' ? 'p-3' : 'p-5'}>
+                <Outlet />
+              </div>
+            </main>
+            <ClinicalAssistantPanel pathname={pathname} />
+          </div>
+        </div>
+        <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
+        <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+        <AssistantDrawer open={assistantOpen} pathname={pathname} onClose={() => setAssistantOpen(false)} />
+        <SettingsPanel
+          open={settingsOpen}
           density={density}
           onDensityChange={() => setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))}
-          onCommandOpen={() => setCommandOpen(true)}
-          onSettingsOpen={() => setSettingsOpen(true)}
-          onMenuOpen={() => setMobileNavOpen(true)}
-          onAssistantOpen={() => setAssistantOpen(true)}
+          onClose={() => setSettingsOpen(false)}
         />
-        <div className="flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1 overflow-auto">
-            <div className={density === 'compact' ? 'p-3' : 'p-5'}>
-              <Outlet />
-            </div>
-          </main>
-          <ClinicalAssistantPanel pathname={pathname} />
-        </div>
       </div>
-      <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
-      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
-      <AssistantDrawer open={assistantOpen} pathname={pathname} onClose={() => setAssistantOpen(false)} />
-      <SettingsPanel
-        open={settingsOpen}
-        density={density}
-        onDensityChange={() => setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))}
-        onClose={() => setSettingsOpen(false)}
-      />
-    </div>
+    </ViewModeProvider>
   );
 }
 
