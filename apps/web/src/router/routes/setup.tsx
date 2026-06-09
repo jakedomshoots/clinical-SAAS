@@ -4,7 +4,7 @@ import { AlertTriangle, CheckCircle2, Circle, ShieldCheck } from 'lucide-react';
 import { ROUTES, type IntegrationCapabilities, type LaunchReadiness, type PilotReadiness, type SessionPolicy, type UserListResponse } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ClinicNeedsStrip, ErrorState } from '@/lib/ui-state';
+import { ErrorState } from '@/lib/ui-state';
 
 export const Route = createFileRoute('/setup')({
   component: SetupPage,
@@ -84,84 +84,82 @@ function SetupPage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Launch readiness</p>
-        <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Setup Checklist</h1>
-        <p className="mt-2 max-w-3xl text-sm text-clinic-500">This is the canonical readiness path: prove the system is working, show the next blocker, and keep live-patient risk explicit before launch.</p>
+        <h1 className="font-serif text-display text-ink">Setup Checklist</h1>
+        <p className="text-small text-ink-muted mt-1 max-w-3xl">This is the canonical readiness path: prove the system is working, show the next blocker, and keep live-patient risk explicit before launch.</p>
       </header>
-      <ClinicNeedsStrip />
       {readyError && (
         <ErrorState title="Readiness API unavailable" detail={readyQueryError instanceof Error ? readyQueryError.message : 'Setup checks could not be loaded.'} />
       )}
       <section className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-md border border-clinic-200 bg-white p-4 md:col-span-2">
+        <div className="bg-canvas-raised border border-border rounded-md p-4 md:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-clinic-900">Production Readiness</div>
-              <div className="mt-1 text-xs text-clinic-500">Live-patient launch blockers across security, infrastructure, integrations, and operations</div>
+              <div className="text-subhead font-medium text-ink">Production Readiness</div>
+              <div className="text-small text-ink-muted mt-1">Live-patient launch blockers across security, infrastructure, integrations, and operations</div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-semibold text-clinic-900">{launchReadiness?.score ?? 0}%</div>
-              <div className="text-xs text-clinic-500">{launchReadiness?.environment ?? 'unknown'} environment</div>
+              <div className="font-serif text-3xl font-medium text-ink">{launchReadiness?.score ?? 0}%</div>
+              <div className="text-meta text-ink-muted">{launchReadiness?.environment ?? 'unknown'} environment</div>
             </div>
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-3">
-            <div className="rounded-md bg-red-50 px-3 py-2">
-              <div className="text-xs font-medium text-red-700">Critical blockers</div>
-              <div className="mt-1 text-xl font-semibold text-red-800">{launchReadiness?.critical_blockers ?? 0}</div>
+            <div className="rounded-sm bg-danger/10 px-3 py-2">
+              <div className="text-meta font-medium text-danger">Critical blockers</div>
+              <div className="font-serif text-2xl font-medium text-danger mt-1">{launchReadiness?.critical_blockers ?? 0}</div>
             </div>
-            <div className="rounded-md bg-amber-50 px-3 py-2">
-              <div className="text-xs font-medium text-amber-700">Warnings</div>
-              <div className="mt-1 text-xl font-semibold text-amber-800">{launchReadiness?.warnings ?? 0}</div>
+            <div className="rounded-sm bg-warn/10 px-3 py-2">
+              <div className="text-meta font-medium text-warn">Warnings</div>
+              <div className="font-serif text-2xl font-medium text-warn mt-1">{launchReadiness?.warnings ?? 0}</div>
             </div>
-            <div className="rounded-md bg-clinic-50 px-3 py-2">
-              <div className="text-xs font-medium text-clinic-600">Launch status</div>
-              <div className="mt-1 text-sm font-semibold text-clinic-900">{launchReadiness?.production_ready ? 'Ready' : 'Blocked'}</div>
+            <div className="rounded-sm bg-canvas-sunk px-3 py-2">
+              <div className="text-meta font-medium text-ink-secondary">Launch status</div>
+              <div className="text-small font-medium text-ink mt-1">{launchReadiness?.production_ready ? 'Ready' : 'Blocked'}</div>
             </div>
           </div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Product Demo</div>
-          <div className="mt-3 text-3xl font-semibold text-clinic-900">{pilotReadiness?.product_demo_score ?? 0}%</div>
-          <div className="text-xs text-clinic-500">{pilotReadiness?.product_demo_ready ? 'Ready for complete walkthrough' : 'Needs demo data'}</div>
+        <div className="bg-canvas-raised border border-border rounded-md p-4">
+          <div className="text-subhead font-medium text-ink">Product Demo</div>
+          <div className="font-serif text-2xl font-medium text-ink mt-3">{pilotReadiness?.product_demo_score ?? 0}%</div>
+          <div className="text-meta text-ink-muted mt-1">{pilotReadiness?.product_demo_ready ? 'Ready for complete walkthrough' : 'Needs demo data'}</div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Internal Pilot</div>
-          <div className="mt-3 text-3xl font-semibold text-clinic-900">{pilotReadiness?.internal_pilot_score ?? 0}%</div>
-          <div className="text-xs text-clinic-500">{pilotReadiness?.internal_pilot_ready ? 'Ready for staff pilot' : 'Needs operational setup'}</div>
+        <div className="bg-canvas-raised border border-border rounded-md p-4">
+          <div className="text-subhead font-medium text-ink">Internal Pilot</div>
+          <div className="font-serif text-2xl font-medium text-ink mt-3">{pilotReadiness?.internal_pilot_score ?? 0}%</div>
+          <div className="text-meta text-ink-muted mt-1">{pilotReadiness?.internal_pilot_ready ? 'Ready for staff pilot' : 'Needs operational setup'}</div>
         </div>
         {checklist.map((item) => (
-          <div key={item.label} className="flex items-center gap-3 rounded-md border border-clinic-200 bg-white p-4">
-            {item.ready ? <CheckCircle2 className="h-5 w-5 text-accent-700" /> : <Circle className="h-5 w-5 text-clinic-300" />}
+          <div key={item.label} className="flex items-center gap-3 rounded-md border border-border bg-canvas-raised p-4">
+            {item.ready ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-ink-faint" />}
             <div>
-              <div className="text-sm font-semibold text-clinic-900">{item.label}</div>
-              <div className="text-xs text-clinic-500">{item.ready ? 'Ready' : 'Needs setup'}</div>
+              <div className="text-small font-medium text-ink">{item.label}</div>
+              <div className="text-meta text-ink-muted">{item.ready ? 'Ready' : 'Needs setup'}</div>
             </div>
           </div>
         ))}
       </section>
       <section className="space-y-3">
         {requirementGroups.map(([category, requirements]) => (
-          <div key={category} className="rounded-md border border-clinic-200 bg-white p-4">
-            <div className="text-sm font-semibold text-clinic-900">{category}</div>
-            <div className="mt-3 divide-y divide-clinic-100">
+          <div key={category} className="bg-canvas-raised border border-border rounded-md p-4">
+            <div className="text-subhead font-medium text-ink">{category}</div>
+            <div className="mt-3 divide-y divide-border">
               {requirements.map((requirement) => (
                 <div key={requirement.key} className="grid gap-3 py-3 lg:grid-cols-[220px_1fr]">
                   <div className="flex items-start gap-2">
                     {requirement.ready ? (
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent-700" />
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" />
                     ) : (
-                      <AlertTriangle className={`mt-0.5 h-4 w-4 ${requirement.severity === 'critical' ? 'text-red-600' : 'text-amber-600'}`} />
+                      <AlertTriangle className={`mt-0.5 h-4 w-4 ${requirement.severity === 'critical' ? 'text-danger' : 'text-warn'}`} />
                     )}
                     <div>
-                      <div className="text-sm font-medium text-clinic-900">{requirement.label}</div>
-                      <div className="mt-1 text-xs text-clinic-500">{requirement.detail}</div>
+                      <div className="text-small font-medium text-ink">{requirement.label}</div>
+                      <div className="text-meta text-ink-muted mt-1">{requirement.detail}</div>
                     </div>
                   </div>
                   <div>
-                    <div className="text-sm text-clinic-700">{requirement.action}</div>
+                    <div className="text-small text-ink-secondary">{requirement.action}</div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {requirement.env_vars.map((envVar) => (
-                        <span key={envVar} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 font-mono text-xs text-clinic-600">{envVar}</span>
+                        <span key={envVar} className="rounded-sm border border-border bg-canvas-sunk px-2 py-1 font-mono text-micro text-ink-secondary">{envVar}</span>
                       ))}
                     </div>
                   </div>
@@ -171,40 +169,40 @@ function SetupPage() {
           </div>
         ))}
       </section>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-          <ShieldCheck className="h-4 w-4 text-accent-700" />
+      <section className="bg-canvas-raised border border-border rounded-md p-4">
+        <div className="flex items-center gap-2 text-subhead font-medium text-ink">
+          <ShieldCheck className="h-4 w-4 text-accent" />
           Required Environment
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-2">
           {Object.entries(capabilities ?? {}).map(([key, capability]) => (
-            <div key={key} className="rounded-md bg-clinic-50 p-3">
-              <div className="text-sm font-medium capitalize text-clinic-800">{key.replace('_', ' ')}</div>
-              <div className="mt-1 font-mono text-xs text-clinic-500">{(capability.env_vars ?? []).join(', ') || 'No env vars required'}</div>
+            <div key={key} className="rounded-sm bg-canvas-sunk p-3">
+              <div className="text-small font-medium capitalize text-ink">{key.replace('_', ' ')}</div>
+              <div className="font-mono text-micro text-ink-muted mt-1">{(capability.env_vars ?? []).join(', ') || 'No env vars required'}</div>
             </div>
           ))}
         </div>
       </section>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
-        <div className="text-sm font-semibold text-clinic-800">Seed Missing Roles</div>
+      <section className="bg-canvas-raised border border-border rounded-md p-4">
+        <div className="text-subhead font-medium text-ink">Seed Missing Roles</div>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => seedPilotMutation.mutate()}
-            className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700"
+            className="bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-medium hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75"
           >
             Seed pilot workspace
           </button>
           <button
             disabled={(users?.data ?? []).some((user) => user.role === 'provider' && user.is_active)}
             onClick={() => createUserMutation.mutate('provider')}
-            className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-border bg-canvas-sunk px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-raised disabled:cursor-not-allowed disabled:opacity-50"
           >
             Create provider
           </button>
           <button
             disabled={(users?.data ?? []).some((user) => user.role === 'front_desk' && user.is_active)}
             onClick={() => createUserMutation.mutate('front_desk')}
-            className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-border bg-canvas-sunk px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-raised disabled:cursor-not-allowed disabled:opacity-50"
           >
             Create front desk
           </button>

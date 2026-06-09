@@ -52,27 +52,27 @@ function ReportsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-clinic-500">Operational intelligence</p>
-          <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Reports</h1>
+          <h1 className="font-serif text-display text-ink">Reports</h1>
+          <p className="text-small text-ink-muted mt-1">Operational intelligence</p>
         </div>
         {closeout && (
-          <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-medium ${closeout.status === 'clear' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-sm font-medium ${closeout.status === 'clear' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
             {closeout.status === 'clear' ? <ClipboardCheck className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
             Daily closeout {closeout.status}
           </span>
         )}
       </header>
-      <section className="flex flex-wrap items-center gap-2 rounded-md border border-clinic-200 bg-white p-3">
-        <select value={range} onChange={(event) => setRange(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+      <section className="flex flex-wrap items-center gap-2 bg-canvas-raised border border-border rounded-md p-3">
+        <select value={range} onChange={(event) => setRange(event.target.value)} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink">
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
           <option value="90">Last 90 days</option>
         </select>
-        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(summaryCsv)}`} download={`concierge-os-report-${range}d.csv`} className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">
+        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(summaryCsv)}`} download={`concierge-os-report-${range}d.csv`} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75">
           <Download className="h-4 w-4" />
           Export summary
         </a>
-        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(closeoutCsv)}`} download="concierge-os-daily-closeout.csv" className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">
+        <a href={`data:text/csv;charset=utf-8,${encodeURIComponent(closeoutCsv)}`} download="concierge-os-daily-closeout.csv" className="inline-flex items-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75">
           <Download className="h-4 w-4" />
           Export closeout
         </a>
@@ -82,48 +82,48 @@ function ReportsPage() {
         <>
           <section className="grid gap-3 md:grid-cols-5">
             {closeoutMetrics.map(([label, value, note]) => (
-              <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
+              <div key={label} className="bg-canvas-raised border border-border rounded-md p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-clinic-500">{label}</span>
-                  <Gauge className="h-4 w-4 text-accent-700" />
+                  <span className="text-meta text-ink-muted">{label}</span>
+                  <Gauge className="h-4 w-4 text-accent" />
                 </div>
-                <div className="mt-3 text-3xl font-semibold text-clinic-900">{value}</div>
-                <div className="mt-1 text-xs text-clinic-500">{note}</div>
+                <div className="font-serif text-2xl font-medium text-ink mt-3">{value}</div>
+                <div className="text-meta text-ink-muted mt-1">{note}</div>
               </div>
             ))}
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
-            <div className="rounded-md border border-clinic-200 bg-white">
-              <div className="flex items-center gap-2 border-b border-clinic-200 px-4 py-3">
-                <FileClock className="h-4 w-4 text-accent-700" />
+            <div className="bg-canvas-raised border border-border rounded-md">
+              <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <FileClock className="h-4 w-4 text-accent" />
                 <div>
-                  <h2 className="text-sm font-semibold text-clinic-900">Daily Closeout Risk</h2>
-                  <p className="text-xs text-clinic-500">Manager view of unresolved blockers before the clinic day is closed</p>
+                  <h2 className="text-subhead font-medium text-ink">Daily Closeout Risk</h2>
+                  <p className="text-small text-ink-muted mt-1">Manager view of unresolved blockers before the clinic day is closed</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+                  <thead className="bg-canvas-sunk border-b border-border text-left text-meta font-medium text-ink-muted uppercase">
                     <tr>
-                      <th className="px-4 py-2.5">Risk</th>
-                      <th className="px-4 py-2.5">Category</th>
-                      <th className="px-4 py-2.5">Count</th>
-                      <th className="px-4 py-2.5">Detail</th>
+                      <th className="px-4 py-3">Risk</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3">Count</th>
+                      <th className="px-4 py-3">Detail</th>
                     </tr>
                   </thead>
                   <tbody>
                     {closeout.risk_register.map((risk) => (
-                      <tr key={risk.label} className="border-b border-clinic-100 last:border-b-0">
-                        <td className="px-4 py-3 font-medium text-clinic-900">{risk.label}</td>
-                        <td className="px-4 py-3 capitalize text-clinic-600">{risk.category}</td>
-                        <td className="px-4 py-3 font-semibold text-clinic-900">{risk.count}</td>
-                        <td className="px-4 py-3 text-clinic-600">{risk.detail}</td>
+                      <tr key={risk.label} className="border-b border-border-subtle last:border-b-0 hover:bg-canvas-sunk/50 transition-colors duration-150">
+                        <td className="px-4 py-3 text-small font-medium text-ink">{risk.label}</td>
+                        <td className="px-4 py-3 capitalize text-small text-ink-secondary">{risk.category}</td>
+                        <td className="px-4 py-3 text-small font-medium text-ink">{risk.count}</td>
+                        <td className="px-4 py-3 text-small text-ink-secondary">{risk.detail}</td>
                       </tr>
                     ))}
                     {closeout.risk_register.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-4 py-8 text-center text-sm text-clinic-400">No closeout risks are currently open</td>
+                        <td colSpan={4} className="px-4 py-8 text-center text-small text-ink-faint">No closeout risks are currently open</td>
                       </tr>
                     )}
                   </tbody>
@@ -131,26 +131,26 @@ function ReportsPage() {
               </div>
             </div>
 
-            <aside className="rounded-md border border-clinic-200 bg-white">
-              <div className="flex items-center gap-2 border-b border-clinic-200 px-4 py-3">
-                <ListChecks className="h-4 w-4 text-accent-700" />
+            <aside className="bg-canvas-raised border border-border rounded-md">
+              <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+                <ListChecks className="h-4 w-4 text-accent" />
                 <div>
-                  <h2 className="text-sm font-semibold text-clinic-900">Recommended Actions</h2>
-                  <p className="text-xs text-clinic-500">{new Date(closeout.generated_at).toLocaleString()}</p>
+                  <h2 className="text-subhead font-medium text-ink">Recommended Actions</h2>
+                  <p className="text-small text-ink-muted mt-1">{new Date(closeout.generated_at).toLocaleString()}</p>
                 </div>
               </div>
-              <div className="divide-y divide-clinic-100">
+              <div className="divide-y divide-border">
                 {closeout.recommended_actions.map((action) => (
-                  <Link key={action.key} to={action.route} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-clinic-50">
+                  <Link key={action.key} to={action.route} className="flex items-start justify-between gap-3 px-4 py-3 hover:bg-canvas-sunk/50 transition-colors duration-150">
                     <div>
-                      <div className="text-sm font-medium text-clinic-900">{action.label}</div>
-                      <div className="mt-0.5 text-xs text-clinic-500">{action.detail}</div>
+                      <div className="text-small font-medium text-ink">{action.label}</div>
+                      <div className="text-meta text-ink-muted mt-0.5">{action.detail}</div>
                     </div>
-                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-clinic-400" />
+                    <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
                   </Link>
                 ))}
                 {closeout.recommended_actions.length === 0 && (
-                  <div className="px-4 py-8 text-sm text-clinic-400">No recommended actions.</div>
+                  <div className="px-4 py-8 text-small text-ink-faint">No recommended actions.</div>
                 )}
               </div>
             </aside>
@@ -161,16 +161,16 @@ function ReportsPage() {
       {isLoading ? <LoadingState label="Loading reports" /> : (
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {Object.entries(data ?? {}).map(([group, metrics]) => (
-            <div key={group} className="rounded-md border border-clinic-200 bg-white p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold capitalize text-clinic-800">
-                <BarChart3 className="h-4 w-4 text-accent-700" />
+            <div key={group} className="bg-canvas-raised border border-border rounded-md p-4">
+              <div className="flex items-center gap-2 text-subhead font-medium capitalize text-ink">
+                <BarChart3 className="h-4 w-4 text-accent" />
                 {group.replace('_', ' ')}
               </div>
               <div className="mt-4 space-y-2">
                 {Object.entries(metrics).map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between rounded-md bg-clinic-50 px-3 py-2 text-sm">
-                    <span className="capitalize text-clinic-600">{label.replace('_', ' ')}</span>
-                    <span className="font-semibold text-clinic-900">{String(value)}</span>
+                  <div key={label} className="flex items-center justify-between rounded-sm bg-canvas-sunk px-3 py-2 text-small">
+                    <span className="capitalize text-ink-secondary">{label.replace('_', ' ')}</span>
+                    <span className="font-medium text-ink">{String(value)}</span>
                   </div>
                 ))}
               </div>
@@ -183,6 +183,6 @@ function ReportsPage() {
 }
 
 function csvCell(value: string) {
-  if (!/[",\n]/.test(value)) return value;
+  if (!/["",\n]/.test(value)) return value;
   return `"${value.replace(/"/g, '""')}"`;
 }

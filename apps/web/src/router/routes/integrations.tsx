@@ -168,23 +168,22 @@ function IntegrationsPage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Vendor readiness</p>
-        <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Integration Setup</h1>
-        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Preflight every credential, sandbox run, cutover owner, and rollback path before any live clinic workflow depends on it.</p>
+        <h1 className="font-serif text-display text-ink">Integration Setup</h1>
+        <p className="text-small text-ink-muted mt-1 max-w-3xl">Preflight every credential, sandbox run, cutover owner, and rollback path before any live clinic workflow depends on it.</p>
       </header>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
+      <section className="bg-canvas-raised border border-border rounded-md p-4">
         <div className="grid gap-3 md:grid-cols-3">
           <div>
-            <div className="text-xs font-semibold uppercase text-clinic-400">Confidence</div>
-            <p className="mt-1 text-sm text-clinic-700">Run tests and collect sandbox evidence before go-live.</p>
+            <div className="text-meta font-medium text-ink-faint uppercase">Confidence</div>
+            <p className="text-small text-ink-secondary mt-1">Run tests and collect sandbox evidence before go-live.</p>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase text-clinic-400">Direction</div>
-            <p className="mt-1 text-sm text-clinic-700">Use blocking/staged counts to decide which vendor to fix next.</p>
+            <div className="text-meta font-medium text-ink-faint uppercase">Direction</div>
+            <p className="text-small text-ink-secondary mt-1">Use blocking/staged counts to decide which vendor to fix next.</p>
           </div>
           <div>
-            <div className="text-xs font-semibold uppercase text-clinic-400">Protection</div>
-            <p className="mt-1 text-sm text-clinic-700">Archive handoff packets and keep rollback owners attached to cutover.</p>
+            <div className="text-meta font-medium text-ink-faint uppercase">Protection</div>
+            <p className="text-small text-ink-secondary mt-1">Archive handoff packets and keep rollback owners attached to cutover.</p>
           </div>
         </div>
       </section>
@@ -202,7 +201,7 @@ function IntegrationsPage() {
         <OperationalEmptyState
           title="No integrations configured"
           detail="Add the first vendor connector or open Setup to confirm which launch dependency is blocking the clinic day."
-          primaryAction={<Link to="/setup" className="rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-700">Open setup checklist</Link>}
+          primaryAction={<Link to="/setup" className="bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-semibold hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Open setup checklist</Link>}
         />
       ) : (
         <section className="grid gap-3 xl:grid-cols-2">
@@ -211,11 +210,11 @@ function IntegrationsPage() {
             const hasDraftEdits = Object.values(changedValues).some((value) => value.trim());
             const preflightItem = preflightByKey.get(config.key);
             return (
-              <div key={config.key} className="rounded-md border border-clinic-200 bg-white p-4">
+              <div key={config.key} className="bg-canvas-raised border border-border rounded-md p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                      <PlugZap className="h-4 w-4 text-accent-700" />
+                    <div className="flex items-center gap-2 text-subhead font-medium text-ink">
+                      <PlugZap className="h-4 w-4 text-accent" />
                       {config.label}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -225,9 +224,9 @@ function IntegrationsPage() {
                         sandboxReady={config.sandbox_ready}
                         productionReady={config.production_ready}
                       />
-                      <span className="rounded-md bg-clinic-50 px-2 py-1 font-medium text-clinic-600">mode: {config.mode}</span>
+                      <span className="rounded-sm bg-canvas-sunk px-2 py-1 font-medium text-micro text-ink-muted">mode: {config.mode}</span>
                       {config.last_test_status && (
-                        <span className="rounded-md bg-clinic-50 px-2 py-1 font-medium text-clinic-600">
+                        <span className="rounded-sm bg-canvas-sunk px-2 py-1 font-medium text-micro text-ink-muted">
                           last test: {config.last_test_status}
                         </span>
                       )}
@@ -237,7 +236,7 @@ function IntegrationsPage() {
                     <button
                       type="button"
                       onClick={() => handoffPacketMutation.mutate(config.key)}
-                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-sunk px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-raised disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
                       disabled={handoffPacketMutation.isPending}
                     >
                       <ClipboardCheck className="h-3.5 w-3.5" />
@@ -246,7 +245,7 @@ function IntegrationsPage() {
                     <button
                       type="button"
                       onClick={() => archivePacketMutation.mutate(config.key)}
-                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-sunk px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-raised disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
                       disabled={archivePacketMutation.isPending}
                     >
                       <Save className="h-3.5 w-3.5" />
@@ -255,7 +254,7 @@ function IntegrationsPage() {
                     <button
                       type="button"
                       onClick={() => testMutation.mutate(config.key)}
-                      className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-white disabled:opacity-50"
+                      className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-sunk px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-raised disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
                       disabled={testMutation.isPending}
                     >
                       <TestTube2 className="h-3.5 w-3.5" />
@@ -265,80 +264,80 @@ function IntegrationsPage() {
                 </div>
 
                 <div className="mt-4 grid gap-3">
-                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                  <div className="rounded-md border border-border bg-canvas-sunk p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs font-semibold uppercase text-clinic-600">Vendor profile</div>
-                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.vendor_profile.profile_complete ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <div className="text-meta font-medium text-ink-muted uppercase">Vendor profile</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.vendor_profile.profile_complete ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {config.vendor_profile.profile_complete ? 'complete' : `${config.vendor_profile.missing_fields.length} missing`}
                       </span>
                     </div>
                     <div className="mt-3 grid gap-2 md:grid-cols-2">
                       {VENDOR_PROFILE_FIELDS.map((field) => (
                         <label key={field.key} className={field.key === 'ESCALATION_NOTES' ? 'grid gap-1 md:col-span-2' : 'grid gap-1'}>
-                          <span className="text-xs font-medium text-clinic-600">{field.label}</span>
+                          <span className="text-small font-medium text-ink-secondary">{field.label}</span>
                           <input
                             type={field.key === 'OWNER_EMAIL' ? 'email' : 'text'}
                             value={profileFieldValue(config, field)}
                             onChange={(event) => updateDraft(config.key, field.key, event.target.value)}
-                            className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                            className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                           />
                         </label>
                       ))}
                     </div>
                   </div>
-                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                  <div className="rounded-md border border-border bg-canvas-sunk p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs font-semibold uppercase text-clinic-600">Cutover rehearsal</div>
-                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.cutover_evidence.evidence_complete ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <div className="text-meta font-medium text-ink-muted uppercase">Cutover rehearsal</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.cutover_evidence.evidence_complete ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {config.cutover_evidence.evidence_complete ? 'approved' : `${config.cutover_evidence.missing_fields.length} missing`}
                       </span>
                     </div>
                     <div className="mt-3 grid gap-2 md:grid-cols-2">
                       {CUTOVER_EVIDENCE_FIELDS.map((field) => (
                         <label key={field.key} className={field.key === 'GO_NO_GO_NOTES' ? 'grid gap-1 md:col-span-2' : 'grid gap-1'}>
-                          <span className="text-xs font-medium text-clinic-600">{field.label}</span>
+                          <span className="text-small font-medium text-ink-secondary">{field.label}</span>
                           <input
                             type={field.type}
                             value={cutoverFieldValue(config, field)}
                             onChange={(event) => updateDraft(config.key, field.key, event.target.value)}
-                            className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                            className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                           />
                         </label>
                       ))}
-                      <label className="flex items-center gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2 text-sm text-clinic-700 md:col-span-2">
+                      <label className="flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm text-ink-secondary md:col-span-2">
                         <input
                           type="checkbox"
                           checked={(drafts[config.key]?.LIVE_REHEARSAL_APPROVED ?? (config.cutover_evidence.live_rehearsal_approved ? 'true' : '')) === 'true'}
                           onChange={(event) => updateDraft(config.key, 'LIVE_REHEARSAL_APPROVED', event.target.checked ? 'true' : '')}
-                          className="h-4 w-4 rounded border-clinic-300 text-accent-600 focus:ring-accent-500"
+                          className="h-4 w-4 rounded border-border text-accent focus:ring-accent-soft"
                         />
                         Approved for live-use rehearsal
                       </label>
                     </div>
                   </div>
-                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                  <div className="rounded-md border border-border bg-canvas-sunk p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-xs font-semibold uppercase text-clinic-600">Vendor risk register</div>
-                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.risk_register.blocking_count ? 'border-red-200 bg-red-50 text-red-700' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                      <div className="text-meta font-medium text-ink-muted uppercase">Vendor risk register</div>
+                      <span className={`rounded-md border px-2 py-1 text-xs font-medium ${config.risk_register.blocking_count ? 'border-danger/20 bg-danger/10 text-danger' : 'border-accent-soft bg-accent-soft text-accent'}`}>
                         {config.risk_register.blocking_count ? `${config.risk_register.blocking_count} blocking` : `${config.risk_register.risk_count} tracked`}
                       </span>
                     </div>
                     <div className="mt-3 grid gap-2 md:grid-cols-2">
                       <label className="grid gap-1 md:col-span-2">
-                        <span className="text-xs font-medium text-clinic-600">Risk</span>
+                        <span className="text-small font-medium text-ink-secondary">Risk</span>
                         <input
                           type="text"
                           value={drafts[config.key]?.RISK_TITLE ?? config.risk_register.risks[0]?.title ?? ''}
                           onChange={(event) => updateDraft(config.key, 'RISK_TITLE', event.target.value)}
-                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                         />
                       </label>
                       <label className="grid gap-1">
-                        <span className="text-xs font-medium text-clinic-600">Severity</span>
+                        <span className="text-small font-medium text-ink-secondary">Severity</span>
                         <select
                           value={drafts[config.key]?.RISK_SEVERITY ?? config.risk_register.risks[0]?.severity ?? 'warning'}
                           onChange={(event) => updateDraft(config.key, 'RISK_SEVERITY', event.target.value)}
-                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                         >
                           <option value="critical">Critical</option>
                           <option value="warning">Warning</option>
@@ -346,11 +345,11 @@ function IntegrationsPage() {
                         </select>
                       </label>
                       <label className="grid gap-1">
-                        <span className="text-xs font-medium text-clinic-600">Status</span>
+                        <span className="text-small font-medium text-ink-secondary">Status</span>
                         <select
                           value={drafts[config.key]?.RISK_MITIGATION_STATUS ?? config.risk_register.risks[0]?.mitigation_status ?? 'open'}
                           onChange={(event) => updateDraft(config.key, 'RISK_MITIGATION_STATUS', event.target.value)}
-                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                         >
                           <option value="open">Open</option>
                           <option value="in_progress">In progress</option>
@@ -359,20 +358,20 @@ function IntegrationsPage() {
                         </select>
                       </label>
                       <label className="grid gap-1">
-                        <span className="text-xs font-medium text-clinic-600">Mitigation owner</span>
+                        <span className="text-small font-medium text-ink-secondary">Mitigation owner</span>
                         <input
                           type="text"
                           value={drafts[config.key]?.RISK_MITIGATION_OWNER ?? config.risk_register.risks[0]?.mitigation_owner ?? ''}
                           onChange={(event) => updateDraft(config.key, 'RISK_MITIGATION_OWNER', event.target.value)}
-                          className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                         />
                       </label>
-                      <label className="flex items-center gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2 text-sm text-clinic-700">
+                      <label className="flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm text-ink-secondary">
                         <input
                           type="checkbox"
                           checked={(drafts[config.key]?.RISK_BLOCKS_REHEARSAL ?? (config.risk_register.risks[0]?.blocks_live_rehearsal ? 'true' : '')) === 'true'}
                           onChange={(event) => updateDraft(config.key, 'RISK_BLOCKS_REHEARSAL', event.target.checked ? 'true' : '')}
-                          className="h-4 w-4 rounded border-clinic-300 text-accent-600 focus:ring-accent-500"
+                          className="h-4 w-4 rounded border-border text-accent focus:ring-accent-soft"
                         />
                         Blocks live-use rehearsal
                       </label>
@@ -380,18 +379,18 @@ function IntegrationsPage() {
                   </div>
                   {config.fields.map((field) => (
                     <label key={field.key} className="grid gap-1">
-                      <span className="flex items-center justify-between gap-2 text-xs font-medium text-clinic-600">
+                      <span className="flex items-center justify-between gap-2 text-small font-medium text-ink-secondary">
                         {field.label}
-                        <span className="font-mono text-[11px] text-clinic-400">{field.key}</span>
+                        <span className="font-mono text-micro text-ink-faint">{field.key}</span>
                       </span>
                       <input
                         type={field.secret ? 'password' : 'text'}
                         value={fieldValue(config, field.key)}
                         onChange={(event) => updateDraft(config.key, field.key, event.target.value)}
                         placeholder={field.value_preview ?? (field.secret ? 'Paste secret value' : 'Enter value')}
-                        className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                       />
-                      <span className="text-xs text-clinic-400">
+                      <span className="text-micro text-ink-faint">
                         {field.configured ? `Configured from ${field.source}` : 'Missing'}
                       </span>
                     </label>
@@ -400,12 +399,12 @@ function IntegrationsPage() {
 
                 <div className="mt-4 flex flex-wrap gap-2">
                   {config.workflows.map((workflow) => (
-                    <span key={workflow} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs text-clinic-600">
+                    <span key={workflow} className="rounded-sm border border-border bg-canvas-sunk px-2 py-1 text-micro text-ink-muted">
                       {humanizeWorkflowLabel(workflow)}
                     </span>
                   ))}
                 </div>
-                <div className="mt-3 rounded-md border border-clinic-200 px-3 py-2 text-sm text-clinic-700">
+                <div className="mt-3 rounded-sm border border-border bg-canvas-sunk px-3 py-2 text-small text-ink-secondary">
                   {config.action}
                 </div>
                 {preflightItem && (
@@ -431,7 +430,7 @@ function IntegrationsPage() {
                   type="button"
                   onClick={() => saveMutation.mutate({ integration: config.key, values: changedValues })}
                   disabled={!hasDraftEdits || saveMutation.isPending}
-                  className="mt-4 inline-flex items-center gap-2 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="mt-4 inline-flex items-center gap-2 bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-medium hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
                 >
                   <Save className="h-4 w-4" />
                   Save setup draft
@@ -447,15 +446,15 @@ function IntegrationsPage() {
 
 function PreflightStat({ label, value, tone }: { label: string; value: number; tone: 'ready' | 'staged' | 'blocked' | 'neutral' }) {
   const toneClass = {
-    ready: 'border-accent-200 bg-accent-50 text-accent-800',
-    staged: 'border-amber-200 bg-amber-50 text-amber-800',
-    blocked: 'border-red-200 bg-red-50 text-red-700',
-    neutral: 'border-clinic-200 bg-white text-clinic-700',
+    ready: 'border-accent-soft bg-accent-soft text-accent',
+    staged: 'border-warn/20 bg-warn/10 text-warn',
+    blocked: 'border-danger/20 bg-danger/10 text-danger',
+    neutral: 'border-border bg-canvas-raised text-ink-secondary',
   }[tone];
   return (
     <div className={`rounded-md border px-4 py-3 ${toneClass}`}>
-      <div className="text-xs font-medium uppercase">{label}</div>
-      <div className="mt-1 text-2xl font-semibold">{value}</div>
+      <div className="text-meta font-medium text-ink-muted uppercase">{label}</div>
+      <div className="font-serif text-2xl font-medium text-ink mt-1">{value}</div>
     </div>
   );
 }
@@ -482,9 +481,9 @@ function CredentialPreflightPanel({
   runningAll: boolean;
 }) {
   return (
-    <div className="mt-4 rounded-md border border-clinic-200 bg-clinic-50 p-3">
+    <div className="mt-4 rounded-md border border-border bg-canvas-sunk p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase text-clinic-600">
+        <div className="inline-flex items-center gap-2 text-meta font-medium text-ink-muted uppercase">
           <ClipboardCheck className="h-3.5 w-3.5" />
           Credential preflight
         </div>
@@ -499,20 +498,20 @@ function CredentialPreflightPanel({
           productionReady={item.production_ready}
         />
         {item.readiness_mode === 'local_sandbox' && (
-          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+          <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 font-medium text-warn">
             production vendor pending
           </span>
         )}
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2">
-        <div className="text-xs text-clinic-600">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-sm border border-border bg-canvas-raised px-3 py-2">
+        <div className="text-small text-ink-secondary">
           {item.sandbox_evidence.filter((evidence) => evidence.status === 'passed').length} / {item.sandbox_evidence.length} sandbox checks passed
         </div>
         <button
           type="button"
           onClick={onRunAllSandbox}
           disabled={runningAll || item.adapter_method_ready_count < item.adapter_method_total}
-          className="rounded-md border border-clinic-300 bg-clinic-50 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-md border border-border bg-canvas-sunk px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-raised disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
         >
           Run all sandbox
         </button>
@@ -520,41 +519,41 @@ function CredentialPreflightPanel({
       {item.blockers.length > 0 && (
         <div className="mt-3 space-y-1">
           {item.blockers.map((blocker) => (
-            <div key={blocker} className="text-xs text-clinic-700">{blocker}</div>
+            <div className="text-small text-ink-secondary" key={blocker}>{blocker}</div>
           ))}
         </div>
       )}
       <div className="mt-3 grid gap-2">
         {item.steps.map((step) => (
-          <div key={step.key} className="flex items-start gap-2 rounded-md bg-white px-3 py-2">
+          <div key={step.key} className="flex items-start gap-2 rounded-sm bg-canvas-raised px-3 py-2">
             {step.status === 'ready' ? (
-              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-accent-700" />
+              <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 text-accent" />
             ) : (
-              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 text-amber-700" />
+              <TriangleAlert className="mt-0.5 h-3.5 w-3.5 text-warn" />
             )}
             <div>
-              <div className="text-xs font-medium text-clinic-800">{step.label}</div>
-              <div className="mt-0.5 text-xs text-clinic-500">{step.detail}</div>
+              <div className="text-small font-medium text-ink">{step.label}</div>
+              <div className="text-meta text-ink-muted mt-0.5">{step.detail}</div>
             </div>
           </div>
         ))}
       </div>
       {item.adapter_methods.length > 0 && (
-        <div className="mt-3 rounded-md border border-clinic-200 bg-white p-3">
+        <div className="mt-3 rounded-md border border-border bg-canvas-raised p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-xs font-semibold uppercase text-clinic-600">Adapter contract</div>
-            <div className="text-xs text-clinic-500">{item.adapter_method_ready_count} / {item.adapter_method_total} ready</div>
+            <div className="text-meta font-medium text-ink-muted uppercase">Adapter contract</div>
+            <div className="text-meta text-ink-muted">{item.adapter_method_ready_count} / {item.adapter_method_total} ready</div>
           </div>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {item.adapter_methods.map((method) => (
-              <div key={method.key} className="rounded-md border border-clinic-100 bg-clinic-50 px-3 py-2">
+              <div key={method.key} className="rounded-sm border border-border-subtle bg-canvas-sunk px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-xs font-medium text-clinic-800">{method.label}</div>
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${method.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                  <div className="text-small font-medium text-ink">{method.label}</div>
+                  <span className={`rounded-md border px-2 py-0.5 text-micro font-medium ${method.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                     {method.status}
                   </span>
                 </div>
-                <div className="mt-1 text-[11px] leading-4 text-clinic-500">{method.description}</div>
+                <div className="text-micro text-ink-muted mt-1">{method.description}</div>
               </div>
             ))}
           </div>
@@ -562,17 +561,17 @@ function CredentialPreflightPanel({
       )}
       <div className="mt-3 grid gap-2">
         {item.sandbox_evidence.map((evidence) => (
-          <div key={evidence.test_key} className="rounded-md border border-clinic-200 bg-white p-3">
+          <div key={evidence.test_key} className="rounded-sm border border-border bg-canvas-raised p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <div className="text-xs font-medium text-clinic-800">{evidence.test_label}</div>
-                <div className="mt-1 text-[11px] text-clinic-500">
+                <div className="text-small font-medium text-ink">{evidence.test_label}</div>
+                <div className="text-micro text-ink-muted mt-1">
                   {evidence.status === 'missing'
                     ? 'No evidence recorded'
                     : `${evidence.status} by ${evidence.recorded_by ?? 'staff'}${evidence.recorded_at ? ` on ${new Date(evidence.recorded_at).toLocaleDateString()}` : ''}`}
                 </div>
               </div>
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${evidence.status === 'passed' ? 'border-accent-200 bg-accent-50 text-accent-800' : evidence.status === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${evidence.status === 'passed' ? 'border-accent-soft bg-accent-soft text-accent' : evidence.status === 'failed' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas-sunk text-ink-muted'}`}>
                 {evidence.status}
               </span>
             </div>
@@ -580,7 +579,7 @@ function CredentialPreflightPanel({
               <select
                 value={evidenceDraft(evidence.test_label).status}
                 onChange={(event) => onDraftChange(evidence.test_label, { status: event.target.value as SandboxEvidenceCreate['status'] })}
-                className="rounded-md border border-clinic-300 px-2 py-2 text-xs text-clinic-800"
+                className="bg-canvas border border-border rounded-sm px-2 py-2 text-xs text-ink"
               >
                 <option value="passed">Passed</option>
                 <option value="failed">Failed</option>
@@ -589,19 +588,19 @@ function CredentialPreflightPanel({
                 value={evidenceDraft(evidence.test_label).notes}
                 onChange={(event) => onDraftChange(evidence.test_label, { notes: event.target.value })}
                 placeholder="Sandbox evidence note"
-                className="rounded-md border border-clinic-300 px-3 py-2 text-xs text-clinic-800 placeholder:text-clinic-400"
+                className="bg-canvas border border-border rounded-sm px-3 py-2 text-xs text-ink placeholder:text-ink-faint"
               />
               <input
                 value={evidenceDraft(evidence.test_label).reference_url ?? ''}
                 onChange={(event) => onDraftChange(evidence.test_label, { reference_url: event.target.value })}
                 placeholder={item.readiness_mode === 'production_vendor' ? 'Vendor sandbox reference URL' : 'Reference URL'}
-                className="rounded-md border border-clinic-300 px-3 py-2 text-xs text-clinic-800 placeholder:text-clinic-400 md:col-span-2"
+                className="bg-canvas border border-border rounded-sm px-3 py-2 text-xs text-ink placeholder:text-ink-faint md:col-span-2"
               />
               <button
                 type="button"
                 onClick={() => onRecord(evidence.test_label)}
                 disabled={recording || evidenceDraft(evidence.test_label).notes.trim().length < 3}
-                className="rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="bg-accent text-accent-on rounded-md px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
               >
                 Record evidence
               </button>
@@ -609,7 +608,7 @@ function CredentialPreflightPanel({
                 type="button"
                 onClick={() => onRunSandbox(evidence.test_label)}
                 disabled={running || item.adapter_method_ready_count < item.adapter_method_total}
-                className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] transition-transform duration-75"
               >
                 Run sandbox
               </button>
@@ -622,9 +621,9 @@ function CredentialPreflightPanel({
 }
 
 function preflightStatusClass(status: CredentialPreflightItem['status']) {
-  if (status === 'ready') return 'border-accent-200 bg-accent-50 text-accent-800';
-  if (status === 'staged') return 'border-amber-200 bg-amber-50 text-amber-800';
-  return 'border-red-200 bg-red-50 text-red-700';
+  if (status === 'ready') return 'border-accent-soft bg-accent-soft text-accent';
+  if (status === 'staged') return 'border-warn/20 bg-warn/10 text-warn';
+  return 'border-danger/20 bg-danger/10 text-danger';
 }
 
 function toDateTimeLocal(value: string) {
@@ -653,20 +652,20 @@ function ReadinessModeBadge({
 }) {
   if (productionReady) {
     return (
-      <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 font-medium text-accent-800">
+      <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 font-medium text-accent">
         production vendor ready
       </span>
     );
   }
   if (readinessMode === 'local_sandbox') {
     return (
-      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+      <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 font-medium text-warn">
         {sandboxReady ? 'local sandbox ready' : 'local sandbox mode'}
       </span>
     );
   }
   return (
-    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 font-medium text-clinic-600">
+    <span className="rounded-md border border-border bg-canvas-sunk px-2 py-1 font-medium text-ink-muted">
       production vendor mode
     </span>
   );
@@ -675,7 +674,7 @@ function ReadinessModeBadge({
 function StatusBadge({ config }: { config: IntegrationConfig }) {
   if (config.healthy) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 font-medium text-accent-800">
+      <span className="inline-flex items-center gap-1 rounded-md border border-accent-soft bg-accent-soft px-2 py-1 font-medium text-accent">
         <CheckCircle2 className="h-3 w-3" />
         healthy
       </span>
@@ -683,7 +682,7 @@ function StatusBadge({ config }: { config: IntegrationConfig }) {
   }
   if (config.configured && !config.adapter_implemented) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">
+      <span className="inline-flex items-center gap-1 rounded-md border border-danger/20 bg-danger/10 px-2 py-1 font-medium text-danger">
         <TriangleAlert className="h-3 w-3" />
         adapter needed
       </span>
@@ -691,14 +690,14 @@ function StatusBadge({ config }: { config: IntegrationConfig }) {
   }
   if (config.configured) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 font-medium text-amber-800">
+      <span className="inline-flex items-center gap-1 rounded-md border border-warn/20 bg-warn/10 px-2 py-1 font-medium text-warn">
         <TriangleAlert className="h-3 w-3" />
         staged
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 font-medium text-red-700">
+    <span className="inline-flex items-center gap-1 rounded-md border border-danger/20 bg-danger/10 px-2 py-1 font-medium text-danger">
       <TriangleAlert className="h-3 w-3" />
       missing
     </span>
