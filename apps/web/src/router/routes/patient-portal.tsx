@@ -90,59 +90,59 @@ function PatientPortalPage() {
   });
 
   return (
-    <div className="min-h-screen bg-clinic-50">
+    <div className="min-h-screen bg-canvas">
       <div className="mx-auto max-w-3xl px-5 py-8">
         <header className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
-            <Activity className="h-5 w-5 text-accent-700" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-md border border-accent-soft bg-accent-soft">
+            <Activity className="h-5 w-5 text-accent" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-clinic-900">Patient Portal</h1>
-            <p className="text-sm text-clinic-500">{patient ? `${patient.first_name} ${patient.last_name}` : 'Secure patient access'}</p>
+            <h1 className="font-serif text-display text-ink">Patient Portal</h1>
+            <p className="text-small text-ink-muted mt-1">{patient ? `${patient.first_name} ${patient.last_name}` : 'Secure patient access'}</p>
           </div>
         </header>
 
         {!patient ? (
-          <form onSubmit={(event) => { event.preventDefault(); loginMutation.mutate(); }} className="rounded-md border border-clinic-200 bg-white p-4">
+          <form onSubmit={(event) => { event.preventDefault(); loginMutation.mutate(); }} className="rounded-md border border-border bg-canvas-raised p-4">
             <div className="grid gap-3 md:grid-cols-3">
-              <input type="email" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-              <input type="date" value={loginForm.dob} onChange={(event) => setLoginForm({ ...loginForm, dob: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-              <input type="password" value={loginForm.access_code} onChange={(event) => setLoginForm({ ...loginForm, access_code: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" placeholder="Access code" />
+              <input type="email" value={loginForm.email} onChange={(event) => setLoginForm({ ...loginForm, email: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+              <input type="date" value={loginForm.dob} onChange={(event) => setLoginForm({ ...loginForm, dob: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+              <input type="password" value={loginForm.access_code} onChange={(event) => setLoginForm({ ...loginForm, access_code: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" placeholder="Access code" />
             </div>
-            <button className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Sign in</button>
+            <button className="mt-3 rounded-md bg-accent text-accent-on px-4 py-2 text-sm font-medium hover:bg-accent-hover">Sign in</button>
           </form>
         ) : (
           <section className="space-y-4">
-            <div className="rounded-md border border-clinic-200 bg-white p-4">
-              <textarea value={request.reason} onChange={(event) => setRequest({ ...request, reason: event.target.value })} className="min-h-24 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <div className="rounded-md border border-border bg-canvas-raised p-4">
+              <textarea value={request.reason} onChange={(event) => setRequest({ ...request, reason: event.target.value })} className="min-h-24 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
               <div className="mt-3 flex flex-wrap gap-2">
-                <button onClick={() => intakeMutation.mutate('intake_form')} className="inline-flex items-center gap-2 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">
+                <button onClick={() => intakeMutation.mutate('intake_form')} className="inline-flex items-center gap-2 rounded-md bg-accent text-accent-on px-4 py-2 text-sm font-medium hover:bg-accent-hover">
                   <Send className="h-4 w-4" />
                   Send update
                 </button>
               </div>
             </div>
-            <div className="rounded-md border border-clinic-200 bg-white p-4">
+            <div className="rounded-md border border-border bg-canvas-raised p-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <input type="date" value={request.appointment_date} onChange={(event) => setRequest({ ...request, appointment_date: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-                <input type="time" value={request.appointment_time} onChange={(event) => setRequest({ ...request, appointment_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <input type="date" value={request.appointment_date} onChange={(event) => setRequest({ ...request, appointment_date: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+                <input type="time" value={request.appointment_time} onChange={(event) => setRequest({ ...request, appointment_time: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
               </div>
-              <button onClick={() => intakeMutation.mutate('appointment_request')} className="mt-3 inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
+              <button onClick={() => intakeMutation.mutate('appointment_request')} className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">
                 <CalendarClock className="h-4 w-4" />
                 Request appointment
               </button>
             </div>
-            <div className="rounded-md border border-clinic-200 bg-white p-4">
+            <div className="rounded-md border border-border bg-canvas-raised p-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <input value={request.document_title} onChange={(event) => setRequest({ ...request, document_title: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-                <input value={request.document_source} onChange={(event) => setRequest({ ...request, document_source: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <input value={request.document_title} onChange={(event) => setRequest({ ...request, document_title: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+                <input value={request.document_source} onChange={(event) => setRequest({ ...request, document_source: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
               </div>
-              <button onClick={() => documentMutation.mutate()} className="mt-3 inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
+              <button onClick={() => documentMutation.mutate()} className="mt-3 inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">
                 <FileUp className="h-4 w-4" />
                 Upload document
               </button>
             </div>
-            {lastAction && <div className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm font-medium text-accent-800">{lastAction}</div>}
+            {lastAction && <div className="rounded-md border border-accent-soft bg-accent-soft px-3 py-2 text-sm font-medium text-accent">{lastAction}</div>}
           </section>
         )}
       </div>

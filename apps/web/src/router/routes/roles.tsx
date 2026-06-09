@@ -173,10 +173,10 @@ function RoleViewsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-clinic-500">Operational work by role</p>
-          <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Role Views</h1>
+          <p className="text-small text-ink-muted">Operational work by role</p>
+          <h1 className="mt-1 font-serif text-display text-ink">Role Views</h1>
         </div>
-        <Link to="/" className="inline-flex items-center gap-1 rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">
+        <Link to="/" className="inline-flex items-center gap-1 rounded-md border border-border-strong bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk">
           Command Center
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
@@ -184,56 +184,56 @@ function RoleViewsPage() {
 
       <section className="grid gap-4 xl:grid-cols-2">
         {lanes.map(({ title, icon: Icon, summary, metrics, actions }) => (
-          <div key={title} className="rounded-md border border-clinic-200 bg-white">
-            <div className="flex items-start justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+          <div key={title} className="rounded-md border border-border bg-canvas-raised">
+            <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-md border border-accent-200 bg-accent-50">
-                  <Icon className="h-4 w-4 text-accent-700" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-md border border-accent-soft bg-accent-soft">
+                  <Icon className="h-4 w-4 text-accent" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-clinic-900">{title}</h2>
-                  <p className="text-xs text-clinic-500">{summary}</p>
+                  <h2 className="text-sm font-semibold text-ink">{title}</h2>
+                  <p className="text-xs text-ink-muted">{summary}</p>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-px border-b border-clinic-100 bg-clinic-100">
+            <div className="grid grid-cols-3 gap-px border-b border-border bg-canvas-sunk">
               {metrics.map(([label, value]) => (
-                <div key={label} className="bg-clinic-50 px-4 py-3">
-                  <div className="text-2xl font-semibold text-clinic-900">{value}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{label}</div>
+                <div key={label} className="bg-canvas px-4 py-3">
+                  <div className="font-serif text-2xl font-medium text-ink">{value}</div>
+                  <div className="text-meta text-ink-muted mt-1">{label}</div>
                 </div>
               ))}
             </div>
 
-            <div className="divide-y divide-clinic-100">
+            <div className="divide-y divide-border">
               {actions.map((action) => (
-                <div key={`${title}-${action.label}-${action.detail}`} className="flex items-start gap-3 px-4 py-3 hover:bg-clinic-50">
+                <div key={`${title}-${action.label}-${action.detail}`} className="flex items-start gap-3 px-4 py-3 hover:bg-canvas-sunk/50">
                   {action.tone === 'red' ? (
-                    <AlertTriangle className="mt-0.5 h-4 w-4 text-red-700" />
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-danger" />
                   ) : action.tone === 'amber' ? (
-                    <CalendarClock className="mt-0.5 h-4 w-4 text-amber-700" />
+                    <CalendarClock className="mt-0.5 h-4 w-4 text-warn" />
                   ) : (
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent-700" />
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-accent" />
                   )}
                   <Link to={action.to} className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-clinic-900">{action.label}</div>
-                    <div className="mt-0.5 truncate text-xs text-clinic-500">{action.detail}</div>
+                    <div className="truncate text-sm font-medium text-ink">{action.label}</div>
+                    <div className="mt-0.5 truncate text-xs text-ink-muted">{action.detail}</div>
                   </Link>
                   {'appointmentId' in action && action.appointmentId && action.nextStatus ? (
                     <button
                       onClick={() => statusMutation.mutate({ id: action.appointmentId, status: action.nextStatus as AppointmentStatus })}
-                      className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                      className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent hover:bg-accent-soft"
                     >
                       {nextVisitLabel(action.nextStatus)}
                     </button>
                   ) : (
-                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 text-clinic-400" />
+                    <ArrowRight className="mt-0.5 h-3.5 w-3.5 text-ink-faint" />
                   )}
                 </div>
               ))}
               {actions.length === 0 && (
-                <div className="flex items-center gap-2 px-4 py-8 text-sm text-clinic-400">
+                <div className="flex items-center gap-2 px-4 py-8 text-sm text-ink-faint">
                   <ClipboardList className="h-4 w-4" />
                   No active work in this lane
                 </div>
@@ -249,10 +249,10 @@ function RoleViewsPage() {
           { to: '/faxes', label: 'Fax inbox', detail: `${unmatchedFaxes.length} unmatched inbound`, icon: FileText },
           { to: '/messaging', label: 'Messages', detail: `${unreadMessages} unread messages`, icon: MessageSquare },
         ].map(({ to, label, detail, icon: Icon }) => (
-          <Link key={to} to={to} className="rounded-md border border-clinic-200 bg-white p-4 hover:bg-clinic-50">
-            <Icon className="h-4 w-4 text-accent-700" />
-            <div className="mt-3 text-sm font-semibold text-clinic-900">{label}</div>
-            <div className="mt-1 text-xs text-clinic-500">{detail}</div>
+          <Link key={to} to={to} className="rounded-md border border-border bg-canvas-raised p-4 hover:bg-canvas-sunk">
+            <Icon className="h-4 w-4 text-accent" />
+            <div className="mt-3 text-sm font-semibold text-ink">{label}</div>
+            <div className="mt-1 text-xs text-ink-muted">{detail}</div>
           </Link>
         ))}
       </section>

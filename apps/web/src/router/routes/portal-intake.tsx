@@ -63,39 +63,39 @@ function PortalIntakePage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Patient digital front door</p>
-        <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Portal Intake</h1>
-        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Triage patient-submitted requests into chart updates, appointments, or document review with conflicts visible before scheduling.</p>
+        <p className="text-small text-ink-muted">Patient digital front door</p>
+        <h1 className="mt-1 font-serif text-display text-ink">Portal Intake</h1>
+        <p className="mt-2 max-w-3xl text-small text-ink-muted">Triage patient-submitted requests into chart updates, appointments, or document review with conflicts visible before scheduling.</p>
       </header>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
-          <ClipboardList className="h-4 w-4 text-accent-700" />
+      <section className="rounded-md border border-border bg-canvas-raised p-4">
+        <div className="mb-3 flex items-center gap-2 text-headline font-sans font-semibold text-ink">
+          <ClipboardList className="h-4 w-4 text-accent" />
           Stage Patient Requests
         </div>
         <div className="flex flex-wrap gap-2">
           {['intake_form', 'appointment_request', 'document_upload'].map((type) => (
-            <button key={type} onClick={() => createMutation.mutate(type)} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
+            <button key={type} onClick={() => createMutation.mutate(type)} className="rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">
               {humanizeWorkflowLabel(type)}
             </button>
           ))}
         </div>
       </section>
       {isLoading ? <LoadingState label="Loading portal intake" /> : (
-        <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
-          <div className="divide-y divide-clinic-100">
+        <section className="overflow-hidden rounded-md border border-border bg-canvas-raised">
+          <div className="divide-y divide-border">
             {rows.map((item) => (
-              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_8rem_22rem]">
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_8rem_22rem] border-b border-border-subtle hover:bg-canvas-sunk/50">
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{humanizeWorkflowLabel(item.request_type)}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{JSON.stringify(item.submitted_payload)}</div>
+                  <div className="text-sm font-semibold text-ink">{humanizeWorkflowLabel(item.request_type)}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{JSON.stringify(item.submitted_payload)}</div>
                   {conflictChecks[item.id] && (
                     <div className="mt-2 space-y-1">
-                      {conflictChecks[item.id].warnings.map((warning) => <div key={warning} className="text-xs font-medium text-amber-700">{warning}</div>)}
+                      {conflictChecks[item.id].warnings.map((warning) => <div key={warning} className="text-xs font-medium text-warn">{warning}</div>)}
                       {conflictChecks[item.id].suggested_slots.map((slot) => (
                         <button
                           key={slot.start_time}
                           onClick={() => updateMutation.mutate({ id: item.id, update: { submitted_payload: { ...item.submitted_payload, start_time: slot.start_time, end_time: slot.end_time, notes: 'Updated to alternate slot after conflict check.' } } })}
-                          className="block text-left text-xs font-medium text-accent-700 hover:text-accent-900"
+                          className="block text-left text-xs font-medium text-accent hover:text-accent"
                         >
                           Use alternate: {new Date(slot.start_time).toLocaleString()}
                         </button>
@@ -103,13 +103,13 @@ function PortalIntakePage() {
                     </div>
                   )}
                 </div>
-                <span className="text-sm font-medium text-clinic-700">{humanizeWorkflowLabel(item.status)}</span>
+                <span className="text-sm font-medium text-ink-secondary">{humanizeWorkflowLabel(item.status)}</span>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'apply' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Apply chart</button>
-                  {item.request_type === 'appointment_request' && <button onClick={() => conflictMutation.mutate(item)} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Check slot</button>}
-                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'appointment' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Schedule</button>
-                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'document' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Document</button>
-                  <button onClick={() => updateMutation.mutate({ id: item.id, update: { status: 'rejected' } })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Reject</button>
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'apply' })} className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent hover:bg-accent-soft">Apply chart</button>
+                  {item.request_type === 'appointment_request' && <button onClick={() => conflictMutation.mutate(item)} className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">Check slot</button>}
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'appointment' })} className="rounded-md border border-border bg-canvas-raised px-2 py-1 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk">Schedule</button>
+                  <button onClick={() => actionMutation.mutate({ id: item.id, action: 'document' })} className="rounded-md border border-border bg-canvas-raised px-2 py-1 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk">Document</button>
+                  <button onClick={() => updateMutation.mutate({ id: item.id, update: { status: 'rejected' } })} className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">Reject</button>
                 </div>
               </div>
             ))}
@@ -117,7 +117,7 @@ function PortalIntakePage() {
               <EmptyState
                 title="No portal requests"
                 detail="Stage intake, appointment, or document upload requests for review. Empty means either the queue is clear or demo data has not been seeded yet."
-                action={<button type="button" onClick={() => createMutation.mutate('intake_form')} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Stage intake request</button>}
+                action={<button type="button" onClick={() => createMutation.mutate('intake_form')} className="rounded-md bg-accent text-accent-on px-4 py-2 text-sm font-medium hover:bg-accent-hover">Stage intake request</button>}
               />
             )}
           </div>
