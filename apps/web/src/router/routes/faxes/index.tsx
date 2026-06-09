@@ -4,8 +4,9 @@ import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
+import { Badge } from '@/components/badge';
 import type { Fax } from '@concierge-os/shared';
-import { Send, ArrowDownToLine, ArrowUpFromLine, FileText, Search, X } from 'lucide-react';
+import { Send, ArrowDownToLine, ArrowUpFromLine, FileText, Search, X, Printer } from 'lucide-react';
 
 interface FaxListResponse {
   data: Fax[];
@@ -19,14 +20,19 @@ const DIRECTION_ICONS: Record<string, React.ReactNode> = {
   outbound: <ArrowUpFromLine className="h-3.5 w-3.5" />,
 };
 
-const STATUS_COLORS: Record<string, string> = {
-  received: 'bg-emerald-100 text-emerald-700',
-  processing: 'bg-amber-100 text-amber-700',
-  pending: 'bg-amber-100 text-amber-700',
-  sending: 'bg-sky-100 text-sky-700',
-  sent: 'bg-sky-100 text-sky-700',
-  failed: 'bg-red-100 text-red-700',
-};
+function FaxStatusBadge({ fax }: { fax: Fax }) {
+  if (fax.status === 'failed') {
+    return <Badge intent="danger">{humanizeWorkflowLabel(fax.status)}</Badge>;
+  }
+  if (fax.direction === 'inbound') {
+    return <Badge intent="muted">{humanizeWorkflowLabel(fax.status)}</Badge>;
+  }
+  return (
+    <span className="inline-flex items-center rounded-pill px-2 py-0.5 text-micro font-medium bg-accent/10 text-accent">
+      {humanizeWorkflowLabel(fax.status)}
+    </span>
+  );
+}
 
 export const Route = createFileRoute('/faxes/')({
   component: FaxCenterPage,
@@ -81,24 +87,24 @@ function FaxCenterPage() {
       <div className="min-w-0 flex-1">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-clinic-800">Fax Center</h1>
-            <p className="mt-1 text-sm text-clinic-500">Match inbound documents to charts, queue outbound faxes, and keep uncertain matches staged for staff review.</p>
+            <h1 className="font-serif text-display text-ink">Faxes</h1>
+            <p className="mt-1 text-small text-ink-muted">Match inbound documents to charts, queue outbound faxes, and keep uncertain matches staged for staff review.</p>
           </div>
-          <button onClick={() => setShowSendFax(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
+          <button onClick={() => setShowSendFax(true)} className="flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover">
             <Send className="h-4 w-4" />
             Send Fax
           </button>
         </div>
 
-        <div className="mb-4 flex gap-0 border-b border-clinic-200">
+        <div className="mb-4 flex gap-0 border-b border-border">
           {(['inbox', 'outbox'] as const).map((t) => (
             <button
               key={t}
               onClick={() => { setTab(t); setPage(1); setSelectedFax(null); }}
               className={`px-4 py-2.5 text-sm font-medium transition-colors ${
                 tab === t
-                  ? 'border-b-2 border-accent-600 text-accent-700'
-                  : 'text-clinic-500 hover:text-clinic-700'
+                  ? 'border-b-2 border-accent text-accent'
+                  : 'text-ink-muted hover:text-ink'
               }`}
             >
               {t === 'inbox' ? 'Inbox' : 'Outbox'}
@@ -111,17 +117,17 @@ function FaxCenterPage() {
         ) : isError ? (
           <ErrorState title="Unable to load faxes" detail={error instanceof Error ? error.message : 'The fax queue could not be loaded.'} />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
+          <div className="overflow-x-auto">
             <table className="w-full min-w-[48rem] text-sm">
-              <thead className="border-b border-clinic-200 bg-clinic-50">
+              <thead className="bg-canvas-sunk border-b border-border">
                 <tr>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500 w-8"></th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">Direction</th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">From</th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">To</th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">Status</th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">Patient</th>
-                  <th className="px-4 py-3 text-left font-medium text-clinic-500">Date</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase w-8"></th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Direction</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">From</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">To</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Status</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Patient</th>
+                  <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -129,26 +135,33 @@ function FaxCenterPage() {
                   <tr
                     key={fax.id}
                     onClick={() => setSelectedFax(fax)}
-                    className={`cursor-pointer border-b border-clinic-100 transition-colors hover:bg-clinic-50 ${selectedFax?.id === fax.id ? 'bg-clinic-100' : ''}`}
+                    className={`cursor-pointer border-b border-border-subtle transition-colors duration-150 hover:bg-canvas-sunk/50 ${selectedFax?.id === fax.id ? 'bg-canvas-sunk' : ''}`}
                   >
                     <td className="px-4 py-3">
-                      <FileText className="h-4 w-4 text-clinic-400" />
+                      <FileText className="h-4 w-4 text-ink-faint" />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1 text-xs text-clinic-500">
+                      <span className="inline-flex items-center gap-1 text-small text-ink-muted">
                         {DIRECTION_ICONS[fax.direction]}
                         {humanizeWorkflowLabel(fax.direction)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-clinic-600">{fax.from_number}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-clinic-600">{fax.to_number}</td>
+                    <td className="px-4 py-3 font-mono text-micro text-ink-secondary">{fax.from_number}</td>
+                    <td className="px-4 py-3 font-mono text-micro text-ink-secondary">{fax.to_number}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[fax.status]}`}>
-                        {humanizeWorkflowLabel(fax.status)}
-                      </span>
+                      <FaxStatusBadge fax={fax} />
                     </td>
-                    <td className="px-4 py-3 text-clinic-600">{fax.patient_name || 'Unmatched'}</td>
-                    <td className="px-4 py-3 text-xs text-clinic-500">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {fax.patient_id ? (
+                          <Badge intent="success">Matched</Badge>
+                        ) : (
+                          <Badge intent="warn">Unmatched</Badge>
+                        )}
+                        <span className="text-small text-ink-secondary">{fax.patient_name || '—'}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-micro text-ink-faint">
                       {new Date(fax.created_at).toLocaleDateString()}
                     </td>
                   </tr>
@@ -159,9 +172,10 @@ function FaxCenterPage() {
                       <EmptyState
                         title={`No faxes in ${tab}`}
                         detail={tab === 'inbox' ? 'Inbound documents will appear here for OCR review and chart matching. If this is a demo, open Setup to seed documents.' : 'Outbound fax activity will appear here after sending. Queue a fax when the clinical packet is ready.'}
+                        icon={Printer}
                         action={tab === 'inbox'
-                          ? <Link to="/setup" className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50">Seed demo data</Link>
-                          : <button type="button" onClick={() => setShowSendFax(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Queue fax</button>}
+                          ? <Link to="/setup" className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk">Seed demo data</Link>
+                          : <button type="button" onClick={() => setShowSendFax(true)} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover">Queue fax</button>}
                       />
                     </td>
                   </tr>
@@ -173,8 +187,8 @@ function FaxCenterPage() {
       </div>
 
       {selectedFax && (
-        <div className="w-full shrink-0 rounded-lg border border-clinic-200 bg-white p-4 xl:w-80">
-          <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-700">
+        <div className="w-full shrink-0 border border-border bg-canvas-raised p-4 xl:w-80">
+          <h3 className="mb-3 flex items-center gap-2 text-subhead font-medium text-ink">
             <FileText className="h-4 w-4" />
             Fax Detail
           </h3>
@@ -188,15 +202,15 @@ function FaxCenterPage() {
               ['Patient', selectedFax.patient_name || 'Unmatched'],
             ].map(([label, value]) => (
               <div key={label} className="flex justify-between">
-                <dt className="text-clinic-500">{label}</dt>
-                <dd className="font-medium text-clinic-800">{value}</dd>
+                <dt className="text-small text-ink-muted">{label}</dt>
+                <dd className="font-medium text-ink">{value}</dd>
               </div>
             ))}
           </dl>
           {selectedFax.ocr_text && (
             <div className="mt-4">
-              <h4 className="mb-1 text-xs font-medium text-clinic-500">OCR Preview</h4>
-              <p className="rounded-md bg-clinic-50 p-2 text-xs text-clinic-600 max-h-32 overflow-y-auto">
+              <h4 className="mb-1 text-meta font-medium text-ink-muted">OCR Preview</h4>
+              <p className="rounded-sm bg-canvas-sunk p-2 text-small text-ink-secondary max-h-32 overflow-y-auto">
                 {selectedFax.ocr_text}
               </p>
             </div>
@@ -207,7 +221,7 @@ function FaxCenterPage() {
                 value={matchPatient}
                 onChange={(event) => setMatchPatient(event.target.value)}
                 placeholder="Patient name"
-                className="mb-2 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+                className="mb-2 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
               />
               <button
                 onClick={() => {
@@ -215,7 +229,7 @@ function FaxCenterPage() {
                   matchMutation.mutate({ id: selectedFax.id, patient_name: matchPatient });
                 }}
                 disabled={matchMutation.isPending || !matchPatient}
-                className="flex w-full items-center justify-center gap-2 rounded-md border border-clinic-300 py-1.5 text-xs text-clinic-600 hover:bg-clinic-100"
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-border bg-canvas-raised py-1.5 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-50"
               >
                 <Search className="h-3.5 w-3.5" />
                 {matchMutation.isPending ? 'Matching...' : 'Match to Patient'}
@@ -226,43 +240,43 @@ function FaxCenterPage() {
       )}
 
       {showSendFax && (
-        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               sendMutation.mutate();
             }}
-            className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
+            className="mx-auto mt-24 max-w-lg bg-canvas-raised border border-border rounded-lg shadow-lg"
           >
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">Send Fax</h2>
-              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="text-subhead font-medium text-ink">Send Fax</h2>
+              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md p-1 text-ink-muted hover:text-ink hover:bg-canvas-sunk">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   To number
-                  <input required value={sendFax.to_number} onChange={(event) => setSendFax({ ...sendFax, to_number: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" placeholder="+13125550123" />
+                  <input required value={sendFax.to_number} onChange={(event) => setSendFax({ ...sendFax, to_number: event.target.value })} className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft" placeholder="+13125550123" />
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Pages
-                  <input required type="number" min="1" value={sendFax.pages} onChange={(event) => setSendFax({ ...sendFax, pages: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <input required type="number" min="1" value={sendFax.pages} onChange={(event) => setSendFax({ ...sendFax, pages: event.target.value })} className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft" />
                 </label>
               </div>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Patient
-                <input value={sendFax.patient_name} onChange={(event) => setSendFax({ ...sendFax, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <input value={sendFax.patient_name} onChange={(event) => setSendFax({ ...sendFax, patient_name: event.target.value })} className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft" />
               </label>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Cover note
-                <textarea value={sendFax.ocr_text} onChange={(event) => setSendFax({ ...sendFax, ocr_text: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <textarea value={sendFax.ocr_text} onChange={(event) => setSendFax({ ...sendFax, ocr_text: event.target.value })} rows={3} className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft" />
               </label>
             </div>
-            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
-              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
-              <button disabled={sendMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+            <div className="flex justify-end gap-3 border-t border-border px-5 py-4">
+              <button type="button" onClick={() => setShowSendFax(false)} className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk">Cancel</button>
+              <button disabled={sendMutation.isPending} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50">
                 {sendMutation.isPending ? 'Sending...' : 'Queue fax'}
               </button>
             </div>

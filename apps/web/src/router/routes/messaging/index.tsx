@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
 import type { Message, MessageThread } from '@concierge-os/shared';
-import { Send, Loader2, Mail, User } from 'lucide-react';
+import { Send, Loader2, Mail, User, MessageSquare } from 'lucide-react';
 
 interface ThreadListResponse {
   data: MessageThread[];
@@ -64,20 +64,22 @@ function MessagesPage() {
 
   return (
     <div>
-      <h1 className="mb-6 text-2xl font-semibold text-clinic-800">Messages</h1>
+      <div className="mb-6">
+        <h1 className="font-serif text-display text-ink">Messages</h1>
+        <p className="text-small text-ink-muted mt-1">Patient and staff conversations stay draftable until a human sends them.</p>
+      </div>
 
-      <div className="flex min-h-[32rem] flex-col gap-0 overflow-hidden rounded-lg border border-clinic-200 bg-white lg:flex-row">
-        <div className="max-h-80 shrink-0 border-b border-clinic-200 flex flex-col lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
-          <div className="border-b border-clinic-200 p-3">
-            <p className="mb-2 text-xs text-clinic-500">Patient and staff conversations stay draftable until a human sends them.</p>
+      <div className="flex min-h-[32rem] flex-col gap-0 overflow-hidden border border-border lg:flex-row">
+        <div className="max-h-80 shrink-0 border-b border-border flex flex-col lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
+          <div className="border-b border-border p-3">
             <button
               onClick={() => setShowCompose(true)}
-              className="w-full rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700"
+              className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover"
             >
               New Message
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto divide-y divide-border">
             {threadsLoading ? (
               <LoadingState label="Loading threads" />
             ) : threadsError ? (
@@ -89,25 +91,25 @@ function MessagesPage() {
                 <button
                   key={thread.id}
                   onClick={() => setSelectedThread(thread.id)}
-                  className={`w-full border-b border-clinic-100 px-4 py-3 text-left transition-colors hover:bg-clinic-50 ${
-                    selectedThread === thread.id ? 'bg-clinic-100' : ''
+                  className={`w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-canvas-sunk/50 ${
+                    selectedThread === thread.id ? 'bg-canvas-sunk' : ''
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-clinic-800 truncate max-w-[200px]">
+                    <span className={`text-small truncate max-w-[200px] ${thread.unread_count > 0 ? 'font-medium text-ink' : 'text-ink-muted'}`}>
                       {thread.subject}
                     </span>
                     {thread.unread_count > 0 && (
-                      <span className="rounded-full bg-accent-600 px-2 py-0.5 text-xs font-semibold text-white">
+                      <span className="inline-flex items-center rounded-pill bg-accent text-accent-on px-2 py-0.5 text-micro font-medium">
                         {thread.unread_count}
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 flex items-center gap-1 text-xs text-clinic-500">
+                  <div className="mt-1 flex items-center gap-1 text-micro text-ink-muted">
                     <User className="h-3 w-3" />
                     {thread.participants.map((p) => p.name).join(', ')}
                   </div>
-                  <div className="mt-0.5 text-xs text-clinic-400 truncate">
+                  <div className="mt-0.5 text-micro text-ink-faint truncate">
                     {thread.last_message.body.slice(0, 60)}
                   </div>
                 </button>
@@ -117,7 +119,8 @@ function MessagesPage() {
               <EmptyState
                 title="No messages yet"
                 detail="Start a new patient or staff conversation, or seed demo conversations from Setup."
-                action={<button type="button" onClick={() => setShowCompose(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">New message</button>}
+                icon={MessageSquare}
+                action={<button type="button" onClick={() => setShowCompose(true)} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover">New message</button>}
               />
             )}
           </div>
@@ -125,13 +128,13 @@ function MessagesPage() {
 
         <div className="flex-1 flex flex-col">
           {showCompose && (
-            <div className="border-b border-clinic-200 p-4">
+            <div className="border-b border-border p-4">
               <div className="mb-3">
-                <label className="mb-1 block text-xs font-medium text-clinic-500">To</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">To</label>
                 <select
                   value={recipientId}
                   onChange={(e) => setRecipientId(e.target.value)}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
                 >
                   {RECIPIENTS.map((recipient) => (
                     <option key={recipient.id} value={recipient.id}>{recipient.name}</option>
@@ -143,7 +146,7 @@ function MessagesPage() {
                   type="text"
                   value={newSubject}
                   onChange={(e) => setNewSubject(e.target.value)}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
                   placeholder="Subject"
                 />
               </div>
@@ -151,7 +154,7 @@ function MessagesPage() {
                 <textarea
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="flex-1 bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
                   rows={2}
                   placeholder="Type your message..."
                 />
@@ -162,7 +165,7 @@ function MessagesPage() {
                     }
                   }}
                   disabled={sendMutation.isPending || !recipientId || !newSubject || !newMessage}
-                  className="rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50 self-end"
+                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50 self-end"
                 >
                   {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </button>
@@ -182,12 +185,12 @@ function MessagesPage() {
                     <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-md rounded-lg px-4 py-3 text-sm ${
                         msg.sender_id === user?.id
-                          ? 'bg-accent-600 text-white'
-                          : 'bg-clinic-100 text-clinic-800'
+                          ? 'bg-accent text-accent-on'
+                          : 'bg-canvas-sunk text-ink'
                       }`}>
-                        <div className="mb-1 text-xs opacity-70">{msg.sender_name}</div>
+                        <div className="mb-1 font-mono text-micro text-ink-faint">{msg.sender_name}</div>
                         <div>{msg.body}</div>
-                        <div className="mt-1 text-right text-xs opacity-60">
+                        <div className="mt-1 text-right font-mono text-micro text-ink-faint">
                           {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                         </div>
                       </div>
@@ -195,12 +198,12 @@ function MessagesPage() {
                   ))
                 )}
               </div>
-              <div className="border-t border-clinic-200 p-3">
+              <div className="border-t border-border p-3">
                 <div className="flex gap-2">
                   <textarea
                     value={replyMessage}
                     onChange={(event) => setReplyMessage(event.target.value)}
-                    className="min-h-16 flex-1 rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                    className="min-h-16 flex-1 bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
                     placeholder="Reply to this thread..."
                   />
                   <button
@@ -217,7 +220,7 @@ function MessagesPage() {
                       }
                     }}
                     disabled={!replyMessage.trim() || sendMutation.isPending}
-                    className="self-end rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50"
+                    className="self-end rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50"
                   >
                     {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </button>
@@ -227,8 +230,8 @@ function MessagesPage() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <Mail className="mx-auto mb-3 h-8 w-8 text-clinic-300" />
-                <p className="text-sm text-clinic-400">Select a conversation or start a new message</p>
+                <MessageSquare className="mx-auto mb-3 h-8 w-8 text-ink-faint" />
+                <p className="text-small text-ink-muted">Select a conversation or start a new message</p>
               </div>
             </div>
           )}
