@@ -120,11 +120,10 @@ function BillingPage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Revenue workflow</p>
-        <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Billing Cases</h1>
-        <p className="mt-2 max-w-3xl text-sm text-clinic-500">Move signed clinical work through charge capture, eligibility, submission, denial rework, and payment without hiding blockers.</p>
+        <h1 className="font-serif text-display text-ink">Billing Cases</h1>
+        <p className="text-small text-ink-muted mt-1 max-w-3xl">Move signed clinical work through charge capture, eligibility, submission, denial rework, and payment without hiding blockers.</p>
       </header>
-      <section className="grid gap-2 md:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-5">
         {[
           ['Ready', workQueue?.ready_count ?? 0],
           ['Submitted', workQueue?.submitted_count ?? 0],
@@ -132,46 +131,46 @@ function BillingPage() {
           ['Eligibility needed', workQueue?.eligibility_needed_count ?? 0],
           ['Remittance pending', workQueue?.remittance_pending_count ?? 0],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-md border border-clinic-200 bg-white px-3 py-2">
-            <div className="text-xl font-semibold text-clinic-900">{value}</div>
-            <div className="text-xs text-clinic-500">{label}</div>
+          <div key={label} className="bg-canvas-raised border border-border rounded-md p-4">
+            <div className="font-serif text-2xl font-medium text-ink">{value}</div>
+            <div className="text-meta text-ink-muted mt-1">{label}</div>
           </div>
         ))}
       </section>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
-          <CreditCard className="h-4 w-4 text-accent-700" />
+      <section className="bg-canvas-raised border border-border rounded-md p-4">
+        <div className="mb-3 flex items-center gap-2 text-subhead font-medium text-ink">
+          <CreditCard className="h-4 w-4 text-accent" />
           Charge Capture
         </div>
         <form onSubmit={(event) => { event.preventDefault(); createMutation.mutate(); }} className="grid gap-3 md:grid-cols-[1fr_10rem_10rem_10rem_auto]">
-          <select required value={draft.patient_id} onChange={(event) => setDraft({ ...draft, patient_id: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+          <select required value={draft.patient_id} onChange={(event) => setDraft({ ...draft, patient_id: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink">
             <option value="">Select patient</option>
             {patientOptions.map((patient) => <option key={patient.id} value={patient.id}>{patient.last_name}, {patient.first_name}</option>)}
           </select>
-          <input placeholder="Payer" value={draft.payer} onChange={(event) => setDraft({ ...draft, payer: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input placeholder="CPT" value={draft.cpt_codes} onChange={(event) => setDraft({ ...draft, cpt_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input placeholder="DX" value={draft.diagnosis_codes} onChange={(event) => setDraft({ ...draft, diagnosis_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <button className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create</button>
+          <input placeholder="Payer" value={draft.payer} onChange={(event) => setDraft({ ...draft, payer: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+          <input placeholder="CPT" value={draft.cpt_codes} onChange={(event) => setDraft({ ...draft, cpt_codes: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+          <input placeholder="DX" value={draft.diagnosis_codes} onChange={(event) => setDraft({ ...draft, diagnosis_codes: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+          <button className="bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-medium hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Create</button>
         </form>
       </section>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
+      <section className="bg-canvas-raised border border-border rounded-md p-4">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <ClipboardCheck className="h-4 w-4 text-accent-700" />
+          <div className="flex items-center gap-2 text-subhead font-medium text-ink">
+            <ClipboardCheck className="h-4 w-4 text-accent" />
             Charge Review
           </div>
-          <span className="text-xs font-medium text-clinic-500">{reviewRows.length} signed notes pending charge capture</span>
+          <span className="text-meta text-ink-muted">{reviewRows.length} signed notes pending charge capture</span>
         </div>
-        <div className="divide-y divide-clinic-100">
+        <div className="divide-y divide-border">
           {reviewRows.map((item) => (
-            <div key={item.encounter_id} className="grid gap-3 py-3 md:grid-cols-[1fr_9rem_auto]">
+            <div key={item.encounter_id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_9rem_auto] hover:bg-canvas-sunk/50 transition-colors duration-150">
               <div>
-                <div className="text-sm font-semibold text-clinic-900">{item.patient_name}</div>
-                <div className="mt-1 text-xs text-clinic-500">{item.encounter_type} · CPT {item.recommended_cpt_codes.join(', ')}</div>
-                {item.summary && <div className="mt-1 text-xs text-clinic-600">{item.summary}</div>}
+                <div className="text-small font-medium text-ink">{item.patient_name}</div>
+                <div className="text-meta text-ink-muted mt-1">{item.encounter_type} · CPT {item.recommended_cpt_codes.join(', ')}</div>
+                {item.summary && <div className="text-small text-ink-secondary mt-1">{item.summary}</div>}
               </div>
-              <span className="text-xs text-clinic-500">{item.signed_at ? new Date(item.signed_at).toLocaleDateString() : 'Signed'}</span>
-              <button onClick={() => fromEncounterMutation.mutate(item.encounter_id)} className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-xs font-medium text-accent-700 hover:bg-accent-100">
+              <span className="text-meta text-ink-muted">{item.signed_at ? new Date(item.signed_at).toLocaleDateString() : 'Signed'}</span>
+              <button onClick={() => fromEncounterMutation.mutate(item.encounter_id)} className="rounded-md border border-accent-soft bg-accent-soft px-3 py-2 text-small font-medium text-accent hover:bg-accent-soft/80 active:scale-[0.98] transition-transform duration-75">
                 Create case
               </button>
             </div>
@@ -180,36 +179,36 @@ function BillingPage() {
         </div>
       </section>
       {isLoading ? <LoadingState label="Loading billing cases" /> : (
-        <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
-          <div className="divide-y divide-clinic-100">
+        <section>
+          <div className="divide-y divide-border">
             {rows.map((item) => (
-              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_9rem_9rem_18rem]">
+              <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_9rem_9rem_18rem] hover:bg-canvas-sunk/50 transition-colors duration-150">
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{item.payer ?? 'No payer'}</div>
-                  <div className="mt-1 text-xs text-clinic-500">CPT {item.cpt_codes.join(', ') || 'not coded'} · DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
-                  <div className="mt-1 text-xs text-clinic-500">Claim {item.claim_control_number ?? 'not submitted'} · Remit {item.remittance_status}</div>
+                  <div className="text-small font-medium text-ink">{item.payer ?? 'No payer'}</div>
+                  <div className="text-meta text-ink-muted mt-1">CPT {item.cpt_codes.join(', ') || 'not coded'} · DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
+                  <div className="text-meta text-ink-muted mt-1">Claim {item.claim_control_number ?? 'not submitted'} · Remit {item.remittance_status}</div>
                   {item.status === 'denied' && item.denial_reason && (
-                    <div className="mt-1 inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                    <div className="inline-flex items-center gap-1 rounded-pill bg-warn/10 px-2 py-0.5 text-micro font-medium text-warn mt-1">
                       <AlertTriangle className="h-3 w-3" />
                       {item.denial_reason}
                     </div>
                   )}
-                  {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
+                  {item.notes && <div className="text-small text-ink-secondary mt-1">{item.notes}</div>}
                 </div>
-                <select value={item.status} onChange={(event) => updateMutation.mutate({ id: item.id, update: { status: event.target.value as BillingCase['status'] } })} className="rounded-md border border-clinic-200 px-2 py-1 text-sm text-clinic-700">
+                <select value={item.status} onChange={(event) => updateMutation.mutate({ id: item.id, update: { status: event.target.value as BillingCase['status'] } })} className="bg-canvas border border-border rounded-sm px-2 py-1 text-small text-ink">
                   {['draft', 'ready', 'submitted', 'denied', 'paid'].map((status) => <option key={status} value={status}>{humanizeWorkflowLabel(status)}</option>)}
                 </select>
-                <span className="text-sm text-clinic-500">{humanizeWorkflowLabel(item.eligibility_status)}</span>
+                <span className="text-small text-ink-muted">{humanizeWorkflowLabel(item.eligibility_status)}</span>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => eligibilityMutation.mutate(item.patient_id)} className="inline-flex items-center justify-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
+                  <button onClick={() => eligibilityMutation.mutate(item.patient_id)} className="inline-flex items-center gap-1 rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-small font-medium text-accent hover:bg-accent-soft/80 active:scale-[0.98] transition-transform duration-75">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Eligibility
                   </button>
-                  <button onClick={() => openCase(item)} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Details</button>
-                  {item.status !== 'submitted' && item.status !== 'paid' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'submit' })} className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">Submit</button>}
-                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'payment' })} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Paid</button>}
-                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'deny' })} className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">Deny</button>}
-                  {item.status === 'denied' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'rework' })} className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">Work denial</button>}
+                  <button onClick={() => openCase(item)} className="rounded-md border border-border bg-canvas-raised px-2 py-1 text-small font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75">Details</button>
+                  {item.status !== 'submitted' && item.status !== 'paid' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'submit' })} className="rounded-md border border-border bg-canvas-raised px-2 py-1 text-small font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75">Submit</button>}
+                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'payment' })} className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-small font-medium text-accent hover:bg-accent-soft/80 active:scale-[0.98] transition-transform duration-75">Paid</button>}
+                  {item.status === 'submitted' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'deny' })} className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-small font-medium text-danger hover:bg-danger/20 active:scale-[0.98] transition-transform duration-75">Deny</button>}
+                  {item.status === 'denied' && <button onClick={() => caseActionMutation.mutate({ id: item.id, action: 'rework' })} className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-small font-medium text-warn hover:bg-warn/20 active:scale-[0.98] transition-transform duration-75">Work denial</button>}
                 </div>
               </div>
             ))}
@@ -218,48 +217,48 @@ function BillingPage() {
         </section>
       )}
       {selectedCase && (
-        <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <section className="bg-canvas-raised border border-border rounded-md p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Billing Case Detail</h2>
-              <p className="text-xs text-clinic-500">Edit payer, codes, and case notes before submission.</p>
+              <h2 className="text-subhead font-medium text-ink">Billing Case Detail</h2>
+              <p className="text-small text-ink-muted mt-1">Edit payer, codes, and case notes before submission.</p>
             </div>
-            <button onClick={() => setSelectedCaseId(null)} className="rounded-md border border-clinic-200 px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50">Close</button>
+            <button onClick={() => setSelectedCaseId(null)} className="rounded-md border border-border bg-canvas-raised px-2 py-1 text-small font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75">Close</button>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
-            <input aria-label="Payer" placeholder="Payer" value={caseDraft.payer} onChange={(event) => setCaseDraft({ ...caseDraft, payer: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-            <input aria-label="CPT codes" placeholder="CPT codes" value={caseDraft.cpt_codes} onChange={(event) => setCaseDraft({ ...caseDraft, cpt_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-            <input aria-label="Diagnosis codes" placeholder="Diagnosis codes" value={caseDraft.diagnosis_codes} onChange={(event) => setCaseDraft({ ...caseDraft, diagnosis_codes: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-            <textarea aria-label="Billing notes" placeholder="Notes" value={caseDraft.notes} onChange={(event) => setCaseDraft({ ...caseDraft, notes: event.target.value })} className="min-h-24 rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+            <input aria-label="Payer" placeholder="Payer" value={caseDraft.payer} onChange={(event) => setCaseDraft({ ...caseDraft, payer: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+            <input aria-label="CPT codes" placeholder="CPT codes" value={caseDraft.cpt_codes} onChange={(event) => setCaseDraft({ ...caseDraft, cpt_codes: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+            <input aria-label="Diagnosis codes" placeholder="Diagnosis codes" value={caseDraft.diagnosis_codes} onChange={(event) => setCaseDraft({ ...caseDraft, diagnosis_codes: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
+            <textarea aria-label="Billing notes" placeholder="Notes" value={caseDraft.notes} onChange={(event) => setCaseDraft({ ...caseDraft, notes: event.target.value })} className="min-h-24 bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint" />
           </div>
-          <button onClick={saveCase} className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Save case</button>
+          <button onClick={saveCase} className="mt-3 bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-medium hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Save case</button>
           {selectedReadiness && (
-            <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${selectedReadiness.ready ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-              <div className="font-semibold">{selectedReadiness.ready ? 'Ready to submit' : 'Submission blockers'}</div>
-              <div className="mt-1 text-xs">{selectedReadiness.recommended_next_step}</div>
+            <div className={`mt-4 rounded-md border px-3 py-2 text-small ${selectedReadiness.ready ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
+              <div className="font-medium">{selectedReadiness.ready ? 'Ready to submit' : 'Submission blockers'}</div>
+              <div className="text-meta mt-1">{selectedReadiness.recommended_next_step}</div>
               {selectedReadiness.blockers.length > 0 && (
-                <ul className="mt-2 list-disc pl-4 text-xs">
+                <ul className="mt-2 list-disc pl-4 text-small">
                   {selectedReadiness.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}
                 </ul>
               )}
               {selectedReadiness.warnings.length > 0 && (
-                <div className="mt-2 text-xs">{selectedReadiness.warnings.join(' ')}</div>
+                <div className="mt-2 text-small">{selectedReadiness.warnings.join(' ')}</div>
               )}
             </div>
           )}
-          <div className="mt-4 border-t border-clinic-100 pt-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-clinic-500">Case timeline</h3>
+          <div className="mt-4 border-t border-border pt-3">
+            <h3 className="text-meta font-medium text-ink-muted uppercase">Case timeline</h3>
             <div className="mt-2 space-y-2">
               {(selectedTimeline?.data ?? []).map((event) => (
-                <div key={event.id} className="rounded-md bg-clinic-50 px-3 py-2">
+                <div key={event.id} className="rounded-sm bg-canvas-sunk px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-xs font-semibold text-clinic-800">{event.event_type.replaceAll('_', ' ')}</div>
-                    <span className="rounded border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{event.status ?? event.source ?? 'audit'}</span>
+                    <div className="text-small font-medium text-ink">{event.event_type.replaceAll('_', ' ')}</div>
+                    <span className="rounded-sm border border-border bg-canvas-raised px-1.5 py-0.5 text-micro text-ink-muted">{event.status ?? event.source ?? 'audit'}</span>
                   </div>
-                  <div className="mt-1 text-xs text-clinic-500">{new Date(event.created_at).toLocaleString()}</div>
+                  <div className="text-meta text-ink-muted mt-1">{new Date(event.created_at).toLocaleString()}</div>
                 </div>
               ))}
-              {(selectedTimeline?.data ?? []).length === 0 && <div className="text-xs text-clinic-400">No billing events have been recorded yet.</div>}
+              {(selectedTimeline?.data ?? []).length === 0 && <div className="text-small text-ink-faint">No billing events have been recorded yet.</div>}
             </div>
           </div>
         </section>

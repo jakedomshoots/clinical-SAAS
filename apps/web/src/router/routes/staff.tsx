@@ -77,8 +77,8 @@ function StaffPage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Staff administration</p>
-        <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Staff</h1>
+        <h1 className="font-serif text-display text-ink">Staff</h1>
+        <p className="text-small text-ink-muted mt-1">Staff administration</p>
       </header>
 
       {isLoading ? (
@@ -87,19 +87,20 @@ function StaffPage() {
         <ErrorState title="Unable to load staff" detail={error instanceof Error ? error.message : 'The staff directory could not be loaded.'} />
       ) : (
         <>
-          <section className="rounded-md border border-clinic-200 bg-white">
-            <div className="grid gap-px bg-clinic-100 md:grid-cols-5">
-              {stats.map(({ label, value, icon: Icon }) => (
-                <div key={label} className="bg-clinic-50 px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="text-2xl font-semibold text-clinic-900">{value}</div>
-                    <Icon className="h-4 w-4 text-accent-700" />
-                  </div>
-                  <div className="mt-1 text-xs text-clinic-500">{label}</div>
+          <section className="grid gap-3 md:grid-cols-5">
+            {stats.map(({ label, value, icon: Icon }) => (
+              <div key={label} className="bg-canvas-raised border border-border rounded-md p-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-serif text-2xl font-medium text-ink">{value}</span>
+                  <Icon className="h-4 w-4 text-accent" />
                 </div>
-              ))}
-            </div>
-            <div className="grid gap-3 border-t border-clinic-100 px-4 py-3 text-sm md:grid-cols-3">
+                <div className="text-meta text-ink-muted mt-1">{label}</div>
+              </div>
+            ))}
+          </section>
+
+          <section className="bg-canvas-raised border border-border rounded-md p-4">
+            <div className="grid gap-3 text-sm md:grid-cols-3">
               <PolicyLine label="MFA policy" value={sessionPolicy?.mfa_required ? 'Required in production' : 'Staged for production'} />
               <PolicyLine label="Provider" value={sessionPolicy?.mfa_provider ?? 'local_policy'} />
               <PolicyLine label="Review cadence" value={`${accessReview?.review_window_days ?? sessionPolicy?.access_review_window_days ?? 90} days`} />
@@ -107,32 +108,32 @@ function StaffPage() {
           </section>
 
           {roleMatrix && (
-            <section className="rounded-md border border-clinic-200 bg-white">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-100 px-4 py-3">
+            <section className="bg-canvas-raised border border-border rounded-md">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-clinic-900">Role Access Matrix</h2>
-                  <p className="mt-1 text-xs text-clinic-500">{roleMatrix.total_roles} roles · {roleMatrix.summary.active_users ?? 0} active staff · {roleMatrix.summary.privileged_users_without_mfa ?? 0} privileged MFA gaps</p>
+                  <h2 className="text-subhead font-medium text-ink">Role Access Matrix</h2>
+                  <p className="text-small text-ink-muted mt-1">{roleMatrix.total_roles} roles · {roleMatrix.summary.active_users ?? 0} active staff · {roleMatrix.summary.privileged_users_without_mfa ?? 0} privileged MFA gaps</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {roleMatrix.warnings.slice(0, 3).map((warning) => (
-                    <span key={warning.key} className={`rounded-md border px-2 py-1 text-xs font-medium ${warning.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <span key={warning.key} className={`rounded-md border px-2 py-1 text-xs font-medium ${warning.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {warning.label}
                     </span>
                   ))}
                   {roleMatrix.warnings.length === 0 && (
-                    <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">Access clear</span>
+                    <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">Access clear</span>
                   )}
                 </div>
               </div>
-              <div className="grid gap-px bg-clinic-100 md:grid-cols-5">
+              <div className="grid gap-px bg-border md:grid-cols-5">
                 {roleMatrix.roles.map((role) => (
-                  <div key={role.role} className="bg-white p-3">
+                  <div key={role.role} className="bg-canvas-raised p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
-                      <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-[11px] font-medium text-clinic-700">{role.active_users}</span>
+                      <div className="text-small font-medium text-ink">{role.label}</div>
+                      <span className="rounded-md border border-border bg-canvas-sunk px-2 py-0.5 text-micro font-medium text-ink-secondary">{role.active_users}</span>
                     </div>
-                    <p className="mt-2 min-h-10 text-xs text-clinic-500">{role.summary}</p>
-                    <div className="mt-3 grid gap-1 text-[11px]">
+                    <p className="mt-2 min-h-10 text-micro text-ink-muted">{role.summary}</p>
+                    <div className="mt-3 grid gap-1 text-micro">
                       <AccessFlag enabled={role.can_manage_clinical} label="Clinical" />
                       <AccessFlag enabled={role.can_manage_front_office} label="Front office" />
                       <AccessFlag enabled={role.can_manage_staff} label="Staff/admin" />
@@ -140,7 +141,7 @@ function StaffPage() {
                       <AccessFlag enabled={role.can_export_audit} label="Audit export" />
                     </div>
                     {role.mfa_required && (
-                      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-800">
+                      <div className="mt-3 rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-micro font-medium text-warn">
                         MFA required
                       </div>
                     )}
@@ -150,50 +151,50 @@ function StaffPage() {
             </section>
           )}
 
-          <section className="overflow-hidden rounded-md border border-clinic-200 bg-white">
-            <div className="grid gap-px border-b border-clinic-100 bg-clinic-100 md:grid-cols-3">
-              <div className="bg-white px-4 py-3">
-                <div className="text-2xl font-semibold text-clinic-900">{recoverySummary?.temporary_password_count ?? 0}</div>
-                <div className="mt-1 text-xs text-clinic-500">Temporary credentials</div>
+          <section>
+            <div className="grid gap-px border-b border-border bg-border md:grid-cols-3">
+              <div className="bg-canvas-raised px-4 py-3">
+                <div className="font-serif text-2xl font-medium text-ink">{recoverySummary?.temporary_password_count ?? 0}</div>
+                <div className="text-meta text-ink-muted mt-1">Temporary credentials</div>
               </div>
-              <div className="bg-white px-4 py-3">
-                <div className="text-2xl font-semibold text-red-700">{recoverySummary?.expired_temporary_password_count ?? 0}</div>
-                <div className="mt-1 text-xs text-clinic-500">Expired onboarding</div>
+              <div className="bg-canvas-raised px-4 py-3">
+                <div className="font-serif text-2xl font-medium text-danger">{recoverySummary?.expired_temporary_password_count ?? 0}</div>
+                <div className="text-meta text-ink-muted mt-1">Expired onboarding</div>
               </div>
-              <div className="bg-white px-4 py-3">
-                <div className="text-2xl font-semibold text-clinic-900">{latestReset?.temporary_password ? 'Issued' : 'Ready'}</div>
-                <div className="mt-1 text-xs text-clinic-500">Recovery reset</div>
+              <div className="bg-canvas-raised px-4 py-3">
+                <div className="font-serif text-2xl font-medium text-ink">{latestReset?.temporary_password ? 'Issued' : 'Ready'}</div>
+                <div className="text-meta text-ink-muted mt-1">Recovery reset</div>
               </div>
             </div>
             {latestReset && (
-              <div className="border-b border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <div className="border-b border-warn/20 bg-warn/10 px-4 py-3 text-small text-warn">
                 Temporary password for {latestReset.user.email}: <span className="font-mono font-semibold">{latestReset.temporary_password}</span>
-                <span className="ml-2 text-xs">Expires {formatDate(latestReset.temporary_password_expires_at)}</span>
+                <span className="ml-2 text-micro">Expires {formatDate(latestReset.temporary_password_expires_at)}</span>
               </div>
             )}
-            <div className="border-b border-clinic-100 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">Access Review Queue</h2>
-              <p className="mt-1 text-xs text-clinic-500">Review account status, privileged access, MFA readiness, and stale access evidence before production use.</p>
+            <div className="border-b border-border px-4 py-3">
+              <h2 className="text-subhead font-medium text-ink">Access Review Queue</h2>
+              <p className="text-small text-ink-muted mt-1">Review account status, privileged access, MFA readiness, and stale access evidence before production use.</p>
             </div>
-            <div className="divide-y divide-clinic-100">
+            <div className="divide-y divide-border">
               {staff.map((user) => {
                 const review = reviewByUserId.get(user.id);
                 const needsReview = review?.review_status === 'needs_review';
                 return (
-                  <div key={user.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[1.5fr_11rem_8rem_1.4fr_9rem]">
+                  <div key={user.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[1.5fr_11rem_8rem_1.4fr_9rem] hover:bg-canvas-sunk/50 transition-colors duration-150">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        {user.is_active ? <UserCheck className="h-4 w-4 text-accent-700" /> : <UserX className="h-4 w-4 text-clinic-400" />}
+                        {user.is_active ? <UserCheck className="h-4 w-4 text-accent" /> : <UserX className="h-4 w-4 text-ink-faint" />}
                         <input
                           value={user.display_name}
                           onChange={(event) => updateMutation.mutate({ id: user.id, update: { display_name: event.target.value } })}
-                          className="min-w-0 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-semibold text-clinic-900 hover:border-clinic-200 hover:bg-clinic-50"
+                          className="min-w-0 rounded-sm border border-transparent bg-transparent px-2 py-1 text-small font-medium text-ink hover:border-border hover:bg-canvas-sunk"
                         />
                       </div>
-                      <div className="mt-1 truncate text-xs text-clinic-500">{user.email}</div>
-                      <div className="mt-1 text-[11px] text-clinic-400">Last login: {formatDate(user.last_login_at)}</div>
+                      <div className="text-meta text-ink-muted mt-1 truncate">{user.email}</div>
+                      <div className="text-micro text-ink-faint mt-1">Last login: {formatDate(user.last_login_at)}</div>
                       {user.password_must_change && (
-                        <div className={`mt-1 inline-flex items-center gap-1 rounded border px-2 py-0.5 text-[11px] font-medium ${isExpired(user.temporary_password_expires_at) ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+                        <div className={`mt-1 inline-flex items-center gap-1 rounded-pill px-2 py-0.5 text-micro font-medium ${isExpired(user.temporary_password_expires_at) ? 'bg-danger/10 text-danger' : 'bg-warn/10 text-warn'}`}>
                           <KeyRound className="h-3 w-3" />
                           {isExpired(user.temporary_password_expires_at) ? 'Temp expired' : 'Temp active'}
                         </div>
@@ -202,42 +203,42 @@ function StaffPage() {
                     <select
                       value={user.role}
                       onChange={(event) => updateMutation.mutate({ id: user.id, update: { role: event.target.value as Role } })}
-                      className="h-9 rounded-md border border-clinic-200 bg-white px-2 text-sm text-clinic-700"
+                      className="h-9 rounded-sm border border-border bg-canvas px-2 text-small text-ink"
                     >
                       {ROLES.map((role) => <option key={role} value={role}>{role.replace('_', ' ')}</option>)}
                     </select>
                     <button
                       onClick={() => updateMutation.mutate({ id: user.id, update: { mfa_enabled: !user.mfa_enabled } })}
-                      className={`inline-flex h-9 items-center justify-center gap-1 rounded-md border px-2 text-xs font-medium ${user.mfa_enabled ? 'border-accent-200 bg-accent-50 text-accent-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}
+                      className={`inline-flex h-9 items-center justify-center gap-1 rounded-md border px-2 text-xs font-medium ${user.mfa_enabled ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}
                     >
                       {user.mfa_enabled ? <ShieldCheck className="h-4 w-4" /> : <ShieldAlert className="h-4 w-4" />}
                       {user.mfa_enabled ? 'MFA on' : 'MFA gap'}
                     </button>
                     <div className="min-w-0 text-xs">
-                      <div className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-medium ${needsReview ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-accent-200 bg-accent-50 text-accent-700'}`}>
+                      <div className={`inline-flex items-center gap-1 rounded-pill px-2 py-1 text-micro font-medium ${needsReview ? 'bg-warn/10 text-warn' : 'bg-accent-soft text-accent'}`}>
                         {needsReview ? <Clock3 className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                         {needsReview ? 'Needs review' : 'Current'}
                       </div>
-                      <div className="mt-1 truncate text-clinic-500">{review?.recommended_action ?? 'Review status not loaded.'}</div>
-                      <div className="mt-1 text-clinic-400">Reviewed: {formatDate(user.access_reviewed_at)}</div>
+                      <div className="text-meta text-ink-muted mt-1 truncate">{review?.recommended_action ?? 'Review status not loaded.'}</div>
+                      <div className="text-micro text-ink-faint mt-1">Reviewed: {formatDate(user.access_reviewed_at)}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
                       <button
                         onClick={() => updateMutation.mutate({ id: user.id, update: { is_active: !user.is_active } })}
-                        className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50"
+                        className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk active:scale-[0.98] transition-transform duration-75"
                       >
                         {user.is_active ? 'Deactivate' : 'Reactivate'}
                       </button>
                       <button
                         onClick={() => reviewMutation.mutate({ id: user.id, mfa_enabled: user.role === 'admin' || user.role === 'manager' ? true : user.mfa_enabled })}
-                        className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700"
+                        className="bg-accent text-accent-on rounded-md px-4 py-2 text-sm font-medium hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75"
                       >
                         Mark reviewed
                       </button>
                       <button
                         onClick={() => resetMutation.mutate(user.id)}
                         disabled={resetMutation.isPending}
-                        className="col-span-2 rounded-md border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-60 lg:col-span-1"
+                        className="col-span-2 rounded-md border border-warn/20 bg-warn/10 px-3 py-2 text-sm font-medium text-warn hover:bg-warn/20 disabled:opacity-60 lg:col-span-1 active:scale-[0.98] transition-transform duration-75"
                       >
                         Reset password
                       </button>
@@ -256,7 +257,7 @@ function StaffPage() {
 
 function AccessFlag({ enabled, label }: { enabled: boolean; label: string }) {
   return (
-    <div className={`flex items-center justify-between gap-2 rounded border px-2 py-1 ${enabled ? 'border-accent-100 bg-accent-50 text-accent-800' : 'border-clinic-100 bg-clinic-50 text-clinic-400'}`}>
+    <div className={`flex items-center justify-between gap-2 rounded-sm border px-2 py-1 ${enabled ? 'border-accent-soft bg-accent-soft text-accent' : 'border-border bg-canvas-sunk text-ink-faint'}`}>
       <span>{label}</span>
       <span>{enabled ? 'yes' : 'no'}</span>
     </div>
@@ -266,8 +267,8 @@ function AccessFlag({ enabled, label }: { enabled: boolean; label: string }) {
 function PolicyLine({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-xs font-medium text-clinic-500">{label}</div>
-      <div className="mt-1 font-semibold text-clinic-900">{value}</div>
+      <div className="text-small font-medium text-ink-muted">{label}</div>
+      <div className="text-small font-medium text-ink mt-1">{value}</div>
     </div>
   );
 }
