@@ -103,8 +103,8 @@ function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium ${
       ok
-        ? 'border-accent-200 bg-accent-50 text-accent-800'
-        : 'border-amber-200 bg-amber-50 text-amber-800'
+        ? 'border-accent-soft bg-accent-soft text-accent'
+        : 'border-warn/20 bg-warn/10 text-warn'
     }`}>
       {ok ? <CheckCircle2 className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
       {label}
@@ -802,8 +802,8 @@ function OperationsPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-clinic-500">System readiness</p>
-          <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Operations</h1>
+          <p className="text-small text-ink-muted">System readiness</p>
+          <h1 className="mt-1 font-serif text-display text-ink">Operations</h1>
         </div>
         <div className="flex items-center gap-2">
           <StatusBadge ok={ready?.status === 'ok'} label={`Core ${ready?.status ?? 'checking'}`} />
@@ -812,26 +812,26 @@ function OperationsPage() {
       </header>
 
       {liveUseRehearsal && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <ShieldCheck className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <ShieldCheck className="h-4 w-4 text-accent" />
                 Live-Use Rehearsal Board
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(liveUseRehearsal.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(liveUseRehearsal.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${liveUseRehearsal.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : liveUseRehearsal.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${liveUseRehearsal.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : liveUseRehearsal.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                 {liveUseRehearsal.status}
               </span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{liveUseRehearsal.score}%</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{liveUseRehearsal.summary.blocking_gates ?? 0} blockers</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{liveUseRehearsal.summary.warning_gates ?? 0} warnings</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{liveUseRehearsal.score}%</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{liveUseRehearsal.summary.blocking_gates ?? 0} blockers</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{liveUseRehearsal.summary.warning_gates ?? 0} warnings</span>
               <a
                 href={ROUTES.OPERATIONS_LIVE_USE_REHEARSAL_EXPORT}
                 download="concierge-os-live-use-rehearsal.csv"
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -847,43 +847,43 @@ function OperationsPage() {
                   ['Credential blockers', String(liveUseRehearsal.summary.credential_blockers ?? 0)],
                   ['Unassigned work', String(liveUseRehearsal.summary.workplan_unassigned ?? 0)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-                    <div className="text-[11px] font-semibold uppercase text-clinic-400">{label}</div>
-                    <div className="mt-1 text-lg font-semibold text-clinic-900">{value}</div>
+                  <div key={label} className="rounded-md border border-border bg-canvas p-3">
+                    <div className="text-meta text-ink-muted">{label}</div>
+                    <div className="font-serif text-2xl font-medium text-ink">{value}</div>
                   </div>
                 ))}
               </div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
                 {liveUseRehearsal.gates.map((gate) => (
-                  <Link key={gate.key} to={gate.route} className="rounded-md border border-clinic-200 p-3 hover:bg-clinic-50">
+                  <Link key={gate.key} to={gate.route} className="rounded-md border border-border p-3 hover:bg-canvas-sunk">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-clinic-900">{gate.label}</div>
-                        <div className="mt-1 text-xs text-clinic-500">{gate.detail}</div>
+                        <div className="text-sm font-medium text-ink">{gate.label}</div>
+                        <div className="mt-1 text-xs text-ink-muted">{gate.detail}</div>
                       </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'blocking' || gate.status === 'missing' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${gate.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : gate.status === 'blocking' || gate.status === 'missing' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {gate.status}
                       </span>
                     </div>
-                    <div className="mt-2 text-[11px] text-clinic-400">{gate.captured_at ? new Date(gate.captured_at).toLocaleString() : 'No capture timestamp'}</div>
+                    <div className="mt-2 text-[11px] text-ink-faint">{gate.captured_at ? new Date(gate.captured_at).toLocaleString() : 'No capture timestamp'}</div>
                   </Link>
                 ))}
               </div>
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Next actions</div>
-              <div className="divide-y divide-clinic-100">
+            <aside className="rounded-md border border-border">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Next actions</div>
+              <div className="divide-y divide-border">
                 {liveUseRehearsal.next_actions.slice(0, 6).map((action) => (
-                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
+                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                      <span className="text-sm font-medium text-ink">{action.label}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'blocking' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{action.detail}</div>
                   </Link>
                 ))}
                 {liveUseRehearsal.next_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No rehearsal actions.</div>
+                  <div className="px-3 py-6 text-sm text-ink-faint">No rehearsal actions.</div>
                 )}
               </div>
             </aside>
@@ -892,27 +892,27 @@ function OperationsPage() {
       )}
 
       {credentialBinder && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <ClipboardList className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <ClipboardList className="h-4 w-4 text-accent" />
                 Credential Dry-Run Binder
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(credentialBinder.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(credentialBinder.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${credentialBinder.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : credentialBinder.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${credentialBinder.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : credentialBinder.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                 {credentialBinder.status}
               </span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{credentialBinder.blocking_count} blocking</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{credentialBinder.warning_count} warning</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{credentialBinder.archive_ready_count}/{credentialBinder.total} archives</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{credentialBinder.blocking_count} blocking</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{credentialBinder.warning_count} warning</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{credentialBinder.archive_ready_count}/{credentialBinder.total} archives</span>
               <button
                 type="button"
                 onClick={() => credentialBinderSnapshotMutation.mutate()}
                 disabled={credentialBinderSnapshotMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-clinic-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-1.5 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <CheckSquare className="h-3.5 w-3.5" />
                 Save
@@ -920,7 +920,7 @@ function OperationsPage() {
               <a
                 href={ROUTES.OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT}
                 download={credentialBinder.export_filename}
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -929,49 +929,49 @@ function OperationsPage() {
           </div>
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {credentialBinder.items.map((item) => (
-              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+              <Link key={item.integration} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{item.vendor_profile.vendor_name || 'Vendor pending'} · {item.vendor_profile.owner_name || 'Owner pending'}</div>
+                    <div className="text-sm font-medium text-ink">{item.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{item.vendor_profile.vendor_name || 'Vendor pending'} · {item.vendor_profile.owner_name || 'Owner pending'}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.binder_status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.binder_status === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.binder_status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : item.binder_status === 'blocking' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {item.binder_status}
                   </span>
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                    <div className="font-semibold text-clinic-700">{item.status}</div>
-                    <div className="text-clinic-400">preflight</div>
+                  <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                    <div className="font-semibold text-ink-secondary">{item.status}</div>
+                    <div className="text-ink-faint">preflight</div>
                   </div>
-                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                    <div className="font-semibold text-clinic-700">{item.handoff_archive.status}</div>
-                    <div className="text-clinic-400">archive</div>
+                  <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                    <div className="font-semibold text-ink-secondary">{item.handoff_archive.status}</div>
+                    <div className="text-ink-faint">archive</div>
                   </div>
-                  <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                    <div className="font-semibold text-clinic-700">{item.sandbox_reference_count}/{item.sandbox_reference_total}</div>
-                    <div className="text-clinic-400">refs</div>
+                  <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                    <div className="font-semibold text-ink-secondary">{item.sandbox_reference_count}/{item.sandbox_reference_total}</div>
+                    <div className="text-ink-faint">refs</div>
                   </div>
                 </div>
-                <div className="mt-3 text-xs text-clinic-500">{item.blockers[0] || item.handoff_archive.detail}</div>
+                <div className="mt-3 text-xs text-ink-muted">{item.blockers[0] || item.handoff_archive.detail}</div>
                 <div className="mt-2 flex flex-wrap gap-1">
-                  <span className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{item.readiness_mode}</span>
-                  <span className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] text-clinic-500">{item.production_ready ? 'production ready' : item.sandbox_ready ? 'sandbox ready' : 'pending'}</span>
+                  <span className="rounded-md border border-border bg-canvas-raised px-1.5 py-0.5 text-[11px] text-ink-muted">{item.readiness_mode}</span>
+                  <span className="rounded-md border border-border bg-canvas-raised px-1.5 py-0.5 text-[11px] text-ink-muted">{item.production_ready ? 'production ready' : item.sandbox_ready ? 'sandbox ready' : 'pending'}</span>
                 </div>
               </Link>
             ))}
             {(credentialBinderSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
-              <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-white p-3">
+              <div key={snapshot.id} className="rounded-md border border-border bg-canvas-raised p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-sm font-medium text-clinic-900">Saved binder snapshot</div>
-                    <div className="mt-1 text-xs text-clinic-500">{new Date(snapshot.created_at).toLocaleString()}</div>
+                    <div className="text-sm font-medium text-ink">Saved binder snapshot</div>
+                    <div className="mt-1 text-xs text-ink-muted">{new Date(snapshot.created_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${snapshot.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : snapshot.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${snapshot.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : snapshot.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {snapshot.status}
                   </span>
                 </div>
-                <div className="mt-2 text-xs text-clinic-500">{snapshot.blocking_count} blocking, {snapshot.warning_count} warning, {snapshot.archive_ready_count}/{snapshot.total} archives ready</div>
+                <div className="mt-2 text-xs text-ink-muted">{snapshot.blocking_count} blocking, {snapshot.warning_count} warning, {snapshot.archive_ready_count}/{snapshot.total} archives ready</div>
               </div>
             ))}
           </div>
@@ -979,26 +979,26 @@ function OperationsPage() {
       )}
 
       {adapterPacket && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <PlugZap className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <PlugZap className="h-4 w-4 text-accent" />
                 Adapter Implementation Packet
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(adapterPacket.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(adapterPacket.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${adapterPacket.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : adapterPacket.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${adapterPacket.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : adapterPacket.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                 {adapterPacket.status}
               </span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{adapterPacket.critical_count} critical</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{adapterPacket.high_count} high</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{adapterPacket.implemented_count}/{adapterPacket.total} implemented</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{adapterPacket.critical_count} critical</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{adapterPacket.high_count} high</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{adapterPacket.implemented_count}/{adapterPacket.total} implemented</span>
               <a
                 href={ROUTES.OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET_EXPORT}
                 download={adapterPacket.export_filename}
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -1007,33 +1007,33 @@ function OperationsPage() {
           </div>
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {adapterPacket.items.map((item) => (
-              <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+              <Link key={item.integration} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{item.adapter_method_ready_count}/{item.adapter_method_total} methods · {item.workflows.length} workflows</div>
+                    <div className="text-sm font-medium text-ink">{item.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{item.adapter_method_ready_count}/{item.adapter_method_total} methods · {item.workflows.length} workflows</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.priority === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : item.priority === 'high' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-clinic-200 bg-white text-clinic-600'}`}>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.priority === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : item.priority === 'high' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-border bg-canvas-raised text-ink-secondary'}`}>
                       {item.priority}
                     </span>
-                    <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] text-clinic-500">{item.implementation_status}</span>
+                    <span className="rounded-md border border-border bg-canvas-raised px-2 py-0.5 text-[11px] text-ink-muted">{item.implementation_status}</span>
                   </div>
                 </div>
                 <div className="mt-3 space-y-1">
                   {item.implementation_phases.slice(0, 3).map((phase) => (
-                    <div key={phase.key} className="flex items-start justify-between gap-2 rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs">
+                    <div key={phase.key} className="flex items-start justify-between gap-2 rounded-md border border-border bg-canvas-raised px-2 py-1.5 text-xs">
                       <div>
-                        <div className="font-medium text-clinic-800">{phase.label}</div>
-                        <div className="mt-0.5 text-clinic-500">{phase.detail}</div>
+                        <div className="font-medium text-ink">{phase.label}</div>
+                        <div className="mt-0.5 text-ink-muted">{phase.detail}</div>
                       </div>
-                      <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${phase.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : phase.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${phase.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : phase.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {phase.status}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 text-xs text-clinic-500">{item.blockers[0] || item.docs[0] || 'Adapter implementation tracked.'}</div>
+                <div className="mt-3 text-xs text-ink-muted">{item.blockers[0] || item.docs[0] || 'Adapter implementation tracked.'}</div>
               </Link>
             ))}
           </div>
@@ -1041,26 +1041,26 @@ function OperationsPage() {
       )}
 
       {cutoverReadinessPacket && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <ShieldCheck className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <ShieldCheck className="h-4 w-4 text-accent" />
                 Integration Cutover Readiness Packet
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(cutoverReadinessPacket.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(cutoverReadinessPacket.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${cutoverReadinessPacket.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : cutoverReadinessPacket.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${cutoverReadinessPacket.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : cutoverReadinessPacket.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                 {cutoverReadinessPacket.status}
               </span>
-              <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{cutoverReadinessPacket.go_count} go</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{cutoverReadinessPacket.hold_count} hold</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{cutoverReadinessPacket.no_go_count} no-go</span>
+              <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{cutoverReadinessPacket.go_count} go</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{cutoverReadinessPacket.hold_count} hold</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{cutoverReadinessPacket.no_go_count} no-go</span>
               <a
                 href={ROUTES.OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET_EXPORT}
                 download={cutoverReadinessPacket.export_filename}
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -1071,49 +1071,49 @@ function OperationsPage() {
             {cutoverReadinessPacket.items.map((item) => {
               const form = formForCutoverLane(item);
               return (
-              <div key={item.integration} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div key={item.integration} className="rounded-md border border-border bg-canvas p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{item.readiness_mode} · {item.adapter.implementation_status} adapter · {item.credential_request.request_status} credential request</div>
+                    <div className="text-sm font-medium text-ink">{item.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{item.readiness_mode} · {item.adapter.implementation_status} adapter · {item.credential_request.request_status} credential request</div>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.go_no_go === 'go' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.go_no_go === 'no_go' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.go_no_go === 'go' ? 'border-accent-soft bg-accent-soft text-accent' : item.go_no_go === 'no_go' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {item.go_no_go}
                     </span>
-                    <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] text-clinic-500">{item.cutover_status}</span>
+                    <span className="rounded-md border border-border bg-canvas-raised px-2 py-0.5 text-[11px] text-ink-muted">{item.cutover_status}</span>
                   </div>
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   {item.gates.slice(0, 4).map((gate) => (
-                    <div key={gate.key} className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs">
+                    <div key={gate.key} className="rounded-md border border-border bg-canvas-raised px-2 py-1.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-clinic-800">{gate.label}</span>
-                        <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                        <span className="font-medium text-ink">{gate.label}</span>
+                        <span className={`rounded-md border px-1.5 py-0.5 text-[11px] ${gate.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : gate.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                           {gate.status}
                         </span>
                       </div>
-                      <div className="mt-1 text-clinic-500">{gate.detail}</div>
+                      <div className="mt-1 text-ink-muted">{gate.detail}</div>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 text-xs text-clinic-500">{item.next_actions[0] || item.blockers[0] || 'Cutover lane is ready for go/no-go review.'}</div>
-                <div className="mt-3 rounded-md border border-clinic-200 bg-white p-2">
+                <div className="mt-3 text-xs text-ink-muted">{item.next_actions[0] || item.blockers[0] || 'Cutover lane is ready for go/no-go review.'}</div>
+                <div className="mt-3 rounded-md border border-border bg-canvas-raised p-2">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-clinic-700">Lane owner</span>
-                    <Link to={item.route} className="text-xs font-medium text-accent-700 hover:text-accent-900">Open setup</Link>
+                    <span className="text-xs font-medium text-ink-secondary">Lane owner</span>
+                    <Link to={item.route} className="text-xs font-medium text-accent hover:text-accent">Open setup</Link>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_8.5rem]">
                     <input
                       value={form.owner_name}
                       onChange={(event) => updateCutoverAssignmentForm(item.integration, { owner_name: event.target.value })}
                       placeholder="Owner"
-                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     />
                     <select
                       value={form.status}
                       onChange={(event) => updateCutoverAssignmentForm(item.integration, { status: event.target.value as AssignmentFormState['status'] })}
-                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     >
                       <option value="open">Open</option>
                       <option value="in_progress">In progress</option>
@@ -1126,24 +1126,24 @@ function OperationsPage() {
                       type="date"
                       value={form.due_date}
                       onChange={(event) => updateCutoverAssignmentForm(item.integration, { due_date: event.target.value })}
-                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     />
                     <input
                       value={form.note}
                       onChange={(event) => updateCutoverAssignmentForm(item.integration, { note: event.target.value })}
                       placeholder="Cutover note"
-                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     />
                   </div>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="truncate text-[11px] text-clinic-400">
+                    <span className="truncate text-[11px] text-ink-faint">
                       {item.assignment ? `Assigned ${new Date(item.assignment.assigned_at).toLocaleDateString()}` : 'No owner assigned'}
                     </span>
                     <button
                       type="button"
                       onClick={() => submitCutoverAssignment(item)}
                       disabled={!form.owner_name.trim() || cutoverAssignmentMutation.isPending}
-                      className="rounded-md bg-clinic-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                      className="rounded-md bg-accent text-accent-on px-2.5 py-1.5 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
                     >
                       Assign
                     </button>
@@ -1157,26 +1157,26 @@ function OperationsPage() {
       )}
 
       {vendorCredentialPacket && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <LockKeyhole className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <LockKeyhole className="h-4 w-4 text-accent" />
                 Vendor Credential Request Packet
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(vendorCredentialPacket.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(vendorCredentialPacket.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${vendorCredentialPacket.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : vendorCredentialPacket.status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${vendorCredentialPacket.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : vendorCredentialPacket.status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                 {vendorCredentialPacket.status}
               </span>
-              <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{vendorCredentialPacket.ready_to_request_count} ready</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{vendorCredentialPacket.attention_count} attention</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{vendorCredentialPacket.blocked_count} blocked</span>
+              <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{vendorCredentialPacket.ready_to_request_count} ready</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{vendorCredentialPacket.attention_count} attention</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{vendorCredentialPacket.blocked_count} blocked</span>
               <a
                 href={ROUTES.OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET_EXPORT}
                 download={vendorCredentialPacket.export_filename}
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -1186,32 +1186,32 @@ function OperationsPage() {
           <div className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="grid gap-3 lg:grid-cols-2">
               {vendorCredentialPacket.items.map((item) => (
-                <Link key={item.integration} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <Link key={item.integration} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                      <div className="mt-1 text-xs text-clinic-500">{item.vendor_profile.vendor_name || 'Vendor pending'} · {item.vendor_profile.owner_email || item.vendor_profile.support_contact || 'Contact pending'}</div>
+                      <div className="text-sm font-medium text-ink">{item.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted">{item.vendor_profile.vendor_name || 'Vendor pending'} · {item.vendor_profile.owner_email || item.vendor_profile.support_contact || 'Contact pending'}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.request_status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.request_status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.request_status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : item.request_status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {item.request_status}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                    <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                      <div className="font-semibold text-clinic-700">{item.missing_fields.length}</div>
-                      <div className="text-clinic-400">missing</div>
+                    <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                      <div className="font-semibold text-ink-secondary">{item.missing_fields.length}</div>
+                      <div className="text-ink-faint">missing</div>
                     </div>
-                    <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                      <div className="font-semibold text-clinic-700">{item.handoff_archive.status}</div>
-                      <div className="text-clinic-400">archive</div>
+                    <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                      <div className="font-semibold text-ink-secondary">{item.handoff_archive.status}</div>
+                      <div className="text-ink-faint">archive</div>
                     </div>
-                    <div className="rounded-md border border-clinic-200 bg-white px-2 py-1">
-                      <div className="font-semibold text-clinic-700">{item.sandbox_reference_count}/{item.sandbox_reference_total}</div>
-                      <div className="text-clinic-400">refs</div>
+                    <div className="rounded-md border border-border bg-canvas-raised px-2 py-1">
+                      <div className="font-semibold text-ink-secondary">{item.sandbox_reference_count}/{item.sandbox_reference_total}</div>
+                      <div className="text-ink-faint">refs</div>
                     </div>
                   </div>
-                  <div className="mt-3 text-xs font-medium text-clinic-700">{item.request_subject}</div>
-                  <ul className="mt-2 space-y-1 text-xs text-clinic-500">
+                  <div className="mt-3 text-xs font-medium text-ink-secondary">{item.request_subject}</div>
+                  <ul className="mt-2 space-y-1 text-xs text-ink-muted">
                     {item.request_checklist.slice(0, 3).map((step) => (
                       <li key={step}>{step}</li>
                     ))}
@@ -1219,12 +1219,12 @@ function OperationsPage() {
                 </Link>
               ))}
             </div>
-            <aside className="rounded-md border border-clinic-200 bg-white">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Request draft</div>
+            <aside className="rounded-md border border-border bg-canvas-raised">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Request draft</div>
               {vendorCredentialPacket.items.slice(0, 1).map((item) => (
                 <div key={item.integration} className="p-3">
-                  <div className="text-sm font-medium text-clinic-900">{item.request_subject}</div>
-                  <pre className="mt-3 whitespace-pre-wrap rounded-md border border-clinic-200 bg-clinic-50 p-3 text-xs leading-5 text-clinic-700">{item.request_body}</pre>
+                  <div className="text-sm font-medium text-ink">{item.request_subject}</div>
+                  <pre className="mt-3 whitespace-pre-wrap rounded-md border border-border bg-canvas p-3 text-xs leading-5 text-ink-secondary">{item.request_body}</pre>
                 </div>
               ))}
             </aside>
@@ -1233,58 +1233,58 @@ function OperationsPage() {
       )}
 
       {operatorHealth && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <Activity className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <Activity className="h-4 w-4 text-accent" />
                 Operator Health
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(operatorHealth.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(operatorHealth.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${operatorHealth.status === 'healthy' ? 'border-accent-200 bg-accent-50 text-accent-800' : operatorHealth.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${operatorHealth.status === 'healthy' ? 'border-accent-soft bg-accent-soft text-accent' : operatorHealth.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                 {operatorHealth.status}
               </span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{operatorHealth.score}%</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{operatorHealth.summary.critical_checks ?? 0} critical</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{operatorHealth.summary.warning_checks ?? 0} warning</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{operatorHealth.score}%</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{operatorHealth.summary.critical_checks ?? 0} critical</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{operatorHealth.summary.warning_checks ?? 0} warning</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {operatorHealth.checks.map((check) => (
-                <Link key={check.key} to={check.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-clinic-900">{check.label}</div>
-                      <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                      <div className="text-sm font-medium text-ink">{check.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted">{check.detail}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'healthy' ? 'border-accent-200 bg-accent-50 text-accent-800' : check.status === 'warning' || check.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'healthy' ? 'border-accent-soft bg-accent-soft text-accent' : check.status === 'warning' || check.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                       {check.status}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-clinic-400">
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-ink-faint">
                     <span>{check.score}%</span>
                     <span>{check.last_seen_at ? new Date(check.last_seen_at).toLocaleString() : 'No evidence'}</span>
                   </div>
                 </Link>
               ))}
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Operator actions</div>
-              <div className="divide-y divide-clinic-100">
+            <aside className="rounded-md border border-border">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Operator actions</div>
+              <div className="divide-y divide-border">
                 {operatorHealth.recommended_actions.slice(0, 5).map((action) => (
-                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-clinic-50">
+                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                      <span className="text-sm font-medium text-ink">{action.label}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{action.detail}</div>
                   </Link>
                 ))}
                 {operatorHealth.recommended_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No operator actions.</div>
+                  <div className="px-3 py-6 text-sm text-ink-faint">No operator actions.</div>
                 )}
               </div>
             </aside>
@@ -1293,58 +1293,58 @@ function OperationsPage() {
       )}
 
       {documentStorageReadiness && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <Server className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <Server className="h-4 w-4 text-accent" />
                 Document Storage Readiness
               </h2>
-              <p className="text-xs text-clinic-500">{new Date(documentStorageReadiness.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{new Date(documentStorageReadiness.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${documentStorageReadiness.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : documentStorageReadiness.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${documentStorageReadiness.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : documentStorageReadiness.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                 {documentStorageReadiness.status}
               </span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{documentStorageReadiness.score}%</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{documentStorageReadiness.summary.stored_documents ?? 0} stored</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{documentStorageReadiness.summary.metadata_only_documents ?? 0} metadata-only</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{documentStorageReadiness.score}%</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{documentStorageReadiness.summary.stored_documents ?? 0} stored</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{documentStorageReadiness.summary.metadata_only_documents ?? 0} metadata-only</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
               {documentStorageReadiness.checks.map((check) => (
-                <Link key={check.key} to={check.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
+                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-clinic-900">{check.label}</div>
-                      <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                      <div className="text-sm font-medium text-ink">{check.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted">{check.detail}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'clear' ? 'border-accent-200 bg-accent-50 text-accent-800' : check.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'clear' ? 'border-accent-soft bg-accent-soft text-accent' : check.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {check.status === 'clear' ? 'clear' : check.count}
                     </span>
                   </div>
-                  <div className="mt-2 text-[11px] text-clinic-400">{check.recommended_action}</div>
+                  <div className="mt-2 text-[11px] text-ink-faint">{check.recommended_action}</div>
                 </Link>
               ))}
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Recent handoffs</div>
-              <div className="divide-y divide-clinic-100">
+            <aside className="rounded-md border border-border">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Recent handoffs</div>
+              <div className="divide-y divide-border">
                 {documentStorageReadiness.recent_handoffs.slice(0, 5).map((handoff) => (
                   <div key={`${handoff.document_id}:${handoff.occurred_at}`} className="px-3 py-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium text-clinic-900">{handoff.document_id}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${handoff.presigned && !handoff.expired ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                      <span className="truncate text-sm font-medium text-ink">{handoff.document_id}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${handoff.presigned && !handoff.expired ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {handoff.presigned ? 'signed' : 'unsigned'}
                       </span>
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{handoff.storage_status} · {new Date(handoff.occurred_at).toLocaleString()}</div>
-                    <div className="mt-1 text-[11px] text-clinic-400">{handoff.expired ? 'Expired' : 'Active'}{handoff.expires_at ? ` · expires ${new Date(handoff.expires_at).toLocaleString()}` : ''}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{handoff.storage_status} · {new Date(handoff.occurred_at).toLocaleString()}</div>
+                    <div className="mt-1 text-[11px] text-ink-faint">{handoff.expired ? 'Expired' : 'Active'}{handoff.expires_at ? ` · expires ${new Date(handoff.expires_at).toLocaleString()}` : ''}</div>
                   </div>
                 ))}
                 {documentStorageReadiness.recent_handoffs.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No document handoffs recorded.</div>
+                  <div className="px-3 py-6 text-sm text-ink-faint">No document handoffs recorded.</div>
                 )}
               </div>
             </aside>
@@ -1353,43 +1353,43 @@ function OperationsPage() {
       )}
 
       {productionConfigAudit && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-900">
-                <LockKeyhole className="h-4 w-4 text-accent-600" />
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+                <LockKeyhole className="h-4 w-4 text-accent" />
                 Production Config Audit
               </h2>
-              <p className="text-xs text-clinic-500">{productionConfigAudit.environment} · {new Date(productionConfigAudit.generated_at).toLocaleString()}</p>
+              <p className="text-xs text-ink-muted">{productionConfigAudit.environment} · {new Date(productionConfigAudit.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${productionConfigAudit.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : productionConfigAudit.status === 'attention' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${productionConfigAudit.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : productionConfigAudit.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                 {productionConfigAudit.status}
               </span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{productionConfigAudit.score}%</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{productionConfigAudit.critical_count} critical</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{productionConfigAudit.warning_count} warning</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{productionConfigAudit.score}%</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{productionConfigAudit.critical_count} critical</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{productionConfigAudit.warning_count} warning</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
             {productionConfigAudit.checks.map((check) => (
-              <div key={check.key} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+              <div key={check.key} className="rounded-md border border-border bg-canvas p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-sm font-medium text-clinic-900">{check.label}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{check.detail}</div>
+                    <div className="text-sm font-medium text-ink">{check.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{check.detail}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.ready ? 'border-accent-200 bg-accent-50 text-accent-800' : check.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.ready ? 'border-accent-soft bg-accent-soft text-accent' : check.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {check.ready ? 'ready' : check.severity}
                   </span>
                 </div>
-                <div className="mt-2 text-xs text-clinic-600">{check.action}</div>
+                <div className="mt-2 text-xs text-ink-secondary">{check.action}</div>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {check.env_vars.map((envVar) => (
-                    <span key={envVar} className="rounded-md border border-clinic-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-clinic-500">{envVar}</span>
+                    <span key={envVar} className="rounded-md border border-border bg-canvas-raised px-1.5 py-0.5 text-[11px] font-medium text-ink-muted">{envVar}</span>
                   ))}
                 </div>
-                <div className="mt-2 text-[11px] text-clinic-400">{check.docs.join(' · ')}</div>
+                <div className="mt-2 text-[11px] text-ink-faint">{check.docs.join(' · ')}</div>
               </div>
             ))}
           </div>
@@ -1397,41 +1397,41 @@ function OperationsPage() {
       )}
 
       {goLivePacket && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Go-Live Packet</h2>
-              <p className="text-xs text-clinic-500">{goLivePacket.environment} · {new Date(goLivePacket.generated_at).toLocaleString()}</p>
+              <h2 className="text-sm font-semibold text-ink">Go-Live Packet</h2>
+              <p className="text-xs text-ink-muted">{goLivePacket.environment} · {new Date(goLivePacket.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge ok={goLivePacket.go_live_ready} label={goLivePacket.go_live_ready ? 'Ready' : 'Attention'} />
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{goLivePacket.launch_score}% launch</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{goLivePacket.blocking_count} blocking</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{goLivePacket.evidence_ready_count}/{goLivePacket.evidence_total} evidence</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{goLivePacket.launch_score}% launch</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{goLivePacket.blocking_count} blocking</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{goLivePacket.evidence_ready_count}/{goLivePacket.evidence_total} evidence</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {goLivePacket.evidence.map((item) => (
-                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-100 bg-clinic-50 p-3 hover:bg-white">
+                <Link key={item.key} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-clinic-900">{item.label}</span>
-                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.status === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                    <span className="text-sm font-medium text-ink">{item.label}</span>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : item.status === 'warning' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                       {item.status}
                     </span>
                   </div>
-                  <div className="mt-2 text-xs text-clinic-500">{item.detail}</div>
-                  {item.captured_at && <div className="mt-1 text-[11px] text-clinic-400">{new Date(item.captured_at).toLocaleString()}</div>}
+                  <div className="mt-2 text-xs text-ink-muted">{item.detail}</div>
+                  {item.captured_at && <div className="mt-1 text-[11px] text-ink-faint">{new Date(item.captured_at).toLocaleString()}</div>}
                 </Link>
               ))}
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Manager sign-off</div>
-              <div className="space-y-2 border-b border-clinic-100 px-3 py-3">
+            <aside className="rounded-md border border-border">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Manager sign-off</div>
+              <div className="space-y-2 border-b border-border px-3 py-3">
                 <select
                   value={attestationForm.decision}
                   onChange={(event) => setAttestationForm((current) => ({ ...current, decision: event.target.value as GoLiveAttestationCreate['decision'] }))}
-                  className="w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  className="w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                 >
                   <option value="needs_changes">Needs changes</option>
                   <option value="approved" disabled={!goLivePacket.go_live_ready}>Approved</option>
@@ -1442,35 +1442,35 @@ function OperationsPage() {
                   onChange={(event) => setAttestationForm((current) => ({ ...current, note: event.target.value }))}
                   placeholder="Review note"
                   rows={3}
-                  className="w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  className="w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                 />
                 <button
                   type="button"
                   onClick={() => attestationMutation.mutate({ decision: attestationForm.decision, note: attestationForm.note.trim() || null })}
                   disabled={attestationMutation.isPending || (attestationForm.decision === 'approved' && !goLivePacket.go_live_ready)}
-                  className="w-full rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                  className="w-full rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
                 >
                   Record sign-off
                 </button>
                 {goLivePacket.latest_attestation && (
-                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-2 text-xs text-clinic-500">
-                    <div className="font-medium text-clinic-800">{goLivePacket.latest_attestation.decision.replace('_', ' ')}</div>
+                  <div className="rounded-md border border-border bg-canvas p-2 text-xs text-ink-muted">
+                    <div className="font-medium text-ink">{goLivePacket.latest_attestation.decision.replace('_', ' ')}</div>
                     <div className="mt-1">{goLivePacket.latest_attestation.reviewer_name ?? 'Reviewer'} · {new Date(goLivePacket.latest_attestation.created_at).toLocaleString()}</div>
                     {goLivePacket.latest_attestation.note && <div className="mt-1">{goLivePacket.latest_attestation.note}</div>}
                   </div>
                 )}
               </div>
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Packet blockers</div>
-              <div className="divide-y divide-clinic-100">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Packet blockers</div>
+              <div className="divide-y divide-border">
                 {goLivePacket.open_workplan_items.slice(0, 4).map((item) => (
-                  <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-clinic-50">
-                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{item.detail}</div>
-                    <div className="mt-1 text-[11px] text-clinic-400">{item.assignment?.owner_name ?? 'Unassigned'} · {item.severity}</div>
+                  <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
+                    <div className="text-sm font-medium text-ink">{item.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{item.detail}</div>
+                    <div className="mt-1 text-[11px] text-ink-faint">{item.assignment?.owner_name ?? 'Unassigned'} · {item.severity}</div>
                   </Link>
                 ))}
                 {goLivePacket.open_workplan_items.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No packet blockers.</div>
+                  <div className="px-3 py-6 text-sm text-ink-faint">No packet blockers.</div>
                 )}
               </div>
             </aside>
@@ -1479,35 +1479,35 @@ function OperationsPage() {
       )}
 
       {roleChecklists && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Role Dry-Run Checklists</h2>
-              <p className="text-xs text-clinic-500">{roleChecklists.total_roles} role(s) · {new Date(roleChecklists.generated_at).toLocaleString()}</p>
+              <h2 className="text-sm font-semibold text-ink">Role Dry-Run Checklists</h2>
+              <p className="text-xs text-ink-muted">{roleChecklists.total_roles} role(s) · {new Date(roleChecklists.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{roleChecklists.ready_roles} ready</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{roleChecklists.attention_roles} attention</span>
+              <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{roleChecklists.ready_roles} ready</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{roleChecklists.attention_roles} attention</span>
             </div>
           </div>
           <div className="grid gap-3 p-4 xl:grid-cols-5">
             {roleChecklists.roles.map((role) => (
-              <div key={role.key} className="rounded-md border border-clinic-200 bg-clinic-50">
-                <div className="border-b border-clinic-200 px-3 py-2">
+              <div key={role.key} className="rounded-md border border-border bg-canvas">
+                <div className="border-b border-border px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-clinic-900">{role.label}</h3>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${role.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{role.ready_count}/{role.total}</span>
+                    <h3 className="text-sm font-semibold text-ink">{role.label}</h3>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${role.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>{role.ready_count}/{role.total}</span>
                   </div>
-                  <p className="mt-1 text-xs text-clinic-500">{role.summary}</p>
+                  <p className="mt-1 text-xs text-ink-muted">{role.summary}</p>
                 </div>
-                <div className="divide-y divide-clinic-100">
+                <div className="divide-y divide-border">
                   {role.items.map((item) => (
-                    <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-white">
+                    <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-clinic-800">{item.label}</span>
-                        <span className={`h-2 w-2 rounded-full ${item.status === 'ready' ? 'bg-accent-500' : 'bg-amber-500'}`} />
+                        <span className="text-xs font-medium text-ink">{item.label}</span>
+                        <span className={`h-2 w-2 rounded-full ${item.status === 'ready' ? 'bg-accent' : 'bg-warn'}`} />
                       </div>
-                      <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                      <div className="mt-1 text-[11px] text-ink-muted">{item.detail}</div>
                     </Link>
                   ))}
                 </div>
@@ -1517,37 +1517,37 @@ function OperationsPage() {
         </section>
       )}
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Dry-Run Session Evidence</h2>
-            <p className="text-xs text-clinic-500">{dryRunSessions?.total ?? 0} saved session(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Dry-Run Session Evidence</h2>
+            <p className="text-xs text-ink-muted">{dryRunSessions?.total ?? 0} saved session(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activeDryRunSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeDryRunSession.complete_count} complete</span>
-                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeDryRunSession.blocked_count} blocked</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeDryRunSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activeDryRunSession.complete_count} complete</span>
+                <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{activeDryRunSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activeDryRunSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start rehearsal</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start rehearsal</div>
               <input
                 value={dryRunSessionForm.session_name ?? ''}
                 onChange={(event) => setDryRunSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={dryRunSessionForm.note ?? ''}
                 onChange={(event) => setDryRunSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="Session note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -1556,24 +1556,24 @@ function OperationsPage() {
                   note: dryRunSessionForm.note?.trim() || null,
                 })}
                 disabled={startDryRunSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start session
               </button>
             </div>
             {activeDryRunSession && (
-              <div className="rounded-md border border-clinic-200 p-3">
+              <div className="rounded-md border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-clinic-900">{activeDryRunSession.session_name}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{activeDryRunSession.started_by ?? 'Staff'} · {new Date(activeDryRunSession.started_at).toLocaleString()}</div>
+                    <div className="text-sm font-semibold text-ink">{activeDryRunSession.session_name}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{activeDryRunSession.started_by ?? 'Staff'} · {new Date(activeDryRunSession.started_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeDryRunSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeDryRunSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {activeDryRunSession.status.replace('_', ' ')}
                   </span>
                 </div>
-                {activeDryRunSession.note && <div className="mt-2 text-xs text-clinic-500">{activeDryRunSession.note}</div>}
+                {activeDryRunSession.note && <div className="mt-2 text-xs text-ink-muted">{activeDryRunSession.note}</div>}
                 <button
                   type="button"
                   onClick={() => updateDryRunSessionMutation.mutate({
@@ -1581,7 +1581,7 @@ function OperationsPage() {
                     data: { session_status: 'completed', note: activeDryRunSession.note },
                   })}
                   disabled={activeDryRunSession.status === 'completed' || updateDryRunSessionMutation.isPending}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                 >
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete session
@@ -1592,28 +1592,28 @@ function OperationsPage() {
           {activeDryRunSession ? (
             <div className="grid gap-3 xl:grid-cols-2">
               {activeDryRunSession.roles.map((role) => (
-                <div key={role.key} className="rounded-md border border-clinic-200">
-                  <div className="border-b border-clinic-200 px-3 py-2">
-                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                <div key={role.key} className="rounded-md border border-border">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="text-sm font-semibold text-ink">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{role.summary}</div>
                   </div>
-                  <div className="divide-y divide-clinic-100">
+                  <div className="divide-y divide-border">
                     {role.items.map((item) => {
                       const itemForm = formForDryRunItem(activeDryRunSession, role.key, item.key);
                       return (
                         <div key={item.key} className="space-y-2 px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <Link to={item.route} className="text-xs font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
-                              <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
+                              <Link to={item.route} className="text-xs font-medium text-ink hover:text-accent">{item.label}</Link>
+                              <div className="mt-1 text-[11px] text-ink-muted">{item.detail}</div>
                             </div>
-                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.dry_run_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.dry_run_status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.dry_run_status}</span>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.dry_run_status === 'complete' ? 'border-accent-soft bg-accent-soft text-accent' : item.dry_run_status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas text-ink-secondary'}`}>{item.dry_run_status}</span>
                           </div>
                           <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
                             <select
                               value={itemForm.dry_run_status}
                               onChange={(event) => updateDryRunItemForm(activeDryRunSession.session_id, role.key, item.key, { dry_run_status: event.target.value as DryRunItemFormState['dry_run_status'] })}
-                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             >
                               <option value="pending">Pending</option>
                               <option value="complete">Complete</option>
@@ -1623,13 +1623,13 @@ function OperationsPage() {
                               value={itemForm.item_note}
                               onChange={(event) => updateDryRunItemForm(activeDryRunSession.session_id, role.key, item.key, { item_note: event.target.value })}
                               placeholder="Evidence note"
-                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => submitDryRunItem(activeDryRunSession, role.key, item.key)}
                               disabled={updateDryRunSessionMutation.isPending}
-                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                              className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                             >
                               Save
                             </button>
@@ -1642,56 +1642,56 @@ function OperationsPage() {
               ))}
             </div>
           ) : (
-            <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-clinic-200 text-sm text-clinic-400">
+            <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-border text-sm text-ink-faint">
               Start a dry-run session to capture role evidence.
             </div>
           )}
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Restore Drill Evidence</h2>
-            <p className="text-xs text-clinic-500">{restoreDrillSessions?.total ?? 0} saved session(s) · {restoreDrillChecklist?.total ?? 0} evidence item(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Restore Drill Evidence</h2>
+            <p className="text-xs text-ink-muted">{restoreDrillSessions?.total ?? 0} saved session(s) · {restoreDrillChecklist?.total ?? 0} evidence item(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activeRestoreDrillSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeRestoreDrillSession.complete_count} complete</span>
-                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeRestoreDrillSession.blocked_count} blocked</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeRestoreDrillSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activeRestoreDrillSession.complete_count} complete</span>
+                <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{activeRestoreDrillSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activeRestoreDrillSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start drill</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start drill</div>
               <input
                 value={restoreDrillSessionForm.session_name ?? ''}
                 onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={restoreDrillSessionForm.owner_name ?? ''}
                 onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, owner_name: event.target.value }))}
                 placeholder="Drill owner"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={restoreDrillSessionForm.backup_reference ?? ''}
                 onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, backup_reference: event.target.value }))}
                 placeholder="Backup reference"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={restoreDrillSessionForm.note ?? ''}
                 onChange={(event) => setRestoreDrillSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="Drill note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -1702,25 +1702,25 @@ function OperationsPage() {
                   note: restoreDrillSessionForm.note?.trim() || null,
                 })}
                 disabled={startRestoreDrillSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start drill
               </button>
             </div>
             {activeRestoreDrillSession && (
-              <div className="rounded-md border border-clinic-200 p-3">
+              <div className="rounded-md border border-border p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-clinic-900">{activeRestoreDrillSession.session_name}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{activeRestoreDrillSession.owner_name ?? activeRestoreDrillSession.started_by ?? 'Drill owner'} · {new Date(activeRestoreDrillSession.started_at).toLocaleString()}</div>
+                    <div className="text-sm font-semibold text-ink">{activeRestoreDrillSession.session_name}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{activeRestoreDrillSession.owner_name ?? activeRestoreDrillSession.started_by ?? 'Drill owner'} · {new Date(activeRestoreDrillSession.started_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeRestoreDrillSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeRestoreDrillSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {activeRestoreDrillSession.status.replace('_', ' ')}
                   </span>
                 </div>
-                {activeRestoreDrillSession.backup_reference && <div className="mt-2 text-xs text-clinic-500">Backup {activeRestoreDrillSession.backup_reference}</div>}
-                {activeRestoreDrillSession.note && <div className="mt-2 text-xs text-clinic-500">{activeRestoreDrillSession.note}</div>}
+                {activeRestoreDrillSession.backup_reference && <div className="mt-2 text-xs text-ink-muted">Backup {activeRestoreDrillSession.backup_reference}</div>}
+                {activeRestoreDrillSession.note && <div className="mt-2 text-xs text-ink-muted">{activeRestoreDrillSession.note}</div>}
                 <div className="mt-3 grid gap-2 sm:grid-cols-2">
                   <input
                     type="number"
@@ -1728,7 +1728,7 @@ function OperationsPage() {
                     value={restoreDrillMetricsForm.rto_minutes || (activeRestoreDrillSession.rto_minutes === null ? '' : String(activeRestoreDrillSession.rto_minutes))}
                     onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, rto_minutes: event.target.value }))}
                     placeholder="RTO minutes"
-                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                   />
                   <input
                     type="number"
@@ -1736,7 +1736,7 @@ function OperationsPage() {
                     value={restoreDrillMetricsForm.rpo_minutes || (activeRestoreDrillSession.rpo_minutes === null ? '' : String(activeRestoreDrillSession.rpo_minutes))}
                     onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, rpo_minutes: event.target.value }))}
                     placeholder="RPO minutes"
-                    className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                    className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                   />
                 </div>
                 <textarea
@@ -1744,13 +1744,13 @@ function OperationsPage() {
                   onChange={(event) => setRestoreDrillMetricsForm((current) => ({ ...current, note: event.target.value }))}
                   rows={3}
                   placeholder="RTO/RPO evidence note"
-                  className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                  className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                 />
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   <a
                     href={ROUTES.OPERATIONS_RESTORE_DRILL_SESSION_EXPORT(activeRestoreDrillSession.session_id)}
                     download="concierge-os-restore-drill.csv"
-                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
                   >
                     <Download className="h-3.5 w-3.5" />
                     Export
@@ -1759,7 +1759,7 @@ function OperationsPage() {
                     type="button"
                     onClick={() => submitRestoreDrillMetrics(activeRestoreDrillSession)}
                     disabled={updateRestoreDrillSessionMutation.isPending}
-                    className="rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                    className="rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                   >
                     Save metrics
                   </button>
@@ -1770,7 +1770,7 @@ function OperationsPage() {
                       data: { session_status: 'completed', note: restoreDrillMetricsForm.note.trim() || activeRestoreDrillSession.note },
                     })}
                     disabled={activeRestoreDrillSession.status === 'completed' || updateRestoreDrillSessionMutation.isPending}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                   >
                     <CheckSquare className="h-3.5 w-3.5" />
                     Complete
@@ -1784,20 +1784,20 @@ function OperationsPage() {
               {activeRestoreDrillSession.items.map((item) => {
                 const itemForm = formForRestoreDrillItem(activeRestoreDrillSession, item.key);
                 return (
-                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                  <div key={item.key} className="rounded-md border border-border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                        <div className="text-sm font-medium text-ink">{item.label}</div>
+                        <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                       </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.drill_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.drill_status === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.drill_status}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.drill_status === 'complete' ? 'border-accent-soft bg-accent-soft text-accent' : item.drill_status === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas text-ink-secondary'}`}>{item.drill_status}</span>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
                       <select
                         value={itemForm.drill_status}
                         onChange={(event) => updateRestoreDrillItemForm(activeRestoreDrillSession.session_id, item.key, { drill_status: event.target.value as RestoreDrillItemFormState['drill_status'] })}
-                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       >
                         <option value="pending">Pending</option>
                         <option value="complete">Complete</option>
@@ -1807,13 +1807,13 @@ function OperationsPage() {
                         value={itemForm.item_note}
                         onChange={(event) => updateRestoreDrillItemForm(activeRestoreDrillSession.session_id, item.key, { item_note: event.target.value })}
                         placeholder="Evidence note"
-                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => submitRestoreDrillItem(activeRestoreDrillSession, item.key)}
                         disabled={updateRestoreDrillSessionMutation.isPending}
-                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                        className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                       >
                         Save
                       </button>
@@ -1825,10 +1825,10 @@ function OperationsPage() {
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
               {(restoreDrillChecklist?.items ?? []).map((item) => (
-                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
-                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                  <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                <Link key={item.key} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
+                  <div className="text-sm font-medium text-ink">{item.label}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                 </Link>
               ))}
             </div>
@@ -1836,43 +1836,43 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Browser QA Evidence</h2>
-            <p className="text-xs text-clinic-500">{browserQaSessions?.total ?? 0} saved session(s) · {browserQaChecklist?.total ?? 0} checklist item(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Browser QA Evidence</h2>
+            <p className="text-xs text-ink-muted">{browserQaSessions?.total ?? 0} saved session(s) · {browserQaChecklist?.total ?? 0} checklist item(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activeBrowserQaSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeBrowserQaSession.passed_count} passed</span>
-                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeBrowserQaSession.failed_count} failed</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeBrowserQaSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activeBrowserQaSession.passed_count} passed</span>
+                <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{activeBrowserQaSession.failed_count} failed</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activeBrowserQaSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start QA run</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start QA run</div>
               <input
                 value={browserQaSessionForm.session_name ?? ''}
                 onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={browserQaSessionForm.browser ?? ''}
                 onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, browser: event.target.value }))}
                 placeholder="Browser"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={browserQaSessionForm.note ?? ''}
                 onChange={(event) => setBrowserQaSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="QA note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -1882,24 +1882,24 @@ function OperationsPage() {
                   note: browserQaSessionForm.note?.trim() || null,
                 })}
                 disabled={startBrowserQaSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start QA
               </button>
             </div>
             {activeBrowserQaSession && (
-              <div className="rounded-md border border-clinic-200 p-3">
+              <div className="rounded-md border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-clinic-900">{activeBrowserQaSession.session_name}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{activeBrowserQaSession.browser ?? 'Browser'} · {new Date(activeBrowserQaSession.started_at).toLocaleString()}</div>
+                    <div className="text-sm font-semibold text-ink">{activeBrowserQaSession.session_name}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{activeBrowserQaSession.browser ?? 'Browser'} · {new Date(activeBrowserQaSession.started_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeBrowserQaSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeBrowserQaSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {activeBrowserQaSession.status.replace('_', ' ')}
                   </span>
                 </div>
-                {activeBrowserQaSession.note && <div className="mt-2 text-xs text-clinic-500">{activeBrowserQaSession.note}</div>}
+                {activeBrowserQaSession.note && <div className="mt-2 text-xs text-ink-muted">{activeBrowserQaSession.note}</div>}
                 <button
                   type="button"
                   onClick={() => updateBrowserQaSessionMutation.mutate({
@@ -1907,7 +1907,7 @@ function OperationsPage() {
                     data: { session_status: 'completed', note: activeBrowserQaSession.note },
                   })}
                   disabled={activeBrowserQaSession.status === 'completed' || updateBrowserQaSessionMutation.isPending}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                 >
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete QA
@@ -1920,20 +1920,20 @@ function OperationsPage() {
               {activeBrowserQaSession.items.map((item) => {
                 const itemForm = formForBrowserQaItem(activeBrowserQaSession, item.key);
                 return (
-                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                  <div key={item.key} className="rounded-md border border-border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <Link to={item.route} className="text-sm font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
-                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                        <Link to={item.route} className="text-sm font-medium text-ink hover:text-accent">{item.label}</Link>
+                        <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                       </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.qa_status === 'passed' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.qa_status === 'failed' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.qa_status}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.qa_status === 'passed' ? 'border-accent-soft bg-accent-soft text-accent' : item.qa_status === 'failed' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas text-ink-secondary'}`}>{item.qa_status}</span>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
                       <select
                         value={itemForm.qa_status}
                         onChange={(event) => updateBrowserQaItemForm(activeBrowserQaSession.session_id, item.key, { qa_status: event.target.value as BrowserQaItemFormState['qa_status'] })}
-                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       >
                         <option value="pending">Pending</option>
                         <option value="passed">Passed</option>
@@ -1943,13 +1943,13 @@ function OperationsPage() {
                         value={itemForm.item_note}
                         onChange={(event) => updateBrowserQaItemForm(activeBrowserQaSession.session_id, item.key, { item_note: event.target.value })}
                         placeholder="Evidence note"
-                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => submitBrowserQaItem(activeBrowserQaSession, item.key)}
                         disabled={updateBrowserQaSessionMutation.isPending}
-                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                        className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                       >
                         Save
                       </button>
@@ -1961,10 +1961,10 @@ function OperationsPage() {
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {(browserQaChecklist?.items ?? []).map((item) => (
-                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
-                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                  <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                <Link key={item.key} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
+                  <div className="text-sm font-medium text-ink">{item.label}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                 </Link>
               ))}
             </div>
@@ -1972,43 +1972,43 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Staff Training Evidence</h2>
-            <p className="text-xs text-clinic-500">{staffTrainingSessions?.total ?? 0} saved session(s) · {staffTrainingChecklist?.total_items ?? 0} training item(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Staff Training Evidence</h2>
+            <p className="text-xs text-ink-muted">{staffTrainingSessions?.total ?? 0} saved session(s) · {staffTrainingChecklist?.total_items ?? 0} training item(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activeStaffTrainingSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeStaffTrainingSession.signed_count} signed</span>
-                <span className="rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-800">{activeStaffTrainingSession.reviewed_count} reviewed</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeStaffTrainingSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activeStaffTrainingSession.signed_count} signed</span>
+                <span className="rounded-md border border-border bg-canvas-sunk px-2 py-1 text-xs font-medium text-ink-secondary">{activeStaffTrainingSession.reviewed_count} reviewed</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activeStaffTrainingSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start training</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start training</div>
               <input
                 value={staffTrainingSessionForm.session_name ?? ''}
                 onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={staffTrainingSessionForm.trainer_name ?? ''}
                 onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, trainer_name: event.target.value }))}
                 placeholder="Trainer"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={staffTrainingSessionForm.note ?? ''}
                 onChange={(event) => setStaffTrainingSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="Training note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -2018,24 +2018,24 @@ function OperationsPage() {
                   note: staffTrainingSessionForm.note?.trim() || null,
                 })}
                 disabled={startStaffTrainingSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start training
               </button>
             </div>
             {activeStaffTrainingSession && (
-              <div className="rounded-md border border-clinic-200 p-3">
+              <div className="rounded-md border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-clinic-900">{activeStaffTrainingSession.session_name}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{activeStaffTrainingSession.trainer_name ?? activeStaffTrainingSession.started_by ?? 'Trainer'} · {new Date(activeStaffTrainingSession.started_at).toLocaleString()}</div>
+                    <div className="text-sm font-semibold text-ink">{activeStaffTrainingSession.session_name}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{activeStaffTrainingSession.trainer_name ?? activeStaffTrainingSession.started_by ?? 'Trainer'} · {new Date(activeStaffTrainingSession.started_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeStaffTrainingSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeStaffTrainingSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {activeStaffTrainingSession.status.replace('_', ' ')}
                   </span>
                 </div>
-                {activeStaffTrainingSession.note && <div className="mt-2 text-xs text-clinic-500">{activeStaffTrainingSession.note}</div>}
+                {activeStaffTrainingSession.note && <div className="mt-2 text-xs text-ink-muted">{activeStaffTrainingSession.note}</div>}
                 <button
                   type="button"
                   onClick={() => updateStaffTrainingSessionMutation.mutate({
@@ -2043,7 +2043,7 @@ function OperationsPage() {
                     data: { session_status: 'completed', note: activeStaffTrainingSession.note },
                   })}
                   disabled={activeStaffTrainingSession.status === 'completed' || updateStaffTrainingSessionMutation.isPending}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                 >
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete training
@@ -2054,29 +2054,29 @@ function OperationsPage() {
           {activeStaffTrainingSession ? (
             <div className="grid gap-3 xl:grid-cols-2">
               {activeStaffTrainingSession.roles.map((role) => (
-                <div key={role.key} className="rounded-md border border-clinic-200">
-                  <div className="border-b border-clinic-200 px-3 py-2">
-                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                <div key={role.key} className="rounded-md border border-border">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="text-sm font-semibold text-ink">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{role.summary}</div>
                   </div>
-                  <div className="divide-y divide-clinic-100">
+                  <div className="divide-y divide-border">
                     {role.items.map((item) => {
                       const itemForm = formForStaffTrainingItem(activeStaffTrainingSession, role.key, item.key);
                       return (
                         <div key={item.key} className="space-y-2 px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <Link to={item.route} className="text-xs font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
-                              <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
-                              <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                              <Link to={item.route} className="text-xs font-medium text-ink hover:text-accent">{item.label}</Link>
+                              <div className="mt-1 text-[11px] text-ink-muted">{item.detail}</div>
+                              <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                             </div>
-                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.training_status === 'signed' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.training_status === 'reviewed' ? 'border-sky-200 bg-sky-50 text-sky-800' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.training_status}</span>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.training_status === 'signed' ? 'border-accent-soft bg-accent-soft text-accent' : item.training_status === 'reviewed' ? 'border-border bg-canvas-sunk text-ink-secondary' : 'border-border bg-canvas text-ink-secondary'}`}>{item.training_status}</span>
                           </div>
                           <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
                             <select
                               value={itemForm.training_status}
                               onChange={(event) => updateStaffTrainingItemForm(activeStaffTrainingSession.session_id, role.key, item.key, { training_status: event.target.value as StaffTrainingItemFormState['training_status'] })}
-                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             >
                               <option value="pending">Pending</option>
                               <option value="reviewed">Reviewed</option>
@@ -2086,13 +2086,13 @@ function OperationsPage() {
                               value={itemForm.item_note}
                               onChange={(event) => updateStaffTrainingItemForm(activeStaffTrainingSession.session_id, role.key, item.key, { item_note: event.target.value })}
                               placeholder="Training evidence"
-                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => submitStaffTrainingItem(activeStaffTrainingSession, role.key, item.key)}
                               disabled={updateStaffTrainingSessionMutation.isPending}
-                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                              className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                             >
                               Save
                             </button>
@@ -2107,17 +2107,17 @@ function OperationsPage() {
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
               {(staffTrainingChecklist?.roles ?? []).map((role) => (
-                <div key={role.key} className="rounded-md border border-clinic-200 bg-clinic-50">
-                  <div className="border-b border-clinic-200 px-3 py-2">
-                    <div className="text-sm font-semibold text-clinic-900">{role.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{role.summary}</div>
+                <div key={role.key} className="rounded-md border border-border bg-canvas">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="text-sm font-semibold text-ink">{role.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{role.summary}</div>
                   </div>
-                  <div className="divide-y divide-clinic-100">
+                  <div className="divide-y divide-border">
                     {role.items.map((item) => (
-                      <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-white">
-                        <div className="text-xs font-medium text-clinic-900">{item.label}</div>
-                        <div className="mt-1 text-[11px] text-clinic-500">{item.detail}</div>
-                        <div className="mt-1 text-[11px] text-clinic-400">{item.category}</div>
+                      <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
+                        <div className="text-xs font-medium text-ink">{item.label}</div>
+                        <div className="mt-1 text-[11px] text-ink-muted">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-ink-faint">{item.category}</div>
                       </Link>
                     ))}
                   </div>
@@ -2128,43 +2128,43 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Policy Approval Evidence</h2>
-            <p className="text-xs text-clinic-500">{policyApprovalSessions?.total ?? 0} saved session(s) · {policyApprovalChecklist?.total ?? 0} policy item(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Policy Approval Evidence</h2>
+            <p className="text-xs text-ink-muted">{policyApprovalSessions?.total ?? 0} saved session(s) · {policyApprovalChecklist?.total ?? 0} policy item(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activePolicyApprovalSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activePolicyApprovalSession.approved_count} approved</span>
-                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activePolicyApprovalSession.needs_changes_count} needs changes</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activePolicyApprovalSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activePolicyApprovalSession.approved_count} approved</span>
+                <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{activePolicyApprovalSession.needs_changes_count} needs changes</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activePolicyApprovalSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start policy review</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start policy review</div>
               <input
                 value={policyApprovalSessionForm.session_name ?? ''}
                 onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={policyApprovalSessionForm.reviewer_name ?? ''}
                 onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, reviewer_name: event.target.value }))}
                 placeholder="Reviewer"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={policyApprovalSessionForm.note ?? ''}
                 onChange={(event) => setPolicyApprovalSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="Policy review note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -2174,24 +2174,24 @@ function OperationsPage() {
                   note: policyApprovalSessionForm.note?.trim() || null,
                 })}
                 disabled={startPolicyApprovalSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start review
               </button>
             </div>
             {activePolicyApprovalSession && (
-              <div className="rounded-md border border-clinic-200 p-3">
+              <div className="rounded-md border border-border p-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-semibold text-clinic-900">{activePolicyApprovalSession.session_name}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{activePolicyApprovalSession.reviewer_name ?? activePolicyApprovalSession.started_by ?? 'Reviewer'} · {new Date(activePolicyApprovalSession.started_at).toLocaleString()}</div>
+                    <div className="text-sm font-semibold text-ink">{activePolicyApprovalSession.session_name}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{activePolicyApprovalSession.reviewer_name ?? activePolicyApprovalSession.started_by ?? 'Reviewer'} · {new Date(activePolicyApprovalSession.started_at).toLocaleString()}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activePolicyApprovalSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activePolicyApprovalSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {activePolicyApprovalSession.status.replace('_', ' ')}
                   </span>
                 </div>
-                {activePolicyApprovalSession.note && <div className="mt-2 text-xs text-clinic-500">{activePolicyApprovalSession.note}</div>}
+                {activePolicyApprovalSession.note && <div className="mt-2 text-xs text-ink-muted">{activePolicyApprovalSession.note}</div>}
                 <button
                   type="button"
                   onClick={() => updatePolicyApprovalSessionMutation.mutate({
@@ -2199,7 +2199,7 @@ function OperationsPage() {
                     data: { session_status: 'completed', note: activePolicyApprovalSession.note },
                   })}
                   disabled={activePolicyApprovalSession.status === 'completed' || updatePolicyApprovalSessionMutation.isPending}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                 >
                   <CheckSquare className="h-3.5 w-3.5" />
                   Complete review
@@ -2212,20 +2212,20 @@ function OperationsPage() {
               {activePolicyApprovalSession.items.map((item) => {
                 const itemForm = formForPolicyApprovalItem(activePolicyApprovalSession, item.key);
                 return (
-                  <div key={item.key} className="rounded-md border border-clinic-200 p-3">
+                  <div key={item.key} className="rounded-md border border-border p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <Link to={item.route} className="text-sm font-medium text-clinic-900 hover:text-accent-700">{item.label}</Link>
-                        <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                        <div className="mt-1 text-[11px] text-clinic-400">{item.category} · {item.docs.join(', ')}</div>
+                        <Link to={item.route} className="text-sm font-medium text-ink hover:text-accent">{item.label}</Link>
+                        <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                        <div className="mt-1 text-[11px] text-ink-faint">{item.category} · {item.docs.join(', ')}</div>
                       </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.approval_status === 'approved' ? 'border-accent-200 bg-accent-50 text-accent-800' : item.approval_status === 'needs_changes' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{item.approval_status.replace('_', ' ')}</span>
+                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.approval_status === 'approved' ? 'border-accent-soft bg-accent-soft text-accent' : item.approval_status === 'needs_changes' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas text-ink-secondary'}`}>{item.approval_status.replace('_', ' ')}</span>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)_4.5rem]">
                       <select
                         value={itemForm.approval_status}
                         onChange={(event) => updatePolicyApprovalItemForm(activePolicyApprovalSession.session_id, item.key, { approval_status: event.target.value as PolicyApprovalItemFormState['approval_status'] })}
-                        className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       >
                         <option value="pending">Pending</option>
                         <option value="approved">Approved</option>
@@ -2235,13 +2235,13 @@ function OperationsPage() {
                         value={itemForm.item_note}
                         onChange={(event) => updatePolicyApprovalItemForm(activePolicyApprovalSession.session_id, item.key, { item_note: event.target.value })}
                         placeholder="Approval evidence"
-                        className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                        className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => submitPolicyApprovalItem(activePolicyApprovalSession, item.key)}
                         disabled={updatePolicyApprovalSessionMutation.isPending}
-                        className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                        className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                       >
                         Save
                       </button>
@@ -2253,10 +2253,10 @@ function OperationsPage() {
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {(policyApprovalChecklist?.items ?? []).map((item) => (
-                <Link key={item.key} to={item.route} className="rounded-md border border-clinic-200 bg-clinic-50 p-3 hover:bg-white">
-                  <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                  <div className="mt-1 text-[11px] text-clinic-400">{item.category} · {item.docs.join(', ')}</div>
+                <Link key={item.key} to={item.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
+                  <div className="text-sm font-medium text-ink">{item.label}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-ink-faint">{item.category} · {item.docs.join(', ')}</div>
                 </Link>
               ))}
             </div>
@@ -2264,50 +2264,50 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Cutover Runbook</h2>
-            <p className="text-xs text-clinic-500">{cutoverSessions?.total ?? 0} saved session(s) · {cutoverRunbook?.total_steps ?? 0} timed step(s)</p>
+            <h2 className="text-sm font-semibold text-ink">Cutover Runbook</h2>
+            <p className="text-xs text-ink-muted">{cutoverSessions?.total ?? 0} saved session(s) · {cutoverRunbook?.total_steps ?? 0} timed step(s)</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {activeCutoverSession && (
               <>
-                <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-800">{activeCutoverSession.complete_count} complete</span>
-                <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{activeCutoverSession.blocked_count} blocked</span>
-                <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{activeCutoverSession.rollback_count} rollback</span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{activeCutoverSession.pending_count} pending</span>
+                <span className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent">{activeCutoverSession.complete_count} complete</span>
+                <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{activeCutoverSession.blocked_count} blocked</span>
+                <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{activeCutoverSession.rollback_count} rollback</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{activeCutoverSession.pending_count} pending</span>
               </>
             )}
           </div>
         </div>
         <div className="grid gap-4 p-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
           <div className="space-y-3">
-            <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
-              <div className="text-xs font-semibold uppercase text-clinic-500">Start cutover</div>
+            <div className="rounded-md border border-border bg-canvas p-3">
+              <div className="text-meta font-medium text-ink-faint">Start cutover</div>
               <input
                 value={cutoverSessionForm.session_name ?? ''}
                 onChange={(event) => setCutoverSessionForm((current) => ({ ...current, session_name: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 value={cutoverSessionForm.cutover_owner ?? ''}
                 onChange={(event) => setCutoverSessionForm((current) => ({ ...current, cutover_owner: event.target.value }))}
                 placeholder="Cutover owner"
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <input
                 type="datetime-local"
                 value={cutoverSessionForm.scheduled_for ?? ''}
                 onChange={(event) => setCutoverSessionForm((current) => ({ ...current, scheduled_for: event.target.value }))}
-                className="mt-2 w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <textarea
                 value={cutoverSessionForm.note ?? ''}
                 onChange={(event) => setCutoverSessionForm((current) => ({ ...current, note: event.target.value }))}
                 rows={3}
                 placeholder="Cutover note"
-                className="mt-2 w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                className="mt-2 w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
               />
               <button
                 type="button"
@@ -2318,7 +2318,7 @@ function OperationsPage() {
                   note: cutoverSessionForm.note?.trim() || null,
                 })}
                 disabled={startCutoverSessionMutation.isPending}
-                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Play className="h-3.5 w-3.5" />
                 Start cutover
@@ -2326,23 +2326,23 @@ function OperationsPage() {
             </div>
             {activeCutoverSession && (
               <div className="space-y-3">
-                <div className="rounded-md border border-clinic-200 p-3">
+                <div className="rounded-md border border-border p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <div className="text-sm font-semibold text-clinic-900">{activeCutoverSession.session_name}</div>
-                      <div className="mt-1 text-xs text-clinic-500">{activeCutoverSession.cutover_owner ?? activeCutoverSession.started_by ?? 'Cutover owner'} · {new Date(activeCutoverSession.started_at).toLocaleString()}</div>
+                      <div className="text-sm font-semibold text-ink">{activeCutoverSession.session_name}</div>
+                      <div className="mt-1 text-xs text-ink-muted">{activeCutoverSession.cutover_owner ?? activeCutoverSession.started_by ?? 'Cutover owner'} · {new Date(activeCutoverSession.started_at).toLocaleString()}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeCutoverSession.status === 'completed' ? 'border-accent-200 bg-accent-50 text-accent-800' : activeCutoverSession.status === 'aborted' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${activeCutoverSession.status === 'completed' ? 'border-accent-soft bg-accent-soft text-accent' : activeCutoverSession.status === 'aborted' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {activeCutoverSession.status.replace('_', ' ')}
                     </span>
                   </div>
-                  {activeCutoverSession.scheduled_for && <div className="mt-2 text-xs text-clinic-500">Scheduled {new Date(activeCutoverSession.scheduled_for).toLocaleString()}</div>}
-                  {activeCutoverSession.note && <div className="mt-2 text-xs text-clinic-500">{activeCutoverSession.note}</div>}
+                  {activeCutoverSession.scheduled_for && <div className="mt-2 text-xs text-ink-muted">Scheduled {new Date(activeCutoverSession.scheduled_for).toLocaleString()}</div>}
+                  {activeCutoverSession.note && <div className="mt-2 text-xs text-ink-muted">{activeCutoverSession.note}</div>}
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     <a
                       href={ROUTES.OPERATIONS_CUTOVER_RUNBOOK_SESSION_EXPORT(activeCutoverSession.session_id)}
                       download="concierge-os-cutover-runbook.csv"
-                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
                     >
                       <Download className="h-3.5 w-3.5" />
                       Export
@@ -2354,7 +2354,7 @@ function OperationsPage() {
                         data: { session_status: 'completed', note: activeCutoverSession.note },
                       })}
                       disabled={activeCutoverSession.status === 'completed' || updateCutoverSessionMutation.isPending}
-                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-300 px-3 py-2 text-xs font-medium text-accent-800 hover:bg-accent-50 disabled:opacity-50"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-md border border-accent-soft px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft disabled:opacity-50"
                     >
                       <CheckSquare className="h-3.5 w-3.5" />
                       Complete
@@ -2366,19 +2366,19 @@ function OperationsPage() {
                         data: { session_status: 'aborted', note: activeCutoverSession.note },
                       })}
                       disabled={activeCutoverSession.status === 'aborted' || updateCutoverSessionMutation.isPending}
-                      className="inline-flex items-center justify-center rounded-md border border-red-200 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      className="inline-flex items-center justify-center rounded-md border border-danger/20 px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
                     >
                       Abort
                     </button>
                   </div>
                 </div>
-                <div className="rounded-md border border-clinic-200 p-3">
-                  <div className="text-xs font-semibold uppercase text-clinic-500">Rollback decision</div>
+                <div className="rounded-md border border-border p-3">
+                  <div className="text-meta font-medium text-ink-faint">Rollback decision</div>
                   <div className="mt-2 grid gap-2">
                     <select
                       value={cutoverRollbackForm.rollback_status === 'not_reviewed' && activeCutoverSession.rollback_status !== 'not_reviewed' ? activeCutoverSession.rollback_status : cutoverRollbackForm.rollback_status}
                       onChange={(event) => setCutoverRollbackForm((current) => ({ ...current, rollback_status: event.target.value as NonNullable<CutoverRunbookSessionUpdate['rollback_status']> }))}
-                      className="w-full rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="w-full rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     >
                       <option value="not_reviewed">Not reviewed</option>
                       <option value="rollback_ready">Rollback ready</option>
@@ -2390,13 +2390,13 @@ function OperationsPage() {
                       onChange={(event) => setCutoverRollbackForm((current) => ({ ...current, rollback_decision: event.target.value }))}
                       rows={3}
                       placeholder="Decision note"
-                      className="w-full resize-none rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="w-full resize-none rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                     />
                     <button
                       type="button"
                       onClick={() => submitCutoverRollback(activeCutoverSession)}
                       disabled={updateCutoverSessionMutation.isPending}
-                      className="rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                      className="rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                     >
                       Save rollback decision
                     </button>
@@ -2408,30 +2408,30 @@ function OperationsPage() {
           {activeCutoverSession ? (
             <div className="grid gap-3 xl:grid-cols-2">
               {activeCutoverSession.phases.map((phase) => (
-                <div key={phase.key} className="rounded-md border border-clinic-200">
-                  <div className="border-b border-clinic-200 px-3 py-2">
-                    <div className="text-sm font-semibold text-clinic-900">{phase.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{phase.objective}</div>
+                <div key={phase.key} className="rounded-md border border-border">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="text-sm font-semibold text-ink">{phase.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{phase.objective}</div>
                   </div>
-                  <div className="divide-y divide-clinic-100">
+                  <div className="divide-y divide-border">
                     {phase.steps.map((step) => {
                       const stepForm = formForCutoverStep(activeCutoverSession, phase.key, step.key);
                       return (
                         <div key={step.key} className="space-y-2 px-3 py-2">
                           <div className="flex items-start justify-between gap-2">
                             <div>
-                              <div className="text-xs font-medium text-clinic-900">{step.label}</div>
-                              <div className="mt-1 text-[11px] text-clinic-500">{step.detail}</div>
-                              <div className="mt-1 text-[11px] text-clinic-400">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute} · {step.owner_role}</div>
-                              {step.rollback_trigger && <div className="mt-1 text-[11px] text-red-600">{step.rollback_trigger}</div>}
+                              <div className="text-xs font-medium text-ink">{step.label}</div>
+                              <div className="mt-1 text-[11px] text-ink-muted">{step.detail}</div>
+                              <div className="mt-1 text-[11px] text-ink-faint">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute} · {step.owner_role}</div>
+                              {step.rollback_trigger && <div className="mt-1 text-[11px] text-danger">{step.rollback_trigger}</div>}
                             </div>
-                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${step.step_status === 'complete' ? 'border-accent-200 bg-accent-50 text-accent-800' : step.step_status === 'blocked' || step.step_status === 'rollback' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>{step.step_status}</span>
+                            <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${step.step_status === 'complete' ? 'border-accent-soft bg-accent-soft text-accent' : step.step_status === 'blocked' || step.step_status === 'rollback' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border bg-canvas text-ink-secondary'}`}>{step.step_status}</span>
                           </div>
                           <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
                             <select
                               value={stepForm.step_status}
                               onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { step_status: event.target.value as CutoverStepFormState['step_status'] })}
-                              className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             >
                               <option value="pending">Pending</option>
                               <option value="complete">Complete</option>
@@ -2442,7 +2442,7 @@ function OperationsPage() {
                               value={stepForm.owner_name}
                               onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { owner_name: event.target.value })}
                               placeholder="Owner"
-                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             />
                           </div>
                           <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_4.5rem]">
@@ -2450,13 +2450,13 @@ function OperationsPage() {
                               value={stepForm.step_note}
                               onChange={(event) => updateCutoverStepForm(activeCutoverSession.session_id, phase.key, step.key, { step_note: event.target.value })}
                               placeholder="Step evidence"
-                              className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                              className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                             />
                             <button
                               type="button"
                               onClick={() => submitCutoverStep(activeCutoverSession, phase.key, step.key)}
                               disabled={updateCutoverSessionMutation.isPending}
-                              className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                              className="rounded-md border border-border-strong px-2 py-1.5 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
                             >
                               Save
                             </button>
@@ -2471,23 +2471,23 @@ function OperationsPage() {
           ) : (
             <div className="grid gap-3 xl:grid-cols-2">
               {(cutoverRunbook?.phases ?? []).map((phase) => (
-                <div key={phase.key} className="rounded-md border border-clinic-200 bg-clinic-50">
-                  <div className="border-b border-clinic-200 px-3 py-2">
-                    <div className="text-sm font-semibold text-clinic-900">{phase.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{phase.objective}</div>
+                <div key={phase.key} className="rounded-md border border-border bg-canvas">
+                  <div className="border-b border-border px-3 py-2">
+                    <div className="text-sm font-semibold text-ink">{phase.label}</div>
+                    <div className="mt-0.5 text-xs text-ink-muted">{phase.objective}</div>
                   </div>
-                  <div className="divide-y divide-clinic-100">
+                  <div className="divide-y divide-border">
                     {phase.steps.map((step) => (
                       <div key={step.key} className="px-3 py-2">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="text-xs font-medium text-clinic-900">{step.label}</div>
-                            <div className="mt-1 text-[11px] text-clinic-500">{step.detail}</div>
+                            <div className="text-xs font-medium text-ink">{step.label}</div>
+                            <div className="mt-1 text-[11px] text-ink-muted">{step.detail}</div>
                           </div>
-                          <span className="rounded-md border border-clinic-200 bg-white px-2 py-0.5 text-[11px] font-medium text-clinic-500">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute}</span>
+                          <span className="rounded-md border border-border bg-canvas-raised px-2 py-0.5 text-[11px] font-medium text-ink-muted">T{step.expected_minute >= 0 ? '+' : ''}{step.expected_minute}</span>
                         </div>
-                        <div className="mt-1 text-[11px] text-clinic-400">{step.owner_role}</div>
-                        {step.rollback_trigger && <div className="mt-1 text-[11px] text-red-600">{step.rollback_trigger}</div>}
+                        <div className="mt-1 text-[11px] text-ink-faint">{step.owner_role}</div>
+                        {step.rollback_trigger && <div className="mt-1 text-[11px] text-danger">{step.rollback_trigger}</div>}
                       </div>
                     ))}
                   </div>
@@ -2499,21 +2499,21 @@ function OperationsPage() {
       </section>
 
       {workplan && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Launch Workplan</h2>
-              <p className="text-xs text-clinic-500">{workplan.total} open item(s) · {new Date(workplan.generated_at).toLocaleString()}</p>
+              <h2 className="text-sm font-semibold text-ink">Launch Workplan</h2>
+              <p className="text-xs text-ink-muted">{workplan.total} open item(s) · {new Date(workplan.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge ok={workplan.status === 'clear'} label={workplan.status === 'clear' ? 'Clear' : 'Attention'} />
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workplan.blocking_count} blocking</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workplan.warning_count} warning</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workplan.assigned_count} assigned</span>
+              <span className="rounded-md border border-danger/20 bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{workplan.blocking_count} blocking</span>
+              <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{workplan.warning_count} warning</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{workplan.assigned_count} assigned</span>
               <a
                 href={workplanExportHref}
                 download="concierge-os-launch-workplan.csv"
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -2521,51 +2521,51 @@ function OperationsPage() {
               <button
                 onClick={() => workplanSnapshotMutation.mutate()}
                 disabled={workplanSnapshotMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-clinic-900 px-3 py-2 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Camera className="h-3.5 w-3.5" />
                 Save
               </button>
             </div>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {workplan.items.slice(0, 8).map((item) => (
               <div key={item.key} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_11rem_8rem]">
-                <Link to={item.route} className="min-w-0 hover:text-accent-700">
+                <Link to={item.route} className="min-w-0 hover:text-accent">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium text-clinic-900">{item.label}</span>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.severity === 'blocking' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{item.severity}</span>
-                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-[11px] font-medium text-clinic-500">{item.category}</span>
+                    <span className="text-sm font-medium text-ink">{item.label}</span>
+                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${item.severity === 'blocking' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{item.severity}</span>
+                    <span className="rounded-md border border-border bg-canvas px-2 py-0.5 text-[11px] font-medium text-ink-muted">{item.category}</span>
                   </div>
-                  <div className="mt-1 text-xs text-clinic-500">{item.detail}</div>
-                  <div className="mt-1 text-[11px] text-clinic-400">{item.recommended_action}</div>
+                  <div className="mt-1 text-xs text-ink-muted">{item.detail}</div>
+                  <div className="mt-1 text-[11px] text-ink-faint">{item.recommended_action}</div>
                 </Link>
-                <div className="text-xs text-clinic-500">
-                  <div className="font-medium text-clinic-700">{item.assignment?.owner_name ?? item.owner_role}</div>
+                <div className="text-xs text-ink-muted">
+                  <div className="font-medium text-ink-secondary">{item.assignment?.owner_name ?? item.owner_role}</div>
                   <div className="mt-1">{item.assignment ? item.assignment.status.replace('_', ' ') : 'Unassigned'}</div>
                   {item.assignment?.due_date && <div className="mt-1">Due {item.assignment.due_date}</div>}
                 </div>
-                <Link to={item.route} className="inline-flex h-9 items-center justify-center rounded-md border border-clinic-300 px-3 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
+                <Link to={item.route} className="inline-flex h-9 items-center justify-center rounded-md border border-border-strong px-3 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk">
                   Open
                 </Link>
               </div>
             ))}
             {workplan.items.length === 0 && (
-              <div className="px-4 py-6 text-sm text-clinic-400">No launch workplan items.</div>
+              <div className="px-4 py-6 text-sm text-ink-faint">No launch workplan items.</div>
             )}
           </div>
           {(workplanSnapshots?.data ?? []).length > 0 && (
-            <div className="border-t border-clinic-200 px-4 py-3">
-              <div className="mb-2 text-xs font-semibold uppercase text-clinic-500">Saved workplan evidence</div>
+            <div className="border-t border-border px-4 py-3">
+              <div className="mb-2 text-meta font-medium text-ink-faint">Saved workplan evidence</div>
               <div className="grid gap-2 md:grid-cols-3">
                 {(workplanSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
-                  <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                  <div key={snapshot.id} className="rounded-md border border-border bg-canvas p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-clinic-900">{snapshot.total} item(s)</span>
+                      <span className="text-sm font-medium text-ink">{snapshot.total} item(s)</span>
                       <StatusBadge ok={snapshot.status === 'clear'} label={snapshot.status} />
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{snapshot.blocking_count} blocking, {snapshot.unassigned_count} unassigned</div>
-                    <div className="mt-1 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{snapshot.blocking_count} blocking, {snapshot.unassigned_count} unassigned</div>
+                    <div className="mt-1 text-[11px] text-ink-faint">{new Date(snapshot.created_at).toLocaleString()}</div>
                   </div>
                 ))}
               </div>
@@ -2575,19 +2575,19 @@ function OperationsPage() {
       )}
 
       {rehearsal && (
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Production Rehearsal</h2>
-              <p className="text-xs text-clinic-500">{new Date(rehearsal.generated_at).toLocaleString()}</p>
+              <h2 className="text-sm font-semibold text-ink">Production Rehearsal</h2>
+              <p className="text-xs text-ink-muted">{new Date(rehearsal.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge ok={rehearsal.rehearsal_ready} label={rehearsal.rehearsal_ready ? 'Ready' : 'Attention'} />
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{rehearsal.score}%</span>
+              <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs font-medium text-ink-secondary">{rehearsal.score}%</span>
               <a
                 href={rehearsalExportHref}
                 download="concierge-os-production-rehearsal.csv"
-                className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export
@@ -2595,7 +2595,7 @@ function OperationsPage() {
               <button
                 onClick={() => rehearsalSnapshotMutation.mutate()}
                 disabled={rehearsalSnapshotMutation.isPending}
-                className="inline-flex items-center gap-1.5 rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700 disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 rounded-md bg-accent text-accent-on px-3 py-2 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
               >
                 <Camera className="h-3.5 w-3.5" />
                 Save
@@ -2605,27 +2605,27 @@ function OperationsPage() {
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
               {rehearsal.gates.map((gate) => (
-                <Link key={gate.key} to={gate.route} className="rounded-md border border-clinic-100 bg-clinic-50 p-3 hover:bg-white">
+                <Link key={gate.key} to={gate.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-medium text-clinic-900">{gate.label}</span>
-                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${gate.status === 'ready' ? 'border-accent-200 bg-accent-50 text-accent-800' : gate.status === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-200 bg-red-50 text-red-700'}`}>
+                    <span className="text-sm font-medium text-ink">{gate.label}</span>
+                    <span className={`rounded-md border px-2 py-1 text-xs font-medium ${gate.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : gate.status === 'warning' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                       {gate.score}%
                     </span>
                   </div>
-                  <div className="mt-2 text-xs text-clinic-500">{gate.detail}</div>
+                  <div className="mt-2 text-xs text-ink-muted">{gate.detail}</div>
                 </Link>
               ))}
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Rehearsal actions</div>
-              <div className="divide-y divide-clinic-100">
+            <aside className="rounded-md border border-border">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Rehearsal actions</div>
+              <div className="divide-y divide-border">
                 {rehearsal.recommended_actions.slice(0, 5).map((action) => {
                   const form = formForAction(action);
                   return (
                     <div key={action.key} className="px-3 py-3">
-                      <Link to={action.route} className="block hover:text-accent-700">
-                        <div className="text-sm font-medium text-clinic-900">{action.label}</div>
-                        <div className="mt-0.5 text-xs text-clinic-500">{action.detail}</div>
+                      <Link to={action.route} className="block hover:text-accent">
+                        <div className="text-sm font-medium text-ink">{action.label}</div>
+                        <div className="mt-0.5 text-xs text-ink-muted">{action.detail}</div>
                       </Link>
                       <div className="mt-3 grid gap-2">
                         <div className="grid grid-cols-[minmax(0,1fr)_8rem] gap-2">
@@ -2633,12 +2633,12 @@ function OperationsPage() {
                             value={form.owner_name}
                             onChange={(event) => updateAssignmentForm(action.key, { owner_name: event.target.value })}
                             placeholder="Owner"
-                            className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                           />
                           <select
                             value={form.status}
                             onChange={(event) => updateAssignmentForm(action.key, { status: event.target.value as AssignmentFormState['status'] })}
-                            className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                           >
                             <option value="open">Open</option>
                             <option value="in_progress">In progress</option>
@@ -2651,24 +2651,24 @@ function OperationsPage() {
                             type="date"
                             value={form.due_date}
                             onChange={(event) => updateAssignmentForm(action.key, { due_date: event.target.value })}
-                            className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            className="rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                           />
                           <input
                             value={form.note}
                             onChange={(event) => updateAssignmentForm(action.key, { note: event.target.value })}
                             placeholder="Launch note"
-                            className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                            className="min-w-0 rounded-md border border-border px-2 py-1.5 text-xs focus:border-accent focus:outline-none"
                           />
                         </div>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="truncate text-[11px] text-clinic-400">
+                          <span className="truncate text-[11px] text-ink-faint">
                             {action.assignment ? `Assigned ${new Date(action.assignment.assigned_at).toLocaleDateString()}` : 'No owner assigned'}
                           </span>
                           <button
                             type="button"
                             onClick={() => submitAssignment(action)}
                             disabled={!form.owner_name.trim() || assignmentMutation.isPending}
-                            className="rounded-md bg-clinic-900 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-clinic-800 disabled:opacity-60"
+                            className="rounded-md bg-accent text-accent-on px-2.5 py-1.5 text-xs font-medium hover:bg-accent-hover disabled:opacity-60"
                           >
                             Assign
                           </button>
@@ -2678,23 +2678,23 @@ function OperationsPage() {
                   );
                 })}
                 {rehearsal.recommended_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No rehearsal blockers.</div>
+                  <div className="px-3 py-6 text-sm text-ink-faint">No rehearsal blockers.</div>
                 )}
               </div>
             </aside>
           </div>
           {(rehearsalSnapshots?.data ?? []).length > 0 && (
-            <div className="border-t border-clinic-200 px-4 py-3">
-              <div className="mb-2 text-xs font-semibold uppercase text-clinic-500">Saved rehearsal evidence</div>
+            <div className="border-t border-border px-4 py-3">
+              <div className="mb-2 text-meta font-medium text-ink-faint">Saved rehearsal evidence</div>
               <div className="grid gap-2 md:grid-cols-3">
                 {(rehearsalSnapshots?.data ?? []).slice(0, 3).map((snapshot) => (
-                  <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-clinic-50 p-3">
+                  <div key={snapshot.id} className="rounded-md border border-border bg-canvas p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-clinic-900">{snapshot.score}%</span>
+                      <span className="text-sm font-medium text-ink">{snapshot.score}%</span>
                       <StatusBadge ok={snapshot.rehearsal_ready} label={snapshot.status} />
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{snapshot.blocking_count} blocker(s), {snapshot.warning_count} warning(s)</div>
-                    <div className="mt-1 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{snapshot.blocking_count} blocker(s), {snapshot.warning_count} warning(s)</div>
+                    <div className="mt-1 text-[11px] text-ink-faint">{new Date(snapshot.created_at).toLocaleString()}</div>
                   </div>
                 ))}
               </div>
@@ -2704,150 +2704,150 @@ function OperationsPage() {
       )}
 
       <section className="grid gap-3 lg:grid-cols-3">
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <Server className="h-4 w-4 text-accent-700" />
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Server className="h-4 w-4 text-accent" />
             Core Infrastructure
           </div>
           <div className="mt-4 space-y-2">
             {coreChecks.map(([key, check]) => (
-              <div key={key} className="flex items-center justify-between rounded-md bg-clinic-50 px-3 py-2 text-sm">
-                <span className="capitalize text-clinic-700">{key.replace('_', ' ')}</span>
+              <div key={key} className="flex items-center justify-between rounded-md bg-canvas px-3 py-2 text-sm">
+                <span className="capitalize text-ink-secondary">{key.replace('_', ' ')}</span>
                 <StatusBadge ok={check.ok} label={check.ok ? 'Ready' : check.error ?? 'Degraded'} />
               </div>
             ))}
           </div>
         </div>
 
-        <div className="rounded-md border border-clinic-200 bg-white p-4 lg:col-span-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <PlugZap className="h-4 w-4 text-accent-700" />
+        <div className="rounded-md border border-border bg-canvas-raised p-4 lg:col-span-2">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <PlugZap className="h-4 w-4 text-accent" />
             External Integrations
           </div>
           <div className="mt-4 grid gap-2 md:grid-cols-2">
             {integrations.map(([key, check]) => (
-              <div key={key} className="rounded-md border border-clinic-100 bg-clinic-50 p-3">
+              <div key={key} className="rounded-md border border-border bg-canvas p-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium capitalize text-clinic-800">{key.replace('_', ' ')}</span>
+                  <span className="text-sm font-medium capitalize text-ink">{key.replace('_', ' ')}</span>
                   <StatusBadge ok={check.ok} label={check.configured ? 'Configured' : 'Demo'} />
                 </div>
-                <div className="mt-2 font-mono text-xs text-clinic-500">{check.env_var}</div>
+                <div className="mt-2 font-mono text-xs text-ink-muted">{check.env_var}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Incident Register</h2>
-            <p className="text-xs text-clinic-500">Readiness blockers, failed vendor events, and launch evidence gaps with owners</p>
+            <h2 className="text-sm font-semibold text-ink">Incident Register</h2>
+            <p className="text-xs text-ink-muted">Readiness blockers, failed vendor events, and launch evidence gaps with owners</p>
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge ok={(incidents?.critical_count ?? 0) === 0} label={`${incidents?.critical_count ?? 0} critical`} />
             <button
               onClick={() => snapshotMutation.mutate()}
               disabled={snapshotMutation.isPending}
-              className="inline-flex items-center gap-1.5 rounded-md border border-clinic-300 px-3 py-2 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-md border border-border-strong px-3 py-2 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-60"
             >
               <Camera className="h-3.5 w-3.5" />
               Snapshot
             </button>
           </div>
         </div>
-        <div className="grid gap-0 divide-y divide-clinic-100">
+        <div className="grid gap-0 divide-y divide-border">
           {(incidents?.data ?? []).slice(0, 8).map((incident) => (
             <div key={incident.key} className="grid gap-3 px-4 py-3 text-sm md:grid-cols-[12rem_minmax(0,1fr)_10rem]">
               <div>
-                <div className="font-medium text-clinic-900">{incident.title}</div>
-                <div className="mt-1 text-xs capitalize text-clinic-500">{incident.source.replace('_', ' ')} · {incident.status.replace('_', ' ')}</div>
+                <div className="font-medium text-ink">{incident.title}</div>
+                <div className="mt-1 text-xs capitalize text-ink-muted">{incident.source.replace('_', ' ')} · {incident.status.replace('_', ' ')}</div>
               </div>
               <div>
-                <div className="text-clinic-700">{incident.detail}</div>
-                <div className="mt-1 text-xs text-clinic-500">{incident.recommended_action}</div>
+                <div className="text-ink-secondary">{incident.detail}</div>
+                <div className="mt-1 text-xs text-ink-muted">{incident.recommended_action}</div>
               </div>
               <div className="flex items-start justify-between gap-2 md:justify-end">
-                <span className={`rounded-md border px-2 py-1 text-xs font-medium ${incident.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                <span className={`rounded-md border px-2 py-1 text-xs font-medium ${incident.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                   {incident.count} {incident.severity}
                 </span>
-                <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs capitalize text-clinic-600">{incident.owner_role}</span>
+                <span className="rounded-md border border-border bg-canvas px-2 py-1 text-xs capitalize text-ink-secondary">{incident.owner_role}</span>
               </div>
             </div>
           ))}
           {(incidents?.data ?? []).length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-clinic-400">No open operational incidents.</div>
+            <div className="px-4 py-8 text-center text-sm text-ink-faint">No open operational incidents.</div>
           )}
         </div>
       </section>
 
       <section className="grid gap-3 md:grid-cols-4">
         {(snapshots?.data ?? []).slice(0, 4).map((snapshot) => (
-          <div key={snapshot.id} className="rounded-md border border-clinic-200 bg-white p-4">
+          <div key={snapshot.id} className="rounded-md border border-border bg-canvas-raised p-4">
             <div className="flex items-center justify-between gap-2">
-              <div className="text-sm font-semibold text-clinic-900">Readiness Snapshot</div>
+              <div className="text-sm font-semibold text-ink">Readiness Snapshot</div>
               <StatusBadge ok={snapshot.operational_status === 'ok'} label={snapshot.operational_status} />
             </div>
-            <div className="mt-3 text-2xl font-semibold text-clinic-900">{snapshot.launch_score}%</div>
-            <div className="mt-1 text-xs text-clinic-500">{snapshot.incident_count} incidents · {snapshot.critical_count} critical</div>
-            <div className="mt-2 text-[11px] text-clinic-400">{new Date(snapshot.created_at).toLocaleString()}</div>
+            <div className="mt-3 font-serif text-2xl font-medium text-ink">{snapshot.launch_score}%</div>
+            <div className="mt-1 text-xs text-ink-muted">{snapshot.incident_count} incidents · {snapshot.critical_count} critical</div>
+            <div className="mt-2 text-[11px] text-ink-faint">{new Date(snapshot.created_at).toLocaleString()}</div>
           </div>
         ))}
         {(snapshots?.data ?? []).length === 0 && (
-          <div className="rounded-md border border-clinic-200 bg-white p-4 text-sm text-clinic-400 md:col-span-4">
+          <div className="rounded-md border border-border bg-canvas-raised p-4 text-sm text-ink-faint md:col-span-4">
             No readiness snapshots have been captured yet.
           </div>
         )}
       </section>
 
       <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_24rem]">
-        <div className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <div className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Incident Timeline</h2>
-              <p className="text-xs text-clinic-500">{incidentTimeline?.total ?? 0} recent signal(s)</p>
+              <h2 className="text-sm font-semibold text-ink">Incident Timeline</h2>
+              <p className="text-xs text-ink-muted">{incidentTimeline?.total ?? 0} recent signal(s)</p>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge ok={(incidentTimeline?.critical_count ?? 0) === 0} label={`${incidentTimeline?.critical_count ?? 0} critical`} />
               <StatusBadge ok={(incidentTimeline?.warning_count ?? 0) === 0} label={`${incidentTimeline?.warning_count ?? 0} warning`} />
             </div>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {(incidentTimeline?.data ?? []).slice(0, 8).map((item) => (
-              <Link key={`${item.key}:${item.occurred_at}:${item.entity_id ?? ''}`} to={item.route} className="grid gap-3 px-4 py-3 text-sm hover:bg-clinic-50 md:grid-cols-[10rem_minmax(0,1fr)_8rem]">
+              <Link key={`${item.key}:${item.occurred_at}:${item.entity_id ?? ''}`} to={item.route} className="grid gap-3 px-4 py-3 text-sm hover:bg-canvas-sunk/50 md:grid-cols-[10rem_minmax(0,1fr)_8rem]">
                 <div>
-                  <div className="font-medium text-clinic-900">{item.title}</div>
-                  <div className="mt-1 text-xs capitalize text-clinic-500">{item.category} · {item.source.replace('_', ' ')}</div>
+                  <div className="font-medium text-ink">{item.title}</div>
+                  <div className="mt-1 text-xs capitalize text-ink-muted">{item.category} · {item.source.replace('_', ' ')}</div>
                 </div>
-                <div className="text-clinic-700">
+                <div className="text-ink-secondary">
                   {item.detail}
-                  <div className="mt-1 text-xs text-clinic-400">{new Date(item.occurred_at).toLocaleString()}</div>
+                  <div className="mt-1 text-xs text-ink-faint">{new Date(item.occurred_at).toLocaleString()}</div>
                 </div>
                 <div className="flex items-start justify-end">
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{item.severity}</span>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{item.severity}</span>
                 </div>
               </Link>
             ))}
             {(incidentTimeline?.data ?? []).length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-clinic-400">No incident timeline signals.</div>
+              <div className="px-4 py-8 text-center text-sm text-ink-faint">No incident timeline signals.</div>
             )}
           </div>
         </div>
-        <aside className="rounded-md border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="text-sm font-semibold text-clinic-900">Alert Rules</h2>
-            <p className="text-xs text-clinic-500">{alertRules?.triggered_count ?? 0} triggered of {alertRules?.total ?? 0}</p>
+        <aside className="rounded-md border border-border bg-canvas-raised">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold text-ink">Alert Rules</h2>
+            <p className="text-xs text-ink-muted">{alertRules?.triggered_count ?? 0} triggered of {alertRules?.total ?? 0}</p>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {(alertRules?.data ?? []).map((rule) => (
-              <Link key={rule.key} to={rule.route} className="block px-4 py-3 hover:bg-clinic-50">
+              <Link key={rule.key} to={rule.route} className="block px-4 py-3 hover:bg-canvas-sunk/50">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-sm font-medium text-clinic-900">{rule.label}</div>
-                    <div className="mt-1 text-xs text-clinic-500">{rule.detail}</div>
-                    <div className="mt-1 text-[11px] text-clinic-400">{rule.last_triggered_at ? new Date(rule.last_triggered_at).toLocaleString() : 'No trigger timestamp'}</div>
+                    <div className="text-sm font-medium text-ink">{rule.label}</div>
+                    <div className="mt-1 text-xs text-ink-muted">{rule.detail}</div>
+                    <div className="mt-1 text-[11px] text-ink-faint">{rule.last_triggered_at ? new Date(rule.last_triggered_at).toLocaleString() : 'No trigger timestamp'}</div>
                   </div>
-                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${rule.status === 'clear' ? 'border-accent-200 bg-accent-50 text-accent-800' : rule.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <span className={`rounded-md border px-2 py-1 text-xs font-medium ${rule.status === 'clear' ? 'border-accent-soft bg-accent-soft text-accent' : rule.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {rule.status === 'clear' ? 'clear' : `${rule.count} ${rule.severity}`}
                   </span>
                 </div>
@@ -2858,83 +2858,83 @@ function OperationsPage() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <Download className="h-4 w-4 text-accent-700" />
-          <div className="mt-3 text-sm font-semibold text-clinic-900">Audit export</div>
-          <div className="mt-1 text-xs text-clinic-500">Download scoped audit CSV for compliance review</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <Download className="h-4 w-4 text-accent" />
+          <div className="mt-3 text-sm font-semibold text-ink">Audit export</div>
+          <div className="mt-1 text-xs text-ink-muted">Download scoped audit CSV for compliance review</div>
           <div className="mt-3 grid gap-2">
-            <input placeholder="Event type" value={auditExport.event_type} onChange={(event) => setAuditExport({ ...auditExport, event_type: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
-            <input placeholder="Entity type" value={auditExport.entity_type} onChange={(event) => setAuditExport({ ...auditExport, entity_type: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
-            <input placeholder="Entity ID" value={auditExport.entity_id} onChange={(event) => setAuditExport({ ...auditExport, entity_id: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs" />
-            <select value={auditExport.limit} onChange={(event) => setAuditExport({ ...auditExport, limit: event.target.value })} className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs">
+            <input placeholder="Event type" value={auditExport.event_type} onChange={(event) => setAuditExport({ ...auditExport, event_type: event.target.value })} className="rounded-md border border-border-strong px-2 py-1.5 text-xs" />
+            <input placeholder="Entity type" value={auditExport.entity_type} onChange={(event) => setAuditExport({ ...auditExport, entity_type: event.target.value })} className="rounded-md border border-border-strong px-2 py-1.5 text-xs" />
+            <input placeholder="Entity ID" value={auditExport.entity_id} onChange={(event) => setAuditExport({ ...auditExport, entity_id: event.target.value })} className="rounded-md border border-border-strong px-2 py-1.5 text-xs" />
+            <select value={auditExport.limit} onChange={(event) => setAuditExport({ ...auditExport, limit: event.target.value })} className="rounded-md border border-border-strong px-2 py-1.5 text-xs">
               <option value="1000">1,000 rows</option>
               <option value="10000">10,000 rows</option>
               <option value="50000">50,000 rows</option>
             </select>
-            <a href={auditExportHref} className="rounded-md bg-accent-600 px-3 py-2 text-center text-xs font-medium text-white hover:bg-accent-700">Export CSV</a>
+            <a href={auditExportHref} className="rounded-md bg-accent text-accent-on px-3 py-2 text-center text-xs font-medium hover:bg-accent-hover">Export CSV</a>
           </div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <ShieldCheck className="h-4 w-4 text-accent-700" />
-          <div className="mt-3 text-sm font-semibold text-clinic-900">PHI access controls</div>
-          <div className="mt-1 text-xs text-clinic-500">Patient document access uses expiring viewer metadata</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <ShieldCheck className="h-4 w-4 text-accent" />
+          <div className="mt-3 text-sm font-semibold text-ink">PHI access controls</div>
+          <div className="mt-1 text-xs text-ink-muted">Patient document access uses expiring viewer metadata</div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <ClipboardList className="h-4 w-4 text-accent-700" />
-          <div className="mt-3 text-sm font-semibold text-clinic-900">Launch checklist</div>
-          <div className="mt-1 text-xs text-clinic-500">Production readiness tracked in operations docs</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <ClipboardList className="h-4 w-4 text-accent" />
+          <div className="mt-3 text-sm font-semibold text-ink">Launch checklist</div>
+          <div className="mt-1 text-xs text-ink-muted">Production readiness tracked in operations docs</div>
         </div>
       </section>
 
       {auditReviewSummary && (
-        <section className="rounded-md border border-clinic-200 bg-white p-4">
+        <section className="rounded-md border border-border bg-canvas-raised p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <div className="text-sm font-semibold text-clinic-900">Audit Review Control</div>
-              <div className="mt-1 text-xs text-clinic-500">{auditReviewSummary.sensitive_event_count} sensitive event{auditReviewSummary.sensitive_event_count === 1 ? '' : 's'} across {auditReviewSummary.total_event_count} total audit rows</div>
+              <div className="text-sm font-semibold text-ink">Audit Review Control</div>
+              <div className="mt-1 text-xs text-ink-muted">{auditReviewSummary.sensitive_event_count} sensitive event{auditReviewSummary.sensitive_event_count === 1 ? '' : 's'} across {auditReviewSummary.total_event_count} total audit rows</div>
             </div>
-            <span className={`rounded-md border px-2 py-1 text-xs font-medium ${auditReviewSummary.sensitive_event_count ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+            <span className={`rounded-md border px-2 py-1 text-xs font-medium ${auditReviewSummary.sensitive_event_count ? 'border-warn/20 bg-warn/10 text-warn' : 'border-accent-soft bg-accent-soft text-accent'}`}>
               {auditReviewSummary.recommended_actions.length} action{auditReviewSummary.recommended_actions.length === 1 ? '' : 's'}
             </span>
           </div>
           <div className="mt-3 grid gap-2 md:grid-cols-5">
             {auditReviewSummary.categories.map((category) => (
-              <div key={category.key} className="rounded-md border border-clinic-100 bg-clinic-50 px-3 py-2">
+              <div key={category.key} className="rounded-md border border-border bg-canvas px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-lg font-semibold text-clinic-900">{category.count}</div>
-                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${category.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : category.severity === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                  <div className="font-serif text-2xl font-medium text-ink">{category.count}</div>
+                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${category.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : category.severity === 'warning' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-accent-soft bg-accent-soft text-accent'}`}>
                     {category.severity}
                   </span>
                 </div>
-                <div className="mt-1 text-xs font-medium text-clinic-700">{category.label}</div>
-                <div className="mt-1 text-[11px] text-clinic-400">{category.last_event_at ? new Date(category.last_event_at).toLocaleString() : 'No events'}</div>
+                <div className="mt-1 text-xs font-medium text-ink-secondary">{category.label}</div>
+                <div className="mt-1 text-[11px] text-ink-faint">{category.last_event_at ? new Date(category.last_event_at).toLocaleString() : 'No events'}</div>
               </div>
             ))}
           </div>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             {auditReviewSummary.recommended_actions.slice(0, 4).map((action) => (
-              <div key={action.key} className="rounded-md border border-clinic-100 px-3 py-2">
+              <div key={action.key} className="rounded-md border border-border px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-medium text-clinic-900">{action.label}</div>
-                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                  <div className="text-sm font-medium text-ink">{action.label}</div>
+                  <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                     {action.severity}
                   </span>
                 </div>
-                <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                <div className="mt-1 text-xs text-ink-muted">{action.detail}</div>
               </div>
             ))}
             {auditReviewSummary.recommended_actions.length === 0 && (
-              <div className="rounded-md border border-accent-100 bg-accent-50 px-3 py-2 text-sm text-accent-800">No sensitive audit review actions are currently open.</div>
+              <div className="rounded-md border border-accent-soft bg-accent-soft px-3 py-2 text-sm text-accent">No sensitive audit review actions are currently open.</div>
             )}
           </div>
         </section>
       )}
 
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
+      <section className="rounded-md border border-border bg-canvas-raised p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-clinic-900">Communications Governance</div>
-            <div className="mt-1 text-xs text-clinic-500">Patient outreach requires channel consent and available contact details before delivery is queued</div>
+            <div className="text-sm font-semibold text-ink">Communications Governance</div>
+            <div className="mt-1 text-xs text-ink-muted">Patient outreach requires channel consent and available contact details before delivery is queued</div>
           </div>
           <StatusBadge ok={(outreachSummary?.blocked_count ?? 0) === 0} label={`${outreachSummary?.blocked_count ?? 0} blocked`} />
         </div>
@@ -2946,42 +2946,42 @@ function OperationsPage() {
             ['Consent blocked', outreachSummary?.consent_blocked_count ?? 0],
             ['No contact', outreachSummary?.no_contact_blocked_count ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-md bg-clinic-50 px-3 py-2">
-              <div className="text-xl font-semibold text-clinic-900">{value}</div>
-              <div className="text-xs text-clinic-500">{label}</div>
+            <div key={label} className="rounded-md bg-canvas px-3 py-2">
+              <div className="font-serif text-2xl font-medium text-ink">{value}</div>
+              <div className="text-xs text-ink-muted">{label}</div>
             </div>
           ))}
         </div>
       </section>
 
       <section className="grid gap-3 lg:grid-cols-4">
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Patient Intake</div>
-          <div className="mt-3 text-2xl font-semibold text-clinic-900">{analytics?.front_office.intake_needing_review ?? 0}</div>
-          <div className="text-xs text-clinic-500">portal submissions needing review</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="text-sm font-semibold text-ink">Patient Intake</div>
+          <div className="mt-3 font-serif text-2xl font-medium text-ink">{analytics?.front_office.intake_needing_review ?? 0}</div>
+          <div className="text-xs text-ink-muted">portal submissions needing review</div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Billing Work</div>
-          <div className="mt-3 text-2xl font-semibold text-clinic-900">{analytics?.billing.draft_cases ?? 0}</div>
-          <div className="text-xs text-clinic-500">{analytics?.billing.denied_cases ?? 0} denied cases</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="text-sm font-semibold text-ink">Billing Work</div>
+          <div className="mt-3 font-serif text-2xl font-medium text-ink">{analytics?.billing.draft_cases ?? 0}</div>
+          <div className="text-xs text-ink-muted">{analytics?.billing.denied_cases ?? 0} denied cases</div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Security Policy</div>
-          <div className="mt-3 text-2xl font-semibold text-clinic-900">{sessionPolicy?.access_token_expire_minutes ?? '—'}m</div>
-          <div className="text-xs text-clinic-500">{sessionPolicy?.mfa_required ? 'MFA required' : 'MFA staged for production'}</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="text-sm font-semibold text-ink">Security Policy</div>
+          <div className="mt-3 font-serif text-2xl font-medium text-ink">{sessionPolicy?.access_token_expire_minutes ?? '—'}m</div>
+          <div className="text-xs text-ink-muted">{sessionPolicy?.mfa_required ? 'MFA required' : 'MFA staged for production'}</div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="text-sm font-semibold text-clinic-900">Assistant Governance</div>
-          <div className="mt-3 text-2xl font-semibold text-clinic-900">{assistantEvents?.total ?? 0}</div>
-          <div className="text-xs text-clinic-500">confirmed task actions audited</div>
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="text-sm font-semibold text-ink">Assistant Governance</div>
+          <div className="mt-3 font-serif text-2xl font-medium text-ink">{assistantEvents?.total ?? 0}</div>
+          <div className="text-xs text-ink-muted">confirmed task actions audited</div>
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
+      <section className="rounded-md border border-border bg-canvas-raised p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-sm font-semibold text-clinic-900">Billing Claim Governance</div>
-            <div className="mt-1 text-xs text-clinic-500">Claim submission is gated by payer, coding, eligibility, and denial rework status</div>
+            <div className="text-sm font-semibold text-ink">Billing Claim Governance</div>
+            <div className="mt-1 text-xs text-ink-muted">Claim submission is gated by payer, coding, eligibility, and denial rework status</div>
           </div>
           <StatusBadge ok={(billingWorkQueue?.eligibility_needed_count ?? 0) === 0 && (billingWorkQueue?.missing_coding_count ?? 0) === 0} label={`${billingWorkQueue?.total ?? 0} cases`} />
         </div>
@@ -2993,104 +2993,104 @@ function OperationsPage() {
             ['Eligibility needed', billingWorkQueue?.eligibility_needed_count ?? 0],
             ['Remit pending', billingWorkQueue?.remittance_pending_count ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-md bg-clinic-50 px-3 py-2">
-              <div className="text-xl font-semibold text-clinic-900">{value}</div>
-              <div className="text-xs text-clinic-500">{label}</div>
+            <div key={label} className="rounded-md bg-canvas px-3 py-2">
+              <div className="font-serif text-2xl font-medium text-ink">{value}</div>
+              <div className="text-xs text-ink-muted">{label}</div>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
-        <div className="text-sm font-semibold text-clinic-900">Integration Capability Map</div>
+      <section className="rounded-md border border-border bg-canvas-raised p-4">
+        <div className="text-sm font-semibold text-ink">Integration Capability Map</div>
         <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
           {Object.entries(capabilities ?? {}).map(([key, capability]) => (
-            <div key={key} className="rounded-md border border-clinic-100 bg-clinic-50 p-3">
+            <div key={key} className="rounded-md border border-border bg-canvas p-3">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium capitalize text-clinic-800">{key.replace('_', ' ')}</span>
+                <span className="text-sm font-medium capitalize text-ink">{key.replace('_', ' ')}</span>
                 <StatusBadge ok={capability.configured} label={capability.configured ? 'Live' : 'Staged'} />
               </div>
-              <div className="mt-2 text-xs text-clinic-500">{capability.supports.join(', ')}</div>
+              <div className="mt-2 text-xs text-ink-muted">{capability.supports.join(', ')}</div>
             </div>
           ))}
         </div>
       </section>
 
       <section className="grid gap-3 lg:grid-cols-[1fr_1.2fr]">
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <ClipboardList className="h-4 w-4 text-accent-700" />
+        <div className="rounded-md border border-border bg-canvas-raised p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <ClipboardList className="h-4 w-4 text-accent" />
             Deployment Readiness
           </div>
           <div className="mt-4 space-y-2">
             {deployment.map(([key, check]) => (
-              <div key={key} className="flex items-center justify-between gap-3 rounded-md bg-clinic-50 px-3 py-2 text-sm">
+              <div key={key} className="flex items-center justify-between gap-3 rounded-md bg-canvas px-3 py-2 text-sm">
                 <div>
-                  <div className="capitalize text-clinic-700">{key.replaceAll('_', ' ')}</div>
-                  {check.path && <div className="font-mono text-[11px] text-clinic-400">{check.path}</div>}
+                  <div className="capitalize text-ink-secondary">{key.replaceAll('_', ' ')}</div>
+                  {check.path && <div className="font-mono text-[11px] text-ink-faint">{check.path}</div>}
                 </div>
                 <StatusBadge ok={check.ok} label={check.ok ? 'Found' : 'Missing'} />
               </div>
             ))}
-            {deployment.length === 0 && <div className="text-sm text-clinic-400">Deployment checks are not available.</div>}
+            {deployment.length === 0 && <div className="text-sm text-ink-faint">Deployment checks are not available.</div>}
           </div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+        <div className="rounded-md border border-border bg-canvas-raised">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-800">Recent PHI Access</h2>
-              <p className="text-xs text-clinic-500">Document viewer access reasons and timestamps</p>
+              <h2 className="text-sm font-semibold text-ink">Recent PHI Access</h2>
+              <p className="text-xs text-ink-muted">Document viewer access reasons and timestamps</p>
             </div>
-            <ShieldCheck className="h-4 w-4 text-clinic-400" />
+            <ShieldCheck className="h-4 w-4 text-ink-faint" />
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {(auditEvents?.data ?? []).map((event) => (
               <div key={event.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1fr_12rem]">
                 <div>
-                  <div className="font-medium text-clinic-900">{String(event.payload?.document_title ?? event.entity_id)}</div>
-                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-xs text-clinic-600">{event.payload.reason}</div>}
+                  <div className="font-medium text-ink">{String(event.payload?.document_title ?? event.entity_id)}</div>
+                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-xs text-ink-secondary">{event.payload.reason}</div>}
                 </div>
-                <div className="text-xs text-clinic-500 md:text-right">{new Date(event.created_at).toLocaleString()}</div>
+                <div className="text-xs text-ink-muted md:text-right">{new Date(event.created_at).toLocaleString()}</div>
               </div>
             ))}
-            {(auditEvents?.data ?? []).length === 0 && <div className="px-4 py-8 text-center text-sm text-clinic-400">No PHI access events recorded yet.</div>}
+            {(auditEvents?.data ?? []).length === 0 && <div className="px-4 py-8 text-center text-sm text-ink-faint">No PHI access events recorded yet.</div>}
           </div>
         </div>
       </section>
 
-      <section className="rounded-md border border-clinic-200 bg-white">
-        <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+      <section className="rounded-md border border-border bg-canvas-raised">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-800">Integration Events</h2>
-            <p className="text-xs text-clinic-500">{failedEvents.length} failed event{failedEvents.length === 1 ? '' : 's'} ready for review</p>
+            <h2 className="text-sm font-semibold text-ink">Integration Events</h2>
+            <p className="text-xs text-ink-muted">{failedEvents.length} failed event{failedEvents.length === 1 ? '' : 's'} ready for review</p>
           </div>
-          <ShieldCheck className="h-4 w-4 text-clinic-400" />
+          <ShieldCheck className="h-4 w-4 text-ink-faint" />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+            <thead className="bg-canvas-sunk border-b border-border text-left text-meta font-medium text-ink-muted uppercase">
               <tr>
-                <th className="px-4 py-2.5">Integration</th>
-                <th className="px-4 py-2.5">Action</th>
-                <th className="px-4 py-2.5">Status</th>
-                <th className="px-4 py-2.5">Attempts</th>
-                <th className="px-4 py-2.5">Created</th>
-                <th className="px-4 py-2.5" />
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase">Integration</th>
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase">Action</th>
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase">Status</th>
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase">Attempts</th>
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase">Created</th>
+                <th className="px-4 py-3 text-meta font-medium text-ink-muted uppercase" />
               </tr>
             </thead>
             <tbody>
               {(events?.data ?? []).map((event) => (
-                <tr key={event.id} className="border-b border-clinic-100 last:border-b-0">
-                  <td className="px-4 py-3 font-medium text-clinic-900">{event.integration.replace('_', ' ')}</td>
-                  <td className="px-4 py-3 text-clinic-600">{event.action}</td>
+                <tr key={event.id} className="border-b border-border-subtle hover:bg-canvas-sunk/50">
+                  <td className="px-4 py-3 font-medium text-ink">{event.integration.replace('_', ' ')}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{event.action}</td>
                   <td className="px-4 py-3"><StatusBadge ok={event.status === 'succeeded'} label={event.status} /></td>
-                  <td className="px-4 py-3 text-clinic-600">{event.attempts}</td>
-                  <td className="px-4 py-3 text-clinic-500">{new Date(event.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{event.attempts}</td>
+                  <td className="px-4 py-3 text-ink-muted">{new Date(event.created_at).toLocaleString()}</td>
                   <td className="px-4 py-3 text-right">
                     {event.status === 'failed' && (
                       <button
                         onClick={() => retryMutation.mutate(event.id)}
-                        className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-canvas-raised px-2 py-1 text-xs font-medium text-ink-secondary hover:bg-canvas-sunk"
                       >
                         <RotateCw className="h-3.5 w-3.5" />
                         Retry
@@ -3101,7 +3101,7 @@ function OperationsPage() {
               ))}
               {(events?.data ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-clinic-400">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-ink-faint">
                     No integration events yet
                   </td>
                 </tr>
@@ -3116,7 +3116,7 @@ function OperationsPage() {
           void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.READINESS });
           void queryClient.invalidateQueries({ queryKey: QUERY_KEYS.INTEGRATION_EVENTS });
         }}
-        className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-white px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50"
+        className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk"
       >
         <RefreshCw className="h-4 w-4" />
         Refresh operations status

@@ -89,57 +89,57 @@ function PortalMockPage() {
   return (
     <div className="space-y-5">
       <header>
-        <p className="text-sm font-medium text-clinic-500">Patient portal simulator</p>
+        <p className="text-small text-ink-muted">Patient portal simulator</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold text-clinic-900">Portal Mock</h1>
-          <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-semibold uppercase text-amber-800">Demo only</span>
+          <h1 className="font-serif text-display text-ink">Portal Mock</h1>
+          <span className="rounded-pill border border-warn/20 bg-warn/10 px-2 py-0.5 text-micro font-medium text-warn">Demo only</span>
         </div>
-        <p className="mt-2 max-w-2xl text-sm text-clinic-500">Use this simulator to seed intake, appointment, and document-upload workflows. It is intentionally separated from production patient-facing flows.</p>
+        <p className="mt-2 max-w-2xl text-small text-ink-muted">Use this simulator to seed intake, appointment, and document-upload workflows. It is intentionally separated from production patient-facing flows.</p>
       </header>
-      <section className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <section className="rounded-md border border-warn/20 bg-warn/10 p-3 text-sm text-warn">
         Demo simulator: do not treat these submissions as real patient portal traffic.
       </section>
-      <section className="rounded-md border border-clinic-200 bg-white p-4">
+      <section className="rounded-md border border-border bg-canvas-raised p-4">
         <div className="grid gap-3 md:grid-cols-2">
-          <select value={form.patient_id} onChange={(event) => setForm({ ...form, patient_id: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+          <select value={form.patient_id} onChange={(event) => setForm({ ...form, patient_id: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink">
             <option value="">Unmatched patient</option>
             {(patients?.data ?? []).map((patient) => <option key={patient.id} value={patient.id}>{patient.last_name}, {patient.first_name}</option>)}
           </select>
-          <select value={form.provider_id} onChange={(event) => setForm({ ...form, provider_id: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+          <select value={form.provider_id} onChange={(event) => setForm({ ...form, provider_id: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink">
             <option value="">Default provider</option>
             {(providers?.data ?? []).map((provider) => <option key={provider.id} value={provider.id}>{provider.display_name}</option>)}
           </select>
-          <input value={form.visit_reason} onChange={(event) => setForm({ ...form, visit_reason: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.insurance_provider} onChange={(event) => setForm({ ...form, insurance_provider: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.member_id} onChange={(event) => setForm({ ...form, member_id: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input type="date" value={form.appointment_date} onChange={(event) => setForm({ ...form, appointment_date: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input type="time" value={form.appointment_time} onChange={(event) => setForm({ ...form, appointment_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.document_title} onChange={(event) => setForm({ ...form, document_title: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-          <input value={form.document_source} onChange={(event) => setForm({ ...form, document_source: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+          <input value={form.visit_reason} onChange={(event) => setForm({ ...form, visit_reason: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.insurance_provider} onChange={(event) => setForm({ ...form, insurance_provider: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.member_id} onChange={(event) => setForm({ ...form, member_id: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input type="date" value={form.appointment_date} onChange={(event) => setForm({ ...form, appointment_date: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input type="time" value={form.appointment_time} onChange={(event) => setForm({ ...form, appointment_time: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.document_title} onChange={(event) => setForm({ ...form, document_title: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
+          <input value={form.document_source} onChange={(event) => setForm({ ...form, document_source: event.target.value })} className="bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink" />
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button onClick={() => submitMutation.mutate('intake_form')} className="inline-flex items-center gap-2 rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">
+          <button onClick={() => submitMutation.mutate('intake_form')} className="inline-flex items-center gap-2 rounded-md bg-accent text-accent-on px-4 py-2 text-sm font-medium hover:bg-accent-hover">
             <Send className="h-4 w-4" />
             Send intake
           </button>
-          <button onClick={() => submitMutation.mutate('appointment_request')} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">Request appointment</button>
-          <button onClick={() => submitMutation.mutate('document_upload')} className="inline-flex items-center gap-2 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white">
+          <button onClick={() => submitMutation.mutate('appointment_request')} className="rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">Request appointment</button>
+          <button onClick={() => submitMutation.mutate('document_upload')} className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">
             <FileUp className="h-4 w-4" />
             Send document
           </button>
-          <button disabled={!form.patient_id} onClick={() => uploadPrepMutation.mutate()} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">Prepare upload</button>
+          <button disabled={!form.patient_id} onClick={() => uploadPrepMutation.mutate()} className="rounded-md border border-border bg-canvas-raised text-ink-secondary px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk disabled:cursor-not-allowed disabled:opacity-50">Prepare upload</button>
         </div>
         {uploadPrep && (
-          <div className="mt-4 rounded-md border border-clinic-200 bg-clinic-50 p-3">
-            <div className="text-xs font-semibold text-clinic-700">Prepared upload</div>
-            <div className="mt-2 break-all font-mono text-xs text-clinic-500">{uploadPrep.file_url}</div>
-            <div className="mt-1 text-xs text-clinic-500">Expires {new Date(uploadPrep.expires_at).toLocaleString()}</div>
-            <button onClick={() => completeUploadMutation.mutate()} className="mt-3 rounded-md bg-accent-600 px-3 py-2 text-xs font-medium text-white hover:bg-accent-700">Complete upload</button>
+          <div className="mt-4 rounded-md border border-border bg-canvas p-3">
+            <div className="text-xs font-semibold text-ink-secondary">Prepared upload</div>
+            <div className="mt-2 break-all font-mono text-xs text-ink-muted">{uploadPrep.file_url}</div>
+            <div className="mt-1 text-xs text-ink-muted">Expires {new Date(uploadPrep.expires_at).toLocaleString()}</div>
+            <button onClick={() => completeUploadMutation.mutate()} className="mt-3 rounded-md bg-accent text-accent-on px-4 py-2 text-xs font-medium hover:bg-accent-hover">Complete upload</button>
           </div>
         )}
-        {completedUploadTitle && <div className="mt-3 text-xs font-medium text-accent-700">{completedUploadTitle} added to the patient documents queue.</div>}
+        {completedUploadTitle && <div className="mt-3 text-xs font-medium text-accent">{completedUploadTitle} added to the patient documents queue.</div>}
       </section>
     </div>
   );
