@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ClinicNeedsStrip, OperationalEmptyState } from '@/lib/ui-state';
+import { OperationalEmptyState } from '@/lib/ui-state';
 import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type PatientDocumentQueueResponse, type Task, type TodayQueue } from '@concierge-os/shared';
 
 export const Route = createFileRoute('/')({
@@ -73,10 +73,10 @@ function CommandCenterPage() {
   const checkedIn = todayQueue?.checked_in ?? 0;
 
   const queueMetrics = [
-    { label: 'Patients scheduled', value: String(todayQueue?.total ?? todayItems.length), note: `${checkedIn} active, ${todayQueue?.blocked ?? 0} blocked`, icon: Users, tone: 'text-clinic-700' },
-    { label: 'Open tasks', value: String(openTasks.length), note: `${dueToday} due today`, icon: CheckCircle2, tone: 'text-amber-700' },
-    { label: 'Unread messages', value: String(unreadMessages), note: `${threads?.total ?? 0} active threads`, icon: MessageSquare, tone: 'text-accent-700' },
-    { label: 'Documents', value: String(documentQueue?.total ?? 0), note: `${reviewDocuments.filter((item) => item.review_priority === 'urgent' || item.review_priority === 'high').length} high priority`, icon: FileText, tone: 'text-red-700' },
+    { label: 'Patients scheduled', value: String(todayQueue?.total ?? todayItems.length), note: `${checkedIn} active, ${todayQueue?.blocked ?? 0} blocked`, icon: Users, tone: 'text-ink-muted' },
+    { label: 'Open tasks', value: String(openTasks.length), note: `${dueToday} due today`, icon: CheckCircle2, tone: 'text-warn' },
+    { label: 'Unread messages', value: String(unreadMessages), note: `${threads?.total ?? 0} active threads`, icon: MessageSquare, tone: 'text-accent' },
+    { label: 'Documents', value: String(documentQueue?.total ?? 0), note: `${reviewDocuments.filter((item) => item.review_priority === 'urgent' || item.review_priority === 'high').length} high priority`, icon: FileText, tone: 'text-danger' },
   ];
 
   const riskItems = [
@@ -129,36 +129,30 @@ function CommandCenterPage() {
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-clinic-500">Wednesday clinic session</p>
-          <h1 className="mt-1 text-2xl font-semibold text-clinic-900">Command Center</h1>
+          <p className="text-small text-ink-muted">Wednesday clinic session</p>
+          <h1 className="font-serif text-display text-ink mt-1">Command Center</h1>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-accent-200 bg-accent-50 px-2.5 py-1.5 font-medium text-accent-800">
-            <span className="h-2 w-2 rounded-full bg-accent-600" />
-            Demo-ready
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-clinic-200 bg-white px-2.5 py-1.5 text-clinic-600">
+        <div className="flex items-center gap-2 text-small">
+          <span className="inline-flex items-center gap-1.5 text-ink-faint">
             <Clock className="h-3.5 w-3.5" />
             Last sync just now
           </span>
         </div>
       </header>
 
-      <ClinicNeedsStrip />
-
-      <section className="rounded-md border border-accent-200 bg-accent-50 p-4">
+      <section className="bg-accent-soft border border-border rounded-md p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-accent-900">Next best actions</h2>
-            <p className="mt-1 text-sm text-accent-800">Start here when the clinic day is quiet, demo data is missing, or the team needs direction.</p>
+            <h2 className="text-subhead font-medium text-ink">Next best actions</h2>
+            <p className="mt-1 text-small text-ink-secondary">Start here when the clinic day is quiet, demo data is missing, or the team needs direction.</p>
           </div>
-          <Link to="/setup" className="rounded-md bg-accent-700 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-800">Open setup</Link>
+          <Link to="/setup" className="bg-accent text-accent-on rounded-md px-3 py-2 text-sm font-medium hover:bg-accent-hover">Open setup</Link>
         </div>
         <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {nextBestActions.map((action) => (
-            <Link key={action.to} to={action.to} className="rounded-md border border-accent-200 bg-white p-3 hover:bg-accent-50">
-              <div className="text-sm font-semibold text-clinic-900">{action.label}</div>
-              <div className="mt-1 text-xs leading-5 text-clinic-500">{action.detail}</div>
+            <Link key={action.to} to={action.to} className="bg-canvas-raised border border-border rounded-md p-3 hover:border-border-strong transition-colors">
+              <div className="text-small font-medium text-ink">{action.label}</div>
+              <div className="text-micro text-ink-muted mt-1">{action.detail}</div>
             </Link>
           ))}
         </div>
@@ -166,63 +160,63 @@ function CommandCenterPage() {
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {queueMetrics.map(({ label, value, note, icon: Icon, tone }) => (
-          <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
+          <div key={label} className="bg-canvas-raised border border-border rounded-md p-4">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-clinic-500">{label}</span>
+              <span className="text-small font-medium text-ink-muted">{label}</span>
               <Icon className={`h-4 w-4 ${tone}`} />
             </div>
-            <div className="mt-3 text-3xl font-semibold tracking-normal text-clinic-900">{value}</div>
-            <div className="mt-1 text-sm text-clinic-500">{note}</div>
+            <div className="font-serif text-2xl font-medium text-ink mt-3">{value}</div>
+            <div className="text-micro text-ink-faint mt-1">{note}</div>
           </div>
         ))}
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <section className="rounded-md border border-clinic-200 bg-white">
-          <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+        <section>
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-800">Today&apos;s Schedule</h2>
-              <p className="text-xs text-clinic-500">Live clinic flow and intake state</p>
+              <h2 className="text-subhead font-medium text-ink">Today&apos;s Schedule</h2>
+              <p className="text-micro text-ink-muted mt-0.5">Live clinic flow and intake state</p>
             </div>
-            <Link to="/scheduling" className="inline-flex items-center gap-1 text-sm font-medium text-accent-700 hover:text-accent-800">
+            <Link to="/scheduling" className="inline-flex items-center gap-1 text-small font-medium text-accent hover:text-accent-hover">
               Open schedule
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+              <thead className="border-b border-border bg-canvas-sunk text-left">
                 <tr>
-                  <th className="px-4 py-2.5">Time</th>
-                  <th className="px-4 py-2.5">Patient</th>
-                  <th className="px-4 py-2.5">Visit Type</th>
-                  <th className="px-4 py-2.5">State</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Time</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Patient</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Visit Type</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">State</th>
                 </tr>
               </thead>
               <tbody>
                 {todayItems.map((item) => (
-                  <tr key={item.appointment.id} className="border-b border-clinic-100 last:border-b-0">
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-clinic-600">
+                  <tr key={item.appointment.id} className="border-b border-border-subtle hover:bg-canvas-sunk/50 transition-colors duration-150">
+                    <td className="whitespace-nowrap px-4 py-3 font-mono text-micro text-ink-muted">
                       {new Date(item.appointment.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-clinic-900">{item.appointment.patient_name}</div>
-                      <div className={`mt-0.5 text-xs ${item.blockers.length > 0 ? 'text-red-700' : 'text-clinic-500'}`}>
+                      <div className="font-medium text-ink">{item.appointment.patient_name}</div>
+                      <div className={`mt-0.5 text-small ${item.blockers.length > 0 ? 'text-danger' : 'text-ink-muted'}`}>
                         {item.blockers.length > 0 ? item.blockers.join(', ') : 'Ready for next step'}
                       </div>
-                      <Link to="/patients/$patientId" params={{ patientId: item.appointment.patient_id }} className="mt-1 inline-flex text-xs font-medium text-accent-700 hover:text-accent-800">
+                      <Link to="/patients/$patientId" params={{ patientId: item.appointment.patient_id }} className="mt-1 inline-flex text-micro font-medium text-accent hover:text-accent-hover">
                         Open handoff
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-clinic-600">{item.appointment.type}</td>
+                    <td className="px-4 py-3 text-ink-muted">{item.appointment.type}</td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex rounded-md border px-2 py-1 text-xs font-medium ${item.checkout_readiness === 'blocked' ? 'border-red-200 bg-red-50 text-red-700' : 'border-clinic-200 bg-clinic-50 text-clinic-700'}`}>
+                      <span className={`inline-flex rounded-sm border px-2 py-1 text-micro font-medium ${item.checkout_readiness === 'blocked' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-border-subtle bg-canvas-sunk text-ink-muted'}`}>
                         {item.appointment.status.replace('_', ' ')}
                       </span>
                       {nextVisitStatus(item.appointment.status) && (
                         <button
                           onClick={() => statusMutation.mutate({ id: item.appointment.id, status: nextVisitStatus(item.appointment.status)! })}
-                          className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                          className="ml-2 bg-accent-soft text-accent border border-accent-soft rounded-sm px-2 py-1 text-micro font-medium hover:bg-accent/20 transition-colors"
                         >
                           {nextVisitLabel(item.appointment.status)}
                         </button>
@@ -236,8 +230,8 @@ function CommandCenterPage() {
                       <OperationalEmptyState
                         title="No appointments scheduled today"
                         detail="Create the first appointment, import the clinic calendar, or seed the pilot workspace so staff can trust this dashboard before clinic starts."
-                        primaryAction={<Link to="/scheduling" className="rounded-md bg-accent-600 px-3 py-2 text-sm font-semibold text-white hover:bg-accent-700">Create appointment</Link>}
-                        secondaryAction={<Link to="/setup" className="rounded-md border border-clinic-300 bg-white px-3 py-2 text-sm font-semibold text-clinic-700 hover:bg-clinic-50">Seed demo data</Link>}
+                        primaryAction={<Link to="/scheduling" className="bg-accent text-accent-on rounded-md px-3 py-2 text-sm font-medium hover:bg-accent-hover">Create appointment</Link>}
+                        secondaryAction={<Link to="/setup" className="border border-border bg-canvas-raised text-ink-secondary rounded-md px-3 py-2 text-sm font-medium hover:border-border-strong hover:bg-canvas-sunk">Seed demo data</Link>}
                       />
                     </td>
                   </tr>
@@ -248,90 +242,84 @@ function CommandCenterPage() {
         </section>
 
         <aside className="space-y-5">
-          <section className="rounded-md border border-clinic-200 bg-white">
-            <div className="border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-800">Needs Attention</h2>
-              <p className="text-xs text-clinic-500">Clinical risk and operational blockers</p>
+          <section className="divide-y divide-border">
+            <div className="py-3 border-b border-border">
+              <h2 className="text-subhead font-medium text-ink">Needs Attention</h2>
+              <p className="text-micro text-ink-muted mt-0.5">Clinical risk and operational blockers</p>
             </div>
-            <div className="divide-y divide-clinic-100">
-              {riskItems.map((item) => (
-                <div key={item.label} className="flex gap-3 px-4 py-3">
-                  <AlertTriangle className={`mt-0.5 h-4 w-4 ${item.severity === 'urgent' ? 'text-red-700' : item.severity === 'high' ? 'text-amber-700' : 'text-clinic-500'}`} />
-                  <div>
-                    <div className="text-sm font-medium text-clinic-900">{item.label}</div>
-                    <div className="mt-0.5 text-xs text-clinic-500">{item.detail}</div>
-                  </div>
+            {riskItems.map((item) => (
+              <div key={item.label} className="flex gap-3 px-4 py-3 hover:bg-canvas-sunk/50 transition-colors duration-150">
+                <AlertTriangle className={`mt-0.5 h-4 w-4 ${item.severity === 'urgent' ? 'text-danger' : item.severity === 'high' ? 'text-warn' : 'text-ink-faint'}`} />
+                <div>
+                  <div className="text-small font-medium text-ink">{item.label}</div>
+                  <div className="mt-0.5 text-micro text-ink-muted">{item.detail}</div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </section>
 
-          <section className="rounded-md border border-clinic-200 bg-white">
-            <div className="border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-800">Document Review Queue</h2>
-              <p className="text-xs text-clinic-500">Outside records needing clinical or front-office review</p>
+          <section className="divide-y divide-border">
+            <div className="py-3 border-b border-border">
+              <h2 className="text-subhead font-medium text-ink">Document Review Queue</h2>
+              <p className="text-micro text-ink-muted mt-0.5">Outside records needing clinical or front-office review</p>
             </div>
-            <div className="divide-y divide-clinic-100">
-              {reviewDocuments.slice(0, 4).map((document) => (
-                <Link
-                  key={document.id}
-                  to="/patients/$patientId"
-                  params={{ patientId: document.patient_id }}
-                  className="block px-4 py-3 hover:bg-clinic-50"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-clinic-900">{document.title}</div>
-                      <div className="mt-0.5 text-xs text-clinic-500">{document.patient_name} · {document.source}</div>
-                      <div className="mt-0.5 text-xs text-clinic-500">{document.routed_to_role ?? 'Unrouted'} · {document.source_reference ?? 'No reference'}</div>
-                    </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${document.review_priority === 'urgent' ? 'border-red-200 bg-red-50 text-red-700' : document.review_priority === 'high' ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-clinic-200 bg-clinic-50 text-clinic-600'}`}>
-                      {document.review_priority}
-                    </span>
+            {reviewDocuments.slice(0, 4).map((document) => (
+              <Link
+                key={document.id}
+                to="/patients/$patientId"
+                params={{ patientId: document.patient_id }}
+                className="block px-4 py-3 hover:bg-canvas-sunk/50 transition-colors duration-150"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-small font-medium text-ink">{document.title}</div>
+                    <div className="mt-0.5 text-micro text-ink-muted">{document.patient_name} · {document.source}</div>
+                    <div className="mt-0.5 text-micro text-ink-muted">{document.routed_to_role ?? 'Unrouted'} · {document.source_reference ?? 'No reference'}</div>
                   </div>
-                </Link>
-              ))}
-              {reviewDocuments.length === 0 && (
-                <div className="px-4 py-8 text-center text-sm text-clinic-400">No outside documents need review.</div>
-              )}
-            </div>
+                  <span className={`inline-flex items-center rounded-pill px-2 py-0.5 text-micro font-medium ${document.review_priority === 'urgent' ? 'bg-danger/10 text-danger' : document.review_priority === 'high' ? 'bg-warn/10 text-warn' : 'bg-canvas-sunk text-ink-muted'}`}>
+                    {document.review_priority}
+                  </span>
+                </div>
+              </Link>
+            ))}
+            {reviewDocuments.length === 0 && (
+              <div className="px-4 py-8 text-center text-small text-ink-faint">No outside documents need review.</div>
+            )}
           </section>
 
-          <section className="rounded-md border border-clinic-200 bg-white">
-            <div className="border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-800">Shift Handoff</h2>
+          <section className="divide-y divide-border">
+            <div className="py-3 border-b border-border">
+              <h2 className="text-subhead font-medium text-ink">Shift Handoff</h2>
             </div>
-            <ul className="space-y-2 p-4 text-sm text-clinic-700">
+            <ul className="space-y-2 p-4 text-small text-ink-secondary">
               {handoffItems.map((item) => (
                 <li key={item} className="flex gap-2">
-                  <Inbox className="mt-0.5 h-3.5 w-3.5 shrink-0 text-clinic-400" />
+                  <Inbox className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-faint" />
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
           </section>
 
-          <section className="rounded-md border border-clinic-200 bg-white">
-            <div className="border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-800">Audit Trail</h2>
-              <p className="text-xs text-clinic-500">Recent confirmed actions and system events</p>
+          <section className="divide-y divide-border">
+            <div className="py-3 border-b border-border">
+              <h2 className="text-subhead font-medium text-ink">Audit Trail</h2>
+              <p className="text-micro text-ink-muted mt-0.5">Recent confirmed actions and system events</p>
             </div>
-            <div className="divide-y divide-clinic-100">
-              {recentAuditEvents.map((event) => (
-                <div key={event.id} className="flex gap-3 px-4 py-3">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent-700" />
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-clinic-900">{event.event_type.replaceAll('.', ' ')}</div>
-                    <div className="mt-0.5 truncate text-xs text-clinic-500">
-                      {event.entity_type} - {new Date(event.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
-                    </div>
+            {recentAuditEvents.map((event) => (
+              <div key={event.id} className="flex gap-3 px-4 py-3 hover:bg-canvas-sunk/50 transition-colors duration-150">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                <div className="min-w-0">
+                  <div className="truncate text-small font-medium text-ink">{event.event_type.replaceAll('.', ' ')}</div>
+                  <div className="mt-0.5 truncate text-micro text-ink-muted">
+                    {event.entity_type} - {new Date(event.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                   </div>
                 </div>
-              ))}
-              {recentAuditEvents.length === 0 && (
-                <div className="px-4 py-8 text-center text-sm text-clinic-400">No audit events yet</div>
-              )}
-            </div>
+              </div>
+            ))}
+            {recentAuditEvents.length === 0 && (
+              <div className="px-4 py-8 text-center text-small text-ink-faint">No audit events yet</div>
+            )}
           </section>
         </aside>
       </div>
@@ -342,10 +330,10 @@ function CommandCenterPage() {
           { to: '/tasks', label: 'Work task queue', detail: 'Assign, complete, escalate', icon: CheckCircle2 },
           { to: '/faxes', label: 'Process faxes', detail: 'Match OCR to patient charts', icon: CalendarClock },
         ].map(({ to, label, detail, icon: Icon }) => (
-          <Link key={to} to={to} className="rounded-md border border-clinic-200 bg-white p-4 transition-colors hover:border-clinic-300 hover:bg-clinic-50">
-            <Icon className="h-4 w-4 text-accent-700" />
-            <div className="mt-3 text-sm font-semibold text-clinic-900">{label}</div>
-            <div className="mt-1 text-xs text-clinic-500">{detail}</div>
+          <Link key={to} to={to} className="bg-canvas-raised border border-border rounded-md p-4 hover:border-border-strong transition-colors">
+            <Icon className="h-4 w-4 text-accent" />
+            <div className="mt-3 text-small font-medium text-ink">{label}</div>
+            <div className="mt-1 text-micro text-ink-muted">{detail}</div>
           </Link>
         ))}
       </section>

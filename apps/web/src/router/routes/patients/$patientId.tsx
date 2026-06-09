@@ -5,6 +5,8 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared'
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
+import { Badge } from '@/components/badge';
+import { Button } from '@/components/button';
 import type { Appointment, AppointmentStatus, AuditEvent, BillingCase, BillingCaseListResponse, BillingTimelineResponse, EligibilityCheck, EncounterTemplateListResponse, Patient, PatientCarePlanItem, PatientCarePlanListResponse, PatientChartSummary, PatientCheckoutHandoff, PatientDocument, PatientDocumentAccess, PatientDocumentDownloadHandoff, PatientDocumentListResponse, PatientDocumentProcessResult, PatientEncounter, PatientEncounterListResponse, PatientLabResult, PatientLabResultListResponse, PatientMedication, PatientMedicationListResponse, PatientUpdate, Task, User } from '@concierge-os/shared';
 import {
   ArrowLeft,
@@ -374,7 +376,7 @@ function PatientChartPage() {
     <div>
       <button
         onClick={() => navigate({ to: '/patients' })}
-        className="mb-4 flex items-center gap-2 text-sm text-clinic-500 hover:text-clinic-700"
+        className="mb-4 flex items-center gap-2 text-small text-ink-muted hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" />
         Back to patients
@@ -382,42 +384,42 @@ function PatientChartPage() {
 
       <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-clinic-800">
+          <h1 className="font-serif text-display text-ink">
             {patient.last_name}, {patient.first_name}
           </h1>
-          <p className="mt-1 flex items-center gap-3 text-sm text-clinic-500">
-            <span className="font-mono text-xs">{patient.mrn}</span>
+          <p className="mt-1 flex items-center gap-3 text-small text-ink-muted">
+            <span className="font-mono text-micro">{patient.mrn}</span>
             <span>{patient.dob}</span>
             <span>{patient.gender}</span>
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setHandoffOpen(true)}
-          className="flex items-center gap-2 rounded-md bg-clinic-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-clinic-700"
+          icon={ShieldCheck}
         >
-          <ShieldCheck className="h-4 w-4" />
           Checkout Handoff
-        </button>
+        </Button>
         {activeTab === 'demographics' && !editing && (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            icon={Pencil}
             onClick={startEditing}
-            className="flex items-center gap-2 rounded-md border border-clinic-300 px-3 py-1.5 text-sm text-clinic-600 hover:bg-clinic-100"
           >
-            <Pencil className="h-4 w-4" />
             Edit
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="mb-6 flex gap-0 overflow-x-auto border-b border-clinic-200">
+      <div className="mb-6 flex gap-0 overflow-x-auto border-b border-border">
         {TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => { setActiveTab(key); setEditing(false); }}
-            className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            className={`px-4 py-2.5 text-small font-medium transition-colors ${
               activeTab === key
-                ? 'border-b-2 border-accent-600 text-accent-700'
-                : 'text-clinic-500 hover:text-clinic-700'
+                ? 'border-b-2 border-accent text-accent'
+                : 'text-ink-muted hover:text-ink'
             }`}
           >
             {label}
@@ -429,60 +431,60 @@ function PatientChartPage() {
         <div className="space-y-5">
           <section className="grid gap-3 lg:grid-cols-5">
             {[
-              { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent-700' },
-              { label: 'Documents', value: String(chartSummary?.counts.documents_total ?? documentRows.length), detail: `${chartSummary?.counts.documents_needing_review ?? documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-amber-700' },
-              { label: 'Open tasks', value: String(chartSummary?.counts.open_tasks ?? openTasks.length), detail: `${chartSummary?.counts.urgent_tasks ?? 0} urgent`, icon: ClipboardList, tone: 'text-red-700' },
-              { label: 'Clinical review', value: String((chartSummary?.counts.medications_needing_review ?? 0) + (chartSummary?.counts.labs_needing_review ?? 0)), detail: `${chartSummary?.counts.medications_needing_review ?? 0} meds, ${chartSummary?.counts.labs_needing_review ?? 0} labs`, icon: AlertTriangle, tone: 'text-amber-700' },
-              { label: 'Care plan', value: String(carePlanItems.length), detail: `${chartSummary?.counts.care_plan_blockers ?? 0} blocked, ${chartSummary?.counts.unsigned_encounters ?? 0} unsigned`, icon: ShieldCheck, tone: 'text-clinic-700' },
+              { label: 'Visit state', value: 'Checkout prep', detail: 'Provider review pending', icon: Stethoscope, tone: 'text-accent' },
+              { label: 'Documents', value: String(chartSummary?.counts.documents_total ?? documentRows.length), detail: `${chartSummary?.counts.documents_needing_review ?? documentsNeedingReview} needs review`, icon: FolderOpen, tone: 'text-warn' },
+              { label: 'Open tasks', value: String(chartSummary?.counts.open_tasks ?? openTasks.length), detail: `${chartSummary?.counts.urgent_tasks ?? 0} urgent`, icon: ClipboardList, tone: 'text-danger' },
+              { label: 'Clinical review', value: String((chartSummary?.counts.medications_needing_review ?? 0) + (chartSummary?.counts.labs_needing_review ?? 0)), detail: `${chartSummary?.counts.medications_needing_review ?? 0} meds, ${chartSummary?.counts.labs_needing_review ?? 0} labs`, icon: AlertTriangle, tone: 'text-warn' },
+              { label: 'Care plan', value: String(carePlanItems.length), detail: `${chartSummary?.counts.care_plan_blockers ?? 0} blocked, ${chartSummary?.counts.unsigned_encounters ?? 0} unsigned`, icon: ShieldCheck, tone: 'text-ink-muted' },
             ].map(({ label, value, detail, icon: Icon, tone }) => (
-              <div key={label} className="rounded-md border border-clinic-200 bg-white p-4">
+              <div key={label} className="bg-canvas-raised border border-border rounded-md p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-clinic-500">{label}</span>
+                  <span className="text-small font-medium text-ink-muted">{label}</span>
                   <Icon className={`h-4 w-4 ${tone}`} />
                 </div>
-                <div className="mt-3 text-2xl font-semibold text-clinic-900">{value}</div>
-                <div className="mt-1 text-sm text-clinic-500">{detail}</div>
+                <div className="font-serif text-2xl font-medium text-ink mt-3">{value}</div>
+                <div className="text-micro text-ink-faint mt-1">{detail}</div>
               </div>
             ))}
           </section>
 
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-            <div className="rounded-md border border-clinic-200 bg-white">
-              <div className="border-b border-clinic-200 px-4 py-3">
-                <h2 className="text-sm font-semibold text-clinic-800">Checkout Handoff</h2>
-                <p className="text-xs text-clinic-500">What the care team needs before this patient leaves</p>
+            <div className="border border-border bg-canvas-raised rounded-md">
+              <div className="border-b border-border px-4 py-3">
+                <h2 className="text-subhead font-medium text-ink">Checkout Handoff</h2>
+                <p className="text-micro text-ink-muted mt-0.5">What the care team needs before this patient leaves</p>
               </div>
-              <div className="divide-y divide-clinic-100">
+              <div className="divide-y divide-border">
                 {carePlanItems.map((item) => (
                   <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[10rem_1fr_7rem_7rem]">
-                    <div className="text-sm font-medium text-clinic-700">
+                    <div className="text-small font-medium text-ink-secondary">
                       <select
                         value={item.assigned_to_id ?? ''}
                         onChange={(event) => updateCarePlanMutation.mutate({ itemId: item.id, update: { assigned_to_id: event.target.value || null } })}
-                        className="w-full rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                        className="w-full bg-canvas border border-border rounded-sm px-2 py-1 text-micro text-ink-secondary"
                       >
                         <option value="">{item.owner_role}</option>
                         {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
                       </select>
-                      {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
+                      {item.escalation && <div className="mt-0.5 text-micro text-danger">{formatClinicalStatus(item.escalation)}</div>}
                     </div>
-                    <div className="text-sm text-clinic-800">{item.item}</div>
-                    <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
-                    <div className="text-sm font-medium text-clinic-700">{formatClinicalStatus(item.status)}</div>
+                    <div className="text-small text-ink">{item.item}</div>
+                    <div className="text-small text-ink-muted">{item.due ?? 'No due date'}</div>
+                    <div className="text-small font-medium text-ink-secondary">{formatClinicalStatus(item.status)}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <aside className="rounded-md border border-clinic-200 bg-white p-4">
-              <h2 className="text-sm font-semibold text-clinic-800">Clinical Flags</h2>
-              <div className="mt-3 space-y-3 text-sm">
+            <aside className="border border-border bg-canvas-raised rounded-md p-4">
+              <h2 className="text-subhead font-medium text-ink">Clinical Flags</h2>
+              <div className="mt-3 space-y-3 text-small">
                 {blockers.length > 0 ? blockers.map((blocker) => (
-                  <div key={blocker} className="rounded-md border border-red-200 bg-red-50 p-3 text-red-800">
+                  <div key={blocker} className="rounded-md border border-danger/20 bg-danger/10 p-3 text-danger">
                     {blocker}
                   </div>
                 )) : (
-                  <div className="rounded-md border border-clinic-200 bg-clinic-50 p-3 text-clinic-700">
+                  <div className="rounded-md border border-border bg-canvas-sunk p-3 text-ink-secondary">
                     No chart blockers are currently reported.
                   </div>
                 )}
@@ -493,51 +495,51 @@ function PatientChartPage() {
       )}
 
       {activeTab === 'demographics' && (
-        <div className="rounded-lg border border-clinic-200 bg-white p-6">
+        <div className="border border-border bg-canvas-raised rounded-md p-6">
           {editing ? (
             <div className="max-w-md space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-clinic-700">First Name</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">First Name</label>
                 <input
                   type="text"
                   value={editForm.first_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-clinic-700">Last Name</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">Last Name</label>
                 <input
                   type="text"
                   value={editForm.last_name || ''}
                   onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-clinic-700">Phone</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">Phone</label>
                 <input
                   type="text"
                   value={editForm.phone || ''}
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-clinic-700">Email</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">Email</label>
                 <input
                   type="email"
                   value={editForm.email || ''}
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-clinic-700">Preferred outreach</label>
+                <label className="mb-1 block text-small font-medium text-ink-secondary">Preferred outreach</label>
                 <select
                   value={editForm.preferred_contact_channel || ''}
                   onChange={(e) => setEditForm({ ...editForm, preferred_contact_channel: e.target.value })}
-                  className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+                  className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink"
                 >
                   <option value="">None selected</option>
                   <option value="sms">SMS</option>
@@ -545,35 +547,34 @@ function PatientChartPage() {
                 </select>
               </div>
               <div className="flex flex-wrap gap-3">
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
-                  <input type="checkbox" checked={editForm.sms_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, sms_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                <label className="inline-flex items-center gap-2 text-small font-medium text-ink-secondary">
+                  <input type="checkbox" checked={editForm.sms_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, sms_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-border text-accent" />
                   SMS consent
                 </label>
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-clinic-700">
-                  <input type="checkbox" checked={editForm.email_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, email_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-clinic-300 text-accent-600" />
+                <label className="inline-flex items-center gap-2 text-small font-medium text-ink-secondary">
+                  <input type="checkbox" checked={editForm.email_consent === 'true'} onChange={(e) => setEditForm({ ...editForm, email_consent: e.target.checked ? 'true' : 'false' })} className="h-4 w-4 rounded border-border text-accent" />
                   Email consent
                 </label>
               </div>
               <div className="flex gap-2 pt-2">
-                <button
+                <Button
                   onClick={saveEdit}
                   disabled={updateMutation.isPending}
-                  className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50"
+                  icon={Check}
                 >
-                  <Check className="h-4 w-4" />
                   {updateMutation.isPending ? 'Saving' : 'Save'}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => setEditing(false)}
-                  className="flex items-center gap-2 rounded-md border border-clinic-300 px-4 py-2 text-sm text-clinic-600 hover:bg-clinic-100"
+                  icon={X}
                 >
-                  <X className="h-4 w-4" />
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
-            <dl className="grid grid-cols-2 gap-4 max-w-lg text-sm">
+            <dl className="grid grid-cols-2 gap-4 max-w-lg text-small">
               {[
                 { icon: Phone, label: 'Phone', value: patient.phone || '—' },
                 { icon: Mail, label: 'Email', value: patient.email || '—' },
@@ -582,10 +583,10 @@ function PatientChartPage() {
                 { icon: MapPin, label: 'Address', value: patient.address ? `${patient.address.street}, ${patient.address.city}, ${patient.address.state} ${patient.address.zip}` : '—' },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-start gap-2">
-                  <Icon className="mt-0.5 h-4 w-4 text-clinic-400" />
+                  <Icon className="mt-0.5 h-4 w-4 text-ink-faint" />
                   <div>
-                    <dt className="font-medium text-clinic-500">{label}</dt>
-                    <dd className="mt-0.5 text-clinic-800">{value}</dd>
+                    <dt className="font-medium text-ink-muted">{label}</dt>
+                    <dd className="mt-0.5 text-ink">{value}</dd>
                   </div>
                 </div>
               ))}
@@ -593,14 +594,14 @@ function PatientChartPage() {
           )}
 
           {patient.allergies && patient.allergies.length > 0 && (
-            <div className="mt-6 border-t border-clinic-200 pt-4">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-clinic-700">
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <div className="mt-6 border-t border-border pt-4">
+              <h3 className="mb-3 flex items-center gap-2 text-small font-medium text-ink-secondary">
+                <AlertTriangle className="h-4 w-4 text-warn" />
                 Allergies
               </h3>
               <div className="flex flex-wrap gap-2">
                 {patient.allergies.map((a, i) => (
-                  <span key={i} className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-xs font-medium text-amber-700">
+                  <span key={i} className="rounded-pill bg-warn/10 border border-warn/20 px-3 py-1 text-micro font-medium text-warn">
                     {a.substance} — {a.reaction}
                   </span>
                 ))}
@@ -609,12 +610,12 @@ function PatientChartPage() {
           )}
 
           {patient.problem_list && patient.problem_list.length > 0 && (
-            <div className="mt-4 border-t border-clinic-200 pt-4">
-              <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-clinic-700">
-                <Heart className="h-4 w-4 text-red-400" />
+            <div className="mt-4 border-t border-border pt-4">
+              <h3 className="mb-3 flex items-center gap-2 text-small font-medium text-ink-secondary">
+                <Heart className="h-4 w-4 text-danger" />
                 Problem List
               </h3>
-              <ul className="list-inside list-disc space-y-1 text-sm text-clinic-600">
+              <ul className="list-inside list-disc space-y-1 text-small text-ink-muted">
                 {patient.problem_list.map((p, i) => (
                   <li key={i}>{p}</li>
                 ))}
@@ -625,90 +626,90 @@ function PatientChartPage() {
       )}
 
       {activeTab === 'encounters' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-                <FileText className="h-4 w-4 text-accent-700" />
+              <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+                <FileText className="h-4 w-4 text-accent" />
                 Encounter Timeline
               </h2>
               <div className="flex flex-wrap gap-2">
                 {(encounterTemplates?.data ?? []).map((template) => (
-                  <button key={template.id} onClick={() => createEncounterMutation.mutate(template.id)} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-white">
+                  <button key={template.id} onClick={() => createEncounterMutation.mutate(template.id)} className="border border-border bg-canvas-sunk rounded-sm px-2 py-1 text-micro font-medium text-ink-secondary hover:bg-canvas-raised transition-colors">
                     {template.name}
                   </button>
                 ))}
               </div>
             </div>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {encounterRows.map((encounter) => (
               <div key={encounter.id} className="grid gap-3 px-4 py-3 md:grid-cols-[8rem_1fr_14rem]">
-                <div className="font-mono text-xs text-clinic-500">{formatDateOnly(encounter.created_at)}</div>
+                <div className="font-mono text-micro text-ink-muted">{formatDateOnly(encounter.created_at)}</div>
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{encounter.encounter_type}</div>
-                  <div className="mt-1 text-sm text-clinic-600">{encounter.summary ?? 'No summary entered.'}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{encounter.provider_name ?? 'No provider assigned'}</div>
+                  <div className="text-small font-medium text-ink">{encounter.encounter_type}</div>
+                  <div className="mt-1 text-small text-ink-secondary">{encounter.summary ?? 'No summary entered.'}</div>
+                  <div className="mt-1 text-micro text-ink-muted">{encounter.provider_name ?? 'No provider assigned'}</div>
                   {(encounter.assessment || encounter.plan) && (
-                    <div className="mt-2 grid gap-2 text-xs text-clinic-600 md:grid-cols-2">
-                      {encounter.assessment && <div><span className="font-semibold text-clinic-700">Assessment:</span> {encounter.assessment}</div>}
-                      {encounter.plan && <div><span className="font-semibold text-clinic-700">Plan:</span> {encounter.plan}</div>}
+                    <div className="mt-2 grid gap-2 text-micro text-ink-secondary md:grid-cols-2">
+                      {encounter.assessment && <div><span className="font-medium text-ink">Assessment:</span> {encounter.assessment}</div>}
+                      {encounter.plan && <div><span className="font-medium text-ink">Plan:</span> {encounter.plan}</div>}
                     </div>
                   )}
                 </div>
                 <div className="flex flex-wrap items-start justify-end gap-2">
-                  <span className="inline-flex rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
-                    {formatClinicalStatus(encounter.status)}
-                  </span>
+                  <Badge intent="muted">{formatClinicalStatus(encounter.status)}</Badge>
                   {encounter.status === 'provider_review' && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => updateEncounterMutation.mutate({ encounterId: encounter.id, status: 'signed' })}
-                      className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                     >
                       Sign
-                    </button>
+                    </Button>
                   )}
                   {encounter.status === 'signed' && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => chargeCaptureMutation.mutate(encounter.id)}
-                      className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
                     >
                       Charge
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
             ))}
             {encounterRows.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-clinic-400">No encounters have been added to this chart.</div>
+              <div className="px-4 py-8 text-center text-small text-ink-faint">No encounters have been added to this chart.</div>
             )}
           </div>
         </div>
       )}
 
       {activeTab === 'documents' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <FolderOpen className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <FolderOpen className="h-4 w-4 text-accent" />
               Outside Documents
             </h2>
-            <p className="mt-1 text-xs text-clinic-500">Faxed, scanned, and imported records from outside offices</p>
+            <p className="mt-1 text-micro text-ink-muted">Faxed, scanned, and imported records from outside offices</p>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {documentAccessMessage && (
-              <div className="border-b border-accent-100 bg-accent-50 px-4 py-2 text-sm text-accent-800">
+              <div className="border-b border-accent-soft bg-accent-soft px-4 py-2 text-small text-accent">
                 {documentAccessMessage}
               </div>
             )}
             {documentsLoading && (
-              <div className="px-4 py-6 text-sm text-clinic-500">Loading outside documents...</div>
+              <div className="px-4 py-6 text-small text-ink-muted">Loading outside documents...</div>
             )}
             {documentsError && (
-              <div className="px-4 py-6 text-sm text-red-700">Unable to load outside documents.</div>
+              <div className="px-4 py-6 text-small text-danger">Unable to load outside documents.</div>
             )}
             {!documentsLoading && !documentsError && documentRows.length === 0 && (
-              <div className="px-4 py-6 text-sm text-clinic-500">No outside documents have been attached to this chart yet.</div>
+              <div className="px-4 py-6 text-small text-ink-muted">No outside documents have been attached to this chart yet.</div>
             )}
             {!documentsLoading && !documentsError && documentRows.map((document) => {
               const reviewForm = formForDocumentReview(document);
@@ -716,54 +717,52 @@ function PatientChartPage() {
               <div key={document.id} className="grid gap-3 px-4 py-4 lg:grid-cols-[1fr_13rem_10rem_6rem]">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-clinic-900">{document.title}</span>
-                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5 text-xs font-medium text-clinic-600">
-                      {document.document_type}
-                    </span>
+                    <span className="text-small font-medium text-ink">{document.title}</span>
+                    <Badge intent="muted">{document.document_type}</Badge>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-clinic-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-micro text-ink-muted">
                     <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />{document.source}</span>
                     <span className="inline-flex items-center gap-1"><CalendarClock className="h-3.5 w-3.5" />{formatDateTime(document.received_at)}</span>
                     <span>{document.pages} pages</span>
                     {document.matched_by && <span>Matched by {document.matched_by}</span>}
                   </div>
-                  <div className="mt-2 grid gap-2 text-xs text-clinic-500 md:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
-                      <div className="font-medium text-clinic-700">{document.source_contact ?? 'Source contact not set'}</div>
+                  <div className="mt-2 grid gap-2 text-micro text-ink-muted md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-md border border-border bg-canvas-sunk px-2 py-1">
+                      <div className="font-medium text-ink-secondary">{document.source_contact ?? 'Source contact not set'}</div>
                       <div className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5">
                         {document.source_phone && <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{document.source_phone}</span>}
                         {document.source_fax && <span>Fax {document.source_fax}</span>}
                       </div>
                     </div>
-                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
-                      <div className="font-medium text-clinic-700">Reference</div>
+                    <div className="rounded-md border border-border bg-canvas-sunk px-2 py-1">
+                      <div className="font-medium text-ink-secondary">Reference</div>
                       <div className="mt-0.5">{document.source_reference ?? 'Not provided'}</div>
                     </div>
-                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
-                      <div className="font-medium text-clinic-700">Requested by</div>
+                    <div className="rounded-md border border-border bg-canvas-sunk px-2 py-1">
+                      <div className="font-medium text-ink-secondary">Requested by</div>
                       <div className="mt-0.5">{document.requested_by ?? 'Not tracked'}</div>
                     </div>
-                    <div className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1">
-                      <div className="font-medium text-clinic-700">Routing</div>
+                    <div className="rounded-md border border-border bg-canvas-sunk px-2 py-1">
+                      <div className="font-medium text-ink-secondary">Routing</div>
                       <div className="mt-0.5">{document.routed_to_role ?? 'Unrouted'} · {document.review_priority ?? 'normal'}</div>
                     </div>
                   </div>
-                  {document.summary && <p className="mt-2 max-w-3xl text-sm text-clinic-700">{document.summary}</p>}
+                  {document.summary && <p className="mt-2 max-w-3xl text-small text-ink-secondary">{document.summary}</p>}
                   {document.review_note && (
-                    <p className="mt-2 max-w-3xl rounded-md border border-accent-100 bg-accent-50 px-2 py-1.5 text-xs text-accent-800">
+                    <p className="mt-2 max-w-3xl rounded-md border border-accent-soft bg-accent-soft px-2 py-1.5 text-micro text-accent">
                       {document.review_note} {document.reviewed_by ? `- ${document.reviewed_by}` : ''} {document.reviewed_at ? `(${formatDateTime(document.reviewed_at)})` : ''}
                     </p>
                   )}
-                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-medium text-clinic-500">
-                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">{document.upload_status.replace('_', ' ')}</span>
-                    <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-0.5">OCR {document.ocr_status.replace('_', ' ')}</span>
-                    {document.classification && <span className="rounded-md border border-accent-200 bg-accent-50 px-2 py-0.5 text-accent-800">{document.classification.replace('_', ' ')}</span>}
+                  <div className="mt-2 flex flex-wrap gap-2 text-micro font-medium text-ink-muted">
+                    <Badge intent="muted">{document.upload_status.replace('_', ' ')}</Badge>
+                    <Badge intent="muted">OCR {document.ocr_status.replace('_', ' ')}</Badge>
+                    {document.classification && <Badge intent="warn">{document.classification.replace('_', ' ')}</Badge>}
                   </div>
-                  <div className="mt-3 grid gap-2 rounded-md border border-clinic-200 bg-white p-2 md:grid-cols-[8.5rem_8.5rem_8.5rem_9rem_minmax(0,1fr)_5rem]">
+                  <div className="mt-3 grid gap-2 rounded-md border border-border bg-canvas p-2 md:grid-cols-[8.5rem_8.5rem_8.5rem_9rem_minmax(0,1fr)_5rem]">
                     <select
                       value={reviewForm.status}
                       onChange={(event) => updateDocumentReviewForm(document, { status: event.target.value as PatientDocument['status'] })}
-                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="bg-canvas border border-border rounded-sm px-2 py-1.5 text-micro text-ink focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                     >
                       <option value="received">Received</option>
                       <option value="needs_review">Needs review</option>
@@ -775,12 +774,12 @@ function PatientChartPage() {
                       value={reviewForm.routed_to_role}
                       onChange={(event) => updateDocumentReviewForm(document, { routed_to_role: event.target.value })}
                       placeholder="Route role"
-                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="min-w-0 bg-canvas border border-border rounded-sm px-2 py-1.5 text-micro text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                     />
                     <select
                       value={reviewForm.review_priority}
                       onChange={(event) => updateDocumentReviewForm(document, { review_priority: event.target.value })}
-                      className="rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="bg-canvas border border-border rounded-sm px-2 py-1.5 text-micro text-ink focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                     >
                       <option value="normal">Normal</option>
                       <option value="high">High</option>
@@ -790,99 +789,102 @@ function PatientChartPage() {
                       value={reviewForm.reviewed_by}
                       onChange={(event) => updateDocumentReviewForm(document, { reviewed_by: event.target.value })}
                       placeholder="Reviewer"
-                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="min-w-0 bg-canvas border border-border rounded-sm px-2 py-1.5 text-micro text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                     />
                     <input
                       value={reviewForm.review_note}
                       onChange={(event) => updateDocumentReviewForm(document, { review_note: event.target.value })}
                       placeholder="Review note"
-                      className="min-w-0 rounded-md border border-clinic-200 px-2 py-1.5 text-xs focus:border-accent-500 focus:outline-none"
+                      className="min-w-0 bg-canvas border border-border rounded-sm px-2 py-1.5 text-micro text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                     />
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => submitDocumentReview(document)}
                       disabled={updateDocumentMutation.isPending}
-                      className="rounded-md border border-clinic-300 px-2 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
                     >
                       Save
-                    </button>
+                    </Button>
                   </div>
                 </div>
-                <div className="text-sm font-medium text-clinic-700">{formatDocumentStatus(document.status)}</div>
-                <div className="text-sm text-clinic-500">{document.file_url ? 'Available in chart' : 'Metadata only'}</div>
+                <div className="text-small font-medium text-ink-secondary">{formatDocumentStatus(document.status)}</div>
+                <div className="text-small text-ink-muted">{document.file_url ? 'Available in chart' : 'Metadata only'}</div>
                 <div className="flex flex-wrap justify-end gap-2">
                   {document.status === 'needs_review' && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={Check}
                       onClick={() => updateDocumentMutation.mutate({ documentId: document.id, data: { status: 'filed' } })}
                       disabled={updateDocumentMutation.isPending}
-                      className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Check className="h-3.5 w-3.5" />
                       File
-                    </button>
+                    </Button>
                   )}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={Download}
                     onClick={() => {
                       setDocumentAccessRequest(document);
                       setDocumentAccessReason('Clinical chart review');
                     }}
                     disabled={documentAccessMutation.isPending}
-                    className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    <Download className="h-3.5 w-3.5" />
                     View
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => processDocumentMutation.mutate(document.id)}
                     disabled={processDocumentMutation.isPending}
-                    className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Process
-                  </button>
+                  </Button>
                 </div>
               </div>
               );
             })}
           </div>
-          <div className="border-t border-clinic-100 bg-clinic-50 px-4 py-3">
-            <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-clinic-500">
+          <div className="border-t border-border bg-canvas-sunk px-4 py-3">
+            <div className="mb-2 flex items-center gap-2 text-meta font-medium text-ink-muted uppercase">
               <ShieldCheck className="h-3.5 w-3.5" />
               Recent PHI Access
             </div>
             <div className="grid gap-2 md:grid-cols-2">
               {(accessHistory?.data ?? []).slice(0, 4).map((event) => (
-                <div key={event.id} className="rounded-md border border-clinic-200 bg-white px-3 py-2 text-xs">
-                  <div className="font-medium text-clinic-700">{event.event_type.replaceAll('_', ' ')}</div>
-                  <div className="mt-1 text-clinic-500">{formatDateTime(event.created_at)}</div>
-                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-clinic-600">{event.payload.reason}</div>}
+                <div key={event.id} className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-micro">
+                  <div className="font-medium text-ink-secondary">{event.event_type.replaceAll('_', ' ')}</div>
+                  <div className="mt-1 text-ink-muted">{formatDateTime(event.created_at)}</div>
+                  {typeof event.payload?.reason === 'string' && <div className="mt-1 text-ink-secondary">{event.payload.reason}</div>}
                 </div>
               ))}
-              {(accessHistory?.data ?? []).length === 0 && <div className="text-xs text-clinic-400">No document access events recorded yet.</div>}
+              {(accessHistory?.data ?? []).length === 0 && <div className="text-micro text-ink-faint">No document access events recorded yet.</div>}
             </div>
           </div>
         </div>
       )}
 
       {documentAccessRequest && (
-        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               documentAccessMutation.mutate({ documentId: documentAccessRequest.id, reason: documentAccessReason });
             }}
-            className="mx-auto mt-28 max-w-md rounded-md border border-clinic-300 bg-white shadow-xl"
+            className="mx-auto mt-28 max-w-md bg-canvas-raised border border-border rounded-lg shadow-lg overflow-hidden"
           >
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">Document Access Reason</h2>
-              <button type="button" onClick={() => setDocumentAccessRequest(null)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="text-subhead font-medium text-ink">Document Access Reason</h2>
+              <button type="button" onClick={() => setDocumentAccessRequest(null)} className="rounded-md p-1 text-ink-muted hover:text-ink hover:bg-canvas-sunk">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4">
-              <div className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm font-medium text-clinic-800">
+            <div className="space-y-3 p-5">
+              <div className="rounded-md border border-border bg-canvas-sunk px-3 py-2 text-small font-medium text-ink">
                 {documentAccessRequest.title}
               </div>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Reason
                 <textarea
                   required
@@ -890,63 +892,63 @@ function PatientChartPage() {
                   rows={3}
                   value={documentAccessReason}
                   onChange={(event) => setDocumentAccessReason(event.target.value)}
-                  className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:ring-1 focus:ring-accent-soft focus:outline-none"
                 />
               </label>
             </div>
-            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
-              <button type="button" onClick={() => setDocumentAccessRequest(null)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
-              <button disabled={documentAccessMutation.isPending || documentAccessReason.trim().length < 3} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+            <div className="flex justify-end gap-3 border-t border-border px-5 py-4">
+              <Button variant="ghost" onClick={() => setDocumentAccessRequest(null)}>Cancel</Button>
+              <Button disabled={documentAccessMutation.isPending || documentAccessReason.trim().length < 3}>
                 {documentAccessMutation.isPending ? 'Opening...' : 'Open document'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
       )}
 
       {activeTab === 'medications' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <Pill className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <Pill className="h-4 w-4 text-accent" />
               Medication Reconciliation
             </h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+              <thead className="border-b border-border-subtle bg-canvas-sunk text-left">
                 <tr>
-                  <th className="px-4 py-2.5">Medication</th>
-                  <th className="px-4 py-2.5">Dose</th>
-                  <th className="px-4 py-2.5">Directions</th>
-                  <th className="px-4 py-2.5">Source</th>
-                  <th className="px-4 py-2.5">Status</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Medication</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Dose</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Directions</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Source</th>
+                  <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {medicationRows.map((medication) => (
-                  <tr key={medication.name} className="border-b border-clinic-100 last:border-b-0">
-                    <td className="px-4 py-3 font-medium text-clinic-900">{medication.name}</td>
-                    <td className="px-4 py-3 text-clinic-700">{medication.dose ?? '—'}</td>
-                    <td className="px-4 py-3 text-clinic-600">{medication.directions ?? '—'}</td>
-                    <td className="px-4 py-3 text-clinic-500">{medication.source ?? '—'}</td>
+                  <tr key={medication.name} className="border-b border-border-subtle hover:bg-canvas-sunk/50 transition-colors duration-150">
+                    <td className="px-4 py-3 font-medium text-ink">{medication.name}</td>
+                    <td className="px-4 py-3 text-ink-secondary">{medication.dose ?? '—'}</td>
+                    <td className="px-4 py-3 text-ink-muted">{medication.directions ?? '—'}</td>
+                    <td className="px-4 py-3 text-ink-muted">{medication.source ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
-                        {formatClinicalStatus(medication.status)}
-                      </span>
+                      <Badge intent="muted">{formatClinicalStatus(medication.status)}</Badge>
                       {medication.status === 'review' && (
-                        <button
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="ml-2"
                           onClick={() => updateMedicationMutation.mutate({ medicationId: medication.id, status: 'active' })}
-                          className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                         >
                           Confirm
-                        </button>
+                        </Button>
                       )}
                     </td>
                   </tr>
                 ))}
                 {medicationRows.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-clinic-400">No medications have been added to this chart.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-small text-ink-faint">No medications have been added to this chart.</td></tr>
                 )}
               </tbody>
             </table>
@@ -955,93 +957,97 @@ function PatientChartPage() {
       )}
 
       {activeTab === 'care-plan' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <ShieldCheck className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <ShieldCheck className="h-4 w-4 text-accent" />
               Care Plan And Checkout Needs
             </h2>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {carePlanItems.map((item) => (
               <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[10rem_1fr_8rem_8rem]">
-                <div className="text-sm font-medium text-clinic-700">
+                <div className="text-small font-medium text-ink-secondary">
                   <select
                     value={item.assigned_to_id ?? ''}
                     onChange={(event) => updateCarePlanMutation.mutate({ itemId: item.id, update: { assigned_to_id: event.target.value || null } })}
-                    className="w-full rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                    className="w-full bg-canvas border border-border rounded-sm px-2 py-1 text-micro text-ink-secondary"
                   >
                     <option value="">{item.owner_role}</option>
                     {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
                   </select>
-                  {item.escalation && <div className="mt-0.5 text-xs text-red-700">{formatClinicalStatus(item.escalation)}</div>}
+                  {item.escalation && <div className="mt-0.5 text-micro text-danger">{formatClinicalStatus(item.escalation)}</div>}
                 </div>
-                <div className="text-sm text-clinic-800">{item.item}</div>
-                <div className="text-sm text-clinic-500">{item.due ?? 'No due date'}</div>
-                <div className="text-sm font-medium text-clinic-700">
+                <div className="text-small text-ink">{item.item}</div>
+                <div className="text-small text-ink-muted">{item.due ?? 'No due date'}</div>
+                <div className="text-small font-medium text-ink-secondary">
                   {formatClinicalStatus(item.status)}
                   {item.status !== 'completed' && (
-                    <button
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="ml-2"
                       onClick={() => updateCarePlanMutation.mutate({ itemId: item.id, update: { status: 'completed' } })}
-                      className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                     >
                       Done
-                    </button>
+                    </Button>
                   )}
                 </div>
               </div>
             ))}
             {carePlanItems.length === 0 && (
-              <div className="px-4 py-8 text-center text-sm text-clinic-400">No care-plan items have been added to this chart.</div>
+              <div className="px-4 py-8 text-center text-small text-ink-faint">No care-plan items have been added to this chart.</div>
             )}
           </div>
         </div>
       )}
 
       {activeTab === 'labs' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <TestTube2 className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <TestTube2 className="h-4 w-4 text-accent" />
               Labs
             </h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="border-b border-clinic-100 bg-clinic-50 text-left text-xs font-medium text-clinic-500">
+            <thead className="border-b border-border-subtle bg-canvas-sunk text-left">
               <tr>
-                <th className="px-4 py-2.5">Date</th>
-                <th className="px-4 py-2.5">Panel</th>
-                <th className="px-4 py-2.5">Result</th>
-                <th className="px-4 py-2.5">Flag</th>
-                <th className="px-4 py-2.5">Status</th>
+                <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Date</th>
+                <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Panel</th>
+                <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Result</th>
+                <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Flag</th>
+                <th className="px-4 py-2.5 text-meta font-medium text-ink-muted uppercase">Status</th>
               </tr>
             </thead>
             <tbody>
               {labRows.map((lab) => (
-                <tr key={lab.id} className="border-b border-clinic-100 last:border-b-0">
-                  <td className="px-4 py-3 font-mono text-xs text-clinic-500">{lab.collected_at ? formatDateOnly(lab.collected_at) : '—'}</td>
-                  <td className="px-4 py-3 font-medium text-clinic-900">{lab.panel}</td>
-                  <td className="px-4 py-3 text-clinic-700">{lab.result}</td>
+                <tr key={lab.id} className="border-b border-border-subtle hover:bg-canvas-sunk/50 transition-colors duration-150">
+                  <td className="px-4 py-3 font-mono text-micro text-ink-muted">{lab.collected_at ? formatDateOnly(lab.collected_at) : '—'}</td>
+                  <td className="px-4 py-3 font-medium text-ink">{lab.panel}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{lab.result}</td>
                   <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-md px-2 py-1 text-xs font-medium ${lab.flag === 'Critical' ? 'bg-red-100 text-red-700' : lab.flag === 'High' ? 'bg-amber-100 text-amber-700' : 'bg-accent-100 text-accent-700'}`}>
+                    <Badge intent={lab.flag === 'Critical' ? 'danger' : lab.flag === 'High' ? 'warn' : 'muted'}>
                       {lab.flag ?? 'Normal'}
-                    </span>
+                    </Badge>
                   </td>
-                  <td className="px-4 py-3 text-clinic-600">
+                  <td className="px-4 py-3 text-ink-muted">
                     {formatClinicalStatus(lab.status)}
                     {lab.status === 'needs_review' && (
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="ml-2"
                         onClick={() => updateLabMutation.mutate({ labId: lab.id, status: 'reviewed' })}
-                        className="ml-2 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
                       >
                         Reviewed
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
               ))}
               {labRows.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-clinic-400">No lab results have been added to this chart.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-small text-ink-faint">No lab results have been added to this chart.</td></tr>
               )}
             </tbody>
           </table>
@@ -1049,58 +1055,64 @@ function PatientChartPage() {
       )}
 
       {activeTab === 'billing' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-            <h2 className="text-sm font-semibold text-clinic-800">Billing and Eligibility</h2>
-            <button onClick={() => eligibilityMutation.mutate()} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Check eligibility</button>
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h2 className="text-subhead font-medium text-ink">Billing and Eligibility</h2>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => eligibilityMutation.mutate()}
+            >
+              Check eligibility
+            </Button>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).map((item) => (
               <div key={item.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_10rem]">
                 <div>
-                  <div className="text-sm font-semibold text-clinic-900">{item.payer ?? 'No payer'}</div>
-                  <div className="mt-1 text-xs text-clinic-500">CPT {item.cpt_codes.join(', ') || 'not coded'} - DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
-                  {item.notes && <div className="mt-1 text-xs text-clinic-600">{item.notes}</div>}
+                  <div className="text-small font-medium text-ink">{item.payer ?? 'No payer'}</div>
+                  <div className="mt-1 text-micro text-ink-muted">CPT {item.cpt_codes.join(', ') || 'not coded'} - DX {item.diagnosis_codes.join(', ') || 'not coded'}</div>
+                  {item.notes && <div className="mt-1 text-micro text-ink-secondary">{item.notes}</div>}
                 </div>
-                <span className="text-sm font-medium text-clinic-700">{item.status}</span>
-                <span className="text-sm text-clinic-500">{item.eligibility_status}</span>
+                <span className="text-small font-medium text-ink-secondary">{item.status}</span>
+                <span className="text-small text-ink-muted">{item.eligibility_status}</span>
               </div>
             ))}
-            {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).length === 0 && <div className="px-4 py-8 text-center text-sm text-clinic-400">No billing cases for this patient.</div>}
+            {(billingCases?.data ?? []).filter((item) => item.patient_id === patientId).length === 0 && <div className="px-4 py-8 text-center text-small text-ink-faint">No billing cases for this patient.</div>}
           </div>
-          <div className="border-t border-clinic-200 px-4 py-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-clinic-500">Eligibility history</h3>
+          <div className="border-t border-border px-4 py-3">
+            <h3 className="text-meta font-medium text-ink-faint uppercase">Eligibility history</h3>
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {(eligibilityHistory?.data ?? []).map((event) => (
-                <div key={event.id} className="rounded-md bg-clinic-50 px-3 py-2">
-                  <div className="text-xs font-semibold text-clinic-800">{String(event.payload.status ?? 'checked')}</div>
-                  <div className="mt-1 text-xs text-clinic-500">{String(event.payload.payer ?? 'No payer')} · {new Date(event.created_at).toLocaleString()}</div>
+                <div key={event.id} className="rounded-md bg-canvas-sunk px-3 py-2">
+                  <div className="text-micro font-medium text-ink">{String(event.payload.status ?? 'checked')}</div>
+                  <div className="mt-1 text-micro text-ink-muted">{String(event.payload.payer ?? 'No payer')} · {new Date(event.created_at).toLocaleString()}</div>
                 </div>
               ))}
-              {(eligibilityHistory?.data ?? []).length === 0 && <div className="text-sm text-clinic-400">No eligibility checks recorded yet.</div>}
+              {(eligibilityHistory?.data ?? []).length === 0 && <div className="text-small text-ink-faint">No eligibility checks recorded yet.</div>}
             </div>
           </div>
         </div>
       )}
 
       {activeTab === 'tasks' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <ClipboardList className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <ClipboardList className="h-4 w-4 text-accent" />
               Linked Tasks
             </h2>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {openTasks.length === 0 && (
-              <div className="px-4 py-6 text-sm text-clinic-500">No open tasks are linked to this patient.</div>
+              <div className="px-4 py-6 text-small text-ink-muted">No open tasks are linked to this patient.</div>
             )}
             {openTasks.map((task) => (
               <div key={task.id} className="grid gap-3 px-4 py-3 md:grid-cols-[1fr_10rem_8rem_7rem]">
-                <div className="text-sm font-medium text-clinic-900">{task.title}</div>
-                <div className="text-sm text-clinic-600">{task.assigned_to_name ?? 'Unassigned'}</div>
-                <div className="text-sm text-clinic-600">{formatTaskDueDate(task)}</div>
-                <div className="text-sm font-medium text-clinic-700">{formatTaskPriority(task.priority)}</div>
+                <div className="text-small font-medium text-ink">{task.title}</div>
+                <div className="text-small text-ink-muted">{task.assigned_to_name ?? 'Unassigned'}</div>
+                <div className="text-small text-ink-muted">{formatTaskDueDate(task)}</div>
+                <div className="text-small font-medium text-ink-secondary">{formatTaskPriority(task.priority)}</div>
               </div>
             ))}
           </div>
@@ -1108,22 +1120,22 @@ function PatientChartPage() {
       )}
 
       {activeTab === 'messages' && (
-        <div className="rounded-lg border border-clinic-200 bg-white">
-          <div className="border-b border-clinic-200 px-4 py-3">
-            <h2 className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-              <MessageSquare className="h-4 w-4 text-accent-700" />
+        <div className="border border-border bg-canvas-raised rounded-md">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="flex items-center gap-2 text-subhead font-medium text-ink">
+              <MessageSquare className="h-4 w-4 text-accent" />
               Patient Messages
             </h2>
           </div>
-          <div className="divide-y divide-clinic-100">
+          <div className="divide-y divide-border">
             {patientMessages.map((message) => (
               <div key={`${message.from}-${message.at}`} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-clinic-900">{message.subject}</div>
-                  <div className="text-xs text-clinic-500">{message.at}</div>
+                  <div className="text-small font-medium text-ink">{message.subject}</div>
+                  <div className="text-micro text-ink-muted">{message.at}</div>
                 </div>
-                <div className="mt-1 text-xs font-medium text-clinic-500">{message.from}</div>
-                <p className="mt-2 max-w-3xl text-sm text-clinic-700">{message.body}</p>
+                <div className="mt-1 text-micro font-medium text-ink-muted">{message.from}</div>
+                <p className="mt-2 max-w-3xl text-small text-ink-secondary">{message.body}</p>
               </div>
             ))}
           </div>
@@ -1182,22 +1194,22 @@ function CheckoutHandoffPanel({
   const blocked = handoff.chart_summary.checkout_readiness === 'blocked';
 
   return (
-    <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4" role="dialog" aria-modal="true">
-      <div className="ml-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-md border border-clinic-300 bg-white shadow-xl">
-        <div className="flex items-start justify-between gap-4 border-b border-clinic-200 px-4 py-3">
+    <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
+      <div className="ml-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-md border border-border bg-canvas-raised shadow-lg">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-sm font-semibold text-clinic-900">Checkout Handoff</h2>
-            <p className="mt-1 text-xs text-clinic-500">
+            <h2 className="text-subhead font-medium text-ink">Checkout Handoff</h2>
+            <p className="mt-1 text-micro text-ink-muted">
               {handoff.patient.last_name}, {handoff.patient.first_name} - {handoff.patient.mrn}
             </p>
           </div>
-          <button onClick={onClose} aria-label="Close checkout handoff" className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+          <button onClick={onClose} aria-label="Close checkout handoff" className="rounded-md p-1 text-ink-muted hover:bg-canvas-sunk hover:text-ink">
             <X className="h-4 w-4" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className={`border-b px-4 py-3 text-sm ${blocked ? 'border-red-100 bg-red-50 text-red-800' : 'border-accent-100 bg-accent-50 text-accent-800'}`}>
+          <div className={`border-b px-4 py-3 text-small ${blocked ? 'border-danger/20 bg-danger/10 text-danger' : 'border-accent-soft bg-accent-soft text-accent'}`}>
             {blocked ? handoff.chart_summary.blockers.join('; ') : 'No chart blockers are currently reported.'}
           </div>
 
@@ -1247,19 +1259,16 @@ function CheckoutHandoffPanel({
           }))} />
         </div>
 
-        <div className="border-t border-clinic-200 px-4 py-3">
-          {checkoutError && <div className="mb-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">{checkoutError}</div>}
-          <div className="flex justify-end gap-2">
-            <button onClick={onClose} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">
-              Close
-            </button>
-            <button
+        <div className="border-t border-border px-5 py-4">
+          {checkoutError && <div className="mb-2 rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-small text-danger">{checkoutError}</div>}
+          <div className="flex justify-end gap-3">
+            <Button variant="ghost" onClick={onClose}>Close</Button>
+            <Button
               onClick={onCompleteCheckout}
               disabled={blocked || completing || handoff.chart_summary.upcoming_appointments.length === 0}
-              className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {completing ? 'Completing...' : 'Complete Checkout'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -1275,30 +1284,29 @@ function HandoffSection({
   rows: Array<{ id: string; title: string; detail: string; actionLabel: string; onAction: () => void; onCreateTask: () => void }>;
 }) {
   return (
-    <section className="border-b border-clinic-100">
-      <div className="flex items-center justify-between bg-clinic-50 px-4 py-2">
-        <h3 className="text-xs font-semibold uppercase text-clinic-500">{title}</h3>
-        <span className="text-xs font-medium text-clinic-500">{rows.length}</span>
+    <section className="border-b border-border-subtle">
+      <div className="flex items-center justify-between bg-canvas-sunk px-4 py-2">
+        <h3 className="text-meta font-medium text-ink-muted">{title}</h3>
+        <span className="text-meta font-medium text-ink-muted">{rows.length}</span>
       </div>
-      <div className="divide-y divide-clinic-100">
+      <div className="divide-y divide-border-subtle">
         {rows.map((row) => (
           <div key={row.id} className="flex items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-clinic-900">{row.title}</div>
-              <div className="mt-0.5 truncate text-xs text-clinic-500">{row.detail}</div>
+              <div className="truncate text-small font-medium text-ink">{row.title}</div>
+              <div className="mt-0.5 truncate text-micro text-ink-muted">{row.detail}</div>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={row.onCreateTask} className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-700 hover:bg-clinic-50">
-                <ClipboardList className="h-3.5 w-3.5" />
+              <Button variant="ghost" size="sm" icon={ClipboardList} onClick={row.onCreateTask}>
                 Task
-              </button>
-              <button onClick={row.onAction} className="rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">
+              </Button>
+              <Button variant="secondary" size="sm" onClick={row.onAction}>
                 {row.actionLabel}
-              </button>
+              </Button>
             </div>
           </div>
         ))}
-        {rows.length === 0 && <div className="px-4 py-4 text-sm text-clinic-400">Clear</div>}
+        {rows.length === 0 && <div className="px-4 py-4 text-small text-ink-faint">Clear</div>}
       </div>
     </section>
   );
