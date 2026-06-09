@@ -18,15 +18,15 @@ interface PatientListResponse {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  scheduled: 'bg-sky-100 text-sky-700 border-sky-200',
-  checked_in: 'bg-amber-100 text-amber-700 border-amber-200',
-  roomed: 'bg-teal-100 text-teal-700 border-teal-200',
-  provider_review: 'bg-violet-100 text-violet-700 border-violet-200',
-  checkout: 'bg-lime-100 text-lime-700 border-lime-200',
-  in_progress: 'bg-accent-100 text-accent-700 border-accent-200',
-  completed: 'bg-clinic-100 text-clinic-600 border-clinic-200',
-  cancelled: 'bg-red-50 text-red-400 border-red-100 line-through',
-  no_show: 'bg-red-100 text-red-700 border-red-200',
+  scheduled: 'bg-canvas-sunk text-ink-muted border-border',
+  checked_in: 'bg-accent-soft text-accent border-accent-soft',
+  roomed: 'bg-accent-soft text-accent border-accent-soft',
+  provider_review: 'bg-accent-soft text-accent border-accent-soft',
+  checkout: 'bg-success/10 text-success border-success/20',
+  in_progress: 'bg-accent-soft text-accent border-accent-soft',
+  completed: 'bg-canvas-sunk text-ink-faint border-border-subtle',
+  cancelled: 'bg-canvas-sunk text-ink-faint border-border-subtle line-through',
+  no_show: 'bg-danger/10 text-danger border-danger/20',
 };
 
 function getWeekStart(date: Date): Date {
@@ -192,10 +192,10 @@ function SchedulePage() {
     <div>
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-clinic-800">Schedule</h1>
-          <p className="mt-1 text-sm text-clinic-500">Build the day around provider availability, conflict warnings, and reminder staging.</p>
+          <h1 className="font-serif text-display text-ink">Schedule</h1>
+          <p className="mt-1 text-small text-ink-muted">Build the day around provider availability, conflict warnings, and reminder staging.</p>
         </div>
-        <button onClick={() => setShowNewAppointment(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
+        <button onClick={() => setShowNewAppointment(true)} className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">
           <Plus className="h-4 w-4" />
           New Appointment
         </button>
@@ -209,11 +209,11 @@ function SchedulePage() {
               prev.setDate(prev.getDate() - 7);
               setWeekStart(prev);
             }}
-            className="rounded-md border border-clinic-300 p-1.5 hover:bg-clinic-100"
+            className="rounded-md border border-border bg-canvas-raised p-1.5 hover:border-border-strong hover:bg-canvas-sunk transition-colors"
           >
-            <ChevronLeft className="h-4 w-4 text-clinic-600" />
+            <ChevronLeft className="h-4 w-4 text-ink-secondary" />
           </button>
-          <span className="text-sm font-medium text-clinic-700">
+          <span className="text-small font-medium text-ink">
             {weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} —{' '}
             {new Date(weekStart.getTime() + 6 * 86400000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
@@ -223,54 +223,54 @@ function SchedulePage() {
               next.setDate(next.getDate() + 7);
               setWeekStart(next);
             }}
-            className="rounded-md border border-clinic-300 p-1.5 hover:bg-clinic-100"
+            className="rounded-md border border-border bg-canvas-raised p-1.5 hover:border-border-strong hover:bg-canvas-sunk transition-colors"
           >
-            <ChevronRight className="h-4 w-4 text-clinic-600" />
+            <ChevronRight className="h-4 w-4 text-ink-secondary" />
           </button>
         </div>
         <button
           onClick={() => setWeekStart(getWeekStart(new Date()))}
-          className="text-sm text-accent-600 hover:text-accent-700"
+          className="text-small text-accent hover:text-accent-hover transition-colors"
         >
           Today
         </button>
       </div>
 
       <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_22rem]">
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <CalendarClock className="h-4 w-4 text-accent-700" />
+        <div className="bg-canvas-raised border border-border rounded-md p-4">
+          <div className="mb-3 flex items-center gap-2 text-subhead font-medium text-ink">
+            <CalendarClock className="h-4 w-4 text-accent" />
             Provider Availability
           </div>
           <div className="grid gap-3 sm:grid-cols-[1fr_8rem_8rem_8rem_auto]">
-            <select value={activeProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+            <select value={activeProviderId} onChange={(event) => setSelectedProviderId(event.target.value)} className="rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
               {providerOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.display_name}</option>)}
             </select>
-            <select value={availabilityForm.day_of_week} onChange={(event) => setAvailabilityForm({ ...availabilityForm, day_of_week: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm">
+            <select value={availabilityForm.day_of_week} onChange={(event) => setAvailabilityForm({ ...availabilityForm, day_of_week: event.target.value })} className="rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => <option key={day} value={index}>{day}</option>)}
             </select>
-            <input type="time" value={availabilityForm.start_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, start_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-            <input type="time" value={availabilityForm.end_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, end_time: event.target.value })} className="rounded-md border border-clinic-300 px-3 py-2 text-sm" />
-            <button disabled={!activeProviderId || availabilityMutation.isPending} onClick={() => availabilityMutation.mutate()} className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-sm font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-50">
+            <input type="time" value={availabilityForm.start_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, start_time: event.target.value })} className="rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
+            <input type="time" value={availabilityForm.end_time} onChange={(event) => setAvailabilityForm({ ...availabilityForm, end_time: event.target.value })} className="rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
+            <button disabled={!activeProviderId || availabilityMutation.isPending} onClick={() => availabilityMutation.mutate()} className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-50 transition-colors">
               Add
             </button>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {(availability ?? []).map((item) => (
-              <span key={item.id} className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">
+              <span key={item.id} className="rounded-md border border-border bg-canvas-sunk px-2 py-1 text-micro font-medium text-ink-secondary">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][item.day_of_week]} {item.start_time}-{item.end_time}
               </span>
             ))}
-            {activeProviderId && (availability ?? []).length === 0 && <span className="text-xs text-clinic-400">No availability set for this provider.</span>}
+            {activeProviderId && (availability ?? []).length === 0 && <span className="text-micro text-ink-faint">No availability set for this provider.</span>}
           </div>
         </div>
-        <div className="rounded-md border border-clinic-200 bg-white p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-clinic-800">
-            <Bell className="h-4 w-4 text-accent-700" />
+        <div className="bg-canvas-raised border border-border rounded-md p-4">
+          <div className="flex items-center gap-2 text-subhead font-medium text-ink">
+            <Bell className="h-4 w-4 text-accent" />
             Reminder Queue
           </div>
-          <p className="mt-2 text-xs text-clinic-500">Use the bell on any appointment to stage SMS and email reminders for delivery.</p>
-          {reminderMutation.isSuccess && <p className="mt-3 rounded-md bg-accent-50 px-3 py-2 text-xs font-medium text-accent-800">Reminder events queued.</p>}
+          <p className="mt-2 text-micro text-ink-muted">Use the bell on any appointment to stage SMS and email reminders for delivery.</p>
+          {reminderMutation.isSuccess && <p className="mt-3 rounded-md bg-accent-soft px-3 py-2 text-micro font-medium text-accent">Reminder events queued.</p>}
         </div>
       </section>
 
@@ -279,19 +279,19 @@ function SchedulePage() {
       ) : isError ? (
         <ErrorState title="Unable to load schedule" detail={error instanceof Error ? error.message : 'The schedule could not be loaded.'} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
-          <div className="grid min-w-[56rem] grid-cols-7 gap-0">
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[56rem] grid-cols-7 gap-0 border border-border rounded-md overflow-hidden">
             {weekDays.map((day, i) => {
               const apps = appointmentsForDay(day);
               const isToday = formatDate(day) === formatDate(new Date());
               return (
                 <div
                   key={i}
-                  className={`min-h-32 border-r border-b border-clinic-100 p-2 last:border-r-0 ${
-                    isToday ? 'bg-accent-50/50' : ''
+                  className={`min-h-32 border-r border-b border-border-subtle p-2 last:border-r-0 ${
+                    isToday ? 'bg-accent-soft/30' : ''
                   }`}
                 >
-                  <div className={`mb-2 text-center text-xs font-semibold ${isToday ? 'text-accent-700' : 'text-clinic-500'}`}>
+                  <div className={`mb-2 text-center text-meta font-medium ${isToday ? 'text-accent' : 'text-ink-muted'}`}>
                     <div>{day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
                     <div className="text-lg">{day.getDate()}</div>
                   </div>
@@ -299,18 +299,18 @@ function SchedulePage() {
                     {apps.map((appt) => (
                       <div
                         key={appt.id}
-                        className={`rounded border px-2 py-1 text-xs ${STATUS_COLORS[appt.status]}`}
+                        className={`rounded-sm border p-2 text-micro ${STATUS_COLORS[appt.status]}`}
                       >
                         <div className="font-medium">
                           {new Date(appt.start_time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
                         </div>
                         <div className="truncate">{appt.patient_name || 'Unknown'}</div>
-                        <div className="text-[10px] opacity-70">{humanizeWorkflowLabel(appt.status)}</div>
-                        <div className="text-[10px] opacity-70">{appt.type}</div>
+                        <div className="text-micro opacity-70">{humanizeWorkflowLabel(appt.status)}</div>
+                        <div className="text-micro opacity-70">{appt.type}</div>
                         {nextVisitStatus(appt.status) && (
                           <button
                             onClick={() => statusMutation.mutate({ id: appt.id, status: nextVisitStatus(appt.status)! })}
-                            className="mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                            className="mt-1 rounded-sm border border-border bg-canvas-raised px-1.5 py-0.5 text-micro font-medium text-ink hover:bg-canvas-sunk transition-colors"
                           >
                             {nextVisitLabel(appt.status)}
                           </button>
@@ -319,14 +319,14 @@ function SchedulePage() {
                           <>
                             <button
                               onClick={() => rescheduleMutation.mutate({ appointment: appt, minutes: 15 })}
-                              className="ml-1 mt-1 rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                              className="ml-1 mt-1 rounded-sm border border-border bg-canvas-raised px-1.5 py-0.5 text-micro font-medium text-ink hover:bg-canvas-sunk transition-colors"
                             >
                               +15m
                             </button>
                             <button
                               onClick={() => reminderMutation.mutate(appt.id)}
                               title="Queue appointment reminders"
-                              className="ml-1 mt-1 inline-flex items-center rounded border border-white/50 bg-white/70 px-1.5 py-0.5 text-[10px] font-semibold text-clinic-700 hover:bg-white"
+                              className="ml-1 mt-1 inline-flex items-center rounded-sm border border-border bg-canvas-raised px-1.5 py-0.5 text-micro font-medium text-ink hover:bg-canvas-sunk transition-colors"
                             >
                               <Bell className="h-3 w-3" />
                             </button>
@@ -335,7 +335,7 @@ function SchedulePage() {
                       </div>
                     ))}
                     {apps.length === 0 && i === 0 && (
-                      <div className="rounded-md border border-dashed border-clinic-200 p-2 text-center text-xs text-clinic-400">
+                      <div className="rounded-md border border-dashed border-border p-2 text-center text-micro text-ink-faint">
                         No visits
                       </div>
                     )}
@@ -348,68 +348,68 @@ function SchedulePage() {
       )}
 
       {!isLoading && !isError && data?.data.length === 0 && (
-        <div className="mt-4 rounded-lg border border-clinic-200 bg-white">
+        <div className="mt-4">
             <EmptyState
               title="No appointments this week"
               detail="Create an appointment, add provider availability, or seed the pilot workspace so coordinators know whether the quiet calendar is intentional."
-              action={<button type="button" onClick={() => setShowNewAppointment(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create appointment</button>}
+              action={<button type="button" onClick={() => setShowNewAppointment(true)} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Create appointment</button>}
             />
         </div>
       )}
 
       {showNewAppointment && (
-        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               createMutation.mutate();
             }}
-            className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
+            className="mx-auto mt-24 max-w-lg bg-canvas-raised border border-border rounded-lg shadow-lg animate-in slide-in-from-bottom-4 duration-200"
           >
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">New Appointment</h2>
-              <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="text-subhead font-medium text-ink">New Appointment</h2>
+              <button type="button" onClick={() => setShowNewAppointment(false)} className="text-ink-muted hover:text-ink rounded-md p-1">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Patient
-                  <select required value={newAppointment.patient_id} onChange={(event) => setNewAppointment({ ...newAppointment, patient_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                  <select required value={newAppointment.patient_id} onChange={(event) => setNewAppointment({ ...newAppointment, patient_id: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
                     <option value="">Select patient</option>
                     {patientOptions.map((patient) => <option key={patient.id} value={patient.id}>{patient.last_name}, {patient.first_name}</option>)}
                   </select>
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Provider
-                  <select required value={newAppointment.provider_id} onChange={(event) => setNewAppointment({ ...newAppointment, provider_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                  <select required value={newAppointment.provider_id} onChange={(event) => setNewAppointment({ ...newAppointment, provider_id: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
                     <option value="">Select provider</option>
                     {providerOptions.map((provider) => <option key={provider.id} value={provider.id}>{provider.display_name}</option>)}
                   </select>
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Start time
-                  <input required type="datetime-local" value={newAppointment.start_time} onChange={(event) => setNewAppointment({ ...newAppointment, start_time: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <input required type="datetime-local" value={newAppointment.start_time} onChange={(event) => setNewAppointment({ ...newAppointment, start_time: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Type
-                  <input required value={newAppointment.type} onChange={(event) => setNewAppointment({ ...newAppointment, type: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <input required value={newAppointment.type} onChange={(event) => setNewAppointment({ ...newAppointment, type: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink placeholder:text-ink-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
                 </label>
               </div>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Notes
-                <textarea value={newAppointment.notes} onChange={(event) => setNewAppointment({ ...newAppointment, notes: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <textarea value={newAppointment.notes} onChange={(event) => setNewAppointment({ ...newAppointment, notes: event.target.value })} rows={3} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink placeholder:text-ink-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
               </label>
               {conflictCheck && (
-                <div className={`rounded-md border px-3 py-2 text-sm ${conflictCheck.warnings.length ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-accent-200 bg-accent-50 text-accent-800'}`}>
+                <div className={`rounded-md border px-3 py-2 text-small ${conflictCheck.warnings.length ? 'border-warn/20 bg-warn/10 text-warn' : 'border-accent-soft bg-accent-soft text-accent'}`}>
                   {conflictCheck.warnings.length ? conflictCheck.warnings.join('. ') : 'Provider is available for this slot.'}
                 </div>
               )}
             </div>
-            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
-              <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
-              <button disabled={createMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+            <div className="flex justify-end gap-3 border-t border-border px-5 py-4">
+              <button type="button" onClick={() => setShowNewAppointment(false)} className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-small text-ink-secondary hover:bg-canvas-sunk transition-colors">Cancel</button>
+              <button disabled={createMutation.isPending} className="rounded-md bg-accent px-3 py-2 text-small font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50 active:scale-[0.98] transition-transform duration-75">
                 {createMutation.isPending ? 'Creating...' : 'Create appointment'}
               </button>
             </div>
