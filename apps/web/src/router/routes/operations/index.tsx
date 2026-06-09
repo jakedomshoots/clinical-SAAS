@@ -840,50 +840,50 @@ function OperationsPage() {
           </div>
           <div className="grid gap-4 p-4 xl:grid-cols-[minmax(0,1fr)_24rem]">
             <div className="space-y-3">
-              <div className="grid gap-2 md:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2">
                 {[
                   ['Evidence ready', `${liveUseRehearsal.summary.evidence_ready_count ?? 0}/${liveUseRehearsal.summary.evidence_total ?? 0}`],
                   ['Workplan blockers', String(liveUseRehearsal.summary.workplan_blockers ?? 0)],
                   ['Credential blockers', String(liveUseRehearsal.summary.credential_blockers ?? 0)],
                   ['Unassigned work', String(liveUseRehearsal.summary.workplan_unassigned ?? 0)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-md border border-border bg-canvas p-3">
+                  <div key={label} className="rounded-md border border-border bg-canvas p-4">
                     <div className="text-meta text-ink-muted">{label}</div>
-                    <div className="font-serif text-2xl font-medium text-ink">{value}</div>
+                    <div className="font-serif text-3xl font-medium text-ink mt-2">{value}</div>
                   </div>
                 ))}
               </div>
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+              <div className="grid gap-3 md:grid-cols-2">
                 {liveUseRehearsal.gates.map((gate) => (
-                  <Link key={gate.key} to={gate.route} className="rounded-md border border-border p-3 hover:bg-canvas-sunk">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-ink">{gate.label}</div>
-                        <div className="mt-1 text-xs text-ink-muted">{gate.detail}</div>
+                  <Link key={gate.key} to={gate.route} className="rounded-md border border-border p-4 hover:bg-canvas-sunk transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-ink truncate">{gate.label}</div>
+                        <div className="mt-1 text-xs text-ink-muted line-clamp-2">{gate.detail}</div>
                       </div>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${gate.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : gate.status === 'blocking' || gate.status === 'missing' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
+                      <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${gate.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : gate.status === 'blocking' || gate.status === 'missing' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                         {gate.status}
                       </span>
                     </div>
-                    <div className="mt-2 text-[11px] text-ink-faint">{gate.captured_at ? new Date(gate.captured_at).toLocaleString() : 'No capture timestamp'}</div>
+                    <div className="mt-3 text-[11px] text-ink-faint">{gate.captured_at ? new Date(gate.captured_at).toLocaleString() : 'No capture timestamp'}</div>
                   </Link>
                 ))}
               </div>
             </div>
             <aside className="rounded-md border border-border">
-              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Next actions</div>
+              <div className="border-b border-border px-4 py-3 text-meta font-medium text-ink-faint">Next actions</div>
               <div className="divide-y divide-border">
                 {liveUseRehearsal.next_actions.slice(0, 6).map((action) => (
-                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-ink">{action.label}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'blocking' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
+                  <Link key={action.key} to={action.route} className="block px-4 py-3 hover:bg-canvas-sunk/50 transition-colors">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-ink truncate">{action.label}</span>
+                      <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'blocking' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
                     </div>
-                    <div className="mt-1 text-xs text-ink-muted">{action.detail}</div>
+                    <div className="mt-1 text-xs text-ink-muted line-clamp-2">{action.detail}</div>
                   </Link>
                 ))}
                 {liveUseRehearsal.next_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-ink-faint">No rehearsal actions.</div>
+                  <div className="px-4 py-6 text-sm text-ink-faint">No rehearsal actions.</div>
                 )}
               </div>
             </aside>
@@ -1252,19 +1252,19 @@ function OperationsPage() {
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2">
               {operatorHealth.checks.map((check) => (
-                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-ink">{check.label}</div>
-                      <div className="mt-1 text-xs text-ink-muted">{check.detail}</div>
+                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-4 hover:bg-canvas-sunk transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-ink truncate">{check.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted line-clamp-2">{check.detail}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'healthy' ? 'border-accent-soft bg-accent-soft text-accent' : check.status === 'warning' || check.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
+                    <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'healthy' ? 'border-accent-soft bg-accent-soft text-accent' : check.status === 'warning' || check.status === 'attention' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-danger/20 bg-danger/10 text-danger'}`}>
                       {check.status}
                     </span>
                   </div>
-                  <div className="mt-2 flex items-center justify-between text-[11px] text-ink-faint">
+                  <div className="mt-3 flex items-center justify-between text-[11px] text-ink-faint">
                     <span>{check.score}%</span>
                     <span>{check.last_seen_at ? new Date(check.last_seen_at).toLocaleString() : 'No evidence'}</span>
                   </div>
@@ -1272,19 +1272,19 @@ function OperationsPage() {
               ))}
             </div>
             <aside className="rounded-md border border-border">
-              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Operator actions</div>
+              <div className="border-b border-border px-4 py-3 text-meta font-medium text-ink-faint">Operator actions</div>
               <div className="divide-y divide-border">
                 {operatorHealth.recommended_actions.slice(0, 5).map((action) => (
-                  <Link key={action.key} to={action.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-ink">{action.label}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
+                  <Link key={action.key} to={action.route} className="block px-4 py-3 hover:bg-canvas-sunk/50 transition-colors">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-ink truncate">{action.label}</span>
+                      <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>{action.severity}</span>
                     </div>
-                    <div className="mt-1 text-xs text-ink-muted">{action.detail}</div>
+                    <div className="mt-1 text-xs text-ink-muted line-clamp-2">{action.detail}</div>
                   </Link>
                 ))}
                 {operatorHealth.recommended_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-ink-faint">No operator actions.</div>
+                  <div className="px-4 py-6 text-sm text-ink-faint">No operator actions.</div>
                 )}
               </div>
             </aside>
@@ -1312,19 +1312,19 @@ function OperationsPage() {
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_24rem]">
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 md:grid-cols-2">
               {documentStorageReadiness.checks.map((check) => (
-                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-3 hover:bg-canvas-sunk">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-ink">{check.label}</div>
-                      <div className="mt-1 text-xs text-ink-muted">{check.detail}</div>
+                <Link key={check.key} to={check.route} className="rounded-md border border-border bg-canvas p-4 hover:bg-canvas-sunk transition-colors">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium text-ink truncate">{check.label}</div>
+                      <div className="mt-1 text-xs text-ink-muted line-clamp-2">{check.detail}</div>
                     </div>
-                    <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'clear' ? 'border-accent-soft bg-accent-soft text-accent' : check.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
+                    <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium ${check.status === 'clear' ? 'border-accent-soft bg-accent-soft text-accent' : check.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                       {check.status === 'clear' ? 'clear' : check.count}
                     </span>
                   </div>
-                  <div className="mt-2 text-[11px] text-ink-faint">{check.recommended_action}</div>
+                  <div className="mt-3 text-[11px] text-ink-faint">{check.recommended_action}</div>
                 </Link>
               ))}
             </div>
@@ -1490,10 +1490,10 @@ function OperationsPage() {
               <span className="rounded-md border border-warn/20 bg-warn/10 px-2 py-1 text-xs font-medium text-warn">{roleChecklists.attention_roles} attention</span>
             </div>
           </div>
-          <div className="grid gap-3 p-4 xl:grid-cols-5">
+          <div className="grid gap-3 p-4 md:grid-cols-2 lg:grid-cols-3">
             {roleChecklists.roles.map((role) => (
               <div key={role.key} className="rounded-md border border-border bg-canvas">
-                <div className="border-b border-border px-3 py-2">
+                <div className="border-b border-border px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="text-sm font-semibold text-ink">{role.label}</h3>
                     <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${role.status === 'ready' ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>{role.ready_count}/{role.total}</span>
@@ -1502,7 +1502,7 @@ function OperationsPage() {
                 </div>
                 <div className="divide-y divide-border">
                   {role.items.map((item) => (
-                    <Link key={item.key} to={item.route} className="block px-3 py-2 hover:bg-canvas-sunk/50">
+                    <Link key={item.key} to={item.route} className="block px-4 py-3 hover:bg-canvas-sunk/50 transition-colors">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-medium text-ink">{item.label}</span>
                         <span className={`h-2 w-2 rounded-full ${item.status === 'ready' ? 'bg-accent' : 'bg-warn'}`} />
@@ -2781,20 +2781,20 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2">
         {(snapshots?.data ?? []).slice(0, 4).map((snapshot) => (
           <div key={snapshot.id} className="rounded-md border border-border bg-canvas-raised p-4">
             <div className="flex items-center justify-between gap-2">
               <div className="text-sm font-semibold text-ink">Readiness Snapshot</div>
               <StatusBadge ok={snapshot.operational_status === 'ok'} label={snapshot.operational_status} />
             </div>
-            <div className="mt-3 font-serif text-2xl font-medium text-ink">{snapshot.launch_score}%</div>
+            <div className="mt-3 font-serif text-3xl font-medium text-ink">{snapshot.launch_score}%</div>
             <div className="mt-1 text-xs text-ink-muted">{snapshot.incident_count} incidents · {snapshot.critical_count} critical</div>
             <div className="mt-2 text-[11px] text-ink-faint">{new Date(snapshot.created_at).toLocaleString()}</div>
           </div>
         ))}
         {(snapshots?.data ?? []).length === 0 && (
-          <div className="rounded-md border border-border bg-canvas-raised p-4 text-sm text-ink-faint md:col-span-4">
+          <div className="rounded-md border border-border bg-canvas-raised p-4 text-sm text-ink-faint md:col-span-2">
             No readiness snapshots have been captured yet.
           </div>
         )}
@@ -2897,9 +2897,9 @@ function OperationsPage() {
               {auditReviewSummary.recommended_actions.length} action{auditReviewSummary.recommended_actions.length === 1 ? '' : 's'}
             </span>
           </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-5">
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
             {auditReviewSummary.categories.map((category) => (
-              <div key={category.key} className="rounded-md border border-border bg-canvas px-3 py-2">
+              <div key={category.key} className="rounded-md border border-border bg-canvas px-3 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="font-serif text-2xl font-medium text-ink">{category.count}</div>
                   <span className={`rounded border px-1.5 py-0.5 text-[11px] font-medium ${category.severity === 'critical' ? 'border-danger/20 bg-danger/10 text-danger' : category.severity === 'warning' ? 'border-warn/20 bg-warn/10 text-warn' : 'border-accent-soft bg-accent-soft text-accent'}`}>
@@ -2938,7 +2938,7 @@ function OperationsPage() {
           </div>
           <StatusBadge ok={(outreachSummary?.blocked_count ?? 0) === 0} label={`${outreachSummary?.blocked_count ?? 0} blocked`} />
         </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-5">
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
           {[
             ['Queued', outreachSummary?.queued_count ?? 0],
             ['Delivered', outreachSummary?.delivered_count ?? 0],
@@ -2946,7 +2946,7 @@ function OperationsPage() {
             ['Consent blocked', outreachSummary?.consent_blocked_count ?? 0],
             ['No contact', outreachSummary?.no_contact_blocked_count ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-md bg-canvas px-3 py-2">
+            <div key={label} className="rounded-md bg-canvas px-3 py-3">
               <div className="font-serif text-2xl font-medium text-ink">{value}</div>
               <div className="text-xs text-ink-muted">{label}</div>
             </div>
@@ -2954,25 +2954,25 @@ function OperationsPage() {
         </div>
       </section>
 
-      <section className="grid gap-3 lg:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2">
         <div className="rounded-md border border-border bg-canvas-raised p-4">
           <div className="text-sm font-semibold text-ink">Patient Intake</div>
-          <div className="mt-3 font-serif text-2xl font-medium text-ink">{analytics?.front_office.intake_needing_review ?? 0}</div>
+          <div className="mt-3 font-serif text-3xl font-medium text-ink">{analytics?.front_office.intake_needing_review ?? 0}</div>
           <div className="text-xs text-ink-muted">portal submissions needing review</div>
         </div>
         <div className="rounded-md border border-border bg-canvas-raised p-4">
           <div className="text-sm font-semibold text-ink">Billing Work</div>
-          <div className="mt-3 font-serif text-2xl font-medium text-ink">{analytics?.billing.draft_cases ?? 0}</div>
+          <div className="mt-3 font-serif text-3xl font-medium text-ink">{analytics?.billing.draft_cases ?? 0}</div>
           <div className="text-xs text-ink-muted">{analytics?.billing.denied_cases ?? 0} denied cases</div>
         </div>
         <div className="rounded-md border border-border bg-canvas-raised p-4">
           <div className="text-sm font-semibold text-ink">Security Policy</div>
-          <div className="mt-3 font-serif text-2xl font-medium text-ink">{sessionPolicy?.access_token_expire_minutes ?? '—'}m</div>
+          <div className="mt-3 font-serif text-3xl font-medium text-ink">{sessionPolicy?.access_token_expire_minutes ?? '—'}m</div>
           <div className="text-xs text-ink-muted">{sessionPolicy?.mfa_required ? 'MFA required' : 'MFA staged for production'}</div>
         </div>
         <div className="rounded-md border border-border bg-canvas-raised p-4">
           <div className="text-sm font-semibold text-ink">Assistant Governance</div>
-          <div className="mt-3 font-serif text-2xl font-medium text-ink">{assistantEvents?.total ?? 0}</div>
+          <div className="mt-3 font-serif text-3xl font-medium text-ink">{assistantEvents?.total ?? 0}</div>
           <div className="text-xs text-ink-muted">confirmed task actions audited</div>
         </div>
       </section>
@@ -2985,7 +2985,7 @@ function OperationsPage() {
           </div>
           <StatusBadge ok={(billingWorkQueue?.eligibility_needed_count ?? 0) === 0 && (billingWorkQueue?.missing_coding_count ?? 0) === 0} label={`${billingWorkQueue?.total ?? 0} cases`} />
         </div>
-        <div className="mt-3 grid gap-2 md:grid-cols-5">
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
           {[
             ['Ready', billingWorkQueue?.ready_count ?? 0],
             ['Submitted', billingWorkQueue?.submitted_count ?? 0],
@@ -2993,7 +2993,7 @@ function OperationsPage() {
             ['Eligibility needed', billingWorkQueue?.eligibility_needed_count ?? 0],
             ['Remit pending', billingWorkQueue?.remittance_pending_count ?? 0],
           ].map(([label, value]) => (
-            <div key={label} className="rounded-md bg-canvas px-3 py-2">
+            <div key={label} className="rounded-md bg-canvas px-3 py-3">
               <div className="font-serif text-2xl font-medium text-ink">{value}</div>
               <div className="text-xs text-ink-muted">{label}</div>
             </div>
@@ -3003,9 +3003,9 @@ function OperationsPage() {
 
       <section className="rounded-md border border-border bg-canvas-raised p-4">
         <div className="text-sm font-semibold text-ink">Integration Capability Map</div>
-        <div className="mt-3 grid gap-2 md:grid-cols-2 lg:grid-cols-5">
+        <div className="mt-3 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {Object.entries(capabilities ?? {}).map(([key, capability]) => (
-            <div key={key} className="rounded-md border border-border bg-canvas p-3">
+            <div key={key} className="rounded-md border border-border bg-canvas p-4">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium capitalize text-ink">{key.replace('_', ' ')}</span>
                 <StatusBadge ok={capability.configured} label={capability.configured ? 'Live' : 'Staged'} />
