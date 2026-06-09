@@ -5,6 +5,7 @@ import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
+import { Badge } from '@/components/badge';
 import type { Task, TaskOutreachSummary, TaskPatientOutreachDelivery, TaskPatientOutreachDraft, TaskWorkQueue, User } from '@concierge-os/shared';
 import { Plus, CheckCircle2, Clock, AlertCircle, AlertTriangle, X, PlayCircle, Ban, Save, MessageSquare } from 'lucide-react';
 
@@ -28,11 +29,11 @@ const PRIORITY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  open: 'bg-clinic-100 text-clinic-600',
-  in_progress: 'bg-sky-100 text-sky-700',
-  blocked: 'bg-red-100 text-red-700',
-  completed: 'bg-emerald-100 text-emerald-700',
-  cancelled: 'bg-clinic-100 text-clinic-400 line-through',
+  open: 'bg-canvas-sunk text-ink-muted',
+  in_progress: 'bg-accent-soft text-accent',
+  blocked: 'bg-danger/10 text-danger',
+  completed: 'bg-success/10 text-success',
+  cancelled: 'bg-canvas-sunk text-ink-faint line-through',
 };
 
 export const Route = createFileRoute('/tasks/')({
@@ -160,38 +161,38 @@ function TaskListPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold text-clinic-800">Tasks</h1>
-        <button onClick={() => setShowNewTask(true)} className="flex items-center gap-2 rounded-md bg-accent-600 px-4 py-2 text-sm font-medium text-white hover:bg-accent-700">
+        <h1 className="font-serif text-display text-ink">Tasks</h1>
+        <button onClick={() => setShowNewTask(true)} className="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">
           <Plus className="h-4 w-4" />
           New Task
         </button>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
-        <div className="mr-2 flex items-center text-xs font-semibold uppercase tracking-wide text-clinic-400">Status</div>
+        <div className="mr-2 flex items-center text-meta font-medium text-ink-faint">Status</div>
         {['', 'open', 'in_progress', 'blocked', 'completed'].map((s) => (
           <button
             key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               statusFilter === s
-                ? 'bg-accent-600 text-white'
-                : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
+                ? 'bg-ink text-canvas-raised border border-ink'
+                : 'border border-border bg-canvas-raised text-ink-secondary hover:border-border-strong hover:bg-canvas-sunk'
             }`}
           >
             {s ? humanizeWorkflowLabel(s) : 'All'}
           </button>
         ))}
-        <div className="h-8 w-px bg-clinic-200" />
-        <div className="mr-2 flex items-center text-xs font-semibold uppercase tracking-wide text-clinic-400">Priority</div>
+        <div className="h-8 w-px bg-border" />
+        <div className="mr-2 flex items-center text-meta font-medium text-ink-faint">Priority</div>
         {['', 'high', 'urgent'].map((priority) => (
           <button
             key={priority || 'any-priority'}
             onClick={() => { setPriorityFilter(priority); setPage(1); }}
             className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               priorityFilter === priority
-                ? 'bg-clinic-800 text-white'
-                : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
+                ? 'bg-ink text-canvas-raised border border-ink'
+                : 'border border-border bg-canvas-raised text-ink-secondary hover:border-border-strong hover:bg-canvas-sunk'
             }`}
           >
             {priority ? `${humanizeWorkflowLabel(priority)} priority` : 'Any priority'}
@@ -201,8 +202,8 @@ function TaskListPage() {
           onClick={() => { setSourceFilter(sourceFilter === 'checkout' ? '' : 'checkout'); setPage(1); }}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
             sourceFilter === 'checkout'
-              ? 'bg-amber-600 text-white'
-              : 'border border-clinic-300 text-clinic-600 hover:bg-clinic-100'
+              ? 'bg-warn text-canvas-raised'
+              : 'border border-border bg-canvas-raised text-ink-secondary hover:border-border-strong hover:bg-canvas-sunk'
           }`}
         >
           <span>Checkout follow-ups</span>
@@ -217,25 +218,25 @@ function TaskListPage() {
           ['Blocked', outreachSummary?.blocked_count ?? 0],
           ['Needs retry', outreachSummary?.retryable_failed_count ?? 0],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-md border border-clinic-200 bg-white px-3 py-2">
-            <div className="text-lg font-semibold text-clinic-900">{value}</div>
-            <div className="text-xs text-clinic-500">{label}</div>
+          <div key={label} className="bg-canvas-raised border border-border rounded-md px-3 py-2">
+            <div className="font-serif text-lg font-medium text-ink">{value}</div>
+            <div className="text-micro text-ink-muted">{label}</div>
           </div>
         ))}
       </section>
 
       {workQueue && (
-        <section className="mb-4 rounded-md border border-clinic-200 bg-white">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-clinic-200 px-4 py-3">
+        <section className="mb-4 bg-canvas-raised border border-border rounded-md">
+          <div className="border-b border-border px-4 py-3 flex flex-wrap justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold text-clinic-900">Work Queue Control</h2>
-              <p className="text-xs text-clinic-500">{new Date(workQueue.generated_at).toLocaleString()}</p>
+              <h2 className="text-subhead font-medium text-ink">Work Queue Control</h2>
+              <p className="text-micro text-ink-muted">{new Date(workQueue.generated_at).toLocaleString()}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workQueue.overdue_count} overdue</span>
-              <span className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700">{workQueue.blocked_count} blocked</span>
-              <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">{workQueue.unassigned_count} unassigned</span>
-              <span className="rounded-md border border-clinic-200 bg-clinic-50 px-2 py-1 text-xs font-medium text-clinic-700">{workQueue.due_today_count} due today</span>
+              <Badge intent="danger">{workQueue.overdue_count} overdue</Badge>
+              <Badge intent="danger">{workQueue.blocked_count} blocked</Badge>
+              <Badge intent="warn">{workQueue.unassigned_count} unassigned</Badge>
+              <Badge intent="muted">{workQueue.due_today_count} due today</Badge>
             </div>
           </div>
           <div className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -247,47 +248,47 @@ function TaskListPage() {
                 ['Urgent', workQueue.urgent_count],
                 ['High priority', workQueue.high_priority_count],
               ].map(([label, value]) => (
-                <div key={label} className="rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2">
-                  <div className="text-lg font-semibold text-clinic-900">{value}</div>
-                  <div className="text-xs text-clinic-500">{label}</div>
+                <div key={label} className="bg-canvas-sunk border border-border rounded-md px-3 py-2">
+                  <div className="font-serif text-lg font-medium text-ink">{value}</div>
+                  <div className="text-micro text-ink-muted">{label}</div>
                 </div>
               ))}
               <div className="md:col-span-3">
-                <div className="mb-1 text-xs font-semibold uppercase text-clinic-500">Role buckets</div>
+                <div className="mb-1 text-meta font-medium text-ink-faint">Role buckets</div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {Object.entries(workQueue.role_buckets).map(([role, bucket]) => (
                     <button
                       key={role}
                       type="button"
                       onClick={() => setStatusFilter('')}
-                      className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-left text-xs hover:bg-clinic-50"
+                      className="rounded-md border border-border bg-canvas-raised px-2 py-1.5 text-left text-small hover:bg-canvas-sunk transition-colors"
                     >
-                      <span className="font-medium capitalize text-clinic-800">{role.replace('_', ' ')}</span>
-                      <span className="ml-2 text-clinic-500">{bucket.open_count} open · {bucket.urgent_count} urgent</span>
+                      <span className="font-medium capitalize text-ink">{role.replace('_', ' ')}</span>
+                      <span className="ml-2 text-ink-muted">{bucket.open_count} open · {bucket.urgent_count} urgent</span>
                     </button>
                   ))}
                 </div>
               </div>
               <div className="md:col-span-2">
-                <div className="mb-1 text-xs font-semibold uppercase text-clinic-500">Source buckets</div>
+                <div className="mb-1 text-meta font-medium text-ink-faint">Source buckets</div>
                 <div className="grid gap-1 sm:grid-cols-2">
                   {Object.entries(workQueue.source_buckets).map(([source, count]) => (
                     <button
                       key={source}
                       type="button"
                       onClick={() => { setSourceFilter(source === 'checkout_handoff' ? 'checkout' : ''); setPage(1); }}
-                      className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-left text-xs hover:bg-clinic-50"
+                      className="rounded-md border border-border bg-canvas-raised px-2 py-1.5 text-left text-small hover:bg-canvas-sunk transition-colors"
                     >
-                      <span className="font-medium capitalize text-clinic-800">{source.replace('_', ' ')}</span>
-                      <span className="ml-2 text-clinic-500">{count}</span>
+                      <span className="font-medium capitalize text-ink">{source.replace('_', ' ')}</span>
+                      <span className="ml-2 text-ink-muted">{count}</span>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-            <aside className="rounded-md border border-clinic-200">
-              <div className="border-b border-clinic-200 px-3 py-2 text-xs font-semibold uppercase text-clinic-500">Next actions</div>
-              <div className="divide-y divide-clinic-100">
+            <aside className="border border-border rounded-md">
+              <div className="border-b border-border px-3 py-2 text-meta font-medium text-ink-faint">Next actions</div>
+              <div className="divide-y divide-border">
                 {workQueue.next_actions.map((action) => (
                   <button
                     key={action.key}
@@ -299,17 +300,17 @@ function TaskListPage() {
                       if (action.key === 'unassigned') setStatusFilter('');
                       setPage(1);
                     }}
-                    className="block w-full px-3 py-2 text-left hover:bg-clinic-50"
+                    className="block w-full px-3 py-2 text-left hover:bg-canvas-sunk transition-colors"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-clinic-900">{action.label}</span>
-                      <span className={`rounded-md border px-2 py-0.5 text-[11px] font-medium ${action.severity === 'critical' ? 'border-red-200 bg-red-50 text-red-700' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>{action.severity}</span>
+                      <span className="text-small font-medium text-ink">{action.label}</span>
+                      <Badge intent={action.severity === 'critical' ? 'danger' : 'warn'}>{action.severity}</Badge>
                     </div>
-                    <div className="mt-1 text-xs text-clinic-500">{action.detail}</div>
+                    <div className="mt-1 text-micro text-ink-muted">{action.detail}</div>
                   </button>
                 ))}
                 {workQueue.next_actions.length === 0 && (
-                  <div className="px-3 py-6 text-sm text-clinic-400">No work queue actions.</div>
+                  <div className="px-3 py-6 text-small text-ink-faint">No work queue actions.</div>
                 )}
               </div>
             </aside>
@@ -322,15 +323,15 @@ function TaskListPage() {
       ) : isError ? (
         <ErrorState title="Unable to load tasks" detail={error instanceof Error ? error.message : 'The task queue could not be loaded.'} />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-clinic-200 bg-white">
+        <div className="overflow-x-auto">
           {selectedTaskIds.length > 0 && (
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-clinic-100 bg-clinic-50 px-4 py-2">
-              <div className="text-xs font-medium text-clinic-600">{selectedTaskIds.length} selected</div>
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-canvas-sunk px-4 py-2 border-b border-border">
+              <div className="text-meta font-medium text-ink-secondary">{selectedTaskIds.length} selected</div>
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={bulkAssigneeId}
                   onChange={(event) => setBulkAssigneeId(event.target.value)}
-                  className="rounded-md border border-clinic-200 bg-white px-2 py-1.5 text-xs text-clinic-700"
+                  className="rounded-md border border-border bg-canvas px-2 py-1.5 text-small text-ink-secondary"
                 >
                   <option value="">Choose assignee</option>
                   {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
@@ -339,7 +340,7 @@ function TaskListPage() {
                   type="button"
                   onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { assigned_to_id: bulkAssigneeId || null } })}
                   disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
-                  className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-60"
+                  className="rounded-md border border-border bg-canvas-raised px-3 py-1.5 text-small font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-50 transition-colors"
                 >
                   Assign
                 </button>
@@ -347,7 +348,7 @@ function TaskListPage() {
                   type="button"
                   onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'in_progress' } })}
                   disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
-                  className="rounded-md border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:opacity-60"
+                  className="rounded-md border border-accent-soft bg-accent-soft px-3 py-1.5 text-small font-medium text-accent hover:bg-accent-soft/80 disabled:opacity-50 transition-colors"
                 >
                   Start selected
                 </button>
@@ -355,7 +356,7 @@ function TaskListPage() {
                   type="button"
                   onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'blocked' } })}
                   disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
-                  className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-60"
+                  className="rounded-md border border-danger/20 bg-danger/10 px-3 py-1.5 text-small font-medium text-danger hover:bg-danger/20 disabled:opacity-50 transition-colors"
                 >
                   Block selected
                 </button>
@@ -363,14 +364,14 @@ function TaskListPage() {
                   type="button"
                   onClick={() => bulkUpdateMutation.mutate({ tasks: selectedTasks, update: { status: 'completed' } })}
                   disabled={bulkUpdateMutation.isPending || selectedTasks.length === 0}
-                  className="rounded-md border border-accent-200 bg-accent-50 px-3 py-1.5 text-xs font-medium text-accent-700 hover:bg-accent-100 disabled:opacity-60"
+                  className="rounded-md border border-success/20 bg-success/10 px-3 py-1.5 text-small font-medium text-success hover:bg-success/20 disabled:opacity-50 transition-colors"
                 >
                   Complete selected
                 </button>
                 <button
                   type="button"
                   onClick={() => setSelectedTaskIds([])}
-                  className="rounded-md border border-clinic-300 bg-white px-3 py-1.5 text-xs font-medium text-clinic-700 hover:bg-clinic-50"
+                  className="rounded-md border border-border bg-canvas-raised px-3 py-1.5 text-small font-medium text-ink-secondary hover:bg-canvas-sunk transition-colors"
                 >
                   Clear
                 </button>
@@ -378,36 +379,36 @@ function TaskListPage() {
             </div>
           )}
           <table className="w-full min-w-[58rem] text-sm">
-            <thead className="border-b border-clinic-200 bg-clinic-50">
+            <thead className="bg-canvas-sunk border-b border-border">
               <tr>
-                <th className="w-10 px-4 py-3 text-left font-medium text-clinic-500">
+                <th className="w-10 px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">
                   <input
                     type="checkbox"
                     checked={allVisibleSelected}
                     onChange={toggleVisibleTasks}
-                    className="h-4 w-4 rounded border-clinic-300 text-accent-600"
+                    className="h-4 w-4 rounded border-border text-accent"
                     aria-label="Select visible tasks"
                   />
                 </th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Status</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Priority</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Title</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Assigned</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Patient</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Outreach</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500">Due</th>
-                <th className="px-4 py-3 text-left font-medium text-clinic-500"></th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Status</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Priority</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Title</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Assigned</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Patient</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Outreach</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase">Due</th>
+                <th className="px-4 py-3 text-left text-meta font-medium text-ink-muted uppercase"></th>
               </tr>
             </thead>
             <tbody>
               {filteredTasks.map((task) => (
-                <tr key={task.id} className="border-b border-clinic-100 hover:bg-clinic-50">
+                <tr key={task.id} className="border-b border-border-subtle hover:bg-canvas-sunk/50 transition-colors duration-150">
                   <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selectedTaskIds.includes(task.id)}
                       onChange={() => toggleTaskSelection(task.id)}
-                      className="h-4 w-4 rounded border-clinic-300 text-accent-600"
+                      className="h-4 w-4 rounded border-border text-accent"
                       aria-label={`Select ${task.title}`}
                     />
                   </td>
@@ -415,54 +416,54 @@ function TaskListPage() {
                     <select
                       value={task.status}
                       onChange={(event) => updateTask(task.id, { status: event.target.value as Task['status'] })}
-                      className={`rounded-md border-0 px-2 py-1 text-xs font-medium ${STATUS_COLORS[task.status]}`}
+                      className={`border-0 rounded-sm px-2 py-1 text-micro font-medium ${STATUS_COLORS[task.status]}`}
                     >
                       {['open', 'in_progress', 'blocked', 'completed', 'cancelled'].map((status) => <option key={status} value={status}>{humanizeWorkflowLabel(status)}</option>)}
                     </select>
                   </td>
                   <td className="px-4 py-3">
-                    <label className="inline-flex items-center gap-1 text-xs text-clinic-500">
+                    <label className="inline-flex items-center gap-1 text-small text-ink-muted">
                       {PRIORITY_ICONS[task.priority]}
                       <select
                         value={task.priority}
                         onChange={(event) => updateTask(task.id, { priority: event.target.value as Task['priority'] })}
-                        className="rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                        className="rounded-md border border-border bg-canvas px-2 py-1 text-small text-ink-secondary"
                       >
                         {['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority} value={priority}>{humanizeWorkflowLabel(priority)}</option>)}
                       </select>
                     </label>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="font-medium text-clinic-800">{task.title}</div>
+                    <div className="font-medium text-ink">{task.title}</div>
                     {task.source_type?.startsWith('checkout_handoff:') && (
-                      <div className="mt-1 inline-flex rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      <div className="mt-1 inline-flex bg-warn/10 text-warn border border-warn/20 rounded-md px-2 py-0.5 text-micro font-medium">
                         {task.source_type.replace('checkout_handoff:', 'checkout ')}
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-clinic-600">
+                  <td className="px-4 py-3 text-ink-secondary">
                     <select
                       value={task.assigned_to_id ?? ''}
                       onChange={(event) => updateTask(task.id, { assigned_to_id: event.target.value || null })}
-                      className="w-40 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs text-clinic-700"
+                      className="w-40 rounded-md border border-border bg-canvas px-2 py-1 text-small text-ink-secondary"
                     >
                       <option value="">Unassigned</option>
                       {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name}</option>)}
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-clinic-600">{task.patient_name || '—'}</td>
-                  <td className="px-4 py-3 text-xs">
+                  <td className="px-4 py-3 text-ink-secondary">{task.patient_name || '—'}</td>
+                  <td className="px-4 py-3 text-small">
                     {task.delivery_status ? (
                       <div>
-                        <span className={`inline-flex rounded border px-2 py-0.5 font-medium ${deliveryTone(task.delivery_status)}`}>
+                        <span className={`inline-flex rounded-pill px-2 py-0.5 text-micro font-medium ${deliveryTone(task.delivery_status)}`}>
                           {humanizeWorkflowLabel(task.delivery_status)}
                         </span>
-                        <div className="mt-1 text-clinic-500">{task.delivery_channel ?? 'outreach'} · {task.delivery_attempts} attempt{task.delivery_attempts === 1 ? '' : 's'}</div>
-                        {task.delivery_error && <div className="mt-1 max-w-48 truncate text-amber-700">{task.delivery_error}</div>}
+                        <div className="mt-1 text-ink-muted">{task.delivery_channel ?? 'outreach'} · {task.delivery_attempts} attempt{task.delivery_attempts === 1 ? '' : 's'}</div>
+                        {task.delivery_error && <div className="mt-1 max-w-48 truncate text-warn">{task.delivery_error}</div>}
                       </div>
                     ) : '—'}
                   </td>
-                  <td className="px-4 py-3 text-clinic-500 text-xs">
+                  <td className="px-4 py-3 text-ink-muted text-small">
                     <input
                       type="datetime-local"
                       value={toDateTimeInput(task.due_date)}
@@ -475,7 +476,7 @@ function TaskListPage() {
                       {(task.status === 'open' || task.status === 'blocked') && (
                         <button
                           onClick={() => updateTask(task.id, { status: 'in_progress' })}
-                          className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-100"
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-small font-medium text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors"
                         >
                           <PlayCircle className="h-3.5 w-3.5" />
                           {task.status === 'blocked' ? 'Resume' : 'Start'}
@@ -484,7 +485,7 @@ function TaskListPage() {
                       {task.status !== 'blocked' && task.status !== 'completed' && task.status !== 'cancelled' && (
                         <button
                           onClick={() => updateTask(task.id, { status: 'blocked' })}
-                          className="inline-flex items-center gap-1 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-small font-medium text-ink-muted hover:text-danger hover:bg-danger/10 transition-colors"
                         >
                           <AlertCircle className="h-3.5 w-3.5" />
                           Block
@@ -493,7 +494,7 @@ function TaskListPage() {
                       {task.status !== 'completed' && (
                       <button
                         onClick={() => updateTask(task.id, { status: 'completed' })}
-                        className="inline-flex items-center gap-1 rounded-md border border-accent-200 bg-accent-50 px-2 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                        className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-small font-medium text-ink-muted hover:text-success hover:bg-success/10 transition-colors"
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         Complete
@@ -502,7 +503,7 @@ function TaskListPage() {
                       {task.status !== 'cancelled' && task.status !== 'completed' && (
                         <button
                           onClick={() => updateTask(task.id, { status: 'cancelled' })}
-                          className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50"
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-small font-medium text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors"
                         >
                           <Ban className="h-3.5 w-3.5" />
                           Cancel
@@ -511,7 +512,7 @@ function TaskListPage() {
                       {task.patient_id && (
                         <button
                           onClick={() => outreachMutation.mutate(task.id)}
-                          className="inline-flex items-center gap-1 rounded-md border border-clinic-200 bg-white px-2 py-1 text-xs font-medium text-clinic-600 hover:bg-clinic-50"
+                          className="inline-flex items-center gap-1 rounded-sm px-2 py-1 text-small font-medium text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors"
                         >
                           <MessageSquare className="h-3.5 w-3.5" />
                           Outreach
@@ -527,7 +528,7 @@ function TaskListPage() {
                     <EmptyState
                       title="No tasks found"
                       detail={statusFilter ? 'Try another status filter or create a new task.' : 'No work is queued for the current filter. Create a task or check Setup if demo data is missing.'}
-                      action={<button type="button" onClick={() => setShowNewTask(true)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Create task</button>}
+                      action={<button type="button" onClick={() => setShowNewTask(true)} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Create task</button>}
                     />
                   </td>
                 </tr>
@@ -538,56 +539,56 @@ function TaskListPage() {
       )}
 
       {showNewTask && (
-        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               createMutation.mutate();
             }}
-            className="mx-auto mt-24 max-w-lg rounded-md border border-clinic-300 bg-white shadow-xl"
+            className="mx-auto mt-24 max-w-lg bg-canvas-raised border border-border rounded-lg shadow-lg animate-in slide-in-from-bottom-4 duration-200"
           >
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
-              <h2 className="text-sm font-semibold text-clinic-900">New Task</h2>
-              <button type="button" onClick={() => setShowNewTask(false)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+              <h2 className="text-subhead font-medium text-ink">New Task</h2>
+              <button type="button" onClick={() => setShowNewTask(false)} className="text-ink-muted hover:text-ink rounded-md p-1">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4">
-              <label className="block text-sm font-medium text-clinic-700">
+            <div className="space-y-3 p-5">
+              <label className="block text-small font-medium text-ink-secondary">
                 Title
-                <input required value={newTask.title} onChange={(event) => setNewTask({ ...newTask, title: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <input required value={newTask.title} onChange={(event) => setNewTask({ ...newTask, title: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink placeholder:text-ink-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
               </label>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Description
-                <textarea value={newTask.description} onChange={(event) => setNewTask({ ...newTask, description: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                <textarea value={newTask.description} onChange={(event) => setNewTask({ ...newTask, description: event.target.value })} rows={3} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink placeholder:text-ink-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
               </label>
               <div className="grid gap-3 sm:grid-cols-3">
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Priority
-                  <select value={newTask.priority} onChange={(event) => setNewTask({ ...newTask, priority: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                  <select value={newTask.priority} onChange={(event) => setNewTask({ ...newTask, priority: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
                     {['low', 'normal', 'high', 'urgent'].map((priority) => <option key={priority}>{priority}</option>)}
                   </select>
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Due
-                  <input type="datetime-local" value={newTask.due_date} onChange={(event) => setNewTask({ ...newTask, due_date: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <input type="datetime-local" value={newTask.due_date} onChange={(event) => setNewTask({ ...newTask, due_date: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
                 </label>
-                <label className="text-sm font-medium text-clinic-700">
+                <label className="text-small font-medium text-ink-secondary">
                   Patient
-                  <input value={newTask.patient_name} onChange={(event) => setNewTask({ ...newTask, patient_name: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm" />
+                  <input value={newTask.patient_name} onChange={(event) => setNewTask({ ...newTask, patient_name: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink placeholder:text-ink-faint outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft" />
                 </label>
               </div>
-              <label className="block text-sm font-medium text-clinic-700">
+              <label className="block text-small font-medium text-ink-secondary">
                 Assignee
-                <select value={newTask.assigned_to_id} onChange={(event) => setNewTask({ ...newTask, assigned_to_id: event.target.value })} className="mt-1 w-full rounded-md border border-clinic-300 px-3 py-2 text-sm">
+                <select value={newTask.assigned_to_id} onChange={(event) => setNewTask({ ...newTask, assigned_to_id: event.target.value })} className="mt-1 w-full rounded-sm border border-border bg-canvas px-3 py-2 text-small text-ink outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft">
                   <option value="">Unassigned</option>
                   {staffRows.map((user) => <option key={user.id} value={user.id}>{user.display_name} - {formatRole(user.role)}</option>)}
                 </select>
               </label>
             </div>
-            <div className="flex justify-end gap-2 border-t border-clinic-200 px-4 py-3">
-              <button type="button" onClick={() => setShowNewTask(false)} className="rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-700 hover:bg-clinic-50">Cancel</button>
-              <button disabled={createMutation.isPending} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700 disabled:opacity-50">
+            <div className="flex justify-end gap-3 border-t border-border px-5 py-4">
+              <button type="button" onClick={() => setShowNewTask(false)} className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-small text-ink-secondary hover:bg-canvas-sunk transition-colors">Cancel</button>
+              <button disabled={createMutation.isPending} className="rounded-md bg-accent px-3 py-2 text-small font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50 active:scale-[0.98] transition-transform duration-75">
                 <Save className="mr-1 inline h-3.5 w-3.5" />
                 {createMutation.isPending ? 'Creating...' : 'Create task'}
               </button>
@@ -597,20 +598,20 @@ function TaskListPage() {
       )}
 
       {outreachDraft && (
-        <div className="fixed inset-0 z-50 bg-clinic-900/20 p-4">
-          <div className="mx-auto mt-24 max-w-xl rounded-md border border-clinic-300 bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-clinic-200 px-4 py-3">
+        <div className="fixed inset-0 z-50 bg-ink/20 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="mx-auto mt-24 max-w-xl bg-canvas-raised border border-border rounded-lg shadow-lg animate-in slide-in-from-bottom-4 duration-200">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
               <div>
-                <h2 className="text-sm font-semibold text-clinic-900">Patient Outreach Draft</h2>
-                <p className="mt-1 text-xs text-clinic-500">{outreachDraft.patient_name} - {outreachDraft.patient_phone ?? outreachDraft.patient_email ?? 'No contact on file'}</p>
+                <h2 className="text-subhead font-medium text-ink">Patient Outreach Draft</h2>
+                <p className="mt-1 text-micro text-ink-muted">{outreachDraft.patient_name} - {outreachDraft.patient_phone ?? outreachDraft.patient_email ?? 'No contact on file'}</p>
               </div>
-              <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md p-1 text-clinic-500 hover:bg-clinic-100">
+              <button type="button" onClick={() => setOutreachDraft(null)} className="text-ink-muted hover:text-ink rounded-md p-1">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="space-y-3 p-5">
               {deliveryResult && (
-                <div className={`rounded-md border px-3 py-2 text-sm ${deliveryResult.eligible ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
+                <div className={`rounded-md border px-3 py-2 text-small ${deliveryResult.eligible ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
                   {deliveryResult.eligible
                     ? `Queued ${deliveryResult.channel} delivery to ${deliveryResult.recipient}.`
                     : deliveryResult.blocked_reason ?? `${deliveryResult.channel} delivery is blocked.`}
@@ -618,28 +619,28 @@ function TaskListPage() {
               )}
               <div className="grid gap-2 sm:grid-cols-2">
                 {outreachDraft.channel_options.map((option) => (
-                  <div key={option.channel} className={`rounded-md border px-3 py-2 text-xs ${option.eligible ? 'border-accent-200 bg-accent-50 text-accent-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}>
-                    <div className="font-semibold uppercase">{option.channel}</div>
+                  <div key={option.channel} className={`rounded-md border px-3 py-2 text-small ${option.eligible ? 'border-accent-soft bg-accent-soft text-accent' : 'border-warn/20 bg-warn/10 text-warn'}`}>
+                    <div className="font-medium">{option.channel}</div>
                     <div className="mt-1">{option.eligible ? option.recipient : option.blocked_reason}</div>
                   </div>
                 ))}
               </div>
               <div>
-                <div className="text-xs font-medium uppercase text-clinic-500">Subject</div>
-                <div className="mt-1 rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm text-clinic-800">{outreachDraft.subject}</div>
+                <div className="text-meta font-medium text-ink-faint">Subject</div>
+                <div className="mt-1 rounded-sm border border-border bg-canvas-sunk px-3 py-2 text-small text-ink">{outreachDraft.subject}</div>
               </div>
               <div>
-                <div className="text-xs font-medium uppercase text-clinic-500">Body</div>
-                <pre className="mt-1 whitespace-pre-wrap rounded-md border border-clinic-200 bg-clinic-50 px-3 py-2 text-sm leading-6 text-clinic-800">{outreachDraft.body}</pre>
+                <div className="text-meta font-medium text-ink-faint">Body</div>
+                <pre className="mt-1 whitespace-pre-wrap rounded-sm border border-border bg-canvas-sunk px-3 py-2 text-small leading-6 text-ink">{outreachDraft.body}</pre>
               </div>
             </div>
-            <div className="flex justify-end border-t border-clinic-200 px-4 py-3">
-              <div className="flex gap-2">
+            <div className="flex justify-end border-t border-border px-5 py-4">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'sms' })}
                   disabled={deliverMutation.isPending || !outreachDraft.channel_options.find((option) => option.channel === 'sms')?.eligible}
-                  className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
+                  className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-50 transition-colors"
                 >
                   Queue SMS
                 </button>
@@ -647,11 +648,11 @@ function TaskListPage() {
                   type="button"
                   onClick={() => deliverMutation.mutate({ draft: outreachDraft, channel: 'email' })}
                   disabled={deliverMutation.isPending || !outreachDraft.channel_options.find((option) => option.channel === 'email')?.eligible}
-                  className="rounded-md border border-clinic-300 px-3 py-2 text-sm font-medium text-clinic-700 hover:bg-clinic-50 disabled:opacity-50"
+                  className="rounded-md border border-border bg-canvas-raised px-3 py-2 text-small font-medium text-ink-secondary hover:bg-canvas-sunk disabled:opacity-50 transition-colors"
                 >
                   Queue Email
                 </button>
-                <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md bg-accent-600 px-3 py-2 text-sm font-medium text-white hover:bg-accent-700">Done</button>
+                <button type="button" onClick={() => setOutreachDraft(null)} className="rounded-md bg-accent px-3 py-2 text-small font-medium text-accent-on hover:bg-accent-hover active:scale-[0.98] transition-transform duration-75">Done</button>
               </div>
             </div>
           </div>
@@ -669,20 +670,20 @@ function toDateTimeInput(value: string | null) {
 }
 
 function dueTone(task: Task) {
-  const base = 'w-44 rounded-md border px-2 py-1 text-xs';
-  if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') return `${base} border-clinic-200 bg-white text-clinic-600`;
+  const base = 'w-44 rounded-sm border px-2 py-1 text-small outline-none focus:border-accent focus:ring-1 focus:ring-accent-soft';
+  if (!task.due_date || task.status === 'completed' || task.status === 'cancelled') return `${base} border-border bg-canvas text-ink-secondary`;
   const due = new Date(task.due_date).getTime();
   const now = Date.now();
-  if (due < now) return `${base} border-red-200 bg-red-50 font-medium text-red-800`;
-  if (due - now < 24 * 60 * 60 * 1000) return `${base} border-amber-200 bg-amber-50 font-medium text-amber-800`;
-  return `${base} border-clinic-200 bg-white text-clinic-600`;
+  if (due < now) return `${base} border-danger/20 bg-danger/10 font-medium text-danger`;
+  if (due - now < 24 * 60 * 60 * 1000) return `${base} border-warn/20 bg-warn/10 font-medium text-warn`;
+  return `${base} border-border bg-canvas text-ink-secondary`;
 }
 
 function deliveryTone(status: string) {
-  if (status === 'delivered') return 'border-accent-200 bg-accent-50 text-accent-800';
-  if (status === 'queued') return 'border-sky-200 bg-sky-50 text-sky-800';
-  if (status === 'failed' || status === 'blocked') return 'border-amber-200 bg-amber-50 text-amber-800';
-  return 'border-clinic-200 bg-clinic-50 text-clinic-600';
+  if (status === 'delivered') return 'bg-accent-soft text-accent';
+  if (status === 'queued') return 'bg-accent-soft text-accent';
+  if (status === 'failed' || status === 'blocked') return 'bg-warn/10 text-warn';
+  return 'bg-canvas-sunk text-ink-muted';
 }
 
 function formatRole(role: User['role']) {
