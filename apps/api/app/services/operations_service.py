@@ -2163,7 +2163,7 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
                 _checklist_item("charge_review", "Review charges", "Convert signed encounters into billing cases and clear coding gaps.", "/billing", "ready"),
                 _checklist_item("claim_readiness", "Submit ready claim", "Run claim readiness and submit only cases with eligibility and coding complete.", "/billing", "ready"),
                 _checklist_item("denial_rework", "Rework denial", "Move a denied case through rework and resubmission.", "/billing", "ready"),
-                _checklist_item("remittance", "Record payment", "Record payment or remittance placeholder and confirm timeline/audit visibility.", "/billing", "ready"),
+                _checklist_item("remittance", "Record payment", "Record a payment or remittance note and confirm timeline/audit visibility.", "/billing", "ready"),
             ],
         ),
         _role_checklist(

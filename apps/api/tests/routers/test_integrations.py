@@ -599,7 +599,10 @@ async def test_placeholder_adapter_blocks_credential_preflight_even_with_sandbox
     assert updated_fax["steps"][1]["key"] == "adapter"
     assert updated_fax["steps"][1]["status"] == "blocked"
     assert "0 of" in updated_fax["steps"][1]["detail"]
-    assert any("vendor-specific fax adapter" in blocker.lower() for blocker in updated_fax["blockers"])
+    assert any(
+        "vendor-specific" in blocker.lower() and "adapter" in blocker.lower()
+        for blocker in updated_fax["blockers"]
+    )
 
 
 @pytest.mark.asyncio

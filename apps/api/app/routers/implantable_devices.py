@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,13 +13,15 @@ from app.models.user import User
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/implantable-devices", tags=["Implantable Devices"])
+DbDep = Annotated[Session, Depends(get_db)]
+CurrentUserDep = Annotated[User, Depends(get_current_user)]
 
 
 @router.get("/patients/{patient_id}")
 async def list_patient_devices(
     patient_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbDep,
+    _current_user: CurrentUserDep,
 ) -> list[dict]:
     """List implantable devices for a patient."""
     devices = (
@@ -47,8 +49,8 @@ async def list_patient_devices(
 async def add_device(
     patient_id: str,
     data: dict[str, Any],
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    db: DbDep,
+    _current_user: CurrentUserDep,
 ) -> dict:
     """Add an implantable device to a patient's record."""
     device = ImplantableDevice(
@@ -77,14 +79,15 @@ async def add_device(
 @router.get("/safety-check/{udi}")
 async def check_device_safety(
     udi: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    _db: DbDep,
+    _current_user: CurrentUserDep,
 ) -> dict:
     """Check FDA safety alerts/recalls for a device by UDI.
 
     In production, queries FDA openFDA API or GUDID database.
     """
-    # Placeholder — real implementation queries FDA APIs
+    # Local readiness mode returns a deterministic safety profile until the FDA
+    # adapter is configured.
     return {
         "udi": udi,
         "safety_status": "no_alerts",

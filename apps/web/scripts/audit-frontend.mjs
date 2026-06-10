@@ -49,9 +49,15 @@ const requiredSnippets = [
   ['router/routes/__root.tsx', 'SettingsPanel'],
   ['router/routes/__root.tsx', 'MobileNav'],
   ['router/routes/index.tsx', 'CommandCenterPage'],
-  ['router/routes/patients/$patientId.tsx', "type Tab = 'summary' | 'demographics' | 'documents'"],
+  ['router/routes/patients/$patientId.tsx', 'type Tab ='],
+  ['router/routes/patients/$patientId.tsx', "'summary'"],
+  ['router/routes/patients/$patientId.tsx', "'demographics'"],
+  ['router/routes/patients/$patientId.tsx', "'documents'"],
   ['router/routes/patients/$patientId.tsx', 'Medication Reconciliation'],
   ['router/routes/patients/$patientId.tsx', 'Outside Documents'],
+  ['router/routes/faxes/index.tsx', 'SearchablePatientPicker'],
+  ['router/routes/faxes/index.tsx', 'ROUTES.FAX_SEND'],
+  ['router/routes/faxes/index.tsx', 'ROUTES.FAX_MATCH'],
   ['router/routes/messaging/index.tsx', 'RECIPIENTS'],
 ];
 

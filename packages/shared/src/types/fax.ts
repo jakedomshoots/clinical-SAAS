@@ -19,4 +19,6 @@ export interface FaxSendRequest {
   to_number: string;
   patient_id?: UUID;
   file_url?: string;
+  pages?: number;
+  ocr_text?: string;
 }

@@ -17,9 +17,10 @@ class UserOut(BaseModel):
     temporary_password_expires_at: datetime | None
     last_login_at: datetime | None
     access_reviewed_at: datetime | None
+    access_reviewed_by_id: str | None
+    access_review_note: str | None
     created_at: datetime
     updated_at: datetime
-
 
 
 class UserCreate(BaseModel):

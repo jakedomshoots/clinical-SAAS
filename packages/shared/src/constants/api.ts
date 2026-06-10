@@ -57,6 +57,8 @@ export const ROUTES = {
   PROVIDER_AVAILABILITY: (providerId: string) => `/api/schedule/availability/${providerId}`,
   FAXES: '/api/faxes',
   FAX: (id: string) => `/api/faxes/${id}`,
+  FAX_SEND: '/api/faxes/send',
+  FAX_MATCH: (id: string) => `/api/faxes/${id}/match`,
   MESSAGES: '/api/messages',
   MESSAGE: (id: string) => `/api/messages/${id}`,
   THREAD: (id: string) => `/api/messages/threads/${id}`,

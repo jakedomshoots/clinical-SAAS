@@ -86,6 +86,8 @@ async def send_fax(
     to_number: str,
     patient_id: str | None = None,
     file_url: str | None = None,
+    pages: int = 1,
+    ocr_text: str | None = None,
 ) -> dict | None:
     if patient_id:
         patient = (
@@ -107,7 +109,8 @@ async def send_fax(
         to_number=to_number,
         patient_id=patient_id,
         file_url=file_url,
-        pages=1,
+        pages=pages,
+        ocr_text=ocr_text,
     )
     db.add(fax)
     await db.commit()
@@ -169,7 +172,10 @@ async def match_fax(db: AsyncSession, user: User, fax_id: str, patient_id: str) 
                 Task(
                     organization_id=user.organization_id,
                     title="Review inbound fax document",
-                    description=fax.ocr_text or "Inbound fax was matched to the patient and needs chart review.",
+                    description=(
+                        fax.ocr_text
+                        or "Inbound fax was matched to the patient and needs chart review."
+                    ),
                     priority=TaskPriority.high,
                     status=TaskStatus.open,
                     patient_id=patient_id,

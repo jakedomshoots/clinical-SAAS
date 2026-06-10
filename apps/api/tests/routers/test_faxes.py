@@ -48,6 +48,29 @@ async def test_send_and_list_outbound_faxes(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_send_outbound_fax_accepts_document_metadata(client: AsyncClient, auth_headers):
+    patient_id = await create_patient(client, auth_headers)
+
+    res = await client.post(
+        "/api/faxes/send",
+        json={
+            "to_number": "+13125550100",
+            "patient_id": patient_id,
+            "file_url": "s3://concierge-os/outbound/referral.pdf",
+            "pages": 4,
+            "ocr_text": "Referral packet cover note.",
+        },
+        headers=auth_headers,
+    )
+
+    assert res.status_code == 201
+    fax = res.json()
+    assert fax["file_url"] == "s3://concierge-os/outbound/referral.pdf"
+    assert fax["pages"] == 4
+    assert fax["ocr_text"] == "Referral packet cover note."
+
+
+@pytest.mark.asyncio
 async def test_match_inbound_fax_to_patient(
     client: AsyncClient,
     auth_headers,

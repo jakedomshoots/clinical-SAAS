@@ -6,12 +6,36 @@ Handles login, callback, token refresh, logout, and session management.
 from __future__ import annotations
 
 import secrets
-from typing import Any
+from datetime import UTC, datetime
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Cookie, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.database import get_db
+from app.deps import get_current_user as get_bearer_current_user
+from app.deps import require_roles
+from app.models.user import User, UserRole
+from app.schemas.auth import (
+    PasswordRotationComplete,
+    SeedAdminOut,
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserOut,
+)
+from app.services.audit_service import log_event
+from app.services.auth_service import (
+    authenticate_user,
+    complete_password_rotation,
+    create_access_token,
+    create_user,
+    get_user_by_email,
+    seed_admin,
+    temporary_password_is_expired,
+)
 from app.services.identity_service import (
     AuthenticationError,
     IdentityProvider,
@@ -23,9 +47,208 @@ from app.services.identity_service import (
 )
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
+api_router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
 # In production, use Redis
 _session_manager = SessionManager()
+DbDep = Annotated[AsyncSession, Depends(get_db)]
+BearerUserDep = Annotated[User, Depends(get_bearer_current_user)]
+ManagerUserDep = Annotated[User, Depends(require_roles(UserRole.admin, UserRole.manager))]
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
+def _token_response(user: User) -> TokenResponse:
+    return TokenResponse(
+        access_token=create_access_token(user.id, user.role.value, user.session_version),
+        user=user,
+    )
+
+
+def _is_staff_user(user: User) -> bool:
+    return user.role in {
+        UserRole.admin,
+        UserRole.manager,
+        UserRole.provider,
+        UserRole.ma,
+        UserRole.front_desk,
+    }
+
+
+async def _block_local_production_staff_login(db: AsyncSession, user: User) -> None:
+    if (
+        settings.is_production
+        and settings.require_external_mfa_in_production
+        and _is_staff_user(user)
+    ):
+        await log_event(
+            db,
+            "auth.login_blocked",
+            "user",
+            user.id,
+            actor_id=user.id,
+            payload={"reason": "external_mfa_required"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Production staff login requires external MFA provider handoff",
+        )
+
+
+@api_router.post("/login", response_model=TokenResponse)
+async def staff_login(
+    data: UserLogin,
+    db: DbDep,
+) -> TokenResponse:
+    """Authenticate a local staff user for non-production or demo workflows."""
+    user = await authenticate_user(db, str(data.email), data.password)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if user.password_must_change:
+        if temporary_password_is_expired(user):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Temporary password expired",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Password change required before login",
+        )
+
+    await _block_local_production_staff_login(db, user)
+
+    user.last_login_at = _utcnow()
+    await db.commit()
+    await db.refresh(user)
+    await log_event(
+        db,
+        "auth.login",
+        "user",
+        user.id,
+        actor_id=user.id,
+        payload={"method": "local_password"},
+    )
+    return _token_response(user)
+
+
+@api_router.get("/me", response_model=UserOut)
+async def staff_me(current_user: BearerUserDep) -> User:
+    """Return the bearer-token staff session."""
+    return current_user
+
+
+@api_router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
+async def register_staff_user(
+    data: UserCreate,
+    db: DbDep,
+    current_user: ManagerUserDep,
+) -> User:
+    """Create a staff user scoped to the current clinic organization."""
+    requested_role = UserRole(data.role)
+    requested_org = data.organization_id or current_user.organization_id
+
+    if requested_org != current_user.organization_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot create users outside the current organization",
+        )
+    if current_user.role != UserRole.admin and requested_role == UserRole.admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Managers cannot create admin users",
+        )
+
+    existing = await get_user_by_email(db, str(data.email))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User with this email already exists",
+        )
+
+    user = await create_user(
+        db,
+        email=str(data.email),
+        password=data.password,
+        display_name=data.display_name,
+        role=requested_role.value,
+        organization_id=requested_org,
+    )
+    await log_event(
+        db,
+        "user.created",
+        "user",
+        user.id,
+        actor_id=current_user.id,
+        payload={"role": user.role.value, "organization_id": user.organization_id},
+    )
+    return user
+
+
+@api_router.post("/complete-password-rotation", response_model=TokenResponse)
+async def complete_staff_password_rotation(
+    data: PasswordRotationComplete,
+    db: DbDep,
+) -> TokenResponse:
+    """Replace a temporary password before issuing a staff session."""
+    try:
+        user = await complete_password_rotation(
+            db,
+            str(data.email),
+            data.current_password,
+            data.new_password,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    await _block_local_production_staff_login(db, user)
+    user.last_login_at = _utcnow()
+    await db.commit()
+    await db.refresh(user)
+    await log_event(
+        db,
+        "auth.password_rotated",
+        "user",
+        user.id,
+        actor_id=user.id,
+        payload={"method": "temporary_password"},
+    )
+    return _token_response(user)
+
+
+@api_router.post("/seed", response_model=SeedAdminOut, status_code=status.HTTP_201_CREATED)
+async def seed_initial_admin(db: DbDep) -> SeedAdminOut:
+    """Create the first admin account when local seeding is explicitly enabled."""
+    if not settings.allow_seed_endpoint:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+
+    seeded = await seed_admin(db)
+    if seeded is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Admin seed already exists",
+        )
+    user, temporary_password = seeded
+    await log_event(
+        db,
+        "user.created",
+        "user",
+        user.id,
+        actor_id=user.id,
+        payload={"role": user.role.value, "source": "seed_endpoint"},
+    )
+    return SeedAdminOut(user=user, temporary_password=temporary_password)
 
 
 @router.get("/login/{provider}")
@@ -147,8 +370,23 @@ async def refresh_token(
 ) -> dict[str, Any]:
     """Refresh access token."""
     response = response or Response()
-    # Implementation depends on token storage strategy
-    raise HTTPException(status_code=501, detail="Not implemented")
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from exc
+
+    provider = payload.get("provider")
+    refresh_token_value = payload.get("refresh_token")
+    if not provider or not refresh_token_value:
+        raise HTTPException(status_code=422, detail="provider and refresh_token are required")
+
+    try:
+        client = _get_client(IdentityProvider(provider))
+        return await client.refresh_token(refresh_token_value)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Unsupported identity provider") from exc
+    except AuthenticationError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
 @router.post("/logout")

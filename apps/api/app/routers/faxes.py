@@ -54,6 +54,8 @@ async def send_fax(data: FaxSendRequest, db: DbDep, current_user: FrontOfficeUse
         data.to_number,
         data.patient_id,
         data.file_url,
+        data.pages,
+        data.ocr_text,
     )
     if not fax:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")

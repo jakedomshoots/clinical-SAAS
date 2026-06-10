@@ -353,7 +353,7 @@ async def test_security_templates_and_integration_capabilities(client, auth_head
     assert policy.status_code == 200
     assert policy.json()["access_token_expire_minutes"] > 0
     assert templates.json()["total"] >= 2
-    assert "fhir_placeholder" in capabilities.json()["ehr"]["supports"]
+    assert "fhir_r4_export" in capabilities.json()["ehr"]["supports"]
     assert capabilities.json()["ehr"]["action"]
     assert capabilities.json()["copilotkit"]["configured"] is False
     assert "era_remittance" in capabilities.json()["clearinghouse"]["supports"]

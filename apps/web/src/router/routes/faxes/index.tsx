@@ -7,7 +7,8 @@ import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 import { Badge } from '@/components/badge';
-import type { Fax } from '@concierge-os/shared';
+import { SearchablePatientPicker } from '@/components/searchable-patient-picker';
+import { ROUTES, type Fax, type FaxSendRequest } from '@concierge-os/shared';
 import { Send, ArrowDownToLine, ArrowUpFromLine, FileText, Search, X, Printer } from 'lucide-react';
 
 interface FaxListResponse {
@@ -53,10 +54,11 @@ function FaxCenterPage() {
   const [tab, setTab] = useState<'inbox' | 'outbox'>('inbox');
   const [selectedFax, setSelectedFax] = useState<Fax | null>(null);
   const [showSendFax, setShowSendFax] = useState(false);
-  const [matchPatient, setMatchPatient] = useState('');
+  const [matchPatientId, setMatchPatientId] = useState('');
   const [sendFax, setSendFax] = useState({
     to_number: '',
-    patient_name: '',
+    patient_id: '',
+    file_url: '',
     pages: '1',
     ocr_text: '',
   });
@@ -107,19 +109,22 @@ function FaxCenterPage() {
   }, [data?.data, searchQuery, matchFilter, dateFilter]);
 
   const sendMutation = useMutation({
-    mutationFn: () =>
-      api.post<Fax>('/faxes', {
+    mutationFn: () => {
+      const payload: FaxSendRequest = {
         to_number: sendFax.to_number,
-        patient_name: sendFax.patient_name || null,
+        patient_id: sendFax.patient_id || undefined,
+        file_url: sendFax.file_url || undefined,
         pages: Number(sendFax.pages) || 1,
-        ocr_text: sendFax.ocr_text || 'Queued outbound fax.',
-      }),
+        ocr_text: sendFax.ocr_text || undefined,
+      };
+      return api.post<Fax>(ROUTES.FAX_SEND, payload);
+    },
     onSuccess: (fax) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES });
       setTab('outbox');
       setSelectedFax(fax);
       setShowSendFax(false);
-      setSendFax({ to_number: '', patient_name: '', pages: '1', ocr_text: '' });
+      setSendFax({ to_number: '', patient_id: '', file_url: '', pages: '1', ocr_text: '' });
       toast.success(`Fax to ${fax.to_number} queued for sending`);
     },
     onError: (err) => {
@@ -128,13 +133,13 @@ function FaxCenterPage() {
   });
 
   const matchMutation = useMutation({
-    mutationFn: ({ id, patient_name }: { id: string; patient_name: string }) =>
-      api.patch<Fax>(`/faxes/${id}`, { patient_name, matched_by: 'manual' }),
-    onSuccess: (fax, variables) => {
+    mutationFn: ({ id, patient_id }: { id: string; patient_id: string }) =>
+      api.post<Fax>(ROUTES.FAX_MATCH(id), { patient_id }),
+    onSuccess: (fax) => {
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES });
       setSelectedFax(fax);
-      setMatchPatient('');
-      toast.success(`Fax matched to patient "${variables.patient_name}"`);
+      setMatchPatientId('');
+      toast.success(`Fax matched to ${fax.patient_name ?? 'the selected patient'}`);
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : 'Failed to match fax');
@@ -390,18 +395,19 @@ function FaxCenterPage() {
           )}
           {!selectedFax.patient_id && (
             <div className="mt-4">
-              <input
-                value={matchPatient}
-                onChange={(event) => setMatchPatient(event.target.value)}
-                placeholder="Patient name"
-                className="mb-2 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
-              />
+              <div className="mb-2">
+                <SearchablePatientPicker
+                  value={matchPatientId}
+                  onChange={setMatchPatientId}
+                  placeholder="Select patient"
+                />
+              </div>
               <button
                 onClick={() => {
-                  if (!selectedFax || !matchPatient) return;
-                  matchMutation.mutate({ id: selectedFax.id, patient_name: matchPatient });
+                  if (!selectedFax || !matchPatientId) return;
+                  matchMutation.mutate({ id: selectedFax.id, patient_id: matchPatientId });
                 }}
-                disabled={matchMutation.isPending || !matchPatient}
+                disabled={matchMutation.isPending || !matchPatientId}
                 className="btn btn-secondary w-full"
               >
                 <Search className="h-3.5 w-3.5" />
@@ -457,10 +463,21 @@ function FaxCenterPage() {
               </div>
               <label className="block text-small font-medium text-ink-secondary">
                 Patient
+                <div className="mt-1">
+                  <SearchablePatientPicker
+                    value={sendFax.patient_id}
+                    onChange={(value) => setSendFax({ ...sendFax, patient_id: value })}
+                    placeholder="Select patient"
+                  />
+                </div>
+              </label>
+              <label className="block text-small font-medium text-ink-secondary">
+                Source file URL
                 <input
-                  value={sendFax.patient_name}
-                  onChange={(event) => setSendFax({ ...sendFax, patient_name: event.target.value })}
+                  value={sendFax.file_url}
+                  onChange={(event) => setSendFax({ ...sendFax, file_url: event.target.value })}
                   className="mt-1 w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink placeholder:text-ink-faint focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
+                  placeholder="s3://concierge-os/outbound/referral.pdf"
                 />
               </label>
               <label className="block text-small font-medium text-ink-secondary">

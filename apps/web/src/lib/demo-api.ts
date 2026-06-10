@@ -1760,7 +1760,7 @@ function staffTrainingChecklist(): StaffTrainingChecklist {
         demoTrainingItem(
           'billing_workflow',
           'Billing workflow',
-          'Review charge review, claim readiness, eligibility history, denial rework, and remittance placeholders.',
+          'Review charge review, claim readiness, eligibility history, denial rework, and remittance workflow readiness.',
           '/billing',
           'Revenue'
         ),
@@ -4306,7 +4306,7 @@ function roleDryRunChecklists(): RoleDryRunChecklistList {
         demoChecklistItem(
           'remittance',
           'Record payment',
-          'Record payment or remittance placeholder and confirm timeline/audit visibility.',
+          'Record a payment or remittance note and confirm timeline/audit visibility.',
           '/billing'
         ),
       ]
@@ -6997,7 +6997,7 @@ export async function demoRequest<T>(
         healthy: false,
         mode: 'demo',
         env_vars: ['EHR_API_BASE_URL'],
-        supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_placeholder'],
+        supports: ['demographics', 'medications', 'labs', 'encounters', 'fhir_r4_export'],
         workflows: ['Chart sync', 'Medication reconciliation', 'Lab import'],
         action: 'Choose an EHR adapter and set EHR_API_BASE_URL.',
       },
@@ -9570,9 +9570,12 @@ export async function demoRequest<T>(
     return { appointment_id: appointment.id, queued: eventIds.length, event_ids: eventIds } as T;
   }
 
-  if (path === '/faxes') {
+  if (path === '/faxes' || path === '/faxes/send') {
     if (method === 'POST') {
       const incoming = body as Partial<Fax>;
+      const patient = incoming.patient_id
+        ? patients.find((item) => item.id === incoming.patient_id)
+        : null;
       const fax: Fax = {
         id: uuid(960 + faxes.length),
         direction: 'outbound',
@@ -9580,9 +9583,9 @@ export async function demoRequest<T>(
         from_number: '+13125550999',
         to_number: incoming.to_number ?? '+13125550000',
         pages: incoming.pages ?? 1,
-        file_url: null,
+        file_url: incoming.file_url ?? null,
         patient_id: incoming.patient_id ?? null,
-        patient_name: incoming.patient_name ?? null,
+        patient_name: patient ? `${patient.last_name}, ${patient.first_name}` : null,
         matched_by: incoming.patient_id ? 'manual' : null,
         ocr_text: incoming.ocr_text ?? 'Queued outbound fax.',
         created_at: new Date().toISOString(),
@@ -9602,14 +9605,48 @@ export async function demoRequest<T>(
       saveDemoData();
       return fax as T;
     }
-    const direction = url.searchParams.get('direction');
-    const filtered = direction ? faxes.filter((fax) => fax.direction === direction) : faxes;
-    return {
-      data: paginate(filtered, page, pageSize),
-      total: filtered.length,
-      page,
-      page_size: pageSize,
-    } as T;
+    if (path === '/faxes') {
+      const direction = url.searchParams.get('direction');
+      const filtered = direction ? faxes.filter((fax) => fax.direction === direction) : faxes;
+      return {
+        data: paginate(filtered, page, pageSize),
+        total: filtered.length,
+        page,
+        page_size: pageSize,
+      } as T;
+    }
+  }
+
+  const faxApiMatch = path.match(/^\/faxes\/([^/]+)\/match$/);
+  if (faxApiMatch && method === 'POST') {
+    const incoming = body as { patient_id: string };
+    const patient = patients.find((item) => item.id === incoming.patient_id);
+    faxes = faxes.map((fax) =>
+      fax.id === faxApiMatch[1]
+        ? {
+            ...fax,
+            patient_id: incoming.patient_id,
+            patient_name: patient ? `${patient.last_name}, ${patient.first_name}` : null,
+            matched_by: 'manual',
+          }
+        : fax
+    );
+    const updated = faxes.find((fax) => fax.id === faxApiMatch[1]);
+    if (updated) {
+      logDemoEvent({
+        event_type: 'fax.matched',
+        entity_type: 'fax',
+        entity_id: updated.id,
+        payload: {
+          patient_id: updated.patient_id,
+          patient_name: updated.patient_name,
+          matched_by: updated.matched_by,
+          source: 'demo-ui',
+        },
+      });
+    }
+    saveDemoData();
+    return updated as T;
   }
 
   const faxMatch = path.match(/^\/faxes\/([^/]+)$/);

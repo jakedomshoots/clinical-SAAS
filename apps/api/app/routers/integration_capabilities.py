@@ -18,7 +18,7 @@ async def capabilities(
             "ehr",
             label="EHR",
             env_vars=["EHR_API_BASE_URL"],
-            supports=["demographics", "medications", "labs", "encounters", "fhir_placeholder"],
+            supports=["demographics", "medications", "labs", "encounters", "fhir_r4_export"],
             workflows=["Chart sync", "Medication reconciliation", "Lab import"],
             action="Choose an EHR adapter and set EHR_API_BASE_URL.",
         ),
@@ -74,7 +74,10 @@ async def capabilities(
             env_vars=["CLEARINGHOUSE_API_BASE_URL", "CLEARINGHOUSE_API_KEY"],
             supports=["claim_submission", "eligibility", "denials", "era_remittance"],
             workflows=["Claim submission", "Denial callbacks", "ERA/remittance import"],
-            action="Connect clearinghouse credentials and validate claim, denial, and remittance workflows.",
+            action=(
+                "Connect clearinghouse credentials and validate claim, denial, "
+                "and remittance workflows."
+            ),
         ),
     }
 

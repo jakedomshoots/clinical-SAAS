@@ -1,4 +1,3 @@
-from datetime import datetime
 from pydantic import BaseModel, Field
 
 
@@ -6,6 +5,8 @@ class FaxSendRequest(BaseModel):
     to_number: str = Field(min_length=10)
     patient_id: str | None = None
     file_url: str | None = None
+    pages: int = Field(default=1, ge=1)
+    ocr_text: str | None = None
 
 
 class FaxMatchRequest(BaseModel):
