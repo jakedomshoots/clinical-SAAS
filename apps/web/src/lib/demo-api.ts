@@ -264,6 +264,7 @@ function withDeliveryDefaults(
     | 'delivery_error'
     | 'delivery_attempts'
     | 'delivered_at'
+    | 'notification_acknowledged_at'
   >
 ): Task {
   return {
@@ -275,6 +276,7 @@ function withDeliveryDefaults(
     delivery_error: null,
     delivery_attempts: 0,
     delivered_at: null,
+    notification_acknowledged_at: null,
   };
 }
 
@@ -6296,6 +6298,7 @@ if (storedDemoData) {
     delivery_error: task.delivery_error ?? null,
     delivery_attempts: task.delivery_attempts ?? 0,
     delivered_at: task.delivered_at ?? null,
+    notification_acknowledged_at: task.notification_acknowledged_at ?? null,
   }));
   appointments = storedDemoData.appointments;
   faxes = storedDemoData.faxes;
@@ -9315,6 +9318,32 @@ export async function demoRequest<T>(
       page,
       page_size: pageSize,
     } as T;
+  }
+
+  if (path === '/tasks/notifications/read' && method === 'POST') {
+    const acknowledgedAt = new Date().toISOString();
+    const updatedIds: string[] = [];
+    tasks = tasks.map((task) => {
+      if (
+        ['high', 'urgent'].includes(task.priority) &&
+        !['completed', 'cancelled'].includes(task.status) &&
+        !task.notification_acknowledged_at
+      ) {
+        updatedIds.push(task.id);
+        return { ...task, notification_acknowledged_at: acknowledgedAt, updated_at: acknowledgedAt };
+      }
+      return task;
+    });
+    if (updatedIds.length > 0) {
+      logDemoEvent({
+        event_type: 'task.notifications_read',
+        entity_type: 'task_notifications',
+        entity_id: 'bulk',
+        payload: { task_ids: updatedIds, task_count: updatedIds.length },
+      });
+      saveDemoData();
+    }
+    return { updated_count: updatedIds.length, updated_ids: updatedIds } as T;
   }
 
   const taskMatch = path.match(/^\/tasks\/([^/]+)$/);

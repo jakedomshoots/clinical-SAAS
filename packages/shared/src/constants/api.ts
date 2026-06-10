@@ -37,6 +37,7 @@ export const ROUTES = {
     `/api/patients/${patientId}/encounters/${encounterId}`,
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,
+  TASK_NOTIFICATIONS_READ: '/api/tasks/notifications/read',
   TASK_WORK_QUEUE: '/api/tasks/work-queue',
   TASK_PATIENT_OUTREACH: (id: string) => `/api/tasks/${id}/patient-outreach`,
   TASK_PATIENT_OUTREACH_DELIVER: (id: string) => `/api/tasks/${id}/patient-outreach/deliver`,

@@ -284,6 +284,34 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
     return await get_task(db, user, task.id)
 
 
+async def acknowledge_task_notifications(db: AsyncSession, user: User) -> dict:
+    acknowledged_at = datetime.now(UTC).replace(tzinfo=None)
+    result = await db.execute(
+        select(Task).where(
+            Task.organization_id == user.organization_id,
+            Task.status.in_(ACTIVE_TASK_STATUSES),
+            Task.priority.in_([TaskPriority.high, TaskPriority.urgent]),
+            Task.notification_acknowledged_at.is_(None),
+        )
+    )
+    tasks = result.scalars().all()
+    for task in tasks:
+        task.notification_acknowledged_at = acknowledged_at
+
+    updated_ids = [task.id for task in tasks]
+    if updated_ids:
+        await log_event(
+            db,
+            "task.notifications_read",
+            "task_notifications",
+            "bulk",
+            actor_id=user.id,
+            payload={"task_ids": updated_ids, "task_count": len(updated_ids)},
+        )
+
+    return {"updated_count": len(updated_ids), "updated_ids": updated_ids}
+
+
 async def draft_patient_outreach(db: AsyncSession, user: User, task_id: str) -> dict | None:
     result = await db.execute(
         select(Task, Patient)
@@ -609,6 +637,9 @@ def _make_task_dict(t: Task) -> dict:
         "delivery_error": t.delivery_error,
         "delivery_attempts": t.delivery_attempts,
         "delivered_at": t.delivered_at.isoformat() if t.delivered_at else None,
+        "notification_acknowledged_at": (
+            t.notification_acknowledged_at.isoformat() if t.notification_acknowledged_at else None
+        ),
         "creator_id": t.creator_id,
         "created_at": t.created_at.isoformat() if t.created_at else None,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,

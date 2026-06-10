@@ -71,6 +71,7 @@ class Task(Base):
     delivery_attempts: Mapped[int] = mapped_column(default=0)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     delivery_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    notification_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     creator_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("users.id", ondelete="CASCADE"),

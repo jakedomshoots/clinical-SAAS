@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.task import (
     TaskCreate,
     TaskListOut,
+    TaskNotificationReadOut,
     TaskOut,
     TaskOutreachSummaryOut,
     TaskPatientOutreachDeliveryOut,
@@ -71,6 +72,16 @@ async def task_work_queue(
     current_user: CurrentUserDep,
 ):
     return TaskWorkQueueOut(**await task_service.work_queue_summary(db, current_user))
+
+
+@router.post("/notifications/read", response_model=TaskNotificationReadOut)
+async def mark_task_notifications_read(
+    db: DbDep,
+    current_user: CurrentUserDep,
+):
+    return TaskNotificationReadOut(
+        **await task_service.acknowledge_task_notifications(db, current_user)
+    )
 
 
 @router.get("/{task_id}", response_model=TaskOut)

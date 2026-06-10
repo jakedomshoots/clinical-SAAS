@@ -51,9 +51,10 @@ function useNavBadges() {
   const { data: taskData } = useQuery({
     queryKey: [...QUERY_KEYS.TASKS, 'nav-badge'],
     queryFn: () =>
-      api.get<{ data: { priority: string; status: string }[]; total: number }>(
-        '/tasks?page=1&page_size=200'
-      ),
+      api.get<{
+        data: { priority: string; status: string; notification_acknowledged_at: string | null }[];
+        total: number;
+      }>('/tasks?page=1&page_size=200'),
     refetchInterval: 60_000,
     staleTime: 30_000,
   });
@@ -76,6 +77,7 @@ function useNavBadges() {
   const urgentTasks = (taskData?.data ?? []).filter(
     (t) =>
       (t.priority === 'urgent' || t.priority === 'high') &&
+      !t.notification_acknowledged_at &&
       t.status !== 'completed' &&
       t.status !== 'cancelled'
   ).length;

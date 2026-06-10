@@ -20,6 +20,7 @@ export interface Task {
   delivery_error: string | null;
   delivery_attempts: number;
   delivered_at: string | null;
+  notification_acknowledged_at: string | null;
   creator_id: UUID;
   created_at: string;
   updated_at: string;

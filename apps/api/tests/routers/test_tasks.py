@@ -162,6 +162,47 @@ async def test_update_task_status(client: AsyncClient, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_mark_task_notifications_read_acknowledges_active_high_priority_tasks(
+    client: AsyncClient, auth_headers
+):
+    urgent = await client.post(
+        "/api/tasks",
+        json={"title": "Urgent unread task", "priority": "urgent"},
+        headers=auth_headers,
+    )
+    normal = await client.post(
+        "/api/tasks",
+        json={"title": "Normal unread task", "priority": "normal"},
+        headers=auth_headers,
+    )
+    completed = await client.post(
+        "/api/tasks",
+        json={"title": "Completed urgent task", "priority": "urgent"},
+        headers=auth_headers,
+    )
+    await client.patch(
+        f"/api/tasks/{completed.json()['id']}",
+        json={"status": "completed"},
+        headers=auth_headers,
+    )
+
+    before = await client.get("/api/tasks", headers=auth_headers)
+    urgent_before = next(task for task in before.json()["data"] if task["id"] == urgent.json()["id"])
+    assert urgent_before["notification_acknowledged_at"] is None
+
+    read = await client.post("/api/tasks/notifications/read", headers=auth_headers)
+
+    assert read.status_code == 200
+    assert read.json()["updated_count"] == 1
+    assert read.json()["updated_ids"] == [urgent.json()["id"]]
+    after = await client.get("/api/tasks", headers=auth_headers)
+    tasks_by_id = {task["id"]: task for task in after.json()["data"]}
+    assert tasks_by_id[urgent.json()["id"]]["notification_acknowledged_at"] is not None
+    assert tasks_by_id[normal.json()["id"]]["notification_acknowledged_at"] is None
+    assert tasks_by_id[completed.json()["id"]]["notification_acknowledged_at"] is None
+
+
+@pytest.mark.asyncio
 async def test_blocked_task_is_counted_separately_in_work_queue(client: AsyncClient, auth_headers):
     blocked = await client.post(
         "/api/tasks",

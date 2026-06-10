@@ -46,6 +46,7 @@ class TaskOut(BaseModel):
     delivery_error: str | None = None
     delivery_attempts: int = 0
     delivered_at: str | None = None
+    notification_acknowledged_at: str | None = None
     creator_id: str
     created_at: str
     updated_at: str
@@ -58,6 +59,11 @@ class TaskListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class TaskNotificationReadOut(BaseModel):
+    updated_count: int
+    updated_ids: list[str]
 
 
 class TaskWorkQueueActionOut(BaseModel):

@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -49,6 +49,11 @@ interface TaskListQueryData {
   page_size?: number;
 }
 
+interface TaskNotificationReadResponse {
+  updated_count: number;
+  updated_ids: string[];
+}
+
 const PRIORITY_ICONS: Record<string, React.ReactNode> = {
   low: <Clock className="h-3.5 w-3.5" />,
   normal: <CheckCircle2 className="h-3.5 w-3.5" />,
@@ -63,6 +68,32 @@ const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-success/10 text-success',
   cancelled: 'bg-canvas-sunk text-ink-faint line-through',
 };
+
+function hasUnreadTaskNotification(task: Task) {
+  return (
+    (task.priority === 'urgent' || task.priority === 'high') &&
+    task.status !== 'completed' &&
+    task.status !== 'cancelled' &&
+    !task.notification_acknowledged_at
+  );
+}
+
+function acknowledgeTaskNotificationsInQueryData<T>(value: T, acknowledgedAt: string): T {
+  if (!value || typeof value !== 'object' || !('data' in value)) return value;
+  const candidate = value as { data?: unknown };
+  if (!Array.isArray(candidate.data)) return value;
+
+  let changed = false;
+  const data = candidate.data.map((item) => {
+    if (item && typeof item === 'object' && hasUnreadTaskNotification(item as Task)) {
+      changed = true;
+      return { ...item, notification_acknowledged_at: acknowledgedAt };
+    }
+    return item;
+  });
+
+  return changed ? ({ ...value, data } as T) : value;
+}
 
 type TaskSearch = {
   status?: string;
@@ -90,6 +121,7 @@ function TaskListPage() {
   const api = useApi();
   const queryClient = useQueryClient();
   const toast = useToast();
+  const taskNotificationsReadRef = useRef(false);
   const navigate = Route.useNavigate();
   const { status, priority, source, page: searchPage } = Route.useSearch();
 
@@ -174,6 +206,39 @@ function TaskListPage() {
     queryFn: () => api.get<TaskWorkQueue>(ROUTES.TASK_WORK_QUEUE),
   });
   const staffRows = staff?.data ?? [];
+
+  const markTaskNotificationsReadMutation = useMutation({
+    mutationFn: () => api.post<TaskNotificationReadResponse>(ROUTES.TASK_NOTIFICATIONS_READ),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.TASKS });
+      const previousQueries = queryClient.getQueriesData({ queryKey: QUERY_KEYS.TASKS });
+      const acknowledgedAt = new Date().toISOString();
+
+      queryClient.setQueriesData<TaskListQueryData | undefined>(
+        { queryKey: QUERY_KEYS.TASKS },
+        (old) => acknowledgeTaskNotificationsInQueryData(old, acknowledgedAt)
+      );
+
+      return { previousQueries };
+    },
+    onError: (err, _variables, context) => {
+      if (context?.previousQueries) {
+        context.previousQueries.forEach(([queryKey, previousData]) => {
+          queryClient.setQueryData(queryKey, previousData);
+        });
+      }
+      toast.error(err instanceof Error ? err.message : 'Failed to clear task notifications');
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS });
+    },
+  });
+
+  useEffect(() => {
+    if (!data || taskNotificationsReadRef.current) return;
+    taskNotificationsReadRef.current = true;
+    markTaskNotificationsReadMutation.mutate();
+  }, [data, markTaskNotificationsReadMutation]);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, update }: { id: string; update: Partial<Task> }) =>
