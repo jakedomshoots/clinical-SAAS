@@ -13,6 +13,8 @@ import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
+type IntakeFilter = 'all' | 'intake_form' | 'appointment_request' | 'document_upload';
+
 export const Route = createFileRoute('/portal-intake')({
   component: PortalIntakePage,
 });
@@ -26,7 +28,7 @@ function statusTone(status: string) {
   return 'border-border bg-canvas-sunk text-ink-muted';
 }
 
-function formatPayload(payload: Record<string, any>) {
+function formatPayload(payload: Record<string, unknown>) {
   return (
     <div className="mt-1.5 flex flex-wrap gap-2 text-micro">
       {Object.entries(payload).map(([key, value]) => {
@@ -196,7 +198,7 @@ function PortalIntakePage() {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveFilter(tab.key as any)}
+              onClick={() => setActiveFilter(tab.key as IntakeFilter)}
               className={`tab-pill ${
                 activeFilter === tab.key ? 'tab-pill-active' : 'tab-pill-inactive'
               }`}

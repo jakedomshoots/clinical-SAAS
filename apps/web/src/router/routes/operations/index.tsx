@@ -28,20 +28,15 @@ import { useViewMode, type UserRole, type ViewMode } from '@/lib/view-mode';
 import {
   getStoredTab,
   setStoredTab,
-  getStoredExpandedCards,
-  setStoredExpandedCards,
   clearOperationsState,
 } from '@/lib/persistence';
 import { GlobalSearch } from '@/components/global-search';
 import { EmptyState } from '@/components/empty-state';
-import { Tooltip } from '@/components/tooltip';
 import { RecentActivity } from '@/components/recent-activity';
 import { OnboardingTour } from '@/components/onboarding-tour';
 import { WorkspacePreset } from '@/components/workspace-preset';
 import { PinnableSection, HiddenSectionsButton } from '@/components/pinnable-section';
 import { RoleDashboard } from '@/components/role-dashboard';
-import { Button } from '@/components/button';
-import { cn } from '@/lib/utils';
 import {
   ROUTES,
   type AdapterImplementationPacket,
@@ -224,7 +219,10 @@ function ExpandableCard({
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   return (
-    <div className="rounded-lg border border-border bg-canvas-raised shadow-[0_1px_3px_rgba(0,0,0,0.08)]">
+    <div
+      data-status={status}
+      className="rounded-lg border border-border bg-canvas-raised shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="flex w-full items-center justify-between gap-3 px-6 py-4 border-b border-border hover:bg-canvas-sunk/50 transition-colors"
@@ -304,17 +302,19 @@ function isSectionVisible(sectionId: string, role: UserRole, mode: ViewMode): bo
   return rule.roles.includes(role) && rule.modes.includes(mode);
 }
 
+const OPERATIONS_TABS = [
+  { id: 'staff-training', label: 'Staff & Training', badge: '🟡' },
+  { id: 'systems-data', label: 'Systems & Data', badge: '🟢' },
+  { id: 'compliance-security', label: 'Compliance & Security', badge: '🔴' },
+  { id: 'go-live', label: 'Go-Live', badge: '🟡' },
+  { id: 'post-launch', label: 'Post-Launch', badge: '🟢' },
+] as const;
+
 import { useDocumentTitle } from '@/hooks/use-document-title';
 
 function OperationsPage() {
   useDocumentTitle('Operations Console');
-  const TABS = [
-    { id: 'staff-training', label: 'Staff & Training', badge: '🟡' },
-    { id: 'systems-data', label: 'Systems & Data', badge: '🟢' },
-    { id: 'compliance-security', label: 'Compliance & Security', badge: '🔴' },
-    { id: 'go-live', label: 'Go-Live', badge: '🟡' },
-    { id: 'post-launch', label: 'Post-Launch', badge: '🟢' },
-  ] as const;
+  const TABS = OPERATIONS_TABS;
 
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('staff-training');
   const api = useApi();
@@ -395,7 +395,7 @@ function OperationsPage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [presetOpen, setPresetOpen] = useState(false);
   const [showRoleDashboard, setShowRoleDashboard] = useState(true);
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [, setOnboardingComplete] = useState(false);
 
   // Restore active tab from localStorage
   useEffect(() => {
@@ -403,7 +403,7 @@ function OperationsPage() {
     if (stored && TABS.some((t) => t.id === stored)) {
       setActiveTab(stored as typeof activeTab);
     }
-  }, []);
+  }, [TABS]);
 
   // Store active tab when it changes
   useEffect(() => {
@@ -412,6 +412,7 @@ function OperationsPage() {
 
   const handleSearchNavigate = useCallback(
     (tabId: string, sectionId: string) => {
+      void sectionId;
       setActiveTab(tabId as typeof activeTab);
       // The section will auto-expand because of defaultExpanded
     },
@@ -662,6 +663,10 @@ function OperationsPage() {
       await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT });
     },
   });
+  void snapshotMutation;
+  void rehearsalSnapshotMutation;
+  void workplanSnapshotMutation;
+  void credentialBinderSnapshotMutation;
   const assignmentMutation = useMutation({
     mutationFn: ({
       actionKey,
@@ -1013,6 +1018,8 @@ function OperationsPage() {
     );
     return `data:text/csv;charset=utf-8,${encodeURIComponent(rows.map((row) => row.map(csvCell).join(',')).join('\n'))}`;
   }, [workplan]);
+  void rehearsalExportHref;
+  void workplanExportHref;
   const criticalActions = {
     credentialsBlocking: credentialBinder?.blocking_count ?? 0,
     staffTrainingPending:
@@ -1734,9 +1741,7 @@ function OperationsPage() {
                         </button>
                         <HiddenSectionsButton
                           role={effectiveRole}
-                          onUnhide={(id) => {
-                            /* unhide logic */
-                          }}
+                          onUnhide={() => {}}
                         />
                       </div>
                     )}
@@ -2510,9 +2515,7 @@ function OperationsPage() {
                         </button>
                         <HiddenSectionsButton
                           role={effectiveRole}
-                          onUnhide={(id) => {
-                            /* unhide logic */
-                          }}
+                          onUnhide={() => {}}
                         />
                       </div>
                     )}
@@ -2614,8 +2617,8 @@ function OperationsPage() {
                 title="Core Infrastructure & Integrations"
                 icon={Server}
                 status={ready?.status === 'ok' ? 'complete' : 'needs-attention'}
-                countComplete={coreChecks.filter(([_, c]) => c.ok).length ?? 0}
-                countPending={coreChecks.filter(([_, c]) => !c.ok).length ?? 0}
+                countComplete={coreChecks.filter(([, c]) => c.ok).length ?? 0}
+                countPending={coreChecks.filter(([, c]) => !c.ok).length ?? 0}
                 countUrgent={0}
                 defaultExpanded={false}
               >
@@ -3123,9 +3126,7 @@ function OperationsPage() {
                         </div>
                         <HiddenSectionsButton
                           role={effectiveRole}
-                          onUnhide={(id) => {
-                            /* unhide logic */
-                          }}
+                          onUnhide={() => {}}
                         />
                       </div>
                     )}
@@ -3762,8 +3763,8 @@ function OperationsPage() {
                 title="Deployment Readiness & PHI Access"
                 icon={Server}
                 status={'complete'}
-                countComplete={deployment.filter(([_, c]) => c.ok).length ?? 0}
-                countPending={deployment.filter(([_, c]) => !c.ok).length ?? 0}
+                countComplete={deployment.filter(([, c]) => c.ok).length ?? 0}
+                countPending={deployment.filter(([, c]) => !c.ok).length ?? 0}
                 countUrgent={0}
                 defaultExpanded={false}
               >
@@ -4099,9 +4100,7 @@ function OperationsPage() {
                           )}
                           <HiddenSectionsButton
                             role={effectiveRole}
-                            onUnhide={(id) => {
-                              /* unhide logic */
-                            }}
+                            onUnhide={() => {}}
                           />
                         </div>
                       )}
@@ -5071,9 +5070,7 @@ function OperationsPage() {
           )}
           <HiddenSectionsButton
             role={effectiveRole}
-            onUnhide={(id) => {
-              /* unhide logic */
-            }}
+            onUnhide={() => {}}
           />
         </div>
       )}

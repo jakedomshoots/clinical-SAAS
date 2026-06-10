@@ -168,7 +168,7 @@ function BillingPage() {
       toast.error(err instanceof Error ? err.message : 'Action failed');
     },
   });
-  const rows = cases?.data ?? [];
+  const rows = useMemo(() => cases?.data ?? [], [cases?.data]);
   const reviewRows = chargeReview?.data ?? [];
   const patientOptions = patients?.data ?? [];
   const selectedCase = rows.find((item) => item.id === selectedCaseId) ?? null;

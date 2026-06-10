@@ -45,7 +45,7 @@ function StaffPage() {
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
   });
 
-  const staff = data?.data ?? [];
+  const staff = useMemo(() => data?.data ?? [], [data?.data]);
 
   const [selectedProviderId, setSelectedProviderId] = useState<string>('');
   const providers = useMemo(() => {

@@ -16,6 +16,9 @@ interface FaxListResponse {
   page_size: number;
 }
 
+type MatchFilter = 'all' | 'matched' | 'unmatched';
+type DateFilter = 'all' | 'today' | '7d' | '30d';
+
 const DIRECTION_ICONS: Record<string, React.ReactNode> = {
   inbound: <ArrowDownToLine className="h-3.5 w-3.5" />,
   outbound: <ArrowUpFromLine className="h-3.5 w-3.5" />,
@@ -58,8 +61,8 @@ function FaxCenterPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [matchFilter, setMatchFilter] = useState<'all' | 'matched' | 'unmatched'>('all');
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | '7d' | '30d'>('all');
+  const [matchFilter, setMatchFilter] = useState<MatchFilter>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: [...QUERY_KEYS.FAXES, tab],
@@ -197,7 +200,7 @@ function FaxCenterPage() {
             <span className="text-micro font-medium text-ink-muted">Match Status:</span>
             <select
               value={matchFilter}
-              onChange={(e) => setMatchFilter(e.target.value as any)}
+              onChange={(e) => setMatchFilter(e.target.value as MatchFilter)}
               className="h-8 rounded-md border border-border bg-canvas px-2.5 text-small text-ink focus:border-accent focus:outline-none"
             >
               <option value="all">All</option>
@@ -210,7 +213,7 @@ function FaxCenterPage() {
             <span className="text-micro font-medium text-ink-muted">Date:</span>
             <select
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value as any)}
+              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
               className="h-8 rounded-md border border-border bg-canvas px-2.5 text-small text-ink focus:border-accent focus:outline-none"
             >
               <option value="all">All Time</option>

@@ -13,10 +13,9 @@ interface PinnableSectionProps {
   sectionId: string;
   role: UserRole;
   children: React.ReactNode;
-  headerExtra?: React.ReactNode;
 }
 
-export function PinnableSection({ sectionId, role, children, headerExtra }: PinnableSectionProps) {
+export function PinnableSection({ sectionId, role, children }: PinnableSectionProps) {
   const [pinned, setPinned] = useState(() => getPinnedSections(role).includes(sectionId));
   const [hidden, setHidden] = useState(() => getHiddenSections(role).includes(sectionId));
 
@@ -77,7 +76,10 @@ export function HiddenSectionsButton({ role, onUnhide }: HiddenSectionsButtonPro
 
   return (
     <div className="flex items-center justify-center py-4">
-      <button className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-4 py-2 text-small text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors">
+      <button
+        onClick={() => hidden.forEach(onUnhide)}
+        className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-4 py-2 text-small text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors"
+      >
         <Eye className="h-4 w-4" />
         Show hidden sections ({hidden.length})
       </button>

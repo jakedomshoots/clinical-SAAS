@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router';
 import { useAuth } from '@/lib/auth';
-import { ViewModeProvider, useViewMode } from '@/lib/view-mode';
+import { ViewModeProvider } from '@/lib/view-mode';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClinicalAssistantTools, type AssistantAction } from '@/lib/assistant-tools';
@@ -15,9 +15,8 @@ import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { ErrorState } from '@/lib/ui-state';
 import { ROUTES, type ClinicSettings, type ClinicSettingsUpdate } from '@concierge-os/shared';
-import { ToastProvider, useToast } from '@/components/toast';
+import { ToastProvider } from '@/components/toast';
 import {
-  Activity,
   BarChart3,
   Bot,
   Calendar,
@@ -33,7 +32,6 @@ import {
   PlugZap,
   Printer,
   Search,
-  Sparkles,
   Settings,
   ShieldCheck,
   Sun,
@@ -224,21 +222,16 @@ function SideNav({ theme, onThemeToggle }: { theme: 'light' | 'dark'; onThemeTog
 }
 
 function TopBar({
-  density,
-  onDensityChange,
   onCommandOpen,
   onSettingsOpen,
   onMenuOpen,
   onAssistantOpen,
 }: {
-  density: 'comfortable' | 'compact';
-  onDensityChange: () => void;
   onCommandOpen: () => void;
   onSettingsOpen: () => void;
   onMenuOpen: () => void;
   onAssistantOpen: () => void;
 }) {
-  const { viewMode, setViewMode } = useViewMode();
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-canvas-raised px-5 print:hidden">
       <button
@@ -934,7 +927,7 @@ function ClinicalAssistantPanel({
       )}
 
       <div className="divide-y divide-border">
-        {suggestions.map(({ label, detail, tone, actionLabel, action, pending }) => (
+        {suggestions.map(({ label, detail, actionLabel, action, pending }) => (
           <div key={`${label}-${detail}`} className="px-4 py-3">
             <div className="text-meta font-medium text-ink-muted">{label}</div>
             <div className="mt-0.5 text-small text-ink-secondary">{detail}</div>
@@ -1075,10 +1068,6 @@ function RootLayout() {
           <SideNav theme={theme} onThemeToggle={toggleTheme} />
           <div className="flex min-w-0 flex-1 flex-col print:h-auto print:overflow-visible">
             <TopBar
-              density={density}
-              onDensityChange={() =>
-                setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))
-              }
               onCommandOpen={() => setCommandOpen(true)}
               onSettingsOpen={() => setSettingsOpen(true)}
               onMenuOpen={() => setMobileNavOpen(true)}

@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/auth';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { EmptyState, ErrorState, LoadingState } from '@/lib/ui-state';
 import type { Message, MessageThread } from '@concierge-os/shared';
-import { Send, Loader2, Mail, User, MessageSquare } from 'lucide-react';
+import { Send, Loader2, User, MessageSquare } from 'lucide-react';
 
 interface ThreadListResponse {
   data: MessageThread[];

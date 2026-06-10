@@ -9650,8 +9650,8 @@ function drchronoMigrationPacket(): DrChronoMigrationPacket {
   };
 }
 
-let demoDrchronoDryRuns: DrChronoMigrationDryRun[] = [];
-let demoImportBatches: DrChronoImportBatch[] = [];
+const demoDrchronoDryRuns: DrChronoMigrationDryRun[] = [];
+const demoImportBatches: DrChronoImportBatch[] = [];
 
 function runDrchronoMigrationDryRun(data: DrChronoMigrationDryRunStart): DrChronoMigrationDryRun {
   const dryRunId = uuid(9002 + demoDrchronoDryRuns.length);

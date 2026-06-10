@@ -161,7 +161,9 @@ function PatientChartPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const [docSearchQuery, setDocSearchQuery] = useState('');
-  const [docTypeFilter, setDocTypeFilter] = useState<'all' | 'lab' | 'referral' | 'consult' | 'other'>('all');
+  const [docTypeFilter, setDocTypeFilter] = useState<
+    'all' | 'lab' | 'referral' | 'consult' | 'other'
+  >('all');
   const [selectedLabPanel, setSelectedLabPanel] = useState<string>('');
 
   useEffect(() => {
@@ -263,7 +265,7 @@ function PatientChartPage() {
     queryFn: () => api.get<UserListResponse>(ROUTES.USERS),
   });
 
-  const documentRows = documentList?.data ?? [];
+  const documentRows = useMemo(() => documentList?.data ?? [], [documentList?.data]);
 
   const filteredDocuments = useMemo(() => {
     return documentRows.filter((doc) => {
@@ -284,7 +286,7 @@ function PatientChartPage() {
     });
   }, [documentRows, docSearchQuery, docTypeFilter]);
 
-  const labRows = labList?.data ?? [];
+  const labRows = useMemo(() => labList?.data ?? [], [labList?.data]);
 
   const parseLabValue = (resultStr: string): number | null => {
     const match = resultStr.match(/(\d+(?:\.\d+)?)/);
@@ -1121,7 +1123,11 @@ function PatientChartPage() {
               <span className="text-micro font-medium text-ink-muted">Type:</span>
               <select
                 value={docTypeFilter}
-                onChange={(e) => setDocTypeFilter(e.target.value as any)}
+                onChange={(e) =>
+                  setDocTypeFilter(
+                    e.target.value as 'all' | 'lab' | 'referral' | 'consult' | 'other'
+                  )
+                }
                 className="h-8 rounded-md border border-border bg-canvas px-2 text-small text-ink focus:border-accent focus:outline-none"
               >
                 <option value="all">All Types</option>

@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, LoadingState, humanizeWorkflowLabel } from '@/l
 import { Badge } from '@/components/badge';
 import type {
   Task,
+  TaskPriority,
   TaskOutreachSummary,
   TaskPatientOutreachDelivery,
   TaskPatientOutreachDraft,
@@ -39,6 +40,13 @@ interface TaskListResponse {
 interface UserListResponse {
   data: User[];
   total: number;
+}
+
+interface TaskListQueryData {
+  data: Task[];
+  total?: number;
+  page?: number;
+  page_size?: number;
 }
 
 const PRIORITY_ICONS: Record<string, React.ReactNode> = {
@@ -174,18 +182,21 @@ function TaskListPage() {
       await queryClient.cancelQueries({ queryKey: QUERY_KEYS.TASKS });
       const previousQueries = queryClient.getQueriesData({ queryKey: QUERY_KEYS.TASKS });
 
-      queryClient.setQueriesData<any>({ queryKey: QUERY_KEYS.TASKS }, (old: any) => {
+      queryClient.setQueriesData<TaskListQueryData | undefined>(
+        { queryKey: QUERY_KEYS.TASKS },
+        (old) => {
         if (!old) return old;
         if (old.data && Array.isArray(old.data)) {
           return {
             ...old,
-            data: old.data.map((task: any) =>
+            data: old.data.map((task) =>
               task.id === id ? { ...task, ...update } : task
             ),
           };
         }
         return old;
-      });
+        }
+      );
 
       return { previousQueries };
     },
@@ -577,7 +588,7 @@ function TaskListPage() {
                   onClick={() =>
                     bulkUpdateMutation.mutate({
                       tasks: selectedTasks,
-                      update: { priority: bulkPriority as any },
+                      update: { priority: bulkPriority as TaskPriority },
                     })
                   }
                   disabled={

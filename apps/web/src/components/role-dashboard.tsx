@@ -1,5 +1,4 @@
 import { Calendar, Users, CreditCard, ShieldCheck, Activity, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { UserRole } from '@/lib/view-mode';
 
 interface RoleDashboardProps {

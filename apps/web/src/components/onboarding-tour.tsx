@@ -14,7 +14,6 @@ interface OnboardingTourProps {
 
 export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
   const [showWelcome, setShowWelcome] = useState(false);
-  const [currentTip, setCurrentTip] = useState(0);
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
@@ -57,12 +56,6 @@ export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
     onDismiss();
   };
 
-  const handleComplete = () => {
-    setDismissed(true);
-    setOnboardingCompleted();
-    onComplete();
-  };
-
   if (showWelcome) {
     return (
       <div
@@ -100,7 +93,7 @@ export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
             <button
               onClick={() => {
                 setShowWelcome(false);
-                setCurrentTip(0);
+                onComplete();
               }}
               className="inline-flex items-center gap-1.5 rounded-md bg-accent px-4 py-2 text-small font-medium text-accent-on hover:bg-accent-hover transition-colors"
             >

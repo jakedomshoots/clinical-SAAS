@@ -4,10 +4,8 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { useMemo, useState } from 'react';
 import { useDocumentTitle } from '@/hooks/use-document-title';
 import {
-  AlertTriangle,
   ArrowRight,
   BarChart3,
-  ClipboardCheck,
   Download,
   FileClock,
   Gauge,
