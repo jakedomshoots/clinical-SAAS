@@ -1,11 +1,11 @@
 services:
   api:
-    profiles: ["app"]
+    profiles: ['app']
     build:
       context: ..
       dockerfile: apps/api/Dockerfile
     ports:
-      - "8000:8000"
+      - '8000:8000'
     environment:
       APP_ENV: development
       DATABASE_URL: postgresql+asyncpg://concierge:concierge_dev@postgres:5432/concierge_os
@@ -24,7 +24,13 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      test:
+        [
+          'CMD',
+          'python',
+          '-c',
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')",
+        ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,12 +38,12 @@ services:
       - concierge-net
 
   web:
-    profiles: ["app"]
+    profiles: ['app']
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
     ports:
-      - "8080:80"
+      - '8080:80'
     depends_on:
       api:
         condition: service_healthy
@@ -47,7 +53,7 @@ services:
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -56,7 +62,7 @@ services:
       POSTGRES_PASSWORD: concierge_dev
       POSTGRES_DB: concierge_os
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U concierge -d concierge_os"]
+      test: ['CMD-SHELL', 'pg_isready -U concierge -d concierge_os']
       interval: 5s
       timeout: 5s
       retries: 5
@@ -66,12 +72,12 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 5
@@ -81,8 +87,8 @@ services:
   minio:
     image: minio/minio:latest
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - '9000:9000'
+      - '9001:9001'
     volumes:
       - minio_data:/data
       - ./minio/init.sh:/docker-entrypoint-init.d/init.sh
@@ -91,7 +97,7 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ['CMD', 'mc', 'ready', 'local']
       interval: 5s
       timeout: 5s
       retries: 5

@@ -82,6 +82,7 @@ curl -X POST https://api.concierge-os.example.com/integrations/dosespot/prescrip
 **Symptoms**: eRx status shows error.
 
 **Resolution**:
+
 ```bash
 # Check DEA registration status
 grep "dosespot" /var/log/concierge-os/app.log | grep "DEA"
@@ -95,6 +96,7 @@ grep "dosespot" /var/log/concierge-os/app.log | grep "pharmacy"
 **Symptoms**: No history returned for patient.
 
 **Resolution**:
+
 ```bash
 # Check patient consent for medication history
 grep "dosespot" /var/log/concierge-os/app.log | grep "consent"

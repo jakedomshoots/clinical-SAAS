@@ -76,6 +76,7 @@ curl -X DELETE https://api.concierge-os.example.com/integrations/google_calendar
 **Symptoms**: Appointments not appearing in Google Calendar.
 
 **Resolution**:
+
 ```bash
 # Check API quota
 grep "google_calendar" /var/log/concierge-os/app.log | grep "quota"
@@ -89,6 +90,7 @@ grep "google_calendar" /var/log/concierge-os/app.log | grep "permission"
 **Symptoms**: 401 errors from Google API.
 
 **Resolution**:
+
 ```bash
 # Token may be expired — refresh
 grep "google_calendar" /var/log/concierge-os/app.log | grep "token"

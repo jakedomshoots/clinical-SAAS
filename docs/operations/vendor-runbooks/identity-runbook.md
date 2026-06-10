@@ -60,7 +60,7 @@ curl -X PATCH https://api.concierge-os.example.com/integrations/auth0/users/USER
 
 ### 3. List Staff
 
-```bash
+````bash
 curl "https://api.concierge-os.example.com/integrations/auth0/users?role=provider&limit=50" \
   -H "Authorization: Bearer *** Troubleshooting
 
@@ -75,13 +75,14 @@ grep "auth0" /var/log/concierge-os/app.log | grep "error"
 
 # Verify user exists and is not blocked
 grep "auth0" /var/log/concierge-os/app.log | grep "user"
-```
+````
 
 ### Issue: MFA not working
 
 **Symptoms**: MFA prompt not appearing.
 
 **Resolution**:
+
 ```bash
 # Check MFA policy in Auth0 dashboard
 # Verify user has enrolled MFA device

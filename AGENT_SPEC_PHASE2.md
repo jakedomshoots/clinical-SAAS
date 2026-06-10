@@ -1,9 +1,11 @@
 # Swarm Coordination Spec — ConciergeOS Phase 2+3 (Remaining Phases)
 
 ## User Goal
+
 Complete all remaining UX redesign tasks: role-based views, global search, smart defaults, contextual tooltips, empty states, pre-built dashboards, workspace presets, progressive onboarding, recent activity feed, and widget pin/hide.
 
 ## Current Repo Facts
+
 - Stack: React 19 + TypeScript + Tailwind v4 + TanStack Router + TanStack Query
 - Package manager: pnpm (binary at `/Users/jakedom/.vite-plus/package_manager/pnpm/10.24.0/pnpm/bin/pnpm`)
 - Build: `cd apps/web && npx tsc -b && npx vite build`
@@ -15,6 +17,7 @@ Complete all remaining UX redesign tasks: role-based views, global search, smart
 - Design tokens: `apps/web/src/index.css`
 
 ## Architecture Decisions Already Made
+
 - Warm editorial palette is KEEPING
 - 5 tabs on Operations: Staff & Training, Systems & Data, Compliance & Security, Go-Live, Post-Launch
 - Expandable cards with status counts
@@ -24,6 +27,7 @@ Complete all remaining UX redesign tasks: role-based views, global search, smart
 ## Shared Contracts
 
 ### ViewMode System
+
 ```tsx
 type ViewMode = 'simple' | 'standard' | 'power';
 type UserRole = 'admin' | 'manager' | 'front_desk' | 'provider' | 'billing';
@@ -34,25 +38,30 @@ interface ViewModeContextValue {
   effectiveRole: UserRole; // actual auth role
 }
 ```
+
 - Provider: `apps/web/src/lib/view-mode.tsx`
 - Wraps app in `__root.tsx` (Worker 1 owns this change)
 - Persisted to localStorage as `concierge-os.view-mode`
 
 ### Role-Based Section Visibility
+
 Each Operations section has a `visibility` config:
+
 ```tsx
 interface SectionVisibility {
   id: string;
-  roles: UserRole[];      // which roles can see it
-  modes: ViewMode[];      // which view modes show it
+  roles: UserRole[]; // which roles can see it
+  modes: ViewMode[]; // which view modes show it
   defaultExpanded: boolean;
 }
 ```
+
 - Simple mode: shows only Tier 1 sections (4-5 most critical)
 - Standard mode: shows Tier 1 + Tier 2 sections
 - Power mode: shows all sections
 
 ### Global Search
+
 ```tsx
 interface SearchableSection {
   id: string;
@@ -62,11 +71,13 @@ interface SearchableSection {
   badge: string; // status emoji
 }
 ```
+
 - Search modal triggered from TopBar search button
 - Searches across all 20 section titles + keywords
 - Clicking a result switches to the correct tab and expands the section
 
 ### Smart Defaults (localStorage Keys)
+
 - `concierge-os.operations.active-tab` — last active tab
 - `concierge-os.operations.expanded-cards` — array of expanded card IDs
 - `concierge-os.view-mode` — simple/standard/power
@@ -75,15 +86,18 @@ interface SearchableSection {
 ## Task Slices
 
 ### Worker 1: Role Views & View Modes (agent/role-views)
+
 **Worktree:** `/Users/jakedom/.worktrees/role-views`
 
 **Ownership:**
+
 1. `apps/web/src/lib/view-mode.tsx` — NEW: ViewModeContext provider
 2. `apps/web/src/router/routes/__root.tsx` — Add ViewModeProvider wrapper, add view mode switcher to TopBar
 3. `apps/web/src/router/routes/operations/index.tsx` — Add role-based + view-mode-based section visibility
 4. `apps/web/src/components/role-dashboard.tsx` — NEW: Pre-built default dashboard per role
 
 **What to implement:**
+
 - **ViewModeContext**: React context with `viewMode` (simple/standard/power), `setViewMode`, and `effectiveRole` (from `useAuth()`). Persist `viewMode` to localStorage.
 - **View Mode Switcher**: Add to `TopBar` in `__root.tsx`. A segmented control with 3 options: "Simple", "Standard", "Power". Use the existing density toggle as a style reference. Place it between the search bar and the assistant button.
 - **Role-Based Section Hiding**: In Operations page, each section should check:
@@ -118,14 +132,16 @@ interface SearchableSection {
   - Billing: Claims queue, denials, aging
   - Manager: Operations overview (the current tabbed view)
   - Admin: Full access + system health
-  This component should be shown on the Operations page when the user first lands there, with a "Go to full Operations" link.
+    This component should be shown on the Operations page when the user first lands there, with a "Go to full Operations" link.
 
 **Forbidden:**
+
 - Do NOT change the SideNav role filtering logic
 - Do NOT change auth system
 - Do NOT remove any sections permanently
 
 **Validation:**
+
 - `cd apps/web && pnpm install` (use CI=true if needed)
 - `cd apps/web && npx tsc -b && npx vite build`
 - Must pass build
@@ -133,9 +149,11 @@ interface SearchableSection {
 ---
 
 ### Worker 2: Search, Persistence & UX Polish (agent/search-persistence)
+
 **Worktree:** `/Users/jakedom/.worktrees/search-persistence`
 
 **Ownership:**
+
 1. `apps/web/src/components/global-search.tsx` — NEW: Global search modal for Operations
 2. `apps/web/src/lib/persistence.ts` — NEW: localStorage helpers for smart defaults
 3. `apps/web/src/components/tooltip.tsx` — NEW: Contextual tooltip component
@@ -144,6 +162,7 @@ interface SearchableSection {
 6. `apps/web/src/router/routes/operations/index.tsx` — Integrate persistence, empty states, tooltips
 
 **What to implement:**
+
 - **Global Search**: A search modal (similar to CommandPalette in `__root.tsx`) that searches across all 20 Operations sections. Each section has a title + keywords. Results show section title, tab name, and status. Clicking a result: switches to the correct tab, expands the section, closes the modal. Triggered from a new search icon in the Operations page header (next to the page title).
 - **Smart Defaults (Persistence)**:
   - Remember last active tab in localStorage (`concierge-os.operations.active-tab`)
@@ -159,11 +178,13 @@ interface SearchableSection {
 - **Recent Activity Feed**: A small component showing "What happened since you last logged in" — computed from the data already fetched (new incidents, completed training items, failed events, etc.). Show it at the top of the Post-Launch tab or as a collapsible strip.
 
 **Forbidden:**
+
 - Do NOT change `__root.tsx` (Worker 1 owns layout changes)
 - Do NOT change the tab structure
 - Do NOT change auth
 
 **Validation:**
+
 - `cd apps/web && pnpm install`
 - `cd apps/web && npx tsc -b && npx vite build`
 - Must pass build
@@ -171,9 +192,11 @@ interface SearchableSection {
 ---
 
 ### Worker 3: Onboarding & Workspace Presets (agent/onboarding-polish)
+
 **Worktree:** `/Users/jakedom/.worktrees/onboarding-polish`
 
 **Ownership:**
+
 1. `apps/web/src/components/onboarding-tour.tsx` — NEW: Progressive onboarding flow
 2. `apps/web/src/components/workspace-preset.tsx` — NEW: Workspace preset selector
 3. `apps/web/src/components/pinnable-section.tsx` — NEW: Widget pin/hide system
@@ -181,6 +204,7 @@ interface SearchableSection {
 5. `apps/web/src/router/routes/__root.tsx` — Add onboarding trigger on first login
 
 **What to implement:**
+
 - **Progressive Onboarding**: A lightweight onboarding system:
   - First login: Show a welcome modal (not a tour) — "Welcome to ConciergeOS. You're viewing the Standard dashboard."
   - Highlight the view mode switcher with a pulsing indicator
@@ -199,16 +223,19 @@ interface SearchableSection {
   - Persist pin/hide state to localStorage per role
 
 **Forbidden:**
+
 - Do NOT change the SideNav
 - Do NOT change auth system
 - Do NOT remove any functionality
 
 **Validation:**
+
 - `cd apps/web && pnpm install`
 - `cd apps/web && npx tsc -b && npx vite build`
 - Must pass build
 
 ## Merge Order
+
 1. Merge Worker 1 (role-views) first — provides ViewModeContext and role-based visibility
 2. Merge Worker 2 (search-persistence) second — uses existing page structure
 3. Merge Worker 3 (onboarding-polish) third — may depend on view mode system
@@ -216,6 +243,7 @@ interface SearchableSection {
 5. Final validation in main workspace
 
 ## Notes
+
 - All workers start from the same Phase 1 baseline commit (`d79b5d4`)
 - Each worktree must install its own dependencies
 - The Operations page is large (~3142 lines) — workers should be surgical with edits

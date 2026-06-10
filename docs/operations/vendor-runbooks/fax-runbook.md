@@ -76,6 +76,7 @@ curl https://api.concierge-os.example.com/integrations/srfax/inbox/FAX-ID/downlo
 **Symptoms**: Fax stays in queue or fails.
 
 **Resolution**:
+
 ```bash
 # Check SRFax status
 grep "srfax" /var/log/concierge-os/app.log | grep "error"
@@ -89,6 +90,7 @@ grep "srfax" /var/log/concierge-os/app.log | grep "invalid"
 **Symptoms**: Received faxes not in system.
 
 **Resolution**:
+
 ```bash
 # Check webhook delivery
 grep "srfax" /var/log/concierge-os/app.log | grep "webhook"

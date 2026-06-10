@@ -42,6 +42,7 @@ curl -X POST https://api.concierge-os.example.com/integrations/portal/messages \
 ### Issue: Portal messages not sending
 
 **Resolution**:
+
 ```bash
 grep "portal" /var/log/concierge-os/app.log | grep "error"
 ```

@@ -86,6 +86,7 @@ curl "https://api.concierge-os.example.com/integrations/availity/remittance?star
 **Symptoms**: 400/500 errors on eligibility.
 
 **Resolution**:
+
 ```bash
 # Check payer support
 grep "availity" /var/log/concierge-os/app.log | grep "payer"
@@ -99,6 +100,7 @@ grep "availity" /var/log/concierge-os/app.log | grep "member"
 **Symptoms**: Claim status shows "rejected".
 
 **Resolution**:
+
 ```bash
 # Check rejection reason
 grep "availity" /var/log/concierge-os/app.log | grep "rejection"

@@ -7,12 +7,14 @@ Lab order submission and result retrieval via LabCorp Link API and Quest Care360
 ## Vendor Information
 
 ### LabCorp
+
 - **Vendor**: LabCorp
 - **API Documentation**: https://www.labcorp.com/healthcare-providers/technology-integration
 - **Support Contact**: LabCorp Provider Services
 - **BAA Status**: [Pending]
 
 ### Quest Diagnostics
+
 - **Vendor**: Quest Diagnostics
 - **API Documentation**: https://developer.questdiagnostics.com/
 - **Support Contact**: Quest Provider Services
@@ -30,12 +32,14 @@ QUEST_API_BASE_URL=https://api.questdiagnostics.com/v1
 ## Account Setup
 
 ### LabCorp
+
 1. Contact LabCorp sales to enable API access
 2. Complete BAA and technical onboarding
 3. Receive API credentials and test environment access
 4. Validate connectivity with test orders
 
 ### Quest
+
 1. Sign up at https://developer.questdiagnostics.com/
 2. Request Care360 API access
 3. Complete BAA
@@ -95,6 +99,7 @@ curl "https://api.concierge-os.example.com/integrations/quest/results?patient_id
 **Symptoms**: Lab results not importing into patient chart.
 
 **Resolution**:
+
 ```bash
 # Check result webhook delivery
 grep "labcorp\|quest" /var/log/concierge-os/app.log | grep "webhook"
@@ -111,6 +116,7 @@ curl https://api.concierge-os.example.com/integrations/labcorp/orders/ORDER-ID/s
 **Symptoms**: Lab orders not accepted.
 
 **Resolution**:
+
 ```bash
 # Check test code validity
 grep "labcorp\|quest" /var/log/concierge-os/app.log | grep "invalid test"

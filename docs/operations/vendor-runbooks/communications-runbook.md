@@ -76,7 +76,7 @@ curl -X POST https://api.concierge-os.example.com/integrations/twilio/calls \
 
 ### 4. Get Message History
 
-```bash
+````bash
 curl "https://api.concierge-os.example.com/integrations/twilio/messages?to=+155****4567&limit=20" \
   -H "Authorization: Bearer *** Troubleshooting
 
@@ -95,13 +95,14 @@ curl https://api.concierge-os.example.com/integrations/twilio/lookup/+155****456
 # Check account balance
 curl -u "ACxxx:*** \
   "https://api.twilio.com/2010-04-01/Accounts/ACxxx/Balance.json"
-```
+````
 
 ### Issue: Incoming messages not received
 
 **Symptoms**: Patient replies not showing in system.
 
 **Resolution**:
+
 ```bash
 # Verify webhook URL is configured
 grep "webhook" /var/log/concierge-os/app.log | grep "twilio"

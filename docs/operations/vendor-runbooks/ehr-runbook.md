@@ -28,6 +28,7 @@ curl https://api.concierge-os.example.com/admin/integrations/ehr/health
 ```
 
 Expected response:
+
 ```json
 {
   "integration": "ehr",
@@ -72,11 +73,13 @@ curl https://api.concierge-os.example.com/integrations/ehr/sync/status \
 **Symptoms**: Search queries return empty results for known patients.
 
 **Diagnosis**:
+
 1. Check EHR API credentials are valid
 2. Verify patient exists in EHR system
 3. Check search parameters match EHR format
 
 **Resolution**:
+
 ```bash
 # Test direct API access
 curl -H "Authorization: Bearer $EHR_API_KEY" \
@@ -91,11 +94,13 @@ grep "ehr" /var/log/concierge-os/app.log | tail -50
 **Symptoms**: Patient data not updating between systems.
 
 **Diagnosis**:
+
 1. Check webhook delivery status
 2. Verify patient mapping exists
 3. Check for API rate limiting
 
 **Resolution**:
+
 ```bash
 # Check webhook logs
 grep "webhook" /var/log/concierge-os/app.log | grep "ehr"
@@ -110,11 +115,13 @@ curl -X POST https://api.concierge-os.example.com/integrations/ehr/sync/retry \
 **Symptoms**: 401/403 errors from EHR API.
 
 **Diagnosis**:
+
 1. Check API key expiration
 2. Verify IP whitelist
 3. Check OAuth token refresh
 
 **Resolution**:
+
 ```bash
 # Rotate API key (requires admin)
 curl -X POST https://api.concierge-os.example.com/admin/integrations/ehr/rotate-key \
@@ -151,12 +158,12 @@ curl -X POST https://api.concierge-os.example.com/admin/integrations/ehr/mainten
 
 ### Alerts
 
-| Alert | Condition | Action |
-|-------|-----------|--------|
-| EHR API Down | Health check fails 3x | Page on-call |
-| High Error Rate | >5% errors in 5min | Notify team |
-| Sync Lag | >15min since last sync | Investigate |
-| Auth Failure | Any 401/403 | Check credentials |
+| Alert           | Condition              | Action            |
+| --------------- | ---------------------- | ----------------- |
+| EHR API Down    | Health check fails 3x  | Page on-call      |
+| High Error Rate | >5% errors in 5min     | Notify team       |
+| Sync Lag        | >15min since last sync | Investigate       |
+| Auth Failure    | Any 401/403            | Check credentials |
 
 ## Maintenance Windows
 
@@ -166,9 +173,9 @@ curl -X POST https://api.concierge-os.example.com/admin/integrations/ehr/mainten
 
 ## Contacts
 
-| Role | Name | Contact |
-|------|------|---------|
-| Primary Owner | [TBD] | [TBD] |
-| Technical Lead | [TBD] | [TBD] |
-| Vendor Support | [TBD] | [TBD] |
-| Escalation | [TBD] | [TBD] |
+| Role           | Name  | Contact |
+| -------------- | ----- | ------- |
+| Primary Owner  | [TBD] | [TBD]   |
+| Technical Lead | [TBD] | [TBD]   |
+| Vendor Support | [TBD] | [TBD]   |
+| Escalation     | [TBD] | [TBD]   |

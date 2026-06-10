@@ -1,7 +1,5 @@
 # Payments Integration Runbook
 
-# Payments Integration Runbook
-
 ## Overview
 
 Patient payment processing, refunds, and reconciliation via Intuit QuickBooks Payments.
@@ -40,7 +38,7 @@ curl https://api.concierge-os.example.com/admin/integrations/intuit_payments/hea
 
 ```bash
 curl -X POST https://api.concierge-os.example.com/integrations/intuit_payments/charges \
-  -H "Authorization: Bearer *** \
+  -H "Authorization: Bearer ***" \
   -d '{
     "patient_id": "patient-123",
     "amount_cents": 2500,
@@ -54,7 +52,7 @@ curl -X POST https://api.concierge-os.example.com/integrations/intuit_payments/c
 
 ```bash
 curl -X POST https://api.concierge-os.example.com/integrations/intuit_payments/refunds \
-  -H "Authorization: Bearer *** \
+  -H "Authorization: Bearer ***" \
   -d '{
     "transaction_id": "txn-456",
     "amount_cents": 2500,
@@ -66,19 +64,23 @@ curl -X POST https://api.concierge-os.example.com/integrations/intuit_payments/r
 
 ```bash
 curl https://api.concierge-os.example.com/integrations/intuit_payments/charges/txn-456 \
-  -H "Authorization: Bearer *** Troubleshooting
+  -H "Authorization: Bearer ***"
+```
+
+## Troubleshooting
 
 ### Issue: Payment declined
 
 **Symptoms**: Patient payment not processing.
 
 **Resolution**:
+
 ```bash
 # Check payment method validity
 grep "intuit" /var/log/concierge-os/app.log | grep "declined"
 
 # Verify token is valid
-curl -H "Authorization: Bearer *** \
+curl -H "Authorization: Bearer ***" \
   "https://sandbox.api.intuit.com/quickbooks/v4/payments/tokens/validate"
 ```
 
@@ -87,11 +89,13 @@ curl -H "Authorization: Bearer *** \
 **Symptoms**: 401 errors from Intuit API.
 
 **Resolution**:
+
 ```bash
 # Token may be expired — refresh OAuth token
 curl -X POST https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer \
-  -H "Authorization: Basic *** \
-  -d "grant_type=refresh_token&refresh_token=***```
+  -H "Authorization: Basic ***" \
+  -d "grant_type=refresh_token&refresh_token=***"
+```
 
 ## Rollback
 
