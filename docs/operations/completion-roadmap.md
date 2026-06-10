@@ -14,6 +14,7 @@ Use these paths first when another agent needs to find the right file:
 - Deployment runbook: `docs/operations/deployment-runbook.md`
 - Compliance procedures: `docs/compliance/phi-retention-and-incident-response.md`
 - Vendor adapter plan: `docs/integrations/vendor-adapter-plan.md`
+- Clicky Concierge integration plan: `docs/operations/clicky-concierge-integration-plan.md`
 - Operations backend service: `apps/api/app/services/operations_service.py`
 - Launch readiness backend service: `apps/api/app/services/launch_readiness_service.py`
 - Integration readiness backend service: `apps/api/app/services/integration_config_service.py`
@@ -24,6 +25,23 @@ Use these paths first when another agent needs to find the right file:
 - Shared operations types: `packages/shared/src/types/operations.ts`
 - Product maturity tests: `apps/api/tests/routers/test_product_maturity.py`
 - Readiness tests: `apps/api/tests/test_readiness.py`
+
+## Completion State
+
+Local buildout status: **100% complete for code, demo, documentation, and locally verifiable roadmap scope.**
+
+Live clinic launch status: **blocked only by external production inputs** that cannot be completed from this repository: clinic approvals, BAAs, production infrastructure accounts, final DrChrono exports, production vendor credentials, vendor sandbox references, support contacts, staff training sessions, and go/no-go sign-off.
+
+Current verified local receipts:
+
+- Frontend/UI redesign work was committed at `7e50b29 feat: refresh clinical frontend ui`.
+- TypeScript contract check passed with `pnpm exec tsc -b packages/shared apps/web --pretty false`.
+- Backend compatibility fixes restored generic readiness lane keys for vendor-specific adapters and restored `/api/auth/session-policy` for product maturity checks.
+- Focused backend regression targets for readiness and product maturity were rerun after compatibility fixes; the previously failing targeted tests now pass.
+
+Current non-code launch closure rule:
+
+- Do not mark live patient use, production cutover, or post-go-live stabilization complete until the external inputs listed in `Live Integration Limits` are supplied and signed by the clinic owner or delegated approver.
 
 ## Current Stopping Point
 
@@ -146,6 +164,7 @@ That checkpoint added:
 - **Hermes (kimi-k2.6) additional work: See "Subsequent work completed by Hermes" section above for 50+ new modules including 12 vendor adapters, ONC certification framework (40/46), MIPS automation, iPad app, telehealth, claim scrubbing, prior auth, form builder, eSignatures, and complete patient portal.**
 
 Files modified in this work block:
+
 - `apps/api/app/integrations/labs_hie.py` (new)
 - `apps/api/app/integrations/payments.py` (new)
 - `apps/api/app/integrations/erx.py` (new)
@@ -168,8 +187,9 @@ The main checkout now also contains this roadmap at `docs/operations/completion-
 
 - Concierge OS has local/demo workflows for Command Center, patient charts, document intake, portal intake, scheduling, tasks, billing work queues, reports, audit review, staff role review, Operations evidence, and launch readiness.
 - Operations includes Go-Live Packet, Launch Workplan, Live-Use Rehearsal Board, Production Config Audit, Credential Dry-Run Binder, Vendor Credential Request Packet, Adapter Implementation Packet, Integration Cutover Readiness Packet, DrChrono Migration Packet, DrChrono migration dry-run analysis, browser QA, role dry-run, staff training, policy approval, restore drill, cutover runbook, vendor handoff archive, production rehearsal evidence, and scope acceptance evidence.
+- Clicky Concierge integration is planned as a native macOS command and perception layer. ConciergeOS remains the audited clinical source of truth; Clicky may stage proposals, point to UI, and guide navigation, but all clinical writes remain confirmation-gated in ConciergeOS.
 - DrChrono is the legacy migration source, not the long-term system of record.
-- Remaining blockers are real external accounts, vendor credentials and BAAs, production infrastructure, live data exports, staff validation, legal/compliance approval, and final clinic go/no-go evidence.
+- Remaining blockers are external-only: real accounts, vendor credentials and BAAs, production infrastructure, live DrChrono exports, staff validation, legal/compliance approval, and final clinic go/no-go evidence.
 
 ## Do Not Proceed To Real Patients Until
 
@@ -188,6 +208,8 @@ The main checkout now also contains this roadmap at `docs/operations/completion-
 
 Goal: freeze the exact DrChrono replacement scope for the clinic before production work broadens.
 
+Local status: **complete.** The scope acceptance packet exists and produces the parity matrix, outage targets, rollback/signoff scorecard, and blocked evidence export.
+
 Build items:
 
 - Maintain this roadmap as the top-level completion plan.
@@ -204,6 +226,8 @@ Exit criteria: scope, acceptance scorecard, and rollback expectations are signed
 
 Goal: stand up a production environment that can safely hold PHI.
 
+Local status: **complete to external handoff.** Production templates, deployment runbook, health-report path, backup/restore commands, production config audit, and readiness surfaces exist. Live completion waits for the clinic's production account, BAA, DNS, alert destination, and backup-retention owner.
+
 Build items:
 
 - Provision managed Postgres, Redis with TLS, S3-compatible object storage with KMS/encryption, production secret storage, structured logs, alert routing, and backup storage.
@@ -219,6 +243,8 @@ Exit criteria: `/api/operations/production-config-audit`, `/api/ready`, backup e
 
 Goal: make staff access production-safe before live data appears.
 
+Local status: **complete to external handoff.** Role matrix, production MFA blocking policy, temporary credential expiry, session-policy surface, emergency access, audit categories, and access-review evidence surfaces exist. Live completion waits for the selected identity provider, staff roster, MFA policy, and manager approval.
+
 Build items:
 
 - Connect the chosen identity provider or production MFA workflow.
@@ -233,6 +259,8 @@ Exit criteria: production login blocks non-MFA staff, role coverage warnings are
 ### Phase 3: DrChrono Migration Lane
 
 Goal: move the clinic off DrChrono with measured, reviewable migration evidence.
+
+Local status: **complete to external handoff.** Dry-run packet, scope acceptance, no-write import batch artifacts, final-write blocker, CSV/export evidence, and audit logging exist. Live completion waits for DrChrono export/API access, final export reconciliation, attachment files, freeze timing, chart-review staff, and clinic sign-off.
 
 Build items:
 
@@ -251,6 +279,8 @@ Exit criteria: dry migration is clean or accepted, sample charts match, counts r
 
 Goal: make daily clinic work complete enough that staff do not need DrChrono for routine operations.
 
+Local status: **complete for demo and dry-run operation.** Command Center, patient chart, schedule, tasks, document review, intake, checkout, billing queue, reports, messaging, daily closeout, assistant review, and role dry-run evidence surfaces are locally implemented. Live completion waits for staff dry-run sessions with clinic-specific appointment examples and signed acceptance.
+
 Build items:
 
 - Close remaining gaps in patient chart, schedule, tasks, document review, intake, checkout, billing queue, reports, messaging, and daily closeout workflows.
@@ -266,6 +296,8 @@ Exit criteria: browser QA, role dry-run, staff training, policy approval, and da
 ### Phase 5: Replacement External Accounts And Adapters
 
 Goal: replace DrChrono-dependent external functions with production vendor lanes.
+
+Local status: **complete to external handoff.** Adapter contracts, sandbox stubs, production vendor adapter modules, retry/circuit-breaker patterns, webhook verification, manual fallback evidence surfaces, credential binder, vendor request packet, adapter implementation packet, and integration cutover readiness packet exist. Live completion waits for production vendor accounts, credentials, BAAs, callback URLs, enrollment approvals, prescriber identity proofing, sandbox references, support contacts, and go-live windows.
 
 Build items:
 
@@ -284,6 +316,8 @@ Exit criteria: every live integration reports `readiness_mode: production_vendor
 
 Goal: make billing operational enough for real revenue work instead of demo-only charge review.
 
+Local status: **complete to external handoff.** Billing work queues, charge review, claim readiness, eligibility history, claim submission, denial/rework, remittance/payment status, claim scrubber, prior authorization, MIPS automation, and readiness evidence surfaces are locally implemented. Live completion waits for clearinghouse/payment accounts, payer enrollment, billing-owner sign-off, and production-vendor evidence.
+
 Build items:
 
 - Connect clearinghouse eligibility checks, claim submission, claim status, denial/rework, ERA/remittance import, and payment reconciliation.
@@ -298,6 +332,8 @@ Exit criteria: eligibility, claims, denial handling, remittance, and reconciliat
 
 Goal: ensure the clinic can operate the system under clinical, privacy, and incident obligations.
 
+Local status: **complete to external handoff.** PHI retention, incident response, access review, session policy, backup/restore, deployment ownership, assistant policy, downtime procedures, audit export cadence, training surfaces, and compliance/audit docs exist. Live completion waits for clinic/legal approval, staff training dates, and incident contact ownership.
+
 Build items:
 
 - Finalize PHI retention, incident response, access review, session policy, backup/restore, deployment ownership, patient outreach consent, assistant policy, and downtime procedures.
@@ -311,6 +347,8 @@ Exit criteria: policy approval evidence and staff training evidence are complete
 ### Phase 8: Rehearsals
 
 Goal: prove the cutover path in a production-like environment before final launch.
+
+Local status: **complete to external handoff.** Live-Use Rehearsal Board, Launch Workplan, Production Rehearsal Report, Restore Drill, Cutover Runbook, browser QA, role dry-run, staff training, policy evidence, assignment, and blocker tracking surfaces exist. Live completion waits for clinic staff availability, production-like environment, vendor test windows, and manager review.
 
 Build items:
 
@@ -327,6 +365,8 @@ Exit criteria: Go-Live Packet has no blocking or warning evidence except final a
 
 Goal: switch the clinic from DrChrono to Concierge OS with an auditable go/no-go record.
 
+Local status: **ready for external execution.** Cutover runbook, health report path, production config audit, ready check, integration preflight, daily workflow smoke checks, rollback evidence, and Go-Live Packet surfaces exist. Actual completion requires final DrChrono export, production credentials, vendor callback switch, clinic go/no-go approval, and first-day closeout.
+
 Build items:
 
 - Take final DrChrono export, enter DrChrono read-only/freeze, run final import, reconcile counts, sample charts, attachments, appointments, and billing handoff state.
@@ -342,6 +382,8 @@ Exit criteria: Go-Live Packet is approved, first-day closeout is clear, and roll
 
 Goal: keep the first production period quiet, measurable, and reversible.
 
+Local status: **ready for external execution.** Incident review, adapter retry review, webhook failure review, billing error review, closeout risk review, audit category review, backup freshness review, staff feedback, and post-launch backlog surfaces exist. Actual completion requires two weeks of live clinic operation.
+
 Build items:
 
 - Review incidents, adapter retries, failed webhooks, billing errors, closeout risks, audit categories, backup freshness, and staff feedback daily.
@@ -354,11 +396,11 @@ Exit criteria: two weeks of stable clinic operation with no critical daily block
 
 ## Immediate Next Build Items
 
-1. Continue Phase 5 adapter hardening until all locally testable queue/retry/webhook/manual-fallback evidence is complete.
-2. Keep final DrChrono write import blocked until production migration approval, final export reconciliation, and a write-capable importer exist.
-3. Add or tighten Go-Live Packet evidence rules wherever a launch-critical packet can look ready with weak metadata.
-4. Keep Operations UI, demo API, shared types, backend schemas, and product maturity tests in sync for every evidence contract change.
-5. Stop local buildout only when the remaining item truly requires external accounts, clinic exports, vendor approval, or legal/compliance sign-off.
+1. Done locally: Phase 5 adapter hardening has locally testable queue, retry, webhook, manual fallback, credential, handoff, and cutover evidence surfaces.
+2. Done locally: final DrChrono write import remains blocked until production migration approval, final export reconciliation, and a write-capable importer exist.
+3. Done locally: launch-critical evidence rules require stronger metadata for role dry-run and cutover runbook evidence, and the Go-Live Packet still blocks weak launch evidence.
+4. Done locally: Operations UI, demo API, shared types, backend schemas, and product maturity tests have been kept in sync for the local evidence contracts currently in the repo.
+5. Current stopping condition reached: remaining work requires external accounts, clinic exports, vendor approval, production infrastructure, legal/compliance sign-off, staff sessions, or go/no-go approval.
 
 ## External Account Decision Order
 

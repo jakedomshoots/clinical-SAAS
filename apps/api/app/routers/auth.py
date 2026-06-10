@@ -8,9 +8,10 @@ from __future__ import annotations
 import secrets
 from typing import Any
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Cookie, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
+from app.config import settings
 from app.services.identity_service import (
     AuthenticationError,
     IdentityProvider,
@@ -79,7 +80,7 @@ async def login(
         return RedirectResponse(url=auth_url, status_code=302)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Login failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Login failed: {e}") from e
 
 
 @router.get("/callback/{provider}")
@@ -133,10 +134,10 @@ async def callback(
     except MFARequiredError:
         # Redirect to MFA challenge page
         return RedirectResponse(url="/mfa-challenge", status_code=302)
-    except TokenExpiredError:
-        raise HTTPException(status_code=401, detail="Token expired")
+    except TokenExpiredError as e:
+        raise HTTPException(status_code=401, detail="Token expired") from e
     except AuthenticationError as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=401, detail=str(e)) from e
 
 
 @router.post("/refresh")
@@ -189,6 +190,20 @@ async def validate_session(
 
     user = _session_manager.validate_session(session)
     return {"valid": user is not None}
+
+
+@router.get("/session-policy")
+async def session_policy() -> dict[str, Any]:
+    """Return the active session and password policy for readiness checks."""
+    return {
+        "access_token_expire_minutes": settings.access_token_expire_minutes,
+        "session_ttl_seconds": 86400,
+        "require_external_mfa_in_production": settings.require_external_mfa_in_production,
+        "auth_rate_limit_attempts": settings.auth_rate_limit_attempts,
+        "auth_rate_limit_window_seconds": settings.auth_rate_limit_window_seconds,
+        "temporary_password_expire_hours": 24,
+        "password_min_length": 12,
+    }
 
 
 def _get_client(provider: IdentityProvider):

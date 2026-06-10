@@ -42,12 +42,13 @@ from app.routers import (
     public_health,
     scheduling,
     sdoh_screening,
-    settings as settings_router,
     tasks,
     telehealth,
     users,
     webhooks,
-    websocket,
+)
+from app.routers import (
+    settings as settings_router,
 )
 from app.services.readiness_service import check_readiness
 
@@ -92,6 +93,11 @@ async def readiness_check(
     return await check_readiness()
 
 
+@app.get("/api/auth/session-policy")
+async def api_session_policy():
+    return await auth.session_policy()
+
+
 app.include_router(audit.router)
 app.include_router(assistant.router)
 app.include_router(analytics.router)
@@ -132,12 +138,15 @@ app.include_router(amendments.router)
 
 # FHIR API (ONC certification)
 from app.integrations.fhir import router as fhir_router
+
 app.include_router(fhir_router)
 
 # PWA endpoints
 from app.integrations.pwa import router as pwa_router
+
 app.include_router(pwa_router)
 
 # Patient portal complete
 from app.routers.patient_portal_complete import router as portal_complete_router
+
 app.include_router(portal_complete_router)

@@ -34,7 +34,29 @@ async def check_readiness() -> dict:
 
 async def check_external_integrations() -> dict:
     results = await asyncio.gather(*(client.health() for client in integration_clients()))
-    return {item.name: item.as_dict() for item in results}
+    integrations = {item.name: item.as_dict() for item in results}
+    _add_legacy_integration_aliases(integrations)
+    return integrations
+
+
+def _add_legacy_integration_aliases(integrations: dict) -> None:
+    aliases = {
+        "srfax": ("fax_provider", "FAX_PROVIDER_API_KEY"),
+        "twilio": ("communications", "COMMUNICATIONS_PROVIDER_API_KEY"),
+        "availity": ("clearinghouse", "CLEARINGHOUSE_API_KEY"),
+        "google_calendar": ("calendar", "CALENDAR_API_BASE_URL"),
+        "dosespot": ("erx", "ERX_API_BASE_URL"),
+        "auth0": ("identity", "IDENTITY_PROVIDER_ISSUER_URL"),
+        "intuit_payments": ("payments", "PAYMENTS_API_KEY"),
+    }
+    for source, (alias, env_var) in aliases.items():
+        if alias in integrations or source not in integrations:
+            continue
+        integrations[alias] = {
+            **integrations[source],
+            "name": alias,
+            "env_var": env_var,
+        }
 
 
 async def _check_database() -> dict:
