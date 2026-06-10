@@ -22,7 +22,7 @@ export function ClickyFloatingOverlay() {
         className="fixed bottom-5 right-5 z-40 inline-flex h-11 items-center gap-2 rounded-md border border-border bg-canvas-raised px-3 text-small font-semibold text-ink shadow-lg hover:bg-canvas-sunk print:hidden"
       >
         <Bot className="h-4 w-4 text-accent" />
-        Clicky
+        Clicky Live
         <PanelRightOpen className="h-4 w-4 text-ink-muted" />
       </button>
     );
@@ -37,7 +37,7 @@ export function ClickyFloatingOverlay() {
       <div className="flex h-11 items-center justify-between border-b border-border bg-canvas-raised px-3">
         <div className="flex items-center gap-2 text-small font-semibold text-ink">
           <Bot className="h-4 w-4 text-accent" />
-          Clicky overlay
+          Clicky Live
         </div>
         <div className="flex items-center gap-1">
           <button

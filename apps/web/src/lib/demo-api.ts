@@ -8200,16 +8200,23 @@ export async function demoRequest<T>(
       normalized.includes('readiness') ||
       normalized.includes('launch')
     ) {
+      const reviewWorkspace = routeLabel === 'Billing cases' ? 'billing' : routeLabel.toLowerCase();
+      const reviewFocus =
+        normalized.includes('launch') ||
+        request.route_path.startsWith('/setup') ||
+        request.route_path.startsWith('/operations')
+          ? 'launch blockers'
+          : `${reviewWorkspace} blockers`;
       return createCommandProposal({
         proposal_type: 'operations.review_blocker',
-        title: 'Review launch blockers',
+        title: `Review ${reviewFocus}`,
         summary: command,
         route_path: request.route_path,
         entity_type: null,
         entity_id: null,
         payload: {
           context: routeLabel,
-          review_focus: 'launch blockers',
+          review_focus: reviewFocus,
           route_path: request.route_path,
         },
         confidence_reason:

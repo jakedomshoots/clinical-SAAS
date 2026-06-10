@@ -115,18 +115,23 @@ async def interpret_command(
     patient_id = request.entity_id or _patient_id_from_path(request.route_path)
 
     if any(word in normalized for word in ("blocker", "blockers", "readiness", "launch")):
+        review_focus = (
+            "launch blockers"
+            if "launch" in normalized or request.route_path.startswith(("/setup", "/operations"))
+            else f"{route_label.lower()} blockers"
+        )
         proposal = await assistant_proposals.create_proposal(
             db,
             AssistantProposalCreate(
                 proposal_type="operations.review_blocker",
-                title="Review launch blockers",
+                title=f"Review {review_focus}",
                 summary=command,
                 route_path=request.route_path,
                 entity_type=None,
                 entity_id=None,
                 payload={
                     "context": route_label,
-                    "review_focus": "launch blockers",
+                    "review_focus": review_focus,
                     "route_path": request.route_path,
                 },
                 confidence_reason=(

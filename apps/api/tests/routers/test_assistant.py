@@ -333,6 +333,25 @@ async def test_command_creates_blocker_review_proposal(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_command_labels_blocker_review_for_active_workspace(client, auth_headers):
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "review billing blockers",
+            "input_mode": "typed",
+            "route_path": "/billing",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["title"] == "Review billing blockers"
+    assert body["proposal"]["payload"]["review_focus"] == "billing blockers"
+
+
+@pytest.mark.asyncio
 async def test_command_blocks_fax_match_without_front_office_role(
     client,
     db: AsyncSession,

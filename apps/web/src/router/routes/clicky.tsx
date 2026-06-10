@@ -36,7 +36,7 @@ function ClickyRoute() {
             <Bot className="h-4 w-4" />
             ConciergeOS add-on
           </div>
-          <h1 className="mt-1 font-serif text-title text-ink">Clicky</h1>
+          <h1 className="mt-1 font-serif text-title text-ink">Clicky Console</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-canvas-raised px-3 text-small text-ink-secondary">
@@ -102,8 +102,12 @@ function ClickyRoute() {
             </div>
             <dl className="mt-3 space-y-2 text-small">
               <div className="flex items-center justify-between gap-3">
+                <dt className="text-ink-secondary">Command engine</dt>
+                <dd className="font-medium text-ink">Native</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
                 <dt className="text-ink-secondary">Clinical writes</dt>
-                <dd className="font-medium text-ink">Staged</dd>
+                <dd className="font-medium text-ink">Proposal first</dd>
               </div>
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-ink-secondary">Confirmation</dt>
@@ -113,10 +117,6 @@ function ClickyRoute() {
                 <dt className="text-ink-secondary">Audit trail</dt>
                 <dd className="font-medium text-ink">Recorded</dd>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-ink-secondary">External Clicky API</dt>
-                <dd className="font-medium text-ink">Not used</dd>
-              </div>
             </dl>
           </section>
 
@@ -124,7 +124,7 @@ function ClickyRoute() {
             <div className="text-small font-semibold text-ink">Overlay status</div>
             <div className="mt-3 rounded-md border border-border bg-canvas px-3 py-2 text-small text-ink-secondary">
               {overlayEnabled
-                ? 'Available across ConciergeOS.'
+                ? 'Available across ConciergeOS workspaces.'
                 : 'Dedicated workspace only.'}
             </div>
           </section>
