@@ -122,6 +122,11 @@
   * {
     @apply border-border;
   }
+
+  .clicky-target-picking,
+  .clicky-target-picking * {
+    cursor: crosshair !important;
+  }
 }
 
 .dark {

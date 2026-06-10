@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Bot, Command, PanelRightOpen, ShieldCheck } from 'lucide-react';
+import { Bot, Command, Maximize2, PanelRightOpen, ShieldCheck } from 'lucide-react';
 import { useState } from 'react';
 import { ClickyCommandPanel } from '@/components/clicky/clicky-command-panel';
 import { useClickyAddOn } from '@/lib/clicky-overlay';
@@ -20,6 +20,7 @@ function ClickyRoute() {
   const {
     nativeCommandsEnabled,
     overlayEnabled,
+    openClickyMode,
     toggleNativeCommands,
     setOverlayEnabled,
     setOverlayOpen,
@@ -56,6 +57,15 @@ function ClickyRoute() {
           </label>
           <button
             type="button"
+            data-testid="clicky-launch-mode"
+            onClick={() => openClickyMode('spotlight')}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-accent-soft bg-accent-soft px-3 text-small font-semibold text-accent hover:bg-accent hover:text-accent-on"
+          >
+            <Maximize2 className="h-4 w-4" />
+            Launch mode
+          </button>
+          <button
+            type="button"
             data-testid="clicky-command-toggle"
             onClick={toggleNativeCommands}
             className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-small font-semibold ${
@@ -71,8 +81,12 @@ function ClickyRoute() {
             type="button"
             data-testid="clicky-overlay-toggle"
             onClick={() => {
-              setOverlayEnabled(!overlayEnabled);
-              if (!overlayEnabled) setOverlayOpen(true);
+              if (overlayEnabled) {
+                setOverlayEnabled(false);
+              } else {
+                setOverlayEnabled(true);
+                setOverlayOpen(true);
+              }
             }}
             className={`inline-flex h-10 items-center gap-2 rounded-md border px-3 text-small font-semibold ${
               overlayEnabled

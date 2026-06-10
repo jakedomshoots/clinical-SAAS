@@ -9,11 +9,13 @@ import {
   CheckCircle2,
   ClipboardList,
   CreditCard,
+  Crosshair,
   Inbox,
   Loader2,
   MessageSquare,
   Mic,
   MicOff,
+  MousePointer2,
   Navigation,
   Printer,
   Radio,
@@ -44,6 +46,7 @@ import {
   fetchAssistantProposals,
   submitAssistantCommand,
 } from '@/lib/assistant-tools';
+import type { ClickyTargetSnapshot, ClickyVisibleContext } from '@/lib/clicky-targeting';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { humanizeWorkflowLabel } from '@/lib/ui-state';
 
@@ -68,6 +71,9 @@ interface ClickyCommandPanelProps {
   contextLabel?: string;
   className?: string;
   compact?: boolean;
+  selectedTarget?: ClickyTargetSnapshot | null;
+  visibleContext?: ClickyVisibleContext | null;
+  onPickTarget?: () => void;
 }
 
 interface ClickyHistoryItem {
@@ -195,6 +201,9 @@ export function ClickyCommandPanel({
   contextLabel,
   className = '',
   compact = false,
+  selectedTarget = null,
+  visibleContext = null,
+  onPickTarget,
 }: ClickyCommandPanelProps) {
   const api = useApi();
   const toast = useToast();
@@ -409,6 +418,20 @@ export function ClickyCommandPanel({
   );
 
   const focusCard = useMemo<FocusCard>(() => {
+    if (selectedTarget) {
+      return {
+        eyebrow: 'Point focus',
+        title: selectedTarget.label,
+        detail:
+          selectedTarget.text ||
+          `${selectedTarget.tagName} selected on ${selectedTarget.routePath}.`,
+        command: `summarize this view around ${selectedTarget.label}`,
+        actionLabel: 'Ask target',
+        icon: MousePointer2,
+        tone: 'accent',
+      };
+    }
+
     if (activePath.startsWith('/billing')) {
       return {
         eyebrow: 'Billing focus',
@@ -510,6 +533,7 @@ export function ClickyCommandPanel({
     billingQueue?.ready_count,
     billingQueue?.remittance_pending_count,
     threads,
+    selectedTarget,
     unmatchedFaxes,
     unreadMessages,
     urgentTasks,
@@ -517,6 +541,28 @@ export function ClickyCommandPanel({
 
   const clickyActions = useMemo<ClickyActionCard[]>(() => {
     const cards: ClickyActionCard[] = [];
+
+    if (selectedTarget) {
+      cards.push({
+        label: 'Use pointed target',
+        detail: 'Ask Clicky about the selected UI area.',
+        command: `summarize this view around ${selectedTarget.label}`,
+        evidence: selectedTarget.pointTag,
+        icon: MousePointer2,
+        tone: 'accent',
+      });
+    }
+
+    if (visibleContext && !selectedTarget) {
+      cards.push({
+        label: 'Read current screen',
+        detail: 'Use visible headings and actions as context.',
+        command: 'summarize this screen',
+        evidence: visibleContext.title,
+        icon: Activity,
+        tone: 'success',
+      });
+    }
 
     if (activePath.startsWith('/billing')) {
       cards.push(
@@ -616,9 +662,11 @@ export function ClickyCommandPanel({
     billingQueue?.ready_count,
     blockedTasks.length,
     compact,
+    selectedTarget,
     unmatchedFaxes.length,
     unreadMessages,
     urgentTasks.length,
+    visibleContext,
   ]);
 
   const submitCommand = (inputMode: AssistantCommandInputMode, overrideCommand?: string) => {
@@ -650,7 +698,7 @@ export function ClickyCommandPanel({
       const transcript = event.results[0]?.[0]?.transcript ?? '';
       setListening(false);
       setCommandText(transcript);
-      if (transcript.trim()) commandMutation.mutate({ command: transcript, inputMode: 'voice' });
+      if (transcript.trim()) submitCommand('voice', transcript);
     };
     recognition.onerror = () => {
       setListening(false);
@@ -731,6 +779,44 @@ export function ClickyCommandPanel({
                 <div className="text-small font-semibold text-ink">{completionReceipt.title}</div>
                 <div className="mt-1 text-small text-ink-secondary">{completionReceipt.detail}</div>
               </div>
+            </div>
+          </section>
+        )}
+
+        {(selectedTarget || visibleContext || onPickTarget) && (
+          <section
+            data-testid="clicky-screen-context"
+            className="mb-3 rounded-md border border-border bg-canvas px-3 py-3"
+          >
+            <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-micro font-medium uppercase text-ink-faint">
+                  <MousePointer2 className="h-3.5 w-3.5" />
+                  Screen awareness
+                </div>
+                <div className="mt-1 text-small font-semibold text-ink">
+                  {selectedTarget?.label ?? visibleContext?.title ?? activeLabel}
+                </div>
+                <div className="mt-1 line-clamp-2 text-small text-ink-secondary">
+                  {selectedTarget?.text ?? visibleContext?.summary ?? activePath}
+                </div>
+                {selectedTarget && (
+                  <div className="mt-2 font-mono text-[11px] leading-4 text-ink-muted">
+                    {selectedTarget.pointTag}
+                  </div>
+                )}
+              </div>
+              {onPickTarget && (
+                <button
+                  type="button"
+                  onClick={onPickTarget}
+                  data-testid="clicky-pick-target"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border bg-canvas-raised px-3 text-small font-semibold text-ink-secondary hover:bg-canvas-sunk"
+                >
+                  <Crosshair className="h-3.5 w-3.5" />
+                  Pick target
+                </button>
+              )}
             </div>
           </section>
         )}
