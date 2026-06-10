@@ -15,7 +15,9 @@ async def test_get_and_update_clinic_settings(client, auth_headers):
         json={
             "reminder_offsets_minutes": [60, 1440],
             "sender_identity": "Northside Clinic",
-            "reminder_sms_template": "Reminder from {clinic_name}: appointment at {appointment_time}.",
+            "reminder_sms_template": (
+                "Reminder from {clinic_name}: appointment at {appointment_time}."
+            ),
         },
         headers=auth_headers,
     )
@@ -36,3 +38,24 @@ async def test_non_manager_cannot_update_clinic_settings(client, db):
     )
 
     assert updated.status_code == 403
+
+
+async def test_presales_saas_readiness_lists_self_service_buildout(client, auth_headers):
+    response = await client.get("/api/analytics/presales-saas-readiness", headers=auth_headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] in {"ready_for_demo", "needs_demo_setup"}
+    assert body["customer_credentials_required"] is False
+    assert body["external_blockers"]
+    feature_keys = {feature["key"] for feature in body["features"]}
+    assert feature_keys == {
+        "production_like_infrastructure",
+        "saas_account_model",
+        "sales_demo_workspace",
+        "vendor_neutral_integrations",
+        "native_ai_functionality",
+        "sales_admin_readiness",
+        "compliance_prep",
+    }
+    assert all("customer_credentials_required" in feature for feature in body["features"])

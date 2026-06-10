@@ -1254,6 +1254,35 @@ export interface PilotReadiness {
   generated_at: string;
 }
 
+export interface PresalesSaasReadinessFeature {
+  key:
+    | 'production_like_infrastructure'
+    | 'saas_account_model'
+    | 'sales_demo_workspace'
+    | 'vendor_neutral_integrations'
+    | 'native_ai_functionality'
+    | 'sales_admin_readiness'
+    | 'compliance_prep';
+  label: string;
+  ready: boolean;
+  status: string;
+  detail: string;
+  self_service_next_step: string;
+  customer_credentials_required: boolean;
+  future_customer_inputs: string[];
+}
+
+export interface PresalesSaasReadiness {
+  status: 'ready_for_demo' | 'needs_demo_setup';
+  score: number;
+  ready_count: number;
+  total: number;
+  customer_credentials_required: boolean;
+  features: PresalesSaasReadinessFeature[];
+  external_blockers: string[];
+  generated_at: string;
+}
+
 export interface ScopeAcceptanceParityItem {
   feature: string;
   drchrono: boolean;

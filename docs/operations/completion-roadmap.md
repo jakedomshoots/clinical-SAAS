@@ -10,12 +10,14 @@ Use these paths first when another agent needs to find the right file:
 
 - Roadmap and stopping point: `docs/operations/completion-roadmap.md`
 - Production launch checklist: `docs/operations/production-launch-checklist.md`
+- Pre-sales SaaS readiness: `docs/operations/presales-saas-readiness.md`
 - Daily workflow readiness: `docs/operations/daily-use-readiness.md`
 - Deployment runbook: `docs/operations/deployment-runbook.md`
 - Compliance procedures: `docs/compliance/phi-retention-and-incident-response.md`
 - Vendor adapter plan: `docs/integrations/vendor-adapter-plan.md`
 - Native AI command layer spec: `docs/superpowers/specs/2026-06-10-native-clicky-command-layer-design.md`
 - Native AI command layer implementation plan: `docs/superpowers/plans/2026-06-10-native-clicky-command-layer.md`
+- Pre-sales SaaS readiness API: `GET /api/analytics/presales-saas-readiness`
 - Operations backend service: `apps/api/app/services/operations_service.py`
 - Launch readiness backend service: `apps/api/app/services/launch_readiness_service.py`
 - Integration readiness backend service: `apps/api/app/services/integration_config_service.py`

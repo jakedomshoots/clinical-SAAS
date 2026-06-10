@@ -68,6 +68,7 @@ export const ROUTES = {
   ANALYTICS_DAILY_CLOSEOUT: '/api/analytics/daily-closeout',
   PILOT_READINESS: '/api/analytics/pilot-readiness',
   PILOT_READINESS_SEED: '/api/analytics/pilot-readiness/seed',
+  PRESALES_SAAS_READINESS: '/api/analytics/presales-saas-readiness',
   BILLING_CASES: '/api/billing/cases',
   BILLING_CHARGE_REVIEW: '/api/billing/charge-review',
   BILLING_WORK_QUEUE: '/api/billing/work-queue',

@@ -6,6 +6,7 @@ import {
   type IntegrationCapabilities,
   type LaunchReadiness,
   type PilotReadiness,
+  type PresalesSaasReadiness,
   type SessionPolicy,
   type UserListResponse,
 } from '@concierge-os/shared';
@@ -58,6 +59,10 @@ function SetupPage() {
   const { data: pilotReadiness } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'pilot-score'],
     queryFn: () => api.get<PilotReadiness>(ROUTES.PILOT_READINESS),
+  });
+  const { data: presalesReadiness } = useQuery({
+    queryKey: [...QUERY_KEYS.READINESS, 'presales-saas'],
+    queryFn: () => api.get<PresalesSaasReadiness>(ROUTES.PRESALES_SAAS_READINESS),
   });
   const { data: launchReadiness } = useQuery({
     queryKey: [...QUERY_KEYS.READINESS, 'launch-readiness'],
@@ -133,6 +138,74 @@ function SetupPage() {
         />
       )}
       <section className="grid gap-3 md:grid-cols-2">
+        <div className="bg-canvas-raised border border-border rounded-md p-4 md:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-subhead font-medium text-ink">Pre-Sales SaaS Buildout</div>
+              <div className="text-small text-ink-muted mt-1">
+                Features that can be prepared without a sold clinic, clinic-owned credentials, or
+                live PHI.
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-serif text-3xl font-medium text-ink">
+                {presalesReadiness?.score ?? 0}%
+              </div>
+              <div className="text-meta text-ink-muted">
+                {presalesReadiness?.status === 'ready_for_demo'
+                  ? 'Ready for demo'
+                  : 'Needs demo setup'}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            {(presalesReadiness?.features ?? []).map((feature) => (
+              <div key={feature.key} className="rounded-md border border-border bg-canvas p-3">
+                <div className="flex items-start gap-2">
+                  {feature.ready ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-success" />
+                  ) : (
+                    <AlertTriangle className="mt-0.5 h-4 w-4 text-warn" />
+                  )}
+                  <div>
+                    <div className="text-small font-semibold text-ink">{feature.label}</div>
+                    <p className="mt-1 text-small text-ink-secondary">{feature.detail}</p>
+                    <p className="mt-2 text-micro font-medium text-ink-muted">
+                      Next: {feature.self_service_next_step}
+                    </p>
+                    {feature.future_customer_inputs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {feature.future_customer_inputs.map((item) => (
+                          <span
+                            key={item}
+                            className="rounded-sm bg-canvas-sunk px-2 py-1 text-micro text-ink-muted"
+                          >
+                            Later: {item}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 rounded-md border border-border bg-canvas p-3">
+            <div className="text-meta font-medium uppercase text-ink-faint">
+              Blocked only after sale
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(presalesReadiness?.external_blockers ?? []).map((blocker) => (
+                <span
+                  key={blocker}
+                  className="rounded-sm border border-border bg-canvas-sunk px-2 py-1 text-micro text-ink-secondary"
+                >
+                  {blocker}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
         <div className="bg-canvas-raised border border-border rounded-md p-4 md:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
