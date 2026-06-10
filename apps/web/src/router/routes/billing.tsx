@@ -266,8 +266,24 @@ function BillingPage() {
                   data={pipelineData}
                   margin={{ top: 5, right: 10, left: 20, bottom: 5 }}
                 >
-                  <XAxis type="number" stroke="var(--ink-muted)" fontSize={10} tickLine={false} axisLine={false} />
-                  <YAxis dataKey="name" type="category" stroke="var(--ink-muted)" fontSize={10} tickLine={false} axisLine={false} width={100} />
+                  <XAxis
+                    type="number"
+                    stroke="#b8b3aa"
+                    fontSize={11}
+                    fontWeight={500}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    stroke="#d8d1c5"
+                    fontSize={11}
+                    fontWeight={600}
+                    tickLine={false}
+                    axisLine={false}
+                    width={112}
+                  />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: 'var(--canvas-raised)',
