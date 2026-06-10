@@ -10,7 +10,11 @@ import { useAuth } from '@/lib/auth';
 import { ViewModeProvider } from '@/lib/view-mode';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useClinicalAssistantTools, type AssistantAction } from '@/lib/assistant-tools';
+import {
+  submitAssistantCommand,
+  useClinicalAssistantTools,
+  type AssistantAction,
+} from '@/lib/assistant-tools';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { ErrorState } from '@/lib/ui-state';
@@ -29,9 +33,12 @@ import {
   LogOut,
   Menu,
   MessageSquare,
+  Mic,
+  MicOff,
   PlugZap,
   Printer,
   Search,
+  Send,
   Settings,
   ShieldCheck,
   Sun,
@@ -44,6 +51,19 @@ import {
 type NavItem = { to: string; label: string; icon: LucideIcon; badge?: string | number };
 
 type NavSection = { label: string; items: NavItem[] };
+type BrowserSpeechRecognitionEvent = Event & {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+};
+type BrowserSpeechRecognition = {
+  lang: string;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
 
 /** Live counts surfaced in the sidebar as red/amber badge dots */
 function useNavBadges() {
@@ -246,7 +266,7 @@ function TopBar({
         className="flex h-9 w-full max-w-xl flex-1 items-center gap-3 rounded-pill border border-border bg-canvas px-4 py-2 text-left text-small text-ink-muted hover:border-border-strong hover:bg-canvas-raised"
       >
         <Search className="h-4 w-4 text-ink-faint" />
-        <span className="min-w-0 flex-1 truncate">Search patients, tasks, faxes, messages</span>
+        <span className="min-w-0 flex-1 truncate">Search or ask ConciergeOS</span>
         <span className="inline-flex items-center gap-1 rounded-md border border-border bg-canvas-raised px-1.5 py-0.5 text-meta text-ink-muted">
           <Command className="h-3 w-3" />K
         </span>
@@ -373,12 +393,16 @@ function MobileNav({ open, onClose, theme, onThemeToggle }: { open: boolean; onC
 function SettingsPanel({
   open,
   density,
+  nativeAiCommandsEnabled,
   onDensityChange,
+  onNativeAiCommandsToggle,
   onClose,
 }: {
   open: boolean;
   density: 'comfortable' | 'compact';
+  nativeAiCommandsEnabled: boolean;
   onDensityChange: () => void;
+  onNativeAiCommandsToggle: () => void;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -549,6 +573,26 @@ function SettingsPanel({
           </section>
 
           <section>
+            <h3 className="text-meta font-medium uppercase text-ink-faint">Native AI Commands</h3>
+            <div className="mt-2 rounded-md border border-border bg-canvas p-3">
+              <label className="flex items-center justify-between gap-3 text-small text-ink-secondary">
+                <span>
+                  <span className="block font-medium text-ink">Enable typed and voice commands</span>
+                  <span className="text-micro text-ink-muted">
+                    Search stays available when this is off.
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={nativeAiCommandsEnabled}
+                  onChange={onNativeAiCommandsToggle}
+                  className="h-4 w-4 accent-accent"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section>
             <h3 className="text-meta font-medium uppercase text-ink-faint">Density</h3>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(['comfortable', 'compact'] as const).map((option) => (
@@ -604,12 +648,27 @@ function SettingsPanel({
   );
 }
 
-function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+function CommandPalette({
+  open,
+  nativeAiCommandsEnabled,
+  onClose,
+}: {
+  open: boolean;
+  nativeAiCommandsEnabled: boolean;
+  onClose: () => void;
+}) {
   const navigate = useNavigate();
   const api = useApi();
+  const queryClient = useQueryClient();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<'search' | 'command'>('search');
+  const [commandText, setCommandText] = useState('');
+  const [commandMessage, setCommandMessage] = useState<string | null>(null);
+  const [listening, setListening] = useState(false);
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const speechRef = useRef<BrowserSpeechRecognition | null>(null);
 
   // Debounce the search query
   useEffect(() => {
@@ -695,11 +754,81 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
   const patients = patientResults?.data ?? [];
   const tasks = taskResults?.data ?? [];
   const hasLiveResults = patients.length > 0 || tasks.length > 0;
+  const commandMutation = useMutation({
+    mutationFn: ({ inputMode, command }: { inputMode: 'typed' | 'voice'; command: string }) =>
+      submitAssistantCommand(api, {
+        command,
+        input_mode: inputMode,
+        route_path: pathname,
+      }),
+    onSuccess: async (result) => {
+      setCommandMessage(result.message);
+      if (result.proposal?.proposal_type === 'navigation.open_route') {
+        await navigate({ to: result.proposal.route_path });
+        onClose();
+      }
+      await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ASSISTANT_PROPOSALS });
+    },
+    onError: (error) => {
+      setCommandMessage(error instanceof Error ? error.message : 'Command failed');
+    },
+  });
+
+  const speechSupported =
+    typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
+  const submitCommand = (inputMode: 'typed' | 'voice' = 'typed') => {
+    if (!commandText.trim() || commandMutation.isPending) return;
+    commandMutation.mutate({ inputMode, command: commandText });
+  };
+
+  const toggleVoice = () => {
+    if (!speechSupported || listening) {
+      speechRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    const SpeechRecognitionCtor = (
+      window as typeof window & {
+        SpeechRecognition?: new () => BrowserSpeechRecognition;
+        webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+      }
+    ).SpeechRecognition ?? (window as typeof window & {
+      webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+    }).webkitSpeechRecognition;
+    if (!SpeechRecognitionCtor) return;
+    const recognition = new SpeechRecognitionCtor();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event: BrowserSpeechRecognitionEvent) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? '';
+      setCommandText(transcript);
+      setListening(false);
+      if (transcript.trim()) {
+        commandMutation.mutate({ inputMode: 'voice', command: transcript });
+      }
+    };
+    recognition.onerror = () => {
+      setListening(false);
+      setCommandMessage('Voice capture failed. Type the command instead.');
+    };
+    recognition.onend = () => setListening(false);
+    speechRef.current = recognition;
+    setListening(true);
+    recognition.start();
+  };
 
   useEffect(() => {
     if (!open) {
       setQuery('');
       setDebouncedQuery('');
+      setCommandText('');
+      setCommandMessage(null);
+      setMode('search');
+      speechRef.current?.stop();
+      setListening(false);
       return;
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -719,22 +848,79 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
     >
       <div className="mx-auto mt-24 max-w-2xl overflow-hidden rounded-lg border border-border bg-canvas-raised shadow-lg">
         <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Search className="h-4 w-4 text-ink-faint" />
-          <input
-            autoFocus
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="h-10 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint"
-            placeholder="Search patients, tasks, or navigate..."
-          />
-          {query && (
+          <div className="flex rounded-md border border-border bg-canvas p-1">
             <button
-              onClick={() => setQuery('')}
-              aria-label="Clear search"
-              className="flex h-6 w-6 items-center justify-center rounded text-ink-faint hover:text-ink"
+              onClick={() => setMode('search')}
+              className={`rounded-sm px-2 py-1 text-small font-medium ${
+                mode === 'search' ? 'bg-canvas-raised text-ink shadow-sm' : 'text-ink-muted'
+              }`}
             >
-              <X className="h-3.5 w-3.5" />
+              Search
             </button>
+            <button
+              onClick={() => setMode('command')}
+              disabled={!nativeAiCommandsEnabled}
+              className={`rounded-sm px-2 py-1 text-small font-medium ${
+                mode === 'command' ? 'bg-canvas-raised text-ink shadow-sm' : 'text-ink-muted'
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              AI Command
+            </button>
+          </div>
+          {mode === 'search' ? (
+            <>
+              <Search className="h-4 w-4 text-ink-faint" />
+              <input
+                autoFocus
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-10 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint"
+                placeholder="Search patients, tasks, or navigate..."
+              />
+              {query && (
+                <button
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="flex h-6 w-6 items-center justify-center rounded text-ink-faint hover:text-ink"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <Bot className="h-4 w-4 text-accent" />
+              <input
+                autoFocus
+                disabled={!nativeAiCommandsEnabled}
+                value={commandText}
+                onChange={(event) => {
+                  setCommandText(event.target.value);
+                  setCommandMessage(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') submitCommand('typed');
+                }}
+                className="h-10 flex-1 bg-transparent text-body text-ink outline-none placeholder:text-ink-faint disabled:cursor-not-allowed disabled:opacity-60"
+                placeholder="Ask ConciergeOS to open, summarize, or stage a safe action..."
+              />
+              <button
+                onClick={toggleVoice}
+                disabled={!nativeAiCommandsEnabled || !speechSupported || commandMutation.isPending}
+                aria-label={listening ? 'Stop voice command' : 'Start voice command'}
+                className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-ink-muted hover:bg-canvas-sunk disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {listening ? <MicOff className="h-4 w-4 text-danger" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={() => submitCommand('typed')}
+                disabled={!nativeAiCommandsEnabled || !commandText.trim() || commandMutation.isPending}
+                aria-label="Submit AI command"
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-accent text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </>
           )}
           <button
             onClick={onClose}
@@ -745,6 +931,43 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
           </button>
         </div>
         <div className="max-h-[28rem] overflow-y-auto">
+          {mode === 'command' && (
+            <div className="border-b border-border px-4 py-4">
+              {!nativeAiCommandsEnabled && (
+                <div className="rounded-md border border-border bg-canvas px-3 py-2 text-small text-ink-muted">
+                  Native AI commands are disabled. Search remains available.
+                </div>
+              )}
+              <div className="grid gap-2 text-small text-ink-secondary sm:grid-cols-3">
+                {[
+                  'Open billing queue',
+                  'Summarize this view',
+                  'Create follow up task',
+                ].map((example) => (
+                  <button
+                    key={example}
+                    onClick={() => setCommandText(example)}
+                    disabled={!nativeAiCommandsEnabled}
+                    className="rounded-md border border-border px-3 py-2 text-left hover:bg-canvas-sunk"
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+              {commandMessage && (
+                <div className="mt-3 rounded-md border border-border bg-canvas px-3 py-2 text-small text-ink-secondary">
+                  {commandMessage}
+                </div>
+              )}
+              {!speechSupported && (
+                <div className="mt-3 text-micro text-ink-faint">
+                  Voice capture is not available in this browser; typed commands still work.
+                </div>
+              )}
+            </div>
+          )}
+          {mode === 'search' && (
+            <>
           {/* Live patient results */}
           {patients.length > 0 && (
             <div>
@@ -827,10 +1050,14 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
               )}
             </div>
           )}
+            </>
+          )}
         </div>
         <div className="border-t border-border px-4 py-2 flex items-center gap-4">
           <span className="text-micro text-ink-faint">
-            Type 2+ characters to search patients and tasks
+            {mode === 'search'
+              ? 'Type 2+ characters to search patients and tasks'
+              : 'AI commands stage proposals before any clinical write'}
           </span>
           <span className="ml-auto text-micro text-ink-faint">
             <kbd className="font-mono">↵</kbd> to open · <kbd className="font-mono">Esc</kbd> to
@@ -1016,6 +1243,10 @@ function RootLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [density, setDensity] = useState<'comfortable' | 'compact'>('comfortable');
+  const [nativeAiCommandsEnabled, setNativeAiCommandsEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('native-ai-commands-enabled') !== 'false';
+  });
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
@@ -1038,6 +1269,13 @@ function RootLayout() {
   }, [theme]);
 
   const toggleTheme = () => setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+
+  useEffect(() => {
+    localStorage.setItem(
+      'native-ai-commands-enabled',
+      nativeAiCommandsEnabled ? 'true' : 'false'
+    );
+  }, [nativeAiCommandsEnabled]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -1082,7 +1320,11 @@ function RootLayout() {
               <ClinicalAssistantPanel pathname={pathname} />
             </div>
           </div>
-          <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} />
+          <CommandPalette
+            open={commandOpen}
+            nativeAiCommandsEnabled={nativeAiCommandsEnabled}
+            onClose={() => setCommandOpen(false)}
+          />
           <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} theme={theme} onThemeToggle={toggleTheme} />
           <AssistantDrawer
             open={assistantOpen}
@@ -1092,9 +1334,11 @@ function RootLayout() {
           <SettingsPanel
             open={settingsOpen}
             density={density}
+            nativeAiCommandsEnabled={nativeAiCommandsEnabled}
             onDensityChange={() =>
               setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))
             }
+            onNativeAiCommandsToggle={() => setNativeAiCommandsEnabled((current) => !current)}
             onClose={() => setSettingsOpen(false)}
           />
         </div>

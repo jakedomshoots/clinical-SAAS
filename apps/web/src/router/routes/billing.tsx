@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { SearchablePatientPicker } from '@/components/searchable-patient-picker';
 import { useToast } from '@/components/toast';
+import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { Button } from '@/components/button';
 import { useState, useMemo } from 'react';
 import { AlertTriangle, ClipboardCheck, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
@@ -234,6 +235,8 @@ function BillingPage() {
           and payment without hiding blockers.
         </p>
       </header>
+      <InlineAssistantProposals title="Billing command proposals" routePath="/billing" />
+
       <section className="grid gap-3 md:grid-cols-5">
         {[
           ['Ready', workQueue?.ready_count ?? 0],

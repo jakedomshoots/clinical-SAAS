@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
+import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { useState } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import {
@@ -275,6 +276,8 @@ function CommandCenterPage() {
           </span>
         </div>
       </header>
+
+      <InlineAssistantProposals title="Command Center proposals" routePath="/" />
 
       <section className="bg-accent-soft border border-border rounded-md p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">

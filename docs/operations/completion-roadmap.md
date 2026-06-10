@@ -14,7 +14,8 @@ Use these paths first when another agent needs to find the right file:
 - Deployment runbook: `docs/operations/deployment-runbook.md`
 - Compliance procedures: `docs/compliance/phi-retention-and-incident-response.md`
 - Vendor adapter plan: `docs/integrations/vendor-adapter-plan.md`
-- Clicky Concierge integration plan: `docs/operations/clicky-concierge-integration-plan.md`
+- Native AI command layer spec: `docs/superpowers/specs/2026-06-10-native-clicky-command-layer-design.md`
+- Native AI command layer implementation plan: `docs/superpowers/plans/2026-06-10-native-clicky-command-layer.md`
 - Operations backend service: `apps/api/app/services/operations_service.py`
 - Launch readiness backend service: `apps/api/app/services/launch_readiness_service.py`
 - Integration readiness backend service: `apps/api/app/services/integration_config_service.py`
@@ -187,7 +188,7 @@ The main checkout now also contains this roadmap at `docs/operations/completion-
 
 - Concierge OS has local/demo workflows for Command Center, patient charts, document intake, portal intake, scheduling, tasks, billing work queues, reports, audit review, staff role review, Operations evidence, and launch readiness.
 - Operations includes Go-Live Packet, Launch Workplan, Live-Use Rehearsal Board, Production Config Audit, Credential Dry-Run Binder, Vendor Credential Request Packet, Adapter Implementation Packet, Integration Cutover Readiness Packet, DrChrono Migration Packet, DrChrono migration dry-run analysis, browser QA, role dry-run, staff training, policy approval, restore drill, cutover runbook, vendor handoff archive, production rehearsal evidence, and scope acceptance evidence.
-- Clicky Concierge integration is planned as a native macOS command and perception layer. ConciergeOS remains the audited clinical source of truth; Clicky may stage proposals, point to UI, and guide navigation, but all clinical writes remain confirmation-gated in ConciergeOS.
+- Native Clicky-style command functionality is now a ConciergeOS-owned feature, not an external Clicky app dependency. ConciergeOS provides typed and voice command entry, deterministic command interpretation, persistent staged proposals, inline review cards, audit events, and confirmation-gated clinical writes.
 - DrChrono is the legacy migration source, not the long-term system of record.
 - Remaining blockers are external-only: real accounts, vendor credentials and BAAs, production infrastructure, live DrChrono exports, staff validation, legal/compliance approval, and final clinic go/no-go evidence.
 

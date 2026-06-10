@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
+import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { ROUTES } from '@concierge-os/shared';
@@ -674,6 +675,15 @@ function PatientChartPage() {
             Edit
           </Button>
         )}
+      </div>
+
+      <div className="mb-6">
+        <InlineAssistantProposals
+          title="Patient command proposals"
+          routePath={`/patients/${patientId}`}
+          entityType="patient"
+          entityId={patientId}
+        />
       </div>
 
       <div className="mb-6 -mx-1 flex gap-0 overflow-x-auto border-b border-border px-1 scrollbar-none">

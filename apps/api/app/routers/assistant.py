@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.deps import clinical_write_required, front_office_write_required, get_current_user
 from app.models.user import User
 from app.schemas.assistant import (
+    AssistantCommandRequest,
+    AssistantCommandResult,
     AssistantContextOut,
     AssistantFaxMatchRequest,
     AssistantFollowUpTaskRequest,
@@ -19,7 +22,7 @@ from app.schemas.assistant import (
 from app.schemas.fax import FaxOut
 from app.schemas.message import MessageOut
 from app.schemas.task import TaskOut
-from app.services import assistant_proposals, assistant_service
+from app.services import assistant_commands, assistant_proposals, assistant_service
 from app.services.assistant_policy import allowed_tools_for
 
 router = APIRouter(prefix="/api/assistant/actions", tags=["assistant"])
@@ -85,16 +88,49 @@ async def get_assistant_context(
 @router.post("/proposals", response_model=AssistantProposalOut, status_code=status.HTTP_201_CREATED)
 async def create_assistant_proposal(
     data: AssistantProposalCreate,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
     current_user: User = Depends(get_current_user),  # noqa: B008
 ):
-    return assistant_proposals.create_proposal(data, str(current_user.id))
+    return await assistant_proposals.create_proposal(db, data, current_user)
 
 
 @router.get("/proposals", response_model=list[AssistantProposalOut])
 async def list_assistant_proposals(
+    route_path: str | None = None,
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
     current_user: User = Depends(get_current_user),  # noqa: B008
 ):
-    return assistant_proposals.list_pending_proposals()
+    return await assistant_proposals.list_pending_proposals(
+        db,
+        current_user,
+        route_path=route_path,
+        entity_type=entity_type,
+        entity_id=entity_id,
+    )
+
+
+@router.post(
+    "/commands",
+    response_model=AssistantCommandResult,
+    status_code=status.HTTP_201_CREATED,
+)
+async def submit_assistant_command(
+    data: AssistantCommandRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
+    current_user: User = Depends(get_current_user),  # noqa: B008
+):
+    if not settings.native_ai_commands_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Native AI commands are disabled",
+        )
+    result = await assistant_commands.interpret_command(db, current_user, data)
+    if result.result_type != "proposal":
+        response.status_code = status.HTTP_200_OK
+    return result
 
 
 # Proposal confirmation is intentionally handled by the web client calling the
@@ -103,30 +139,38 @@ async def list_assistant_proposals(
 @router.post("/proposals/{proposal_id}/confirm", response_model=AssistantProposalOut)
 async def confirm_assistant_proposal(
     proposal_id: str,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
     current_user: User = Depends(get_current_user),  # noqa: B008
 ):
-    proposal = assistant_proposals.resolve_proposal(
+    proposal, resolution_error = await assistant_proposals.resolve_proposal(
+        db,
         proposal_id,
         "confirmed",
-        str(current_user.id),
+        current_user,
     )
     if proposal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found")
+    if resolution_error == "expired":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Proposal has expired")
     return proposal
 
 
 @router.post("/proposals/{proposal_id}/dismiss", response_model=AssistantProposalOut)
 async def dismiss_assistant_proposal(
     proposal_id: str,
+    db: AsyncSession = Depends(get_db),  # noqa: B008
     current_user: User = Depends(get_current_user),  # noqa: B008
 ):
-    proposal = assistant_proposals.resolve_proposal(
+    proposal, resolution_error = await assistant_proposals.resolve_proposal(
+        db,
         proposal_id,
         "dismissed",
-        str(current_user.id),
+        current_user,
     )
     if proposal is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Proposal not found")
+    if resolution_error == "expired":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Proposal has expired")
     return proposal
 
 

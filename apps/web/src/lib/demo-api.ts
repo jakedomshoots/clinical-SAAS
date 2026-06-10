@@ -1,6 +1,8 @@
 import type {
   AdapterImplementationItem,
   AdapterImplementationPacket,
+  AssistantCommandRequest,
+  AssistantCommandResult,
   AssistantProposal,
   Appointment,
   AuditEvent,
@@ -8147,6 +8149,124 @@ export async function demoRequest<T>(
     demoAssistantProposals = [created, ...demoAssistantProposals];
     saveDemoData();
     return created as T;
+  }
+
+  if (path === '/assistant/actions/commands' && method === 'POST') {
+    const request = body as AssistantCommandRequest;
+    const command = request.command.trim();
+    const normalized = command.toLowerCase();
+    const now = new Date().toISOString();
+    const createCommandProposal = (
+      proposal: Omit<
+        AssistantProposal,
+        'id' | 'status' | 'created_at' | 'created_by_user_id' | 'resolved_at' | 'resolved_by_user_id'
+      >
+    ): AssistantCommandResult => {
+      const created: AssistantProposal = {
+        ...proposal,
+        id: `demo-concierge-command-${Date.now()}`,
+        status: 'pending',
+        created_at: now,
+        created_by_user_id: uuid(1),
+        resolved_at: null,
+        resolved_by_user_id: null,
+      };
+      demoAssistantProposals = [created, ...demoAssistantProposals];
+      saveDemoData();
+      return {
+        result_type: 'proposal',
+        message: 'Concierge command proposal staged for review.',
+        proposal: created,
+      };
+    };
+
+    if (normalized.includes('summarize') || normalized.includes('summary')) {
+      return {
+        result_type: 'answer',
+        message: `Current view ${request.route_path} is available for safe read-only guidance.`,
+        proposal: null,
+      } as T;
+    }
+
+    const navigationTargets: Array<[string[], string, string]> = [
+      [['billing', 'claim', 'checkout'], '/billing', 'Open billing'],
+      [['fax', 'faxes'], '/faxes', 'Open fax center'],
+      [['message', 'messages', 'portal'], '/messaging', 'Open messages'],
+      [['task', 'tasks', 'queue'], '/tasks', 'Open task queue'],
+      [['schedule', 'calendar'], '/scheduling', 'Open schedule'],
+      [['patient', 'patients', 'chart'], '/patients', 'Open patients'],
+      [['operation', 'operations', 'readiness'], '/operations', 'Open operations'],
+    ];
+    if (
+      normalized.includes('open') ||
+      normalized.includes('show') ||
+      normalized.includes('go to')
+    ) {
+      const target = navigationTargets.find(([keywords]) =>
+        keywords.some((keyword) => normalized.includes(keyword))
+      );
+      if (target) {
+        const [, routePath, title] = target;
+        return createCommandProposal({
+          proposal_type: 'navigation.open_route',
+          title,
+          summary: `Navigate to ${routePath}.`,
+          route_path: routePath,
+          entity_type: null,
+          entity_id: null,
+          payload: { route_path: routePath },
+          confidence_reason: 'The command requested navigation to a known ConciergeOS area.',
+          source: 'concierge_command',
+          input_mode: request.input_mode,
+          original_command: command,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        }) as T;
+      }
+    }
+
+    if (
+      normalized.includes('follow up') ||
+      normalized.includes('follow-up') ||
+      normalized.includes('task')
+    ) {
+      const patientId =
+        request.entity_id ??
+        (request.route_path.startsWith('/patients/') ? request.route_path.split('/')[2] : null);
+      if (!patientId) {
+        return {
+          result_type: 'clarification',
+          message: 'Open a patient chart before creating a follow-up task.',
+          proposal: null,
+        } as T;
+      }
+      return createCommandProposal({
+        proposal_type: 'clinical.create_follow_up_task',
+        title: 'Create follow-up task',
+        summary: command,
+        route_path: request.route_path,
+        entity_type: 'patient',
+        entity_id: patientId,
+        payload: {
+          context: 'Patient chart',
+          patient_id: patientId,
+          title: command.slice(0, 160),
+          priority: 'high',
+        },
+        confidence_reason:
+          'The command requested a follow-up task while patient context was available.',
+        source: 'concierge_command',
+        input_mode: request.input_mode,
+        original_command: command,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }) as T;
+    }
+
+    return {
+      result_type: 'clarification',
+      message:
+        'Try asking to open a workspace, create a follow-up task from a patient chart, or summarize the current view.',
+      proposal: null,
+    } as T;
   }
 
   const assistantProposalResolveMatch = path.match(

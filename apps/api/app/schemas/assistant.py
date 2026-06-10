@@ -67,9 +67,12 @@ AssistantProposalType = Literal[
     "clinical.draft_portal_reply",
     "clinical.stage_fax_match",
     "operations.review_blocker",
+    "workspace.summarize_current_view",
 ]
 
 AssistantProposalStatus = Literal["pending", "confirmed", "dismissed", "expired", "failed"]
+AssistantProposalSource = Literal["clicky", "concierge_command"]
+AssistantCommandInputMode = Literal["typed", "voice"]
 
 
 class AssistantProposalCreate(BaseModel):
@@ -81,7 +84,10 @@ class AssistantProposalCreate(BaseModel):
     entity_id: str | None = None
     payload: dict[str, object]
     confidence_reason: str = Field(min_length=1, max_length=500)
-    source: Literal["clicky"] = "clicky"
+    source: AssistantProposalSource = "concierge_command"
+    input_mode: AssistantCommandInputMode | None = None
+    original_command: str | None = Field(default=None, max_length=1000)
+    expires_at: datetime | None = None
 
 
 class AssistantProposalOut(AssistantProposalCreate):
@@ -91,3 +97,20 @@ class AssistantProposalOut(AssistantProposalCreate):
     created_by_user_id: str
     resolved_at: datetime | None = None
     resolved_by_user_id: str | None = None
+
+
+class AssistantCommandRequest(BaseModel):
+    command: str = Field(min_length=1, max_length=1000)
+    input_mode: AssistantCommandInputMode = "typed"
+    route_path: str = Field(default="/", min_length=1, max_length=300)
+    entity_type: str | None = None
+    entity_id: str | None = None
+
+
+AssistantCommandResultType = Literal["proposal", "answer", "clarification", "blocked"]
+
+
+class AssistantCommandResult(BaseModel):
+    result_type: AssistantCommandResultType
+    message: str
+    proposal: AssistantProposalOut | None = None

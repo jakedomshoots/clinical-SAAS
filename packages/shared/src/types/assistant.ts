@@ -3,9 +3,12 @@ export type AssistantProposalType =
   | 'clinical.create_follow_up_task'
   | 'clinical.draft_portal_reply'
   | 'clinical.stage_fax_match'
-  | 'operations.review_blocker';
+  | 'operations.review_blocker'
+  | 'workspace.summarize_current_view';
 
 export type AssistantProposalStatus = 'pending' | 'confirmed' | 'dismissed' | 'expired' | 'failed';
+export type AssistantProposalSource = 'clicky' | 'concierge_command';
+export type AssistantCommandInputMode = 'typed' | 'voice';
 
 export interface AssistantRouteContext {
   path: string;
@@ -44,10 +47,29 @@ export interface AssistantProposal {
   entity_id: string | null;
   payload: Record<string, unknown>;
   confidence_reason: string;
-  source: 'clicky';
+  source: AssistantProposalSource;
+  input_mode: AssistantCommandInputMode | null;
+  original_command: string | null;
   status: AssistantProposalStatus;
   created_at: string;
   created_by_user_id: string;
   resolved_at: string | null;
   resolved_by_user_id: string | null;
+  expires_at: string | null;
+}
+
+export interface AssistantCommandRequest {
+  command: string;
+  input_mode: AssistantCommandInputMode;
+  route_path: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+}
+
+export type AssistantCommandResultType = 'proposal' | 'answer' | 'clarification' | 'blocked';
+
+export interface AssistantCommandResult {
+  result_type: AssistantCommandResultType;
+  message: string;
+  proposal: AssistantProposal | null;
 }

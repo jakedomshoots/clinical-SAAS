@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
+import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -102,6 +103,10 @@ function MessagesPage() {
         <p className="text-small text-ink-muted mt-1">
           Patient and staff conversations stay draftable until a human sends them.
         </p>
+      </div>
+
+      <div className="mb-6">
+        <InlineAssistantProposals title="Message command proposals" routePath="/messaging" />
       </div>
 
       <div className="flex min-h-[32rem] flex-col gap-0 overflow-hidden border border-border lg:flex-row">

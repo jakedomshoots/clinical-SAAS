@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/toast';
+import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { useState, useMemo } from 'react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -155,6 +156,10 @@ function FaxCenterPage() {
             <Send className="h-4 w-4" />
             Send Fax
           </button>
+        </div>
+
+        <div className="mb-4">
+          <InlineAssistantProposals title="Fax command proposals" routePath="/faxes" />
         </div>
 
         <div className="mb-4 flex items-center gap-0 border-b border-border">

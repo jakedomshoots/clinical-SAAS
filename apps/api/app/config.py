@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     auth_rate_limit_attempts: int = 5
     auth_rate_limit_window_seconds: int = 900
     document_upload_verification_required: bool = False
+    native_ai_commands_enabled: bool = True
     webhook_default_organization_id: str = "default"
 
     ehr_api_base_url: str = ""

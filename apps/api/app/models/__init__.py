@@ -1,6 +1,7 @@
 from app.database import Base
 from app.models.user import User
 from app.models.audit import AuditLog
+from app.models.assistant_proposal import AssistantProposal
 from app.models.billing import BillingCase
 from app.models.clinic_settings import ClinicSettings
 from app.models.patient import Patient

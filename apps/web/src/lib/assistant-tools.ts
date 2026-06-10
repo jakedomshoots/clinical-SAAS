@@ -1,6 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type { AssistantProposal, Fax, MessageThread, Patient, Task } from '@concierge-os/shared';
+import type {
+  AssistantCommandRequest,
+  AssistantCommandResult,
+  AssistantProposal,
+  Fax,
+  MessageThread,
+  Patient,
+  Task,
+} from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -38,8 +46,17 @@ export type AssistantToolId = (typeof ASSISTANT_TOOL_IDS)[keyof typeof ASSISTANT
 
 export async function fetchAssistantProposals(api: {
   get: <T>(path: string) => Promise<T>;
+}, filters?: {
+  route_path?: string;
+  entity_type?: string;
+  entity_id?: string;
 }): Promise<AssistantProposal[]> {
-  return api.get<AssistantProposal[]>('/assistant/actions/proposals');
+  const params = new URLSearchParams();
+  if (filters?.route_path) params.set('route_path', filters.route_path);
+  if (filters?.entity_type) params.set('entity_type', filters.entity_type);
+  if (filters?.entity_id) params.set('entity_id', filters.entity_id);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  return api.get<AssistantProposal[]>(`/assistant/actions/proposals${suffix}`);
 }
 
 export async function dismissAssistantProposal(
@@ -54,6 +71,13 @@ export async function confirmAssistantProposal(
   proposalId: string
 ): Promise<AssistantProposal> {
   return api.post<AssistantProposal>(`/assistant/actions/proposals/${proposalId}/confirm`);
+}
+
+export async function submitAssistantCommand(
+  api: { post: <T>(path: string, body?: unknown) => Promise<T> },
+  command: AssistantCommandRequest
+): Promise<AssistantCommandResult> {
+  return api.post<AssistantCommandResult>('/assistant/actions/commands', command);
 }
 
 export const ASSISTANT_TOOL_DEFINITIONS: Record<

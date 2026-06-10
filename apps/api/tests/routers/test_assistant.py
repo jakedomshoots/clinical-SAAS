@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.fax import Fax, FaxDirection, FaxStatus
 from app.models.user import UserRole
 from tests.conftest import headers_for, make_user
@@ -128,6 +129,171 @@ async def test_assistant_proposal_can_be_marked_confirmed(client, auth_headers):
 
     assert confirm_response.status_code == 200
     assert confirm_response.json()["status"] == "confirmed"
+
+
+@pytest.mark.asyncio
+async def test_concierge_command_proposal_persists_and_can_be_listed(client, auth_headers):
+    proposal = {
+        "proposal_type": "navigation.open_route",
+        "title": "Open fax center",
+        "summary": "Navigate to inbound faxes.",
+        "route_path": "/faxes",
+        "entity_type": None,
+        "entity_id": None,
+        "payload": {"route_path": "/faxes"},
+        "confidence_reason": "The typed command asked to open faxes.",
+        "source": "concierge_command",
+        "input_mode": "typed",
+        "original_command": "open faxes",
+    }
+
+    create_response = await client.post(
+        "/api/assistant/actions/proposals",
+        json=proposal,
+        headers=auth_headers,
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["source"] == "concierge_command"
+    assert created["input_mode"] == "typed"
+    assert created["original_command"] == "open faxes"
+
+    list_response = await client.get("/api/assistant/actions/proposals", headers=auth_headers)
+    assert list_response.status_code == 200
+    assert any(item["id"] == created["id"] for item in list_response.json())
+
+
+@pytest.mark.asyncio
+async def test_expired_assistant_proposal_cannot_be_confirmed(client, auth_headers):
+    proposal_response = await client.post(
+        "/api/assistant/actions/proposals",
+        json={
+            "proposal_type": "navigation.open_route",
+            "title": "Open task queue",
+            "summary": "Navigate to the task queue.",
+            "route_path": "/tasks",
+            "entity_type": None,
+            "entity_id": None,
+            "payload": {"route_path": "/tasks"},
+            "confidence_reason": "The command asked to open tasks.",
+            "source": "concierge_command",
+            "input_mode": "typed",
+            "original_command": "open tasks",
+            "expires_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+        },
+        headers=auth_headers,
+    )
+    proposal_id = proposal_response.json()["id"]
+
+    confirm_response = await client.post(
+        f"/api/assistant/actions/proposals/{proposal_id}/confirm",
+        headers=auth_headers,
+    )
+
+    assert confirm_response.status_code == 409
+    assert confirm_response.json()["detail"] == "Proposal has expired"
+
+
+@pytest.mark.asyncio
+async def test_typed_command_creates_follow_up_task_proposal(client, auth_headers):
+    patient_id = await create_patient(client, auth_headers)
+
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "create follow up task to call tomorrow",
+            "input_mode": "typed",
+            "route_path": f"/patients/{patient_id}",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["proposal_type"] == "clinical.create_follow_up_task"
+    assert body["proposal"]["source"] == "concierge_command"
+    assert body["proposal"]["entity_id"] == patient_id
+    assert body["proposal"]["payload"]["patient_id"] == patient_id
+
+
+@pytest.mark.asyncio
+async def test_voice_command_creates_navigation_proposal(client, auth_headers):
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "open the billing queue",
+            "input_mode": "voice",
+            "route_path": "/",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["proposal_type"] == "navigation.open_route"
+    assert body["proposal"]["route_path"] == "/billing"
+    assert body["proposal"]["input_mode"] == "voice"
+
+
+@pytest.mark.asyncio
+async def test_command_can_return_current_view_summary(client, auth_headers):
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "summarize this view",
+            "input_mode": "typed",
+            "route_path": "/faxes",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result_type"] == "answer"
+    assert "Fax center" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_command_returns_clarification_for_ambiguous_request(client, auth_headers):
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "do the thing",
+            "input_mode": "typed",
+            "route_path": "/",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result_type"] == "clarification"
+    assert "Try asking" in body["message"]
+
+
+@pytest.mark.asyncio
+async def test_command_endpoint_rejects_disabled_native_ai_commands(
+    client,
+    auth_headers,
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "native_ai_commands_enabled", False)
+
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "summarize this view",
+            "input_mode": "typed",
+            "route_path": "/",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Native AI commands are disabled"
 
 
 @pytest.mark.asyncio

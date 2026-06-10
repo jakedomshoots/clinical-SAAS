@@ -75,6 +75,7 @@ Concierge OS should not be used for live clinical operations until each item is 
 - `pnpm verify:local` passes.
 - Container app profile has been smoke-tested.
 - Browser QA covers login, patients, tasks, schedule, faxes, messages, audit export, and assistant actions.
+- Browser QA covers native AI command search, typed command submission, voice-command fallback, inline proposal review, proposal dismissal, and confirmation-gated action execution.
 - Browser QA covers Command Center queue blockers, patient Documents, Meds, and Care Plan actions.
 - Browser QA covers staff admin, task outreach staging, document preview/download modes, and schedule conflict handling.
 - `/api/operations/operator-health` has no critical checks, backup/restore freshness is current, integration failures are cleared, staff role/access warnings are resolved or assigned, and launch evidence gaps are assigned before the live-use rehearsal.

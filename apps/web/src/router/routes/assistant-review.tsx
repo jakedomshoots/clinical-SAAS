@@ -43,6 +43,8 @@ function AssistantReviewPage() {
     'clinical.draft_portal_reply': '/assistant/actions/portal-reply-draft',
     'clinical.stage_fax_match': '/assistant/actions/fax-match',
   };
+  const proposalSourceLabel = (proposal: AssistantProposal) =>
+    proposal.source === 'concierge_command' ? 'Concierge command' : 'Clicky';
 
   const invalidateAssistantReview = async () => {
     await Promise.all([
@@ -164,7 +166,7 @@ function AssistantReviewPage() {
                       {humanizeWorkflowLabel(proposal.proposal_type)}
                     </span>
                     <span className="rounded-pill bg-accent/10 px-2 py-0.5 text-micro font-medium text-accent">
-                      Source: Clicky
+                      Source: {proposalSourceLabel(proposal)}
                     </span>
                   </div>
                   <h3 className="text-sm font-semibold text-ink">{proposal.title}</h3>
