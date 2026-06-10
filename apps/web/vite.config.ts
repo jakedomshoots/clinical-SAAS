@@ -18,7 +18,14 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@concierge-os/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@segment/analytics-node': path.resolve(
+        __dirname,
+        './src/lib/segment-analytics-node-browser.ts',
+      ),
     },
+  },
+  build: {
+    chunkSizeWarningLimit: 1500,
   },
   server: {
     port: 5173,
