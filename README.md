@@ -104,6 +104,13 @@ All local checks:
 pnpm verify:local
 ```
 
+Generate a local acquisition-readiness report bundle:
+
+```sh
+pnpm acquisition:report
+RUN_CHECKS=1 pnpm acquisition:report
+```
+
 Container config:
 
 ```sh
@@ -159,6 +166,12 @@ Not ready for real daily clinical operations with live patients yet:
 
 Operational docs:
 
+- [Acquisition readiness room](docs/operations/acquisition-readiness-room.md)
+- [Hosted demo environment](docs/operations/hosted-demo-environment.md)
+- [Buyer demo script](docs/operations/buyer-demo-script.md)
+- [Product diligence hardening](docs/operations/product-diligence-hardening.md)
+- [AI command differentiation](docs/operations/ai-command-differentiation.md)
+- [Technical diligence inventory](docs/operations/technical-diligence-inventory.md)
 - [Completion roadmap](docs/operations/completion-roadmap.md)
 - [Production launch checklist](docs/operations/production-launch-checklist.md)
 - [Vendor adapter plan](docs/integrations/vendor-adapter-plan.md)

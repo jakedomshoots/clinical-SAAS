@@ -44,7 +44,7 @@ function AssistantReviewPage() {
     'clinical.stage_fax_match': '/assistant/actions/fax-match',
   };
   const proposalSourceLabel = (proposal: AssistantProposal) =>
-    proposal.source === 'concierge_command' ? 'Concierge command' : 'Clicky';
+    proposal.source === 'concierge_command' ? 'Concierge command' : 'Legacy assistant import';
 
   const invalidateAssistantReview = async () => {
     await Promise.all([
@@ -59,7 +59,7 @@ function AssistantReviewPage() {
   const dismissMutation = useMutation({
     mutationFn: (proposalId: string) => dismissAssistantProposal(api, proposalId),
     onSuccess: async () => {
-      toast.success('Clicky proposal dismissed');
+      toast.success('Assistant proposal dismissed');
       await invalidateAssistantReview();
     },
     onError: (err) => {
@@ -81,7 +81,7 @@ function AssistantReviewPage() {
       return confirmAssistantProposal(api, proposal.id);
     },
     onSuccess: async () => {
-      toast.success('Clicky proposal reviewed');
+      toast.success('Assistant proposal reviewed');
       await invalidateAssistantReview();
     },
     onError: (err) => {
@@ -139,19 +139,19 @@ function AssistantReviewPage() {
       </section>
       <section
         className="overflow-hidden rounded-md border border-border bg-canvas-raised"
-        aria-label="Clicky proposals"
+        aria-label="Assistant proposals"
       >
         <div className="border-b border-border px-4 py-3">
-          <h2 className="text-base font-semibold text-ink">Clicky proposals</h2>
+          <h2 className="text-base font-semibold text-ink">Assistant proposals</h2>
           <p className="mt-1 text-small text-ink-muted">
             Review staged voice and screen suggestions before ConciergeOS writes anything.
           </p>
         </div>
         {proposalsLoading ? (
-          <LoadingState label="Loading Clicky proposals" />
+          <LoadingState label="Loading assistant proposals" />
         ) : proposals.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-ink-faint">
-            No pending Clicky proposals.
+            No pending assistant proposals.
           </div>
         ) : (
           <div className="divide-y divide-border">

@@ -8139,7 +8139,7 @@ export async function demoRequest<T>(
     >;
     const created: AssistantProposal = {
       ...proposal,
-      id: `demo-clicky-proposal-${Date.now()}`,
+      id: `demo-assistant-proposal-${Date.now()}`,
       status: 'pending',
       created_at: new Date().toISOString(),
       created_by_user_id: uuid(1),

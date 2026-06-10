@@ -9,6 +9,12 @@ This is the top-level roadmap for taking Concierge OS from the current local/dem
 Use these paths first when another agent needs to find the right file:
 
 - Roadmap and stopping point: `docs/operations/completion-roadmap.md`
+- Acquisition readiness room: `docs/operations/acquisition-readiness-room.md`
+- Hosted demo environment: `docs/operations/hosted-demo-environment.md`
+- Buyer demo script: `docs/operations/buyer-demo-script.md`
+- Product diligence hardening: `docs/operations/product-diligence-hardening.md`
+- AI command differentiation: `docs/operations/ai-command-differentiation.md`
+- Technical diligence inventory: `docs/operations/technical-diligence-inventory.md`
 - Production launch checklist: `docs/operations/production-launch-checklist.md`
 - Pre-sales SaaS readiness: `docs/operations/presales-saas-readiness.md`
 - Daily workflow readiness: `docs/operations/daily-use-readiness.md`
@@ -191,6 +197,8 @@ The main checkout now also contains this roadmap at `docs/operations/completion-
 - Concierge OS has local/demo workflows for Command Center, patient charts, document intake, portal intake, scheduling, tasks, billing work queues, reports, audit review, staff role review, Operations evidence, and launch readiness.
 - Operations includes Go-Live Packet, Launch Workplan, Live-Use Rehearsal Board, Production Config Audit, Credential Dry-Run Binder, Vendor Credential Request Packet, Adapter Implementation Packet, Integration Cutover Readiness Packet, DrChrono Migration Packet, DrChrono migration dry-run analysis, browser QA, role dry-run, staff training, policy approval, restore drill, cutover runbook, vendor handoff archive, production rehearsal evidence, and scope acceptance evidence.
 - Native Clicky-style command functionality is now a ConciergeOS-owned feature, not an external Clicky app dependency. ConciergeOS provides typed and voice command entry, deterministic command interpretation, persistent staged proposals, inline review cards, audit events, and confirmation-gated clinical writes.
+- Acquisition readiness artifacts now live under `docs/operations/` for buyer review: acquisition room, hosted demo environment, buyer demo script, product diligence hardening, AI command differentiation, and technical diligence inventory.
+- `pnpm acquisition:report` generates a local buyer-room receipt bundle under `artifacts/acquisition-readiness/`.
 - DrChrono is the legacy migration source, not the long-term system of record.
 - Remaining blockers are external-only: real accounts, vendor credentials and BAAs, production infrastructure, live DrChrono exports, staff validation, legal/compliance approval, and final clinic go/no-go evidence.
 

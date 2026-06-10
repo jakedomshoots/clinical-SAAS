@@ -11,6 +11,7 @@
     "backup:validate": "sh scripts/validate-backup.sh",
     "restore:local": "sh scripts/restore-local.sh",
     "migrate:api": "sh scripts/migrate-api.sh",
+    "acquisition:report": "sh scripts/acquisition-readiness-report.sh",
     "verify:local": "sh scripts/verify-local.sh",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

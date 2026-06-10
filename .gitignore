@@ -25,3 +25,4 @@ coverage/
 .coverage
 htmlcov/
 apps/api/alembic/versions/*.pyc
+artifacts/
