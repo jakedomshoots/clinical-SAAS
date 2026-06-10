@@ -108,10 +108,7 @@
         "label": "Fidelity",
         "type": "select",
         "required": true,
-        "options": [
-          "wireframe",
-          "high-fidelity"
-        ],
+        "options": ["wireframe", "high-fidelity"],
         "default": "high-fidelity"
       },
       {
@@ -157,16 +154,10 @@
       "stages": [
         {
           "id": "generate",
-          "atoms": [
-            "file-write",
-            "live-artifact"
-          ]
+          "atoms": ["file-write", "live-artifact"]
         }
       ]
     },
-    "capabilities": [
-      "prompt:inject",
-      "fs:write"
-    ]
+    "capabilities": ["prompt:inject", "fs:write"]
   }
 }

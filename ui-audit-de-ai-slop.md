@@ -11,9 +11,11 @@ This document audits every "AI slop" symptom and provides a concrete redesign pl
 ## Part 1: The AI Slop Audit
 
 ### 🔴 Critical: The "Clinic" Color Palette (Generic Slate + Emerald)
+
 **Location:** `apps/web/src/index.css` lines 4–42
 
 Your entire color system is the exact palette every AI-generated dashboard uses:
+
 - `clinic-50: #f8fafc` → Every "clean modern SaaS" background
 - `clinic-200: #e2e8f0` → Every generic border color
 - `accent-600: #16a34a` → Every "health/wellness" emerald green
@@ -25,13 +27,15 @@ Your entire color system is the exact palette every AI-generated dashboard uses:
 ---
 
 ### 🔴 Critical: Card-on-Card-on-Card Architecture
+
 **Location:** Every page — `index.tsx`, `patients/index.tsx`, `tasks/index.tsx`, `scheduling/index.tsx`
 
 Every piece of content lives in a white card with `border-clinic-200` on a `bg-clinic-50` background. The dashboard has cards inside cards inside cards. The patients page has a card for the document workbench, then a card for the patient table.
 
-**Why it's slop:** AI defaults to "put it in a card" because it's a safe pattern. But real apps use cards *selectively* — for draggable items, for content that needs elevation, for modular widgets. When everything is a card, nothing is a card. The visual hierarchy collapses.
+**Why it's slop:** AI defaults to "put it in a card" because it's a safe pattern. But real apps use cards _selectively_ — for draggable items, for content that needs elevation, for modular widgets. When everything is a card, nothing is a card. The visual hierarchy collapses.
 
 **Evidence:**
+
 ```tsx
 // index.tsx line 169 — metric cards
 <div className="rounded-md border border-clinic-200 bg-white p-4">
@@ -46,6 +50,7 @@ Every piece of content lives in a white card with `border-clinic-200` on a `bg-c
 ---
 
 ### 🔴 Critical: The "Supervisor" Meta-Commentary Box
+
 **Location:** `apps/web/src/router/routes/__root.tsx` lines 121–134
 
 ```tsx
@@ -65,13 +70,14 @@ Every piece of content lives in a white card with `border-clinic-200` on a `bg-c
 </div>
 ```
 
-**Why it's slop:** This is peak AI slop. It's a UI element that literally describes the AI's own design philosophy ("Confidence, Direction, Protection"). It's meta-commentary about the app *inside* the app. Users don't care about "local UI online" — they care whether their patient data is safe. This box screams "an AI built this and wanted to show off its framework."
+**Why it's slop:** This is peak AI slop. It's a UI element that literally describes the AI's own design philosophy ("Confidence, Direction, Protection"). It's meta-commentary about the app _inside_ the app. Users don't care about "local UI online" — they care whether their patient data is safe. This box screams "an AI built this and wanted to show off its framework."
 
 **Fix:** Kill it. Replace with a simple system status indicator or remove entirely. The sidebar footer already has the user name and sign-out.
 
 ---
 
 ### 🔴 Critical: The "Clinic Needs Strip"
+
 **Location:** `apps/web/src/lib/ui-state.tsx` lines 75–92
 
 Three cards saying "Confidence," "Direction," "Protection" with generic Lucide icons. This is pure AI-generated filler that sounds like it came from a McKinsey deck.
@@ -83,6 +89,7 @@ Three cards saying "Confidence," "Direction," "Protection" with generic Lucide i
 ---
 
 ### 🟡 High: Border Radius Monotony
+
 **Location:** Every component, everywhere
 
 Every interactive element uses `rounded-md` (6px) or `rounded-lg` (8px). Buttons, inputs, cards, badges, modals, dropdowns — identical corners. Even the logo mark is `rounded-md`.
@@ -90,6 +97,7 @@ Every interactive element uses `rounded-md` (6px) or `rounded-lg` (8px). Buttons
 **Why it's slop:** Real design systems vary radius by component type. Buttons get pill shapes or sharp corners. Cards get subtle rounding. Avatars get circles. Inputs get slightly less rounding than buttons. When everything matches, it looks like a template.
 
 **Evidence:**
+
 ```tsx
 // __root.tsx line 91 — logo mark
 <div className="flex h-8 w-8 items-center justify-center rounded-md border ...">
@@ -107,9 +115,11 @@ className="rounded-md px-3 py-1.5 ..."
 ---
 
 ### 🟡 High: Status Badge Rainbow Explosion
+
 **Location:** `scheduling/index.tsx` lines 20–30, `tasks/index.tsx` lines 30–36
 
 Every status gets its own unique color:
+
 - `scheduled` → sky blue
 - `checked_in` → amber
 - `roomed` → teal
@@ -127,9 +137,11 @@ Every status gets its own unique color:
 ---
 
 ### 🟡 High: Tailwind Color Soup
+
 **Location:** Every file
 
 The codebase uses 50+ different Tailwind color classes. A single page might reference:
+
 - `text-clinic-500`, `text-clinic-600`, `text-clinic-700`, `text-clinic-800`, `text-clinic-900`
 - `bg-clinic-50`, `bg-clinic-100`, `bg-clinic-200`
 - `border-clinic-200`, `border-clinic-300`
@@ -142,6 +154,7 @@ The codebase uses 50+ different Tailwind color classes. A single page might refe
 ---
 
 ### 🟡 High: Typography Flatness
+
 **Location:** Every page
 
 Every heading is `text-2xl font-semibold text-clinic-800`. Every subheading is `text-sm font-semibold text-clinic-900`. Every body text is `text-sm text-clinic-500` or `text-clinic-600`. There is no typographic scale, no display font, no contrast.
@@ -153,6 +166,7 @@ Every heading is `text-2xl font-semibold text-clinic-800`. Every subheading is `
 ---
 
 ### 🟡 High: The "AI Review" Nav Item
+
 **Location:** `apps/web/src/router/routes/__root.tsx` line 67
 
 ```tsx
@@ -164,6 +178,7 @@ Every heading is `text-2xl font-semibold text-clinic-800`. Every subheading is `
 ---
 
 ### 🟡 High: Generic Empty States
+
 **Location:** `apps/web/src/lib/ui-state.tsx` lines 29–72
 
 The `EmptyState` and `OperationalEmptyState` components use a generic `Workflow` icon in a circle with `bg-accent-50`. The text says things like "Create a patient or seed the pilot workspace so the clinic team has real chart context."
@@ -173,11 +188,13 @@ The `EmptyState` and `OperationalEmptyState` components use a generic `Workflow`
 ---
 
 ### 🟡 High: Form Input Uniformity
+
 **Location:** Every form
 
 Every input in the app:
+
 ```tsx
-className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm ..."
+className = 'w-full rounded-md border border-clinic-300 px-3 py-2 text-sm ...';
 ```
 
 Search inputs, form inputs, filter dropdowns, date pickers, textareas — all identical styling. No distinction between primary fields and secondary fields. No visual weight variation.
@@ -187,9 +204,11 @@ Search inputs, form inputs, filter dropdowns, date pickers, textareas — all id
 ---
 
 ### 🟡 High: Button Variant Proliferation
+
 **Location:** Every page
 
 The app has ~15 button styles:
+
 - `bg-accent-600 text-white` (primary)
 - `border border-clinic-300 bg-white` (secondary)
 - `border border-accent-200 bg-accent-50 text-accent-700` (accent secondary)
@@ -205,18 +224,21 @@ The app has ~15 button styles:
 ---
 
 ### 🟢 Medium: Lucide Icon Overuse
+
 **Location:** Every page
 
-Lucide icons are fine, but the app uses them for *everything* — nav items, buttons, badges, empty states, status indicators. Every page icon is a 16×16 stroke icon at 1.5px weight.
+Lucide icons are fine, but the app uses them for _everything_ — nav items, buttons, badges, empty states, status indicators. Every page icon is a 16×16 stroke icon at 1.5px weight.
 
 **Why it's slop (medium severity):** Not bad per se, but combined with everything else, it contributes to the "generated" feel. Real apps mix icon styles — filled icons for active states, outlined for inactive, sometimes no icon at all for text-heavy actions.
 
 ---
 
 ### 🟢 Medium: Inconsistent Spacing
+
 **Location:** Every page
 
 The spacing is all over the map:
+
 - `gap-2` (8px), `gap-3` (12px), `gap-4` (16px), `gap-5` (20px)
 - `p-3` (12px), `p-4` (16px), `p-5` (20px), `p-6` (24px)
 - `mb-4` (16px), `mb-6` (24px), `mt-3` (12px), `mt-4` (16px)
@@ -227,6 +249,7 @@ The spacing is all over the map:
 ---
 
 ### 🟢 Medium: The "Demo-Ready" Badge
+
 **Location:** `apps/web/src/router/routes/index.tsx` lines 136–143
 
 ```tsx
@@ -292,15 +315,16 @@ Before redesigning, acknowledge the solid bones:
   --color-border-strong: #d5d3c8;
 
   /* Radius — varied, not uniform */
-  --radius-sm: 6px;    /* inputs, small buttons */
-  --radius-md: 10px;   /* cards, panels */
-  --radius-lg: 16px;   /* modals, overlays */
+  --radius-sm: 6px; /* inputs, small buttons */
+  --radius-md: 10px; /* cards, panels */
+  --radius-lg: 16px; /* modals, overlays */
   --radius-pill: 999px; /* badges, filters */
-  --radius-sharp: 0px;  /* tables, data grids */
+  --radius-sharp: 0px; /* tables, data grids */
 }
 ```
 
 **Rules:**
+
 - No numeric shade suffixes. No `text-clinic-500`. Use semantic names: `text-ink-muted`, `bg-canvas-raised`.
 - Maximum 4 border colors. Currently you have 12+.
 - Maximum 3 semantic status colors. Currently you have 9+.
@@ -313,20 +337,21 @@ Before redesigning, acknowledge the solid bones:
 
 ```css
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Georgia", "Times New Roman", serif; /* or license a real display font */
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', serif; /* or license a real display font */
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 
-  --text-display: 2rem;     /* Page titles — serif, tight tracking */
+  --text-display: 2rem; /* Page titles — serif, tight tracking */
   --text-headline: 1.25rem; /* Section headers — sans, semibold */
-  --text-body: 0.875rem;    /* 14px — body copy */
-  --text-small: 0.8125rem;  /* 13px — secondary text */
-  --text-meta: 0.75rem;     /* 12px — labels, timestamps */
-  --text-micro: 0.6875rem;  /* 11px — badges, tags */
+  --text-body: 0.875rem; /* 14px — body copy */
+  --text-small: 0.8125rem; /* 13px — secondary text */
+  --text-meta: 0.75rem; /* 12px — labels, timestamps */
+  --text-micro: 0.6875rem; /* 11px — badges, tags */
 }
 ```
 
 **Rules:**
+
 - Page titles (`h1`) use serif, `-0.02em` tracking, `font-weight: 500`.
 - Section headers use sans, `font-weight: 600`, `letter-spacing: -0.01em`.
 - Body text never goes below 13px. Currently some text is 11px.
@@ -339,33 +364,32 @@ Before redesigning, acknowledge the solid bones:
 **Action:** Remove 70% of card wrappers.
 
 **New rules:**
+
 - **Tables** live on the canvas directly. No card wrapper. A subtle top border + header row is enough.
 - **Lists** (appointments, tasks, documents) use row separators (`border-b`) not card containers.
 - **Metrics** (KPIs, counts) get subtle background tints (`bg-canvas-raised`) with no border, or a 1px `border` only on hover.
 - **Cards are reserved for:** Modal content, draggable widgets, content that needs elevation (assistant panel), and primary CTAs.
 
 **Before:**
+
 ```tsx
 <section className="rounded-md border border-clinic-200 bg-white">
   <div className="border-b border-clinic-200 px-4 py-3">
     <h2>Upcoming Appointments</h2>
   </div>
-  <div className="divide-y divide-clinic-100">
-    {/* rows */}
-  </div>
+  <div className="divide-y divide-clinic-100">{/* rows */}</div>
 </section>
 ```
 
 **After:**
+
 ```tsx
 <section>
   <header className="flex items-center justify-between py-3">
     <h2 className="text-headline font-semibold text-ink">Upcoming Appointments</h2>
     <a className="text-sm font-medium text-accent">View all</a>
   </header>
-  <div className="divide-y divide-border">
-    {/* rows on canvas directly */}
-  </div>
+  <div className="divide-y divide-border">{/* rows on canvas directly */}</div>
 </section>
 ```
 
@@ -377,13 +401,13 @@ Before redesigning, acknowledge the solid bones:
 
 **New system:**
 
-| State | Visual |
-|-------|--------|
-| Scheduled / Early / Queued | `text-ink-muted` + dot |
-| Active / In Progress / Checked in | `text-accent` + dot |
-| Completed / Filed / Done | `text-ink-faint` + checkmark (muted) |
-| Blocked / Urgent / Failed | `text-danger` + dot |
-| Warning / Needs attention | `text-warn` + dot |
+| State                             | Visual                               |
+| --------------------------------- | ------------------------------------ |
+| Scheduled / Early / Queued        | `text-ink-muted` + dot               |
+| Active / In Progress / Checked in | `text-accent` + dot                  |
+| Completed / Filed / Done          | `text-ink-faint` + checkmark (muted) |
+| Blocked / Urgent / Failed         | `text-danger` + dot                  |
+| Warning / Needs attention         | `text-warn` + dot                    |
 
 **No more:** sky, teal, violet, lime, emerald as status colors. Those are decorative, not semantic.
 
@@ -394,6 +418,7 @@ Before redesigning, acknowledge the solid bones:
 **Action:** Build 4 button variants, 2 input styles, 1 badge style.
 
 **Buttons:**
+
 ```tsx
 // Primary — the one CTA on a page
 <Button variant="primary">Create appointment</Button>
@@ -413,6 +438,7 @@ Before redesigning, acknowledge the solid bones:
 ```
 
 **Inputs:**
+
 ```tsx
 // Standard — most form fields
 <Input variant="standard" />
@@ -424,6 +450,7 @@ Before redesigning, acknowledge the solid bones:
 ```
 
 **Badges:**
+
 ```tsx
 // One badge style, color determined by semantic intent
 <Badge intent="urgent">Urgent</Badge>   // → bg-danger/10 text-danger
@@ -452,6 +479,7 @@ Before redesigning, acknowledge the solid bones:
 **Action:** Make the sidebar feel crafted.
 
 **Changes:**
+
 - **Logo mark:** Replace the generic `Activity` pulse icon with a custom mark or simple letterform. The prototype's "C" in a dark square is better.
 - **Nav items:** Remove the uppercase `text-[10px] font-semibold uppercase tracking-wide` section labels. Use `text-meta font-medium text-ink-faint` with normal case. Uppercase labels are a corporate default.
 - **Active state:** Instead of `bg-clinic-100 text-clinic-900`, use `bg-accent-soft text-accent` with a 2px left border accent indicator.
@@ -476,6 +504,7 @@ Before redesigning, acknowledge the solid bones:
 **Action:** Redesign the AI assistant panel to feel like a feature, not a demo.
 
 **Changes:**
+
 - **Header:** Remove the `Bot` icon + "Clinical Assistant" title. Use a simple "Suggestions" or "Actions" header.
 - **Context chips:** Instead of rounded badges, use a comma-separated text list or subtle pills. Currently it looks like a tag cloud.
 - **Suggestion items:** Remove the colored dot + uppercase label + detail + button pattern. Use a simpler: "[Action] — [Context] — [Button]" inline format, or group by category.
@@ -486,18 +515,21 @@ Before redesigning, acknowledge the solid bones:
 ## Part 4: Implementation Priority
 
 ### Immediate (Do This Week)
+
 1. Replace color system in `index.css`
 2. Remove Supervisor box, Clinic Needs Strip, Demo-ready badge
 3. Rename "AI Review" nav item
 4. Simplify status colors to 3 semantic colors
 
 ### Short Term (Next 2 Weeks)
+
 5. De-card the dashboard and patient list
 6. Build the 4-button + 2-input + 1-badge component system
 7. Add display font for page titles
 8. Redesign sidebar active states and section labels
 
 ### Medium Term (Next Month)
+
 9. Redesign empty states with custom illustrations
 10. Polish micro-interactions (hover, focus, press)
 11. Redesign assistant panel
@@ -507,23 +539,24 @@ Before redesigning, acknowledge the solid bones:
 
 ## Part 5: Files to Modify
 
-| File | Changes |
-|------|---------|
-| `apps/web/src/index.css` | New color system, font imports, radius scale |
-| `apps/web/src/router/routes/__root.tsx` | Remove Supervisor box, rename AI Review, sidebar polish |
-| `apps/web/src/lib/ui-state.tsx` | Remove ClinicNeedsStrip, rewrite empty states |
-| `apps/web/src/router/routes/index.tsx` | Remove Demo-ready badge, de-card metrics |
-| `apps/web/src/router/routes/patients/index.tsx` | De-card document workbench, simplify badges |
-| `apps/web/src/router/routes/tasks/index.tsx` | Simplify status colors, de-card work queue |
-| `apps/web/src/router/routes/scheduling/index.tsx` | Simplify STATUS_COLORS to 3 colors |
-| `apps/web/src/router/routes/login.tsx` | Warm palette, remove generic center-card layout |
-| `apps/web/src/components/` (new) | Button, Input, Badge component files |
+| File                                              | Changes                                                 |
+| ------------------------------------------------- | ------------------------------------------------------- |
+| `apps/web/src/index.css`                          | New color system, font imports, radius scale            |
+| `apps/web/src/router/routes/__root.tsx`           | Remove Supervisor box, rename AI Review, sidebar polish |
+| `apps/web/src/lib/ui-state.tsx`                   | Remove ClinicNeedsStrip, rewrite empty states           |
+| `apps/web/src/router/routes/index.tsx`            | Remove Demo-ready badge, de-card metrics                |
+| `apps/web/src/router/routes/patients/index.tsx`   | De-card document workbench, simplify badges             |
+| `apps/web/src/router/routes/tasks/index.tsx`      | Simplify status colors, de-card work queue              |
+| `apps/web/src/router/routes/scheduling/index.tsx` | Simplify STATUS_COLORS to 3 colors                      |
+| `apps/web/src/router/routes/login.tsx`            | Warm palette, remove generic center-card layout         |
+| `apps/web/src/components/` (new)                  | Button, Input, Badge component files                    |
 
 ---
 
 ## Appendix: The Prototype vs. The App
 
 Your `desktop-shell.html` prototype already shows the right direction:
+
 - Warm parchment background (`#f5f4ed`)
 - Terracotta accent (`#c96442`)
 - Serif display font for headlines
@@ -535,4 +568,4 @@ Your `desktop-shell.html` prototype already shows the right direction:
 
 ---
 
-*Document generated for ConciergeOS UI redesign. The bones are good. The skin needs to be human.*
+_Document generated for ConciergeOS UI redesign. The bones are good. The skin needs to be human._

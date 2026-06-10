@@ -23,6 +23,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Web-based practice management for therapists, wellness professionals, and allied health clinics. Scheduling, charting, billing, telehealth, and online booking in one platform. [Jane.app](https://jane.app/)
 
 **What users praise:**
+
 - **"Beautiful design, with simplicity in mind"** — users consistently call the interface "clean," "nice-looking," and "simple to learn" [Jane.app homepage; Pabau 2026]
 - **Calendar-as-homepage** — the schedule is the default view, reducing navigation friction [Medesk Jane App Review 2026]
 - **Orange-highlighted available slots** — speed up appointment booking by making open times visually obvious [Medesk Jane App Review 2026]
@@ -31,6 +32,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **96% user satisfaction rating** based on 144 reviews [SelectHub]
 
 **Interface description (from reviews):**
+
 - Calendar-based homepage with day/week views
 - Multi-provider scheduling (view 1-3 provider schedules simultaneously)
 - Customizable tags for appointment types and shifts
@@ -39,6 +41,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Reporting module with pre-made report categories (Billing, Appointments, EMR, Retail, Retention, Referral)
 
 **Specific UI patterns:**
+
 - **Color-coded scheduling grid** with orange open slots
 - **Tag-based categorization** for shifts, treatments, and appointment types
 - **Inline billing generation** — create invoice directly from calendar without navigating away
@@ -46,6 +49,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Branded patient portal** with standalone booking site (yourclinic.janeapp.com)
 
 **What users criticize:**
+
 - Interface can feel "dated" and "clunky" once services grow complex [Pabau 2026; Capterra reviewer]
 - No monthly calendar view; no ability to see ALL open slots across providers [Medesk]
 - Platform "locks into the last patient" when navigating schedule, risking wrong chart access [Medesk]
@@ -59,6 +63,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** All-in-one platform unifying EHR, billing, patient engagement, and practice management for independent practices. 42,000+ practices use it. [Software Advice 2026; MedPrecisionBilling 2026]
 
 **What users praise:**
+
 - **"One of the cleaner UIs in the PM market"** — modern interface reduces clinician training time [MedPrecisionBilling 2026]
 - **Intuitive navigation and layout** — "easy to navigate and find information, even for first-time users" [Software Advice 1,362 reviews]
 - **Dashboard/Calendar toggle** — switch between daily operational view and calendar view [Tebra Help Center 2026]
@@ -69,6 +74,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Keyboard shortcuts** (Ctrl+N new patient, Ctrl+D daily schedule, Ctrl+B billing) [Healos.ai 2025]
 
 **Interface description (from help docs and reviews):**
+
 - Top navigation bar with module icons: Platform, Clinical, Billing, Patient Experience, Analytics
 - Left-aligned module icons; white = active, gray = inactive
 - Central search box for patient lookup and recent patients
@@ -78,6 +84,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Financial Information tab with red dot indicator for outstanding balance
 
 **Specific UI patterns:**
+
 - **5-stage patient visit model** visible in UI flow: Scheduled → Arrived/Checked In → Roomed → Checked Out → No Show/Rescheduled/Cancelled
 - **Status-driven color coding** throughout the interface
 - **Appointment cards as popover modals** — click appointment to see full context without page change
@@ -86,6 +93,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Exception-based workflow dashboard** — surfaces only items needing attention
 
 **What users criticize:**
+
 - **Learning curve for advanced features** — "some users report a steep learning curve, particularly during initial implementation" [RevMaxx 2026]
 - **Customer support responsiveness** — frequent complaint across review sites [SelectHub; Software Advice]
 - **Occasional system slowdowns and glitches** [RevMaxx 2026; Simply.coach 2026]
@@ -99,6 +107,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Cloud-based practice management built specifically for chiropractic clinics. Scheduling, SOAP notes, billing, patient texting, inventory, lead management. 1,500+ practitioners. [ChiroHD.com; FindEMR 2025]
 
 **What users praise:**
+
 - **"I like how clear the schedule is"** — 85% positive sentiment on Ease of Use & Workflow [FindEMR 2025]
 - **"Setup was fast, and we were operational within a week"** [FindEMR 2025]
 - **"Very intuitive, looks clean, notes are quick and customizable"** [ChiroHD.com testimonials]
@@ -108,6 +117,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **4.8/5 overall on Capterra** (62 reviews) [Keragon 2026]
 
 **Interface description (from reviews and marketing):**
+
 - Clean, modern web interface with "90s-free" positioning
 - Clear schedule view with bulk scheduling capabilities
 - Two-way text communication for appointment confirmations/reminders
@@ -117,6 +127,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Mobile app for iOS/Android (though some report "minor glitches or navigation challenges") [FindEMR 2025]
 
 **Specific UI patterns:**
+
 - **Specialty-specific workflow optimization** — built around chiropractic visit flow rather than generic medical
 - **Bulk scheduling tools** for multi-provider, multi-location practices
 - **Automated patient texting** integrated into scheduling workflow
@@ -124,6 +135,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Patient lifecycle management** with 24/7 monitoring tools
 
 **What users criticize:**
+
 - **Limited customization** — 75% negative sentiment on customization limitations [FindEMR 2025]
 - **Mobile app functionality issues** — 85% negative sentiment [FindEMR 2025]
 - **Technical support follow-up delays** [FindEMR 2025]
@@ -136,6 +148,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Cloud-based EHR + practice management for small-to-mid-sized multi-specialty practices. 26,000+ practitioners. Founded 1999. [EHRReviews; Business News Daily 2021]
 
 **What users praise:**
+
 - **"The scheduler is equally intuitive and offers a pleasing user interface"** [EHRReviews]
 - **Schedule snapshot tool** — daily appointments based on resources, location, or provider [Business News Daily 2021]
 - **Quick-look summaries** — click appointment to see type, duration, clinical notes, contact info [Business News Daily 2021]
@@ -146,6 +159,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Patient Cards** — chronologically ordered frequent-task shortcuts [EHRReviews]
 
 **Interface description (from reviews and docs):**
+
 - EHR Homepage with quick-reference schedules, rooming, prioritized tasks, action items, patient cards
 - Unified with Practice Management — schedules, demographics, charges synchronized bidirectionally
 - Customizable templates for notes and sub-notes
@@ -154,6 +168,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Ad-Hoc Report Writer with drill-down capabilities [NextGen brochure reference]
 
 **Specific UI patterns:**
+
 - **"Task Donuts"** — circular visual indicators showing work volume and critical tasks
 - **Patient Rooming tracker** — status tracking with wait notifications
 - **Color-coded appointment types** with customizable time intervals
@@ -161,6 +176,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **AI-generated notes** and automated insurance entry (2024-2025 updates) [SoftwareFinder 2026]
 
 **What users criticize:**
+
 - **"Interface feels dated compared to newer entrants"** — "lacks modern, consumer-grade polish" [EHRSource 2026]
 - **Steep learning curve** — "onboarding takes 4 to 8 weeks before staff feel comfortable" [EHRSource 2026]
 - **"Too many clicks between moving one page to another"** [EHRReviews user comment]
@@ -176,6 +192,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Enterprise-grade EHR and practice management for multi-provider, multi-location groups. Strong in specialty-specific workflows. [SoftwareFinder; ClinicMind 2026]
 
 **What users praise:**
+
 - **"Remarkable design"** — "combines an intuitive, easy-to-use interface with true enterprise functionality" [NextGen PM brochure]
 - **Customizable, encounter-driven scheduling and billing** [NextGen PM brochure]
 - **Ad-Hoc Report Writer** — "extremely easy to use with drill-down capabilities" [NextGen PM brochure]
@@ -185,6 +202,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Well-regarded training and support system** [IJRPR research paper]
 
 **Interface description (from brochures and reviews):**
+
 - Enterprise-scale navigation with role-based views
 - Patient portal as "virtual front door" tied into EHR and PM
 - Claim Status redesign — "modern, aesthetically pleasing User Interface" for adjudication info [NextGen brochure]
@@ -192,6 +210,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Mobile integration with speech recognition [NextGen brochure]
 
 **What users criticize:**
+
 - **"Complex to use"** — "robust features and capabilities can also make it complex" [IJRPR research paper]
 - **"Less intuitive compared to other EHR systems"** [IJRPR research paper]
 - **Enterprise complexity** — optimized for larger groups, potentially overwhelming for small practices
@@ -204,6 +223,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Cloud-based EHR, practice management, and billing for small-to-mid practices across specialties. Apple Mobility Partner with strong iOS integration. [Software Advice 2026; Business News Daily 2021]
 
 **What users praise:**
+
 - **"Sleek and user-friendly UI"** — "enabling new users to quickly grasp the system" [FindEMR 2024; Software Advice 2026]
 - **"Simple, especially on iOS devices"** — first-time medical software users face fewer obstacles [Business News Daily 2021]
 - **Customizable dashboards** — tailor workflow to provider preferences [EMRFinder 2023]
@@ -214,6 +234,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Customizable clinical notes with specialty-specific shortcuts** [Software Advice 2026]
 
 **Interface description (from reviews):**
+
 - Contemporary, adaptive layout responsive across devices
 - Clean top-bar navigation with major modules
 - Customizable dashboards for different workflows
@@ -223,6 +244,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - API-driven flexibility for custom integrations
 
 **Specific UI patterns:**
+
 - **Top-tab navigation** — all major applications reachable from dashboard top bar
 - **Customizable dashboard widgets** — user-tailored home screen
 - **Mobile-responsive adaptive layout** — works on iPhone, iPad, Mac, Android
@@ -230,6 +252,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Speech-to-text functionality** for documentation [EMRFinder 2023]
 
 **What users criticize:**
+
 - **"User interface is often times not intuitive and is cluttered"** [Trustpilot 2023]
 - **"Heavy website can be slow to load in certain pages"** [Trustpilot 2023]
 - **"Inconsistent user experience"** — "occasionally difficult to navigate" [ITQlick 2024]
@@ -247,6 +270,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 **What it does:** Cloud-based EHR, practice management, and revenue cycle management. Best in KLAS 2025 for Overall Independent Physician Practice Suite (2nd consecutive year). [Interface-Design.co.uk 2026; SoftwareFinder 2026]
 
 **What users praise:**
+
 - **"User-friendly interface with intuitive navigation"** — consistently cited across reviews [SoftwareFinder 2026; EHRSource 2026]
 - **"Clean, intuitive design helps reduce training time"** [IgniteHS 2026]
 - **Customizable dashboards** — "tailor dashboards to display most relevant metrics" [EMRFinder 2025]
@@ -260,6 +284,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Mobile-friendly design** — document visits, view labs, send e-prescriptions on the go [Arkenea 2025]
 
 **Interface description (from help docs and reviews):**
+
 - Web-based, accessible from any browser
 - Modernized UI with simplified navigation (2024-2025 redesign)
 - Customizable home screen with widgets
@@ -271,6 +296,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - Appointment Request section in Inbox for patient-submitted scheduling requests [Athenahealth Service Description 2026]
 
 **Specific UI patterns:**
+
 - **Workflow-oriented architecture** — UI organized around patient visit stages, not software modules
 - **Exception-based dashboards** — only show items requiring action
 - **Pre-visit preparation automation** — data collection from portals, lab integration before patient arrives
@@ -279,6 +305,7 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 - **Role-based access controls** — each user sees only functions related to their job [RCMExperts 2025]
 
 **What users criticize:**
+
 - **Learning curve during initial implementation** [Transcure 2025]
 - **Pricing concerns for smaller practices** — percentage-of-collections model [Transcure 2025; SoftwareFinder 2026]
 - **Limited customization options** [Transcure 2025]
@@ -291,33 +318,43 @@ This document analyzes the UI/UX patterns of seven leading healthcare practice m
 Across all seven platforms, the following patterns appear consistently in products with high user satisfaction:
 
 ### 2.1 Calendar-First or Dashboard-First Home Screen
+
 Every successful product puts the day's operational reality front and center. Jane uses calendar-as-homepage. Tebra uses Dashboard/Calendar toggle. Athenahealth uses exception-based workflow dashboards. **Pattern:** The user should see what needs attention TODAY within 3 seconds of login.
 
 ### 2.2 Color-Coded Status Systems
+
 Tebra's appointment flow (yellow/blue/red), Jane's orange open slots, AdvancedMD's color-coded appointment types — all use color to convey status at a glance. **Pattern:** Color should mean something consistent across the entire application (not just decoration).
 
 ### 2.3 Hover/Click Preview Without Navigation
+
 Tebra's hover-over patient name to see contact info and alerts; AdvancedMD's quick-look summaries; Athenahealth's encounter prep view. **Pattern:** Reduce page loads — show contextual information in overlays, popovers, or side panels.
 
 ### 2.4 Inline Action Completion
+
 Jane generates invoices from the calendar without leaving the schedule. Tebra creates charge captures from appointment cards. **Pattern:** Common administrative actions (billing, messaging, status updates) should be possible from the primary view without navigating to a separate module.
 
 ### 2.5 Role-Based Views
+
 Athenahealth explicitly configures dashboards per role (front desk vs biller vs clinician). Tebra's module icons show/hide based on subscription and role. **Pattern:** A practice manager and a front-desk scheduler should see different default views of the same system.
 
 ### 2.6 Exception-Based Workflow Surfacing
+
 Athenahealth's "Workflow Dashboard uses exception-based workflows — it surfaces tasks that need attention." Tebra's "Outstanding Items" panel. AdvancedMD's "Task Donuts." **Pattern:** Don't make users hunt for what needs doing — bring it to them.
 
 ### 2.7 Progressive Disclosure of Complexity
+
 Jane's simple base interface with add-ons for group telehealth. Tebra's grayed-out inactive modules. DrChrono's tiered plans. **Pattern:** The base interface should feel simple. Advanced features should be discoverable but not cluttering.
 
 ### 2.8 Browser-Based, No-Install Delivery
+
 Jane, ChiroHD, Tebra, Athenahealth, DrChrono all emphasize cloud-based, browser-accessible, no-installation delivery. **Pattern:** For non-technical users in their 50s, "no IT person needed" is a major selling point and UX advantage.
 
 ### 2.9 Strong Search + Recent Items
+
 Tebra's global search with last 5 recent patients. Athenahealth's patient lookup. **Pattern:** Non-technical users rely heavily on search rather than navigation hierarchies.
 
 ### 2.10 Automated Reminders and Patient Communication
+
 Every platform offers SMS/email reminders, automated scheduling confirmations, and two-way texting. **Pattern:** Communication automation reduces no-shows and front-desk workload — this is a core operational value proposition.
 
 ---
@@ -326,82 +363,90 @@ Every platform offers SMS/email reminders, automated scheduling confirmations, a
 
 ### 3.1 Scheduling & Calendar
 
-| Source Product | Pattern | How to Adapt for ConciergeOS |
-|---|---|---|
-| **Jane App** | Calendar-as-homepage with orange-highlighted open slots | Make the daily operational dashboard the default landing page. Use high-contrast color (e.g., teal or amber) to highlight unbooked slots. Show 1-3 provider columns side by side. |
-| **Tebra** | Appointment Flow tabs (Scheduled → In Office → Finished) with color coding | Create a "Patient Journey" status bar for today's appointments. Use consistent colors: scheduled = neutral, arrived = blue, in-progress = green, finished = gray, no-show = red. |
-| **Tebra** | Hover-to-preview patient details | On desktop, hovering over a patient name shows a tooltip with phone, email, next appointment, and alerts. On touch devices, tap to expand inline. |
-| **AdvancedMD** | Recurring appointments + waitlist auto-fill | Build recurring appointment templates (e.g., weekly physical therapy). When a slot opens, automatically offer it to waitlisted patients via SMS. |
-| **ChiroHD** | Bulk scheduling for multi-provider practices | Allow practice managers to schedule a patient across multiple future dates in one action — critical for treatment plans. |
+| Source Product | Pattern                                                                    | How to Adapt for ConciergeOS                                                                                                                                                      |
+| -------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Jane App**   | Calendar-as-homepage with orange-highlighted open slots                    | Make the daily operational dashboard the default landing page. Use high-contrast color (e.g., teal or amber) to highlight unbooked slots. Show 1-3 provider columns side by side. |
+| **Tebra**      | Appointment Flow tabs (Scheduled → In Office → Finished) with color coding | Create a "Patient Journey" status bar for today's appointments. Use consistent colors: scheduled = neutral, arrived = blue, in-progress = green, finished = gray, no-show = red.  |
+| **Tebra**      | Hover-to-preview patient details                                           | On desktop, hovering over a patient name shows a tooltip with phone, email, next appointment, and alerts. On touch devices, tap to expand inline.                                 |
+| **AdvancedMD** | Recurring appointments + waitlist auto-fill                                | Build recurring appointment templates (e.g., weekly physical therapy). When a slot opens, automatically offer it to waitlisted patients via SMS.                                  |
+| **ChiroHD**    | Bulk scheduling for multi-provider practices                               | Allow practice managers to schedule a patient across multiple future dates in one action — critical for treatment plans.                                                          |
 
 ### 3.2 Patient Management
 
-| Source Product | Pattern | How to Adapt for ConciergeOS |
-|---|---|---|
-| **Athenahealth** | 5-stage visit model (Check-in → Intake → Exam → Sign-off → Checkout) | Since ConciergeOS is NOT clinical, adapt to administrative stages: Scheduled → Confirmed → Checked In → In Progress → Completed → Billed. |
-| **AdvancedMD** | Patient Cards with chronological frequent tasks | Create "Patient Quick Cards" showing: contact info, upcoming appointments, outstanding balance, last visit, and one-click actions (call, text, email, book follow-up). |
-| **Tebra** | Appointment cards with embedded financial info | In the appointment detail view, show patient balance, copay, and insurance eligibility status without navigating to billing module. |
-| **Athenahealth** | Self check-in via portal | Patient portal where clients confirm demographics, upload insurance cards, and complete intake forms before arrival — data flows directly into ConciergeOS. |
+| Source Product   | Pattern                                                              | How to Adapt for ConciergeOS                                                                                                                                           |
+| ---------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Athenahealth** | 5-stage visit model (Check-in → Intake → Exam → Sign-off → Checkout) | Since ConciergeOS is NOT clinical, adapt to administrative stages: Scheduled → Confirmed → Checked In → In Progress → Completed → Billed.                              |
+| **AdvancedMD**   | Patient Cards with chronological frequent tasks                      | Create "Patient Quick Cards" showing: contact info, upcoming appointments, outstanding balance, last visit, and one-click actions (call, text, email, book follow-up). |
+| **Tebra**        | Appointment cards with embedded financial info                       | In the appointment detail view, show patient balance, copay, and insurance eligibility status without navigating to billing module.                                    |
+| **Athenahealth** | Self check-in via portal                                             | Patient portal where clients confirm demographics, upload insurance cards, and complete intake forms before arrival — data flows directly into ConciergeOS.            |
 
 ### 3.3 Billing & Financial Operations
 
-| Source Product | Pattern | How to Adapt for ConciergeOS |
-|---|---|---|
-| **Jane** | Inline invoice generation from calendar | One-click "Create Invoice" from any appointment. Pre-populate with appointment type, duration, and default rate. |
-| **Tebra** | Charge capture status tracking | Visual status badges on appointments: Unbilled → Draft → Submitted → Paid. Practice manager can see at a glance what's outstanding. |
-| **AdvancedMD** | Instant eligibility checks | One-button eligibility verification for all patients scheduled today. Results cached and visible on appointment cards. |
-| **Athenahealth** | Cost estimation upfront | Before checkout, show patient their estimated responsibility based on insurance and appointment type. |
+| Source Product   | Pattern                                 | How to Adapt for ConciergeOS                                                                                                        |
+| ---------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Jane**         | Inline invoice generation from calendar | One-click "Create Invoice" from any appointment. Pre-populate with appointment type, duration, and default rate.                    |
+| **Tebra**        | Charge capture status tracking          | Visual status badges on appointments: Unbilled → Draft → Submitted → Paid. Practice manager can see at a glance what's outstanding. |
+| **AdvancedMD**   | Instant eligibility checks              | One-button eligibility verification for all patients scheduled today. Results cached and visible on appointment cards.              |
+| **Athenahealth** | Cost estimation upfront                 | Before checkout, show patient their estimated responsibility based on insurance and appointment type.                               |
 
 ### 3.4 Dashboard & Navigation
 
-| Source Product | Pattern | How to Adapt for ConciergeOS |
-|---|---|---|
-| **Athenahealth** | Exception-based workflow dashboard | "Today's Tasks" panel showing: unbilled appointments, pending insurance verifications, patients needing follow-up booking, messages requiring reply. |
-| **Tebra** | Module-based top navigation with active/inactive states | Clean top bar: Schedule, Patients, Billing, Communications, Reports. Inactive/unsubscribed features hidden rather than grayed out (reduces confusion). |
-| **DrChrono** | Top-tab navigation with all major modules visible | Simple horizontal nav with 5-7 primary sections. Avoid hamburger menus for core functions — non-technical users prefer visible options. |
-| **Athenahealth** | Role-based dashboard views | Practice Manager sees: revenue, scheduling efficiency, staff utilization. Front Desk sees: today's schedule, check-ins, messages. |
+| Source Product   | Pattern                                                 | How to Adapt for ConciergeOS                                                                                                                           |
+| ---------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Athenahealth** | Exception-based workflow dashboard                      | "Today's Tasks" panel showing: unbilled appointments, pending insurance verifications, patients needing follow-up booking, messages requiring reply.   |
+| **Tebra**        | Module-based top navigation with active/inactive states | Clean top bar: Schedule, Patients, Billing, Communications, Reports. Inactive/unsubscribed features hidden rather than grayed out (reduces confusion). |
+| **DrChrono**     | Top-tab navigation with all major modules visible       | Simple horizontal nav with 5-7 primary sections. Avoid hamburger menus for core functions — non-technical users prefer visible options.                |
+| **Athenahealth** | Role-based dashboard views                              | Practice Manager sees: revenue, scheduling efficiency, staff utilization. Front Desk sees: today's schedule, check-ins, messages.                      |
 
 ### 3.5 Communications
 
-| Source Product | Pattern | How to Adapt for ConciergeOS |
-|---|---|---|
-| **ChiroHD** | Two-way text for confirmations/reminders | Built-in SMS thread per patient for scheduling, reminders, and follow-ups. No third-party tool needed. |
-| **Jane** | Automated email/SMS reminder sequence | Configurable reminder cadence: 48hr email, 12hr email, 3hr SMS. Patient can opt out per channel. |
-| **Tebra** | Online booking with custom rules | Branded booking page with practice logo, provider photos, real-time availability. Rules: minimum notice, max future booking window, required deposit. |
+| Source Product | Pattern                                  | How to Adapt for ConciergeOS                                                                                                                          |
+| -------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **ChiroHD**    | Two-way text for confirmations/reminders | Built-in SMS thread per patient for scheduling, reminders, and follow-ups. No third-party tool needed.                                                |
+| **Jane**       | Automated email/SMS reminder sequence    | Configurable reminder cadence: 48hr email, 12hr email, 3hr SMS. Patient can opt out per channel.                                                      |
+| **Tebra**      | Online booking with custom rules         | Branded booking page with practice logo, provider photos, real-time availability. Rules: minimum notice, max future booking window, required deposit. |
 
 ---
 
 ## 4. What to Avoid
 
 ### 4.1 Dated, Dense Menu Hierarchies
+
 **Problem:** AdvancedMD and NextGen are criticized for "dense menus," "too many clicks," and "features hard to locate." [EHRSource 2026; EHRReviews; IJRPR]  
 **Avoid:** Deep nested menus. Multi-step navigation for common tasks. Module-based organization (Billing Module → Claims → Create Claim) instead of workflow-based organization (Patient → Today's Visit → Bill This Visit).
 
 ### 4.2 Feature Clutter on Primary Screens
+
 **Problem:** DrChrono users call the interface "cluttered" and "heavy." [Trustpilot 2023] NextGen's robust features create complexity. [IJRPR]  
 **Avoid:** Showing all possible features to all users. Using grayed-out inactive features as upsell prompts (Tebra's gray module icons confuse users). Putting advanced actions in primary toolbars.
 
 ### 4.3 Inconsistent Mobile Experience
+
 **Problem:** AdvancedMD's mobile app "lacks full parity with web platform." DrChrono's mobile app has "no offline access." ChiroHD has "app functionality issues." [EHRSource 2026; SelectHub 2026; FindEMR 2025]  
 **Avoid:** Building mobile as an afterthought. If ConciergeOS has a mobile view, ensure core scheduling, patient lookup, and messaging work fully on tablet/phone.
 
 ### 4.4 Steep Onboarding with Long Training
+
 **Problem:** AdvancedMD takes "4 to 8 weeks before staff feel comfortable." [EHRSource 2026] Athenahealth has a "learning curve during initial implementation." [Transcure 2025]  
 **Avoid:** Requiring formal training for basic tasks. The product should be learnable through exploration for a non-technical user. Provide in-app contextual help, not just documentation.
 
 ### 4.5 Modular Pricing Confusion in UI
+
 **Problem:** Tebra shows grayed-out modules creating visual clutter. AdvancedMD's modular pricing "adds up quickly" and creates feature-gating frustration. [Tebra Help Center; EHRSource 2026]  
 **Avoid:** If using tiered pricing, hide unavailable features entirely rather than showing them as disabled. Disabled buttons create confusion and make users feel the product is "broken."
 
 ### 4.6 Poor Customer Support
+
 **Problem:** This is the #1 complaint across ALL platforms — Tebra, DrChrono, AdvancedMD, Jane, and Athenahealth all receive criticism for support responsiveness. [Multiple review sources]  
 **Avoid:** Treating support as a cost center. For ConciergeOS, invest in: (1) in-app contextual help, (2) chat-based support with fast response, (3) comprehensive video tutorials for non-technical users.
 
 ### 4.7 Over-Reliance on Customization
+
 **Problem:** ChiroHD's limited customization is its top complaint (75% negative). [FindEMR 2025] But AdvancedMD's highly customizable templates are "time-consuming" and "hard to create." [EHRReviews; EHRSource 2026]  
 **Avoid:** Forcing users to build their own templates/workflows from scratch. Provide sensible defaults and allow light customization (colors, appointment types, reminder messages) rather than deep configuration.
 
 ### 4.8 Clinical-First Organization for Non-Clinical Users
+
 **Problem:** Most EHRs (Epic, Cerner, NextGen) organize around clinical documentation. Practice managers get lost in charting interfaces.  
 **Avoid:** Since ConciergeOS is operations/practice management (not EHR), NEVER organize the UI around clinical workflows. Organize around the practice manager's day: scheduling, communications, billing, reporting.
 
@@ -420,17 +465,17 @@ Every platform offers SMS/email reminders, automated scheduling confirmations, a
 
 ### 5.2 Specific UI Recommendations
 
-| Area | Recommendation | Source Inspiration |
-|---|---|---|
-| **Home Screen** | Daily operational dashboard: today's schedule + outstanding tasks + messages needing reply | Athenahealth exception-based dashboard; Tebra Outstanding Items |
-| **Scheduling** | Side-by-side multi-provider calendar with color-coded status and drag-and-drop | Jane multi-view; Tebra color coding; ChiroHD clarity |
-| **Patient Lookup** | Global search bar with last 5 recent patients, plus create-new-patient shortcut | Tebra global search |
-| **Appointment Detail** | Popover card showing: patient info, status, balance, insurance, notes, one-click actions | Tebra Appointment Card |
-| **Billing** | Status badges on appointments (Unbilled → Paid); inline invoice creation | Jane inline billing; Tebra charge capture status |
-| **Communications** | Built-in SMS thread per patient; automated reminder sequences | ChiroHD two-way text; Jane reminder sequence |
-| **Patient Portal** | Self-scheduling, self check-in, form completion, payment | Athenahealth Patient Portal; NextGen PxP Portal |
-| **Navigation** | 5-7 visible top tabs; no hamburger menu for primary functions | DrChrono top-tab pattern |
-| **Onboarding** | Interactive tutorial for first login; contextual tooltips; video help center | Jane tutorial base; Tebra in-app Help Center |
+| Area                   | Recommendation                                                                             | Source Inspiration                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| **Home Screen**        | Daily operational dashboard: today's schedule + outstanding tasks + messages needing reply | Athenahealth exception-based dashboard; Tebra Outstanding Items |
+| **Scheduling**         | Side-by-side multi-provider calendar with color-coded status and drag-and-drop             | Jane multi-view; Tebra color coding; ChiroHD clarity            |
+| **Patient Lookup**     | Global search bar with last 5 recent patients, plus create-new-patient shortcut            | Tebra global search                                             |
+| **Appointment Detail** | Popover card showing: patient info, status, balance, insurance, notes, one-click actions   | Tebra Appointment Card                                          |
+| **Billing**            | Status badges on appointments (Unbilled → Paid); inline invoice creation                   | Jane inline billing; Tebra charge capture status                |
+| **Communications**     | Built-in SMS thread per patient; automated reminder sequences                              | ChiroHD two-way text; Jane reminder sequence                    |
+| **Patient Portal**     | Self-scheduling, self check-in, form completion, payment                                   | Athenahealth Patient Portal; NextGen PxP Portal                 |
+| **Navigation**         | 5-7 visible top tabs; no hamburger menu for primary functions                              | DrChrono top-tab pattern                                        |
+| **Onboarding**         | Interactive tutorial for first login; contextual tooltips; video help center               | Jane tutorial base; Tebra in-app Help Center                    |
 
 ---
 
@@ -479,4 +524,4 @@ Every platform offers SMS/email reminders, automated scheduling confirmations, a
 
 ---
 
-*End of Dimension 10 Research Document*
+_End of Dimension 10 Research Document_

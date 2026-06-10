@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Activity, Database, HardDrive, Server, Globe,
-  CheckCircle, XCircle, AlertTriangle, Loader2,
-  ExternalLink, RotateCw,
+  Activity,
+  Database,
+  HardDrive,
+  Server,
+  Globe,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Loader2,
+  ExternalLink,
+  RotateCw,
 } from 'lucide-react';
 
 type ServiceStatus = 'up' | 'down' | 'degraded' | 'checking';
@@ -50,7 +58,7 @@ export function App() {
     try {
       const res = await fetch('/api/ready');
       if (res.ok) {
-        const ready = await res.json() as ReadyResponse;
+        const ready = (await res.json()) as ReadyResponse;
         setServices({
           api: ready.status === 'ok' ? 'up' : 'degraded',
           postgres: statusFromCheck(ready.checks.database),
@@ -72,9 +80,10 @@ export function App() {
     return () => clearInterval(interval);
   }, [checkHealth]);
 
-  const overallStatus: ServiceStatus =
-    Object.values(services).every((s) => s === 'up') ? 'up'
-      : Object.values(services).some((s) => s === 'down') ? 'down'
+  const overallStatus: ServiceStatus = Object.values(services).every((s) => s === 'up')
+    ? 'up'
+    : Object.values(services).some((s) => s === 'down')
+      ? 'down'
       : 'degraded';
 
   const StatusIcon = ({ status }: { status: ServiceStatus }) => {
@@ -104,13 +113,23 @@ export function App() {
         </div>
       </div>
 
-      <div style={{ background: 'white', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+      <div
+        style={{
+          background: 'white',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          overflow: 'hidden',
+        }}
+      >
         {services_list.map(({ key, label, icon: Icon }) => (
           <div
             key={key}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '10px 12px', borderBottom: '1px solid #f1f5f9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 12px',
+              borderBottom: '1px solid #f1f5f9',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -125,10 +144,20 @@ export function App() {
       <button
         onClick={() => window.open('http://localhost:5173', '_blank')}
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-          width: '100%', marginTop: '12px', padding: '10px',
-          background: '#16a34a', color: 'white', border: 'none', borderRadius: '6px',
-          fontSize: '14px', fontWeight: 500, cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          width: '100%',
+          marginTop: '12px',
+          padding: '10px',
+          background: '#16a34a',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '14px',
+          fontWeight: 500,
+          cursor: 'pointer',
         }}
       >
         <ExternalLink className="h-4 w-4" />

@@ -37,7 +37,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback((newToken: string, newUser: User) => {
     setToken(newToken);
     setUser(newUser);
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: newToken, user: newUser }));
+    window.localStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify({ token: newToken, user: newUser })
+    );
   }, []);
 
   const logout = useCallback(() => {
@@ -47,9 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, token, isAuthenticated: !!token, login, logout }}
-    >
+    <AuthContext.Provider value={{ user, token, isAuthenticated: !!token, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -9,11 +9,27 @@ interface RoleDashboardProps {
 }
 
 export function RoleDashboard({ role, onDismiss, onGoToOperations }: RoleDashboardProps) {
-  const configs: Record<UserRole, { title: string; cards: { icon: React.ElementType; label: string; count: string; status: 'complete' | 'in-progress' | 'needs-attention' }[] }> = {
+  const configs: Record<
+    UserRole,
+    {
+      title: string;
+      cards: {
+        icon: React.ElementType;
+        label: string;
+        count: string;
+        status: 'complete' | 'in-progress' | 'needs-attention';
+      }[];
+    }
+  > = {
     front_desk: {
       title: 'Front Desk Dashboard',
       cards: [
-        { icon: Calendar, label: "Today's Appointments", count: '12 scheduled', status: 'in-progress' },
+        {
+          icon: Calendar,
+          label: "Today's Appointments",
+          count: '12 scheduled',
+          status: 'in-progress',
+        },
         { icon: Users, label: 'Check-in Queue', count: '3 waiting', status: 'needs-attention' },
         { icon: Activity, label: 'Messages', count: '2 unread', status: 'in-progress' },
       ],
@@ -37,7 +53,12 @@ export function RoleDashboard({ role, onDismiss, onGoToOperations }: RoleDashboa
     manager: {
       title: 'Operations Overview',
       cards: [
-        { icon: ShieldCheck, label: 'Operations Status', count: 'Full dashboard', status: 'complete' },
+        {
+          icon: ShieldCheck,
+          label: 'Operations Status',
+          count: 'Full dashboard',
+          status: 'complete',
+        },
         { icon: Activity, label: 'Critical Actions', count: 'See below', status: 'in-progress' },
         { icon: Users, label: 'Team Activity', count: 'All roles', status: 'complete' },
       ],
@@ -56,7 +77,8 @@ export function RoleDashboard({ role, onDismiss, onGoToOperations }: RoleDashboa
 
   const statusDot = (status: string) => {
     if (status === 'complete') return <span className="h-2.5 w-2.5 rounded-full bg-success" />;
-    if (status === 'needs-attention') return <span className="h-2.5 w-2.5 rounded-full bg-danger" />;
+    if (status === 'needs-attention')
+      return <span className="h-2.5 w-2.5 rounded-full bg-danger" />;
     return <span className="h-2.5 w-2.5 rounded-full bg-warn" />;
   };
 

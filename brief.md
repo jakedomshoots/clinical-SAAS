@@ -34,23 +34,27 @@ Allowed layout shapes: split panes, master-detail, timeline feeds, command bars 
 ## Visual Foundation
 
 **Color — Calm & Grounded**
+
 - Neutral-first palette with low-chroma warmth. The interface should feel like a physical workspace: slate, warm gray, subtle green or amber for status. No medical blue-teal-white, no SaaS purple-to-cyan.
 - High contrast for clinical text — data must be readable under fluorescent lights on varied monitors.
 - Status colors (red/amber/green) must pass deuteranopia, protanopia, and tritanopia simulations.
 - The system tray icon is the only brand surface — subtle, professional, recognizable at 16px.
 
 **Type — System Fonts**
+
 - Use the OS-native interface font stack: SF Pro (macOS), Segoe UI (Windows), system-ui (fallback). No web font loading, no FOUT. This is a desktop-first product.
 - Clinical data requires clear hierarchy: patient name, vitals, lab values, medication names must be instantly scannable.
 - Measure: 65-75ch for reading contexts (clinical notes, messages). Tighter for data-dense tables and lists.
 
 **Layout — The Patient Chart is Central**
+
 - Master-detail: patient list → patient chart with tabbed sections (demographics, encounters, labs, tasks, messages)
 - Side panels for task queues, fax inbox, lab results — collapsible, not modal
 - Density tunable — compact for power users, relaxed for patient-facing views
 - The desktop system tray and server health dashboard use a separate, minimal composition
 
 **Depth & Motion**
+
 - Three-plane model: background (data surfaces), content (charts, forms, tables), attention (notifications, sync alerts, system tray popovers)
 - Motion is reserved for system events: sync completion, new lab result, incoming fax, task assignment. No decorative transitions on product surfaces.
 - Responsive to `prefers-reduced-motion`.
@@ -74,6 +78,7 @@ Allowed layout shapes: split panes, master-detail, timeline feeds, command bars 
 ## Desktop Shell (Tauri)
 
 The Tauri application is the clinic's server supervisor, not the primary clinical interface. It lives in the system tray with:
+
 - Server status indicator (green/yellow/red)
 - Sync status
 - Backup controls

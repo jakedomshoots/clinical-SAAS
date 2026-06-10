@@ -43,6 +43,7 @@ ConciergeOS/
 ## Configuration
 
 The app connects to your Concierge OS API. Set the server URL on first launch:
+
 - Production: `https://api.yourpractice.com`
 - Local dev: `http://localhost:8000`
 

@@ -5,6 +5,7 @@
 ConciergeOS is a healthcare practice management app. It must feel **trustworthy, warm, and intentional** — not like a generic SaaS dashboard. The design direction is **editorial warmth**: a parchment canvas, terracotta accents, serif headlines against a clean sans-serif body, and data-forward layouts that respect the user's time.
 
 **Key principles:**
+
 - **Warmth over coldness** — No slate gray backgrounds. No emerald green accents.
 - **Data density over whitespace** — Healthcare workers need information, not breathing room.
 - **Restraint over decoration** — One accent color. Three semantic status colors. Four button variants.
@@ -17,55 +18,55 @@ ConciergeOS is a healthcare practice management app. It must feel **trustworthy,
 
 ### Canvas (Backgrounds)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `canvas` | `#f5f4ed` | App background, page canvas |
+| Token           | Value     | Usage                                                 |
+| --------------- | --------- | ----------------------------------------------------- |
+| `canvas`        | `#f5f4ed` | App background, page canvas                           |
 | `canvas-raised` | `#faf9f5` | Elevated surfaces: sidebar, topbar, modal backgrounds |
-| `canvas-sunk` | `#e8e6dc` | Hover states, secondary backgrounds, subtle fills |
-| `canvas-dark` | `#1a1a18` | Dark mode canvas (future) |
+| `canvas-sunk`   | `#e8e6dc` | Hover states, secondary backgrounds, subtle fills     |
+| `canvas-dark`   | `#1a1a18` | Dark mode canvas (future)                             |
 
 ### Ink (Text)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `ink` | `#141413` | Primary text, headings, important labels |
-| `ink-secondary` | `#3d3d3a` | Secondary text, descriptions |
-| `ink-muted` | `#5e5d59` | Tertiary text, timestamps, metadata |
-| `ink-faint` | `#87867f` | Placeholders, disabled text, subtle labels |
-| `ink-on-dark` | `#faf9f5` | Text on dark/accent backgrounds |
+| Token           | Value     | Usage                                      |
+| --------------- | --------- | ------------------------------------------ |
+| `ink`           | `#141413` | Primary text, headings, important labels   |
+| `ink-secondary` | `#3d3d3a` | Secondary text, descriptions               |
+| `ink-muted`     | `#5e5d59` | Tertiary text, timestamps, metadata        |
+| `ink-faint`     | `#87867f` | Placeholders, disabled text, subtle labels |
+| `ink-on-dark`   | `#faf9f5` | Text on dark/accent backgrounds            |
 
 ### Accent (Terracotta)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `accent` | `#c96442` | Primary actions, active nav, links, key metrics |
-| `accent-hover` | `#b55332` | Button hover, link hover |
-| `accent-soft` | `rgba(201, 100, 66, 0.12)` | Active nav bg, subtle highlights, focus rings |
-| `accent-on` | `#faf9f5` | Text on accent backgrounds |
+| Token          | Value                      | Usage                                           |
+| -------------- | -------------------------- | ----------------------------------------------- |
+| `accent`       | `#c96442`                  | Primary actions, active nav, links, key metrics |
+| `accent-hover` | `#b55332`                  | Button hover, link hover                        |
+| `accent-soft`  | `rgba(201, 100, 66, 0.12)` | Active nav bg, subtle highlights, focus rings   |
+| `accent-on`    | `#faf9f5`                  | Text on accent backgrounds                      |
 
 ### Semantic (3 colors only)
 
-| Token | Value | Usage |
-|-------|-------|-------|
+| Token     | Value     | Usage                                                  |
+| --------- | --------- | ------------------------------------------------------ |
 | `success` | `#4a7c59` | Completed, paid, confirmed, active (terminal positive) |
-| `warn` | `#c9a227` | Pending, needs attention, warning |
-| `danger` | `#b53333` | Urgent, blocked, failed, error, overdue |
+| `warn`    | `#c9a227` | Pending, needs attention, warning                      |
+| `danger`  | `#b53333` | Urgent, blocked, failed, error, overdue                |
 
 ### Borders
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `border` | `#e8e6dc` | Default borders, dividers, separators |
-| `border-strong` | `#d5d3c8` | Focused inputs, emphasized borders |
-| `border-subtle` | `rgba(20, 20, 19, 0.06)` | Very subtle separators |
+| Token           | Value                    | Usage                                 |
+| --------------- | ------------------------ | ------------------------------------- |
+| `border`        | `#e8e6dc`                | Default borders, dividers, separators |
+| `border-strong` | `#d5d3c8`                | Focused inputs, emphasized borders    |
+| `border-subtle` | `rgba(20, 20, 19, 0.06)` | Very subtle separators                |
 
 ### Shadows
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `shadow-sm` | `0 1px 2px rgba(0,0,0,0.04)` | Subtle elevation |
+| Token       | Value                         | Usage                    |
+| ----------- | ----------------------------- | ------------------------ |
+| `shadow-sm` | `0 1px 2px rgba(0,0,0,0.04)`  | Subtle elevation         |
 | `shadow-md` | `0 4px 12px rgba(0,0,0,0.06)` | Cards, dropdowns, modals |
-| `shadow-lg` | `0 8px 24px rgba(0,0,0,0.08)` | Overlays, drawers |
+| `shadow-lg` | `0 8px 24px rgba(0,0,0,0.08)` | Overlays, drawers        |
 
 ---
 
@@ -73,25 +74,26 @@ ConciergeOS is a healthcare practice management app. It must feel **trustworthy,
 
 ### Font Families
 
-| Token | Stack | Usage |
-|-------|-------|-------|
-| `font-sans` | `"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif` | Body, UI labels, buttons, tables |
-| `font-serif` | `"Georgia", "Times New Roman", "Libre Baskerville", serif` | Page titles, section headlines, metric values |
-| `font-mono` | `"JetBrains Mono", ui-monospace, Menlo, monospace` | Timestamps, MRNs, codes, data values |
+| Token        | Stack                                                          | Usage                                         |
+| ------------ | -------------------------------------------------------------- | --------------------------------------------- |
+| `font-sans`  | `"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif` | Body, UI labels, buttons, tables              |
+| `font-serif` | `"Georgia", "Times New Roman", "Libre Baskerville", serif`     | Page titles, section headlines, metric values |
+| `font-mono`  | `"JetBrains Mono", ui-monospace, Menlo, monospace`             | Timestamps, MRNs, codes, data values          |
 
 ### Type Scale
 
-| Token | Size | Weight | Tracking | Usage |
-|-------|------|--------|----------|-------|
-| `text-display` | 28px (1.75rem) | 500 | -0.02em | Page titles (h1) — serif |
-| `text-headline` | 18px (1.125rem) | 600 | -0.01em | Section headers (h2) — sans |
-| `text-subhead` | 15px (0.9375rem) | 500 | 0 | Subsection headers (h3) — sans |
-| `text-body` | 14px (0.875rem) | 400 | 0 | Body copy, descriptions |
-| `text-small` | 13px (0.8125rem) | 400 | 0 | Secondary text, table cells |
-| `text-meta` | 12px (0.75rem) | 500 | 0.01em | Labels, timestamps, captions |
-| `text-micro` | 11px (0.6875rem) | 500 | 0.04em | Badges, tags, status pills |
+| Token           | Size             | Weight | Tracking | Usage                          |
+| --------------- | ---------------- | ------ | -------- | ------------------------------ |
+| `text-display`  | 28px (1.75rem)   | 500    | -0.02em  | Page titles (h1) — serif       |
+| `text-headline` | 18px (1.125rem)  | 600    | -0.01em  | Section headers (h2) — sans    |
+| `text-subhead`  | 15px (0.9375rem) | 500    | 0        | Subsection headers (h3) — sans |
+| `text-body`     | 14px (0.875rem)  | 400    | 0        | Body copy, descriptions        |
+| `text-small`    | 13px (0.8125rem) | 400    | 0        | Secondary text, table cells    |
+| `text-meta`     | 12px (0.75rem)   | 500    | 0.01em   | Labels, timestamps, captions   |
+| `text-micro`    | 11px (0.6875rem) | 500    | 0.04em   | Badges, tags, status pills     |
 
 ### Rules
+
 - Page titles: `font-serif`, `font-weight: 500`, `letter-spacing: -0.02em`, `line-height: 1.1`
 - Section headers: `font-sans`, `font-weight: 600`, `letter-spacing: -0.01em`, `line-height: 1.3`
 - Body text never below 13px in the main content area.
@@ -104,19 +106,20 @@ ConciergeOS is a healthcare practice management app. It must feel **trustworthy,
 
 Base unit: **4px**
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `space-1` | 4px | Tight gaps, icon padding |
-| `space-2` | 8px | Small gaps, inline spacing |
-| `space-3` | 12px | Button padding, compact row gaps |
-| `space-4` | 16px | Standard gaps, card padding |
-| `space-5` | 20px | Section gaps, comfortable padding |
-| `space-6` | 24px | Page padding, modal padding |
-| `space-8` | 32px | Large section separation |
-| `space-10` | 40px | Major section breaks |
-| `space-12` | 48px | Hero spacing |
+| Token      | Value | Usage                             |
+| ---------- | ----- | --------------------------------- |
+| `space-1`  | 4px   | Tight gaps, icon padding          |
+| `space-2`  | 8px   | Small gaps, inline spacing        |
+| `space-3`  | 12px  | Button padding, compact row gaps  |
+| `space-4`  | 16px  | Standard gaps, card padding       |
+| `space-5`  | 20px  | Section gaps, comfortable padding |
+| `space-6`  | 24px  | Page padding, modal padding       |
+| `space-8`  | 32px  | Large section separation          |
+| `space-10` | 40px  | Major section breaks              |
+| `space-12` | 48px  | Hero spacing                      |
 
 ### Layout Rules
+
 - Page content padding: `24px` (comfortable) / `16px` (compact)
 - Sidebar width: `240px`
 - Topbar height: `56px`
@@ -129,13 +132,13 @@ Base unit: **4px**
 
 ## Border Radius
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `radius-sm` | 6px | Inputs, small buttons, tags |
-| `radius-md` | 10px | Cards, panels, modals |
-| `radius-lg` | 16px | Large overlays, feature cards |
-| `radius-pill` | 999px | Badges, filters, search bars |
-| `radius-sharp` | 0px | Tables, data grids, full-width sections |
+| Token          | Value | Usage                                   |
+| -------------- | ----- | --------------------------------------- |
+| `radius-sm`    | 6px   | Inputs, small buttons, tags             |
+| `radius-md`    | 10px  | Cards, panels, modals                   |
+| `radius-lg`    | 16px  | Large overlays, feature cards           |
+| `radius-pill`  | 999px | Badges, filters, search bars            |
+| `radius-sharp` | 0px   | Tables, data grids, full-width sections |
 
 ---
 
@@ -166,6 +169,7 @@ Base unit: **4px**
    - Font: `text-sm font-medium`
 
 **Rules:**
+
 - No more than one primary button per section.
 - Icon + text buttons: `gap-2`, icon size `16px`.
 - Disabled: `opacity-50 cursor-not-allowed`, no transform.
@@ -189,14 +193,15 @@ Base unit: **4px**
 
 **One component, 3 intents:**
 
-| Intent | Style |
-|--------|-------|
-| `active` / `success` | `bg-success/10 text-success rounded-pill px-2 py-0.5 text-micro font-medium` |
-| `warn` / `pending` | `bg-warn/10 text-warn rounded-pill px-2 py-0.5 text-micro font-medium` |
-| `danger` / `urgent` | `bg-danger/10 text-danger rounded-pill px-2 py-0.5 text-micro font-medium` |
+| Intent               | Style                                                                           |
+| -------------------- | ------------------------------------------------------------------------------- |
+| `active` / `success` | `bg-success/10 text-success rounded-pill px-2 py-0.5 text-micro font-medium`    |
+| `warn` / `pending`   | `bg-warn/10 text-warn rounded-pill px-2 py-0.5 text-micro font-medium`          |
+| `danger` / `urgent`  | `bg-danger/10 text-danger rounded-pill px-2 py-0.5 text-micro font-medium`      |
 | `muted` / `inactive` | `bg-canvas-sunk text-ink-muted rounded-pill px-2 py-0.5 text-micro font-medium` |
 
 **Rules:**
+
 - No uppercase. No letter-spacing on badges.
 - No border on badges (use background tint only).
 - Maximum 4 words per badge.
@@ -204,18 +209,21 @@ Base unit: **4px**
 ### Card
 
 **Cards are reserved for:**
+
 - Modal/drawer content
 - Draggable widgets
 - Content needing elevation (assistant panel)
 - Primary CTAs that need emphasis
 
 **Card style:**
+
 - `bg-canvas-raised border border-border rounded-md`
 - Shadow: `shadow-md` only on hover or when elevated
 - Padding: `16px–20px`
 - No shadow by default (flat design)
 
 **Do NOT card-wrap:**
+
 - Tables
 - Simple lists
 - Metric grids
@@ -254,14 +262,14 @@ Base unit: **4px**
 
 **Replace the 9-color rainbow with 3 semantic colors + neutral progression:**
 
-| State Category | Visual Treatment |
-|----------------|----------------|
-| Early / Queued / Scheduled | `text-ink-muted` + subtle dot |
-| Active / In Progress / Checked in | `text-accent` + accent dot |
-| Completed / Filed / Done / Paid | `text-ink-faint` + checkmark or muted |
-| Blocked / Urgent / Failed / Error | `text-danger` + danger dot |
-| Warning / Needs attention / Pending | `text-warn` + warn dot |
-| Neutral / Inactive / Cancelled | `text-ink-faint` + no indicator |
+| State Category                      | Visual Treatment                      |
+| ----------------------------------- | ------------------------------------- |
+| Early / Queued / Scheduled          | `text-ink-muted` + subtle dot         |
+| Active / In Progress / Checked in   | `text-accent` + accent dot            |
+| Completed / Filed / Done / Paid     | `text-ink-faint` + checkmark or muted |
+| Blocked / Urgent / Failed / Error   | `text-danger` + danger dot            |
+| Warning / Needs attention / Pending | `text-warn` + warn dot                |
+| Neutral / Inactive / Cancelled      | `text-ink-faint` + no indicator       |
 
 **No more:** sky, teal, violet, lime, emerald, cyan, pink, purple as status colors.
 
@@ -478,4 +486,4 @@ Base unit: **4px**
 
 ---
 
-*This document is the contract. All workers must follow these specs exactly. No improvisation on colors, spacing, or component variants.*
+_This document is the contract. All workers must follow these specs exactly. No improvisation on colors, spacing, or component variants._

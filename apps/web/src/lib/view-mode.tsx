@@ -19,7 +19,9 @@ function getStoredMode(): ViewMode {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw === 'simple' || raw === 'standard' || raw === 'power') return raw;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'standard';
 }
 
@@ -33,7 +35,9 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
     setViewModeState(mode);
     try {
       localStorage.setItem(STORAGE_KEY, mode);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   // If user role changes to front_desk/provider/billing, auto-downgrade from power mode

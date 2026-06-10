@@ -7,6 +7,7 @@
 **Vibe-Coded Severity**: 🔶 **Moderate-High** — Functional but generic. Every element screams "I was built with Tailwind defaults and minimal design intent."
 
 **Key Strengths**:
+
 - Solid information architecture and navigation structure
 - Role-based access control is well-implemented
 - Command palette and clinical assistant panel are good UX additions
@@ -14,6 +15,7 @@
 - Accessibility basics (aria-labels, focus states) are present
 
 **Critical Gaps**:
+
 - No design system or component abstraction
 - Inline Tailwind everywhere — zero reusable UI primitives
 - Inconsistent spacing, typography, and visual hierarchy
@@ -25,15 +27,15 @@
 
 ## Tech Stack Analysis
 
-| Technology | Version | Assessment |
-|------------|---------|------------|
-| React | 19.0.0 | ✅ Modern, good |
-| Tailwind CSS | 4.0.0-alpha.33 | ⚠️ Bleeding edge alpha — risky for production |
-| Tanstack Router | 1.91.0 | ✅ Excellent choice |
-| Tanstack Query | 5.62.0 | ✅ Excellent choice |
-| Lucide React | 0.468.0 | ✅ Good icon library |
-| Component Library | **None** | ❌ Missing — everything hand-rolled |
-| Build Tool | Vite 6.0.3 | ✅ Fast, modern |
+| Technology        | Version        | Assessment                                    |
+| ----------------- | -------------- | --------------------------------------------- |
+| React             | 19.0.0         | ✅ Modern, good                               |
+| Tailwind CSS      | 4.0.0-alpha.33 | ⚠️ Bleeding edge alpha — risky for production |
+| Tanstack Router   | 1.91.0         | ✅ Excellent choice                           |
+| Tanstack Query    | 5.62.0         | ✅ Excellent choice                           |
+| Lucide React      | 0.468.0        | ✅ Good icon library                          |
+| Component Library | **None**       | ❌ Missing — everything hand-rolled           |
+| Build Tool        | Vite 6.0.3     | ✅ Fast, modern                               |
 
 **Critical Finding**: Tailwind v4 alpha is a major risk. APIs may change, bugs exist, and plugins may not be compatible.
 
@@ -46,6 +48,7 @@
 **Finding**: There is NO component library. Every button, input, card, badge, and table is styled with inline Tailwind classes.
 
 **Evidence** (from `apps/web/src/router/routes/login.tsx`):
+
 ```tsx
 <input className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500" />
 ```
@@ -53,6 +56,7 @@
 This same input pattern is repeated **15+ times** across the codebase with minor variations. No `<Input />`, `<Button />`, `<Card />` components exist.
 
 **Impact**:
+
 - Inconsistent styling across forms
 - Massive duplication
 - Changing the input style requires editing 15+ files
@@ -63,6 +67,7 @@ This same input pattern is repeated **15+ times** across the codebase with minor
 **Finding**: No systematic typography hierarchy.
 
 **Evidence**:
+
 - Page titles: `text-2xl font-semibold` (only on some pages)
 - Section headers: `text-sm font-semibold` (used EVERYWHERE)
 - Body text: `text-sm` or `text-xs`
@@ -75,6 +80,7 @@ This same input pattern is repeated **15+ times** across the codebase with minor
 **Finding**: Spacing is arbitrary, not systematic.
 
 **Evidence** (from single page):
+
 ```tsx
 <div className="space-y-5">           {/* 1.25rem */}
 <div className="gap-3">               {/* 0.75rem */}
@@ -97,10 +103,12 @@ This same input pattern is repeated **15+ times** across the codebase with minor
 **Finding**: Colors are used literally, not semantically.
 
 **Current Palette**:
+
 - `clinic-*`: Slate blue-gray scale (50-900)
 - `accent-*`: Green scale (50-900)
 
 **Problems**:
+
 1. No semantic color tokens (`--color-success`, `--color-warning`, `--color-danger`)
 2. `accent-600` (#16a34a) is used for EVERYTHING positive — buttons, links, active states, badges
 3. Error states use literal `red-*` classes, not theme tokens
@@ -108,6 +116,7 @@ This same input pattern is repeated **15+ times** across the codebase with minor
 5. Success states sometimes use `accent-*`, sometimes `emerald-*` (inconsistent!)
 
 **Evidence** (from `apps/web/src/router/routes/patients/index.tsx`):
+
 ```tsx
 // Success badge uses emerald:
 <span className="bg-emerald-100 text-emerald-700">Active</span>
@@ -125,11 +134,13 @@ This same input pattern is repeated **15+ times** across the codebase with minor
 **Finding**: Zero use of shadows for depth.
 
 **Evidence**: Every card/surface uses:
+
 ```tsx
-className="rounded-md border border-clinic-200 bg-white"
+className = 'rounded-md border border-clinic-200 bg-white';
 ```
 
 **Problem**: The entire UI is flat. No visual hierarchy between:
+
 - Background and cards
 - Cards and elevated dialogs
 - Navigation and content
@@ -142,6 +153,7 @@ This creates a "wall of white boxes" effect.
 **Finding**: `rounded-md` (0.375rem) is used for EVERYTHING.
 
 **Evidence**:
+
 - Cards: `rounded-md`
 - Buttons: `rounded-md`
 - Inputs: `rounded-md`
@@ -158,6 +170,7 @@ This creates a "wall of white boxes" effect.
 ### 🔐 Login Page (`/login`)
 
 **Issues**:
+
 - Centered white card on gray background — most generic login pattern possible
 - No brand personality — just the Activity icon and "ConciergeOS" text
 - Form inputs are basic browser defaults with border changes
@@ -171,6 +184,7 @@ This creates a "wall of white boxes" effect.
 ### 🏠 Command Center (`/`)
 
 **Issues**:
+
 - 8 different sections crammed into one view with no visual hierarchy
 - Section headers (`text-sm font-semibold`) are smaller than metric values (`text-3xl`)
 - "Next best actions" banner uses accent green but looks like an alert, not a feature
@@ -187,6 +201,7 @@ This creates a "wall of white boxes" effect.
 ### 👥 Patients Page (`/patients`)
 
 **Issues**:
+
 - **Document Intake Workbench** is the most complex UI element and it's overwhelming
 - 6 form fields in a single row for document actions (grid-cols with hardcoded widths)
 - Table header and body have different padding (`py-3` vs `py-3` — at least consistent here)
@@ -201,6 +216,7 @@ This creates a "wall of white boxes" effect.
 ### 📐 Layout Components (`__root.tsx`)
 
 **Side Navigation**:
+
 - Basic white sidebar with border — no depth or visual separation
 - Nav items are dense (`h-9` height)
 - Section labels (`text-[10px] uppercase`) are extremely small
@@ -209,12 +225,14 @@ This creates a "wall of white boxes" effect.
 - Sign out button uses red text on hover — only color change in the nav
 
 **Top Bar**:
+
 - Command palette trigger is nice but styled like a disabled input
 - Density toggle is hidden on mobile, shows as small button on desktop
 - Settings button same size/style as assistant button
 - No user avatar or profile dropdown
 
 **Clinical Assistant Panel**:
+
 - Tacked-on feeling — different visual style from main content
 - Context chips are cramped
 - Suggestion items have inconsistent button styling
@@ -231,11 +249,13 @@ This creates a "wall of white boxes" effect.
 **Count**: Found in **every single component**
 
 **Pattern**:
+
 ```tsx
-className="rounded-md border border-clinic-200 bg-white"
+className = 'rounded-md border border-clinic-200 bg-white';
 ```
 
 **Impact**: Everything looks the same. No visual hierarchy between:
+
 - Primary content cards
 - Secondary information panels
 - Settings forms
@@ -247,8 +267,10 @@ className="rounded-md border border-clinic-200 bg-white"
 **Count**: ~20+ instances of the same input styling
 
 **Pattern**:
+
 ```tsx
-className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500"
+className =
+  'w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-clinic-900 placeholder:text-clinic-400 focus:border-accent-500 focus:outline-none focus:ring-1 focus:ring-accent-500';
 ```
 
 **Impact**: No way to update form styling globally. Inconsistencies will creep in.
@@ -258,6 +280,7 @@ className="w-full rounded-md border border-clinic-300 px-3 py-2 text-sm text-cli
 **Count**: 15+ instances
 
 **Examples**:
+
 ```tsx
 text-[0.9375rem]      {/* In density toggle */}
 text-[10px]           {/* Nav section labels */}
@@ -276,6 +299,7 @@ minmax(0,1fr)_22rem   {/* Grid columns */}
 **Finding**: Colors are chosen per-component, not from a system.
 
 **Examples**:
+
 ```tsx
 // 4 different ways to show "success/active":
 bg-accent-600 text-white                    {/* Primary button */}
@@ -297,6 +321,7 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **Compact**: `p-3` padding, `text-[0.9375rem]` (arbitrary value!)
 
 **Problem**: This isn't a real density system — it's a minor padding change. True density systems adjust:
+
 - Table row heights
 - Cell padding
 - Font sizes systematically
@@ -309,6 +334,7 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **Finding**: Zero hover animations, focus animations, or transitions.
 
 **Examples of what's missing**:
+
 - Button hover: instant color change, no transition
 - Card hover: no elevation change
 - Modal open/close: instant appear/disappear
@@ -321,6 +347,7 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **Finding**: Forms look like 2010-era web design.
 
 **Issues**:
+
 - Labels above inputs with `mb-1` — no floating labels
 - No helper text styling
 - No validation state styling (beyond red border)
@@ -335,6 +362,7 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **Finding**: Tables are functional but unpolished.
 
 **Issues**:
+
 - Header row uses `bg-clinic-50` — barely distinguishable from white rows
 - No column dividers
 - Row hover is `bg-clinic-50` — same as header
@@ -348,12 +376,14 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 ## Accessibility Assessment
 
 **Strengths**:
+
 - ✅ Focus visible styles are present (`outline: 2px solid var(--color-accent-500)`)
 - ✅ Aria labels on icon buttons
 - ✅ Role and aria-modal on dialogs
 - ✅ Semantic HTML (nav, main, header, section)
 
 **Weaknesses**:
+
 - ⚠️ Color alone indicates status (no icons or patterns)
 - ⚠️ Small text sizes (`text-[10px]` is too small)
 - ⚠️ No skip navigation link
@@ -366,12 +396,14 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 ## Performance & Technical Concerns
 
 ### Tailwind v4 Alpha Risks
+
 - **Breaking changes likely** before stable release
 - **Plugin ecosystem** may not be compatible
 - **Build tool integration** (`@tailwindcss/vite`) is experimental
 - **Documentation** is incomplete
 
 ### Missing Optimization
+
 - No lazy loading for route components
 - No virtual scrolling for long tables
 - No image optimization pipeline
@@ -381,19 +413,19 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 
 ## Comparison: Current vs. Premium Clinical SaaS
 
-| Aspect | Current | Premium Standard |
-|--------|---------|------------------|
-| **First impression** | Generic utility app | Polished, trustworthy, calming |
-| **Visual hierarchy** | Flat, everything same level | Clear depth, layered information |
-| **Typography** | Single scale, mostly `text-sm` | 6+ size scale with clear roles |
-| **Spacing** | Arbitrary | 8px base grid, systematic |
-| **Colors** | Literal (slate + green) | Semantic (surface, text, intent) |
-| **Components** | Inline Tailwind | Reusable, documented library |
-| **Motion** | None | Subtle, purposeful transitions |
-| **Density** | Basic padding toggle | Full density system |
-| **Empty states** | Text + icon | Branded, actionable illustrations |
-| **Loading** | Text "Loading..." | Skeleton screens, progress |
-| **Mobile** | Functional sidebar | Optimized touch, swipe gestures |
+| Aspect               | Current                        | Premium Standard                  |
+| -------------------- | ------------------------------ | --------------------------------- |
+| **First impression** | Generic utility app            | Polished, trustworthy, calming    |
+| **Visual hierarchy** | Flat, everything same level    | Clear depth, layered information  |
+| **Typography**       | Single scale, mostly `text-sm` | 6+ size scale with clear roles    |
+| **Spacing**          | Arbitrary                      | 8px base grid, systematic         |
+| **Colors**           | Literal (slate + green)        | Semantic (surface, text, intent)  |
+| **Components**       | Inline Tailwind                | Reusable, documented library      |
+| **Motion**           | None                           | Subtle, purposeful transitions    |
+| **Density**          | Basic padding toggle           | Full density system               |
+| **Empty states**     | Text + icon                    | Branded, actionable illustrations |
+| **Loading**          | Text "Loading..."              | Skeleton screens, progress        |
+| **Mobile**           | Functional sidebar             | Optimized touch, swipe gestures   |
 
 ---
 
@@ -480,22 +512,22 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 
 ### High-Impact Files (Most UI Code)
 
-| File | Lines | Issues |
-|------|-------|--------|
-| `apps/web/src/router/routes/__root.tsx` | 732 | Layout, nav, all shell components |
-| `apps/web/src/router/routes/index.tsx` | 378 | Command center dashboard |
-| `apps/web/src/router/routes/patients/index.tsx` | 507 | Patient list, document workbench |
-| `apps/web/src/router/routes/login.tsx` | 183 | Login page |
-| `apps/web/src/lib/ui-state.tsx` | Unknown | Empty states, loading states |
-| `apps/web/src/index.css` | 59 | Theme tokens, global styles |
+| File                                            | Lines   | Issues                            |
+| ----------------------------------------------- | ------- | --------------------------------- |
+| `apps/web/src/router/routes/__root.tsx`         | 732     | Layout, nav, all shell components |
+| `apps/web/src/router/routes/index.tsx`          | 378     | Command center dashboard          |
+| `apps/web/src/router/routes/patients/index.tsx` | 507     | Patient list, document workbench  |
+| `apps/web/src/router/routes/login.tsx`          | 183     | Login page                        |
+| `apps/web/src/lib/ui-state.tsx`                 | Unknown | Empty states, loading states      |
+| `apps/web/src/index.css`                        | 59      | Theme tokens, global styles       |
 
 ### Config Files
 
-| File | Purpose |
-|------|---------|
-| `apps/web/package.json` | Dependencies, scripts |
-| `apps/web/vite.config.ts` | Build configuration |
-| `apps/web/src/index.css` | Tailwind theme, CSS variables |
+| File                      | Purpose                       |
+| ------------------------- | ----------------------------- |
+| `apps/web/package.json`   | Dependencies, scripts         |
+| `apps/web/vite.config.ts` | Build configuration           |
+| `apps/web/src/index.css`  | Tailwind theme, CSS variables |
 
 ---
 
@@ -504,6 +536,7 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **The Core Problem**: This application has excellent functional bones but zero visual design system. Every element is styled inline with Tailwind utility classes, creating a "wall of white boxes" aesthetic that feels mechanical and unpolished.
 
 **The Path Forward**:
+
 1. **Immediate**: Create component primitives and extract inline styles
 2. **Short-term**: Implement visual hierarchy with shadows, color layers, and spacing system
 3. **Medium-term**: Add motion, micro-interactions, and polish
@@ -547,31 +580,36 @@ border-amber-200 bg-white                   {/* Password rotation form */}
 **Decision**: Option A — Use Prometheus recommendations
 
 ### 1. Mood & Color Direction
+
 - **Choice**: Option B — Warm, human, calming
 - **Palette**: Soft creams, muted sage/clay tones, spa-like trust
 - **Rationale**: Clinical staff stare at this all day; warm reduces anxiety vs. sterile lab-coat aesthetic
 
 ### 2. Design References
+
 - **Primary**: Linear (density handling, whitespace discipline)
 - **Secondary**: Apple Health (warm, trustworthy clinical aesthetics)
 - **Tertiary**: Stripe Dashboard (crisp data tables, form precision)
 
 ### 3. Information Density
+
 - **Choice**: Breathing room with a real density toggle
 - **Approach**: Default to generous whitespace, clear hierarchy. Compact mode for power users.
 - **Rationale**: Current app has "8 sections crammed into one view" — needs visual relief
 
 ### 4. Typography
+
 - **Choice**: Geist or Plus Jakarta Sans
 - **Rationale**: Distinctive but subtle personality, bespoke product feel. Current generic system fonts feel utilitarian.
 
 ### 5. Component Surface Style
+
 - **Choice**: Softly elevated
 - **Approach**: Subtle shadows, layered depth, tactile feel
 - **Rationale**: Current UI is "flat white boxes" — needs visual hierarchy through elevation
 
 ---
 
-*Audit completed: 2026-06-08*
-*Auditor: Prometheus UI/UX Analysis*
-*Scope: apps/web only (desktop and iPad apps not reviewed)*
+_Audit completed: 2026-06-08_
+_Auditor: Prometheus UI/UX Analysis_
+_Scope: apps/web only (desktop and iPad apps not reviewed)_

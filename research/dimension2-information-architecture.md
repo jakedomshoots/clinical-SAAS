@@ -20,13 +20,13 @@ Current state: 20 operational sections dumped on a single long-scroll page. Rese
 
 Organize sections according to where they fall in the software implementation lifecycle. This mirrors how project managers already think about their work.
 
-| Phase | Sections |
-|-------|----------|
-| Preparation | Staff Training, Training Completion, Role Dry-Run, Credential Binder, Policy Approval |
-| Technical Setup | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification |
-| Validation & Compliance | Compliance Check, Security Audit, Documentation Review, User Acceptance Testing |
-| Go-Live | Cutover Runbook, Go-Live Checklist |
-| Post-Launch | Post-Launch Monitoring, Support Handoff, Disaster Recovery |
+| Phase                   | Sections                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| Preparation             | Staff Training, Training Completion, Role Dry-Run, Credential Binder, Policy Approval    |
+| Technical Setup         | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification |
+| Validation & Compliance | Compliance Check, Security Audit, Documentation Review, User Acceptance Testing          |
+| Go-Live                 | Cutover Runbook, Go-Live Checklist                                                       |
+| Post-Launch             | Post-Launch Monitoring, Support Handoff, Disaster Recovery                               |
 
 **Strengths:** Matches the mental model of a practice manager running an implementation project. Creates natural progress tracking. [Himcos research on healthcare workflows shows that clinical and administrative staff think in terms of sequential phases: "admission → treatment → discharge"](https://himcos.com/what-are-different-types-of-healthcare-workflows/) [^1].
 
@@ -36,26 +36,26 @@ Organize sections according to where they fall in the software implementation li
 
 Group by the type of work being performed, independent of timing.
 
-| Domain | Sections |
-|--------|----------|
-| People & Training | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal, Support Handoff |
-| Systems & Integration | Browser QA, System Integration, Data Migration, Performance Testing |
+| Domain                | Sections                                                                                   |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| People & Training     | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal, Support Handoff     |
+| Systems & Integration | Browser QA, System Integration, Data Migration, Performance Testing                        |
 | Compliance & Security | Credential Binder, Policy Approval, Compliance Check, Security Audit, Documentation Review |
-| Launch Operations | Cutover Runbook, Go-Live Checklist, User Acceptance Testing, Backup Verification |
-| Live Operations | Post-Launch Monitoring, Disaster Recovery |
+| Launch Operations     | Cutover Runbook, Go-Live Checklist, User Acceptance Testing, Backup Verification           |
+| Live Operations       | Post-Launch Monitoring, Disaster Recovery                                                  |
 
 **Strengths:** Stable over time. Users always know "training stuff is under People." [Curogram's healthcare workflow automation research categorizes back-office workflows by functional domain: "Employee Onboarding," "Staff Scheduling," "Compliance and Audit Trail"](https://curogram.com/blog/healthcare-workflow-automation) [^2].
 
-**Weaknesses:** Less intuitive for users who think "what do I need to do *this week*?" Go-Live and Live Operations may feel arbitrarily separated.
+**Weaknesses:** Less intuitive for users who think "what do I need to do _this week_?" Go-Live and Live Operations may feel arbitrarily separated.
 
 ### Strategy C: By Frequency of Use (Priority-Based)
 
 Surface the 4-5 most-accessed sections by default; bury the rest in expandable groups.
 
-| Tier | Sections |
-|------|----------|
-| Daily / High-Frequency | Staff Training, Go-Live Checklist, Post-Launch Monitoring, Compliance Check |
-| Weekly / Medium-Frequency | Credential Binder, Policy Approval, Role Dry-Run, User Acceptance Testing, Support Handoff |
+| Tier                      | Sections                                                                                                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Daily / High-Frequency    | Staff Training, Go-Live Checklist, Post-Launch Monitoring, Compliance Check                                                                                                                                 |
+| Weekly / Medium-Frequency | Credential Binder, Policy Approval, Role Dry-Run, User Acceptance Testing, Support Handoff                                                                                                                  |
 | As-Needed / Low-Frequency | Browser QA, Data Migration, System Integration, Security Audit, Backup Verification, Disaster Recovery, Performance Testing, Documentation Review, Cutover Runbook, Live-Use Rehearsal, Training Completion |
 
 **Strengths:** Minimizes visual clutter. [Spaceberry Studio's navigation UX research recommends "restricting primary navigation to 3-5 core items; surface secondary actions via contextual menus"](https://spaceberry.studio/blog/navigation-ux-fixes-to-improve-app-findability/) [^3].
@@ -66,12 +66,12 @@ Surface the 4-5 most-accessed sections by default; bury the rest in expandable g
 
 Group by who performs the work: practice manager, staff, IT vendor, compliance officer.
 
-| Owner | Sections |
-|-------|----------|
-| Practice Manager | Policy Approval, Compliance Check, Go-Live Checklist, Post-Launch Monitoring, Documentation Review |
-| Clinical Staff | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal, User Acceptance Testing |
-| IT / Vendor | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification, Disaster Recovery, Cutover Runbook |
-| Compliance / HR | Credential Binder, Security Audit, Support Handoff |
+| Owner            | Sections                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Practice Manager | Policy Approval, Compliance Check, Go-Live Checklist, Post-Launch Monitoring, Documentation Review                           |
+| Clinical Staff   | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal, User Acceptance Testing                               |
+| IT / Vendor      | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification, Disaster Recovery, Cutover Runbook |
+| Compliance / HR  | Credential Binder, Security Audit, Support Handoff                                                                           |
 
 **Strengths:** Aligns with how practice managers delegate work. [Healthcare workflow research from Himcos emphasizes that workflows "define how work gets done, who does it, and when it happens"](https://himcos.com/what-are-different-types-of-healthcare-workflows/) [^1].
 
@@ -85,29 +85,30 @@ Group by who performs the work: practice manager, staff, IT vendor, compliance o
 
 After analyzing the 20 sections against healthcare workflow patterns, SaaS IA best practices, and the target user's cognitive profile, we recommend a **phase-based grouping with 5 groups**.
 
-| Group | Label | Sections | Rationale |
-|-------|-------|----------|-----------|
-| **1** | **Staff & Training** | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal | People-first. Healthcare implementations fail when staff aren't ready. [Curogram notes that "Employee Onboarding and Credentialing" is a critical back-office workflow category](https://curogram.com/blog/healthcare-workflow-automation) [^2]. |
-| **2** | **Systems & Data** | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification | Technical foundation. Grouping these together signals "IT work" to the practice manager, who can check status without reading details. |
+| Group | Label                     | Sections                                                                                   | Rationale                                                                                                                                                                                                                                                   |
+| ----- | ------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | **Staff & Training**      | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal                      | People-first. Healthcare implementations fail when staff aren't ready. [Curogram notes that "Employee Onboarding and Credentialing" is a critical back-office workflow category](https://curogram.com/blog/healthcare-workflow-automation) [^2].            |
+| **2** | **Systems & Data**        | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification   | Technical foundation. Grouping these together signals "IT work" to the practice manager, who can check status without reading details.                                                                                                                      |
 | **3** | **Compliance & Security** | Credential Binder, Policy Approval, Compliance Check, Security Audit, Documentation Review | Regulatory cluster. Healthcare practice managers are acutely aware of compliance. [Himcos identifies "Compliance and Audit Trail Reporting" as a distinct administrative workflow category](https://curogram.com/blog/healthcare-workflow-automation) [^2]. |
-| **4** | **Go-Live** | User Acceptance Testing, Cutover Runbook, Go-Live Checklist | Launch-critical. These three are tightly coupled in time and purpose. Keeping them separate from post-launch items reduces anxiety. |
-| **5** | **Post-Launch** | Post-Launch Monitoring, Support Handoff, Disaster Recovery | Ongoing operations. Separated from Go-Live to create a clean "before/after" mental boundary. |
+| **4** | **Go-Live**               | User Acceptance Testing, Cutover Runbook, Go-Live Checklist                                | Launch-critical. These three are tightly coupled in time and purpose. Keeping them separate from post-launch items reduces anxiety.                                                                                                                         |
+| **5** | **Post-Launch**           | Post-Launch Monitoring, Support Handoff, Disaster Recovery                                 | Ongoing operations. Separated from Go-Live to create a clean "before/after" mental boundary.                                                                                                                                                                |
 
 ### Why 5 Groups?
 
 [George Miller's 1956 research on working memory establishes that humans can hold 7±2 items in short-term memory](https://lawsofux.com/millers-law/) [^4]. [Subsequent research by Cowan (2001) refined this to approximately 4-5 chunks for unrelated information](https://uxuiprinciples.com/en/principles/dashboard-information-density-law) [^5]. [Dashboard research shows that organizing 20 metrics into 5 logical groups achieves 40-60% better comprehension than uniform displays](https://uxuiprinciples.com/en/principles/dashboard-information-density-law) [^5]. Five groups sits comfortably within these cognitive limits.
 
-[Stephanie Walter cautions against misapplying Miller's Law to visible menus—users don't need to *remember* visible options—but the chunking principle remains valid for organizing complex content](https://stephaniewalter.design/blog/your-menu-doesnt-need-millers-7-plus-minus-2-rule/) [^6]. The goal is not to limit visible items to 7, but to create meaningful clusters that reduce the *perceived* complexity of 20 sections.
+[Stephanie Walter cautions against misapplying Miller's Law to visible menus—users don't need to _remember_ visible options—but the chunking principle remains valid for organizing complex content](https://stephaniewalter.design/blog/your-menu-doesnt-need-millers-7-plus-minus-2-rule/) [^6]. The goal is not to limit visible items to 7, but to create meaningful clusters that reduce the _perceived_ complexity of 20 sections.
 
 ### Why Phase-Based Over Domain-Based?
 
-Card sorting research reveals that users organize information based on their *tasks* and *context*, not abstract categories. [LogRocket's card sorting guide notes that the method "shows how users categorize information using their own terms, which minimizes jargon and provides insights into their choices"](https://blog.logrocket.com/ux-design/card-sorting-ux-research/) [^7]. For a practice manager in the middle of a go-live project, "what do I need to do this week?" is a more common question than "what domain does this belong to?" Phase-based grouping answers the temporal question directly.
+Card sorting research reveals that users organize information based on their _tasks_ and _context_, not abstract categories. [LogRocket's card sorting guide notes that the method "shows how users categorize information using their own terms, which minimizes jargon and provides insights into their choices"](https://blog.logrocket.com/ux-design/card-sorting-ux-research/) [^7]. For a practice manager in the middle of a go-live project, "what do I need to do this week?" is a more common question than "what domain does this belong to?" Phase-based grouping answers the temporal question directly.
 
 [HeyMarvin's card sorting examples specifically cite "redesigning a crowded product dashboard" as a prime use case](https://heymarvin.com/resources/card-sorting-example) [^8]. [SimpleCardSort notes that card sorting "increased findability: users can locate information faster, reducing task completion time by 20-40%"](https://simplecardsort.com/) [^9].
 
 ### Group Labels
 
 Labels must use the practice manager's vocabulary, not engineering jargon:
+
 - "Staff & Training" not "Human Capital Onboarding"
 - "Systems & Data" not "Technical Infrastructure"
 - "Compliance & Security" not "GRC Framework"
@@ -158,14 +159,14 @@ For 20+ sections, research consistently recommends a **sidebar over top navigati
 
 ### Sidebar Behavior
 
-| Behavior | Specification | Rationale |
-|----------|--------------|-----------|
-| **Default state** | Currently active group expanded; others collapsed | Reduces visual load. [Progressive disclosure "helps keep the interface clean while providing access to additional details without navigating away from the page"](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12]. |
-| **Group expansion** | Click group header → expands, reveals section list | One click to any section. [Razorpay's dashboard redesign using card sorting achieved "65% reduction in dashboard-related support tickets"](https://swayamdg.in/) [^13]. |
-| **Active indicator** | Terracotta left-border accent + subtle background | High-contrast cue for older users. [NNGroup: "Interactive elements such as buttons, dropdowns, and links are often displayed at a small size that is difficult for older users to click on or tap"](https://www.nngroup.com/articles/usability-for-senior-citizens/) [^14]. |
-| **Icons** | Every group and section has an icon + text label | [ACM research on older adults: "All icons were provided with text labels to make their meaning understandable without additional explanations"](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15]. |
-| **Collapse/expand toggle** | Pin icon at bottom of sidebar | Power users can collapse to icon-only (64px) for more content space. |
-| **Mobile** | Sidebar becomes full-screen drawer via hamburger | [0xMinds: "Mobile (<1024px): No sidebar visible. Hamburger button in header. Full-screen drawer slides from left. Larger touch targets (48px min height)"](https://0xminds.com/blog/guides/ai-sidebar-drawer-prompts-guide) [^16]. |
+| Behavior                   | Specification                                      | Rationale                                                                                                                                                                                                                                                                   |
+| -------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Default state**          | Currently active group expanded; others collapsed  | Reduces visual load. [Progressive disclosure "helps keep the interface clean while providing access to additional details without navigating away from the page"](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12].                    |
+| **Group expansion**        | Click group header → expands, reveals section list | One click to any section. [Razorpay's dashboard redesign using card sorting achieved "65% reduction in dashboard-related support tickets"](https://swayamdg.in/) [^13].                                                                                                     |
+| **Active indicator**       | Terracotta left-border accent + subtle background  | High-contrast cue for older users. [NNGroup: "Interactive elements such as buttons, dropdowns, and links are often displayed at a small size that is difficult for older users to click on or tap"](https://www.nngroup.com/articles/usability-for-senior-citizens/) [^14]. |
+| **Icons**                  | Every group and section has an icon + text label   | [ACM research on older adults: "All icons were provided with text labels to make their meaning understandable without additional explanations"](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15].                                                                      |
+| **Collapse/expand toggle** | Pin icon at bottom of sidebar                      | Power users can collapse to icon-only (64px) for more content space.                                                                                                                                                                                                        |
+| **Mobile**                 | Sidebar becomes full-screen drawer via hamburger   | [0xMinds: "Mobile (<1024px): No sidebar visible. Hamburger button in header. Full-screen drawer slides from left. Larger touch targets (48px min height)"](https://0xminds.com/blog/guides/ai-sidebar-drawer-prompts-guide) [^16].                                          |
 
 ### Secondary Navigation: Tabs Within a Section
 
@@ -198,18 +199,19 @@ Not all 20 sections deserve equal visual weight. We propose a **3-tier visibilit
 
 These sections sit at the top of their group and are visible without scrolling or expanding.
 
-| Section | Group | Why Visible |
-|---------|-------|-------------|
-| Staff Training | Staff & Training | Most implementations are delayed by training gaps. |
-| Go-Live Checklist | Go-Live | The single most critical artifact on launch day. |
-| Compliance Check | Compliance & Security | Healthcare compliance is non-negotiable; managers check this frequently. |
-| Post-Launch Monitoring | Post-Launch | Only relevant after launch, but becomes daily once active. |
+| Section                | Group                 | Why Visible                                                              |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------ |
+| Staff Training         | Staff & Training      | Most implementations are delayed by training gaps.                       |
+| Go-Live Checklist      | Go-Live               | The single most critical artifact on launch day.                         |
+| Compliance Check       | Compliance & Security | Healthcare compliance is non-negotiable; managers check this frequently. |
+| Post-Launch Monitoring | Post-Launch           | Only relevant after launch, but becomes daily once active.               |
 
 #### Tier 2: Visible Within Expanded Group
 
 These sections appear when their parent group is expanded. They are one click away.
 
 All remaining sections fall into this tier:
+
 - **Staff & Training:** Training Completion, Role Dry-Run, Live-Use Rehearsal
 - **Systems & Data:** Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification
 - **Compliance & Security:** Credential Binder, Policy Approval, Security Audit, Documentation Review
@@ -228,13 +230,13 @@ Sections that are either complete, not yet started, or rarely accessed can be co
 
 The currently active group (based on project phase) should be expanded; others collapsed.
 
-| Project Phase | Expanded Group |
-|--------------|----------------|
-| Weeks 1-4 (Prep) | Staff & Training |
-| Weeks 5-8 (Build) | Systems & Data |
+| Project Phase         | Expanded Group        |
+| --------------------- | --------------------- |
+| Weeks 1-4 (Prep)      | Staff & Training      |
+| Weeks 5-8 (Build)     | Systems & Data        |
 | Weeks 9-10 (Validate) | Compliance & Security |
-| Week 11 (Launch) | Go-Live |
-| Week 12+ (Live) | Post-Launch |
+| Week 11 (Launch)      | Go-Live               |
+| Week 12+ (Live)       | Post-Launch           |
 
 This creates a **phase-aware navigation** that surfaces relevant sections automatically.
 
@@ -250,13 +252,13 @@ A persistent global search bar in the top header is essential for 20+ sections:
 
 For ConciergeOS's non-technical user, search must be forgiving:
 
-| Feature | Implementation | Rationale |
-|---------|---------------|-----------|
-| **Fuzzy matching** | "staff train" matches "Staff Training" | Users may not remember exact labels. |
-| **Keyword synonyms** | "UAT" → "User Acceptance Testing"; "credentials" → "Credential Binder" | Healthcare staff use abbreviations. |
-| **Recent searches** | Show last 5 searches in dropdown | Reduces re-typing. [Older users benefit from "recognition over recall"](https://uxdesign.cc/millers-law-is-there-a-magical-number-in-ux-design-7999f92ef7b8) [^21]. |
-| **Scoped search** | "Search Operations..." placeholder | Sets expectation that search is limited to this page/module. |
-| **Results grouping** | Search results grouped by category (e.g., "Found in Staff & Training") | Maintains IA mental model even in search. |
+| Feature              | Implementation                                                         | Rationale                                                                                                                                                           |
+| -------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fuzzy matching**   | "staff train" matches "Staff Training"                                 | Users may not remember exact labels.                                                                                                                                |
+| **Keyword synonyms** | "UAT" → "User Acceptance Testing"; "credentials" → "Credential Binder" | Healthcare staff use abbreviations.                                                                                                                                 |
+| **Recent searches**  | Show last 5 searches in dropdown                                       | Reduces re-typing. [Older users benefit from "recognition over recall"](https://uxdesign.cc/millers-law-is-there-a-magical-number-in-ux-design-7999f92ef7b8) [^21]. |
+| **Scoped search**    | "Search Operations..." placeholder                                     | Sets expectation that search is limited to this page/module.                                                                                                        |
+| **Results grouping** | Search results grouped by category (e.g., "Found in Staff & Training") | Maintains IA mental model even in search.                                                                                                                           |
 
 ### Section-Level Filtering
 
@@ -294,22 +296,22 @@ The target user (mid-50s, non-technical) has specific needs that must inform the
 
 ### Visual Design
 
-| Guideline | Source | Application |
-|-----------|--------|-------------|
-| Minimum 16px font size | [Medium/UX for Aging Populations](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12] | All sidebar labels and section headers. |
-| High contrast (4.5:1 minimum) | [WCAG 2.1 AA via Accessible.org](https://accessible.org/wcag-21-aa-saas-platforms-required/) [^24] | Terracotta (#c96442) on parchment (#f5f4ed) must be tested. Dark text on light background preferred for body. |
-| Large touch targets (48px min) | [0xMinds mobile sidebar guide](https://0xminds.com/blog/guides/ai-sidebar-drawer-prompts-guide) [^16] | All sidebar items, especially on tablet (ConciergeOS has an iPad app). |
-| Text labels for all icons | [ACM research on older adults](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15] | Never icon-only navigation for primary items. |
+| Guideline                      | Source                                                                                                                  | Application                                                                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Minimum 16px font size         | [Medium/UX for Aging Populations](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12] | All sidebar labels and section headers.                                                                       |
+| High contrast (4.5:1 minimum)  | [WCAG 2.1 AA via Accessible.org](https://accessible.org/wcag-21-aa-saas-platforms-required/) [^24]                      | Terracotta (#c96442) on parchment (#f5f4ed) must be tested. Dark text on light background preferred for body. |
+| Large touch targets (48px min) | [0xMinds mobile sidebar guide](https://0xminds.com/blog/guides/ai-sidebar-drawer-prompts-guide) [^16]                   | All sidebar items, especially on tablet (ConciergeOS has an iPad app).                                        |
+| Text labels for all icons      | [ACM research on older adults](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15]                                    | Never icon-only navigation for primary items.                                                                 |
 
 ### Cognitive Design
 
-| Guideline | Source | Application |
-|-----------|--------|-------------|
-| Avoid hidden gestures | [Spaceberry Studio](https://spaceberry.studio/blog/navigation-ux-fixes-to-improve-app-findability/) [^3] | All navigation must be visible or clearly labeled. No swipe-to-reveal. |
-| Consistent terminology | [Hong Kong Elderly-Friendly Design Guide](https://www.digitalpolicy.gov.hk/en/our_work/digital_government/digital_inclusion/accessibility/promoting_resources/application_design_guide/doc/elderly_friendly_design_guide_eng.pdf) [^25] | Same label always leads to same place. |
-| Simple, clear language | [ACM research](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15] | Avoid jargon. "Go-Live" is better than "Deployment." |
-| Progressive disclosure | [Medium/UX for Aging](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12] | Accordions and collapsible groups prevent overwhelm. |
-| Step-by-step guidance | [Medium/UX for Aging](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12] | Complex sections (e.g., Cutover Runbook) should have inline instructions. |
+| Guideline              | Source                                                                                                                                                                                                                                  | Application                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Avoid hidden gestures  | [Spaceberry Studio](https://spaceberry.studio/blog/navigation-ux-fixes-to-improve-app-findability/) [^3]                                                                                                                                | All navigation must be visible or clearly labeled. No swipe-to-reveal.    |
+| Consistent terminology | [Hong Kong Elderly-Friendly Design Guide](https://www.digitalpolicy.gov.hk/en/our_work/digital_government/digital_inclusion/accessibility/promoting_resources/application_design_guide/doc/elderly_friendly_design_guide_eng.pdf) [^25] | Same label always leads to same place.                                    |
+| Simple, clear language | [ACM research](https://dl.acm.org/doi/10.1145/3726986.3727000) [^15]                                                                                                                                                                    | Avoid jargon. "Go-Live" is better than "Deployment."                      |
+| Progressive disclosure | [Medium/UX for Aging](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12]                                                                                                                             | Accordions and collapsible groups prevent overwhelm.                      |
+| Step-by-step guidance  | [Medium/UX for Aging](https://whatsuriwrites.medium.com/ux-design-for-aging-populations-f577d3b951be) [^12]                                                                                                                             | Complex sections (e.g., Cutover Runbook) should have inline instructions. |
 
 ### Interaction Design
 
@@ -344,12 +346,12 @@ The target user (mid-50s, non-technical) has specific needs that must inform the
 
 ### Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Time to find section | < 3 seconds | Task-based usability test |
-| First-try success rate | > 85% | Tree test or moderated usability test |
-| Support tickets ("Where is X?") | -50% | Support ticket categorization |
-| Card sort consensus | > 70% agreement on 80% of cards | Closed card sort analysis |
+| Metric                          | Target                          | Measurement                           |
+| ------------------------------- | ------------------------------- | ------------------------------------- |
+| Time to find section            | < 3 seconds                     | Task-based usability test             |
+| First-try success rate          | > 85%                           | Tree test or moderated usability test |
+| Support tickets ("Where is X?") | -50%                            | Support ticket categorization         |
+| Card sort consensus             | > 70% agreement on 80% of cards | Closed card sort analysis             |
 
 ---
 
@@ -411,25 +413,25 @@ The target user (mid-50s, non-technical) has specific needs that must inform the
 
 ## Appendix: Raw Section-to-Group Mapping
 
-| # | Section | Recommended Group | Alternative Group (Domain-Based) |
-|---|---------|-------------------|----------------------------------|
-| 1 | Live-Use Rehearsal | Staff & Training | People & Training |
-| 2 | Credential Binder | Compliance & Security | Compliance & Security |
-| 3 | Browser QA | Systems & Data | Systems & Integration |
-| 4 | Staff Training | Staff & Training | People & Training |
-| 5 | Policy Approval | Compliance & Security | Compliance & Security |
-| 6 | Role Dry-Run | Staff & Training | People & Training |
-| 7 | Cutover Runbook | Go-Live | Launch Operations |
-| 8 | Data Migration | Systems & Data | Systems & Integration |
-| 9 | System Integration | Systems & Data | Systems & Integration |
-| 10 | Compliance Check | Compliance & Security | Compliance & Security |
-| 11 | Security Audit | Compliance & Security | Compliance & Security |
-| 12 | Backup Verification | Systems & Data | Launch Operations |
-| 13 | Disaster Recovery | Post-Launch | Live Operations |
-| 14 | Performance Testing | Systems & Data | Systems & Integration |
-| 15 | User Acceptance Testing | Go-Live | Launch Operations |
-| 16 | Go-Live Checklist | Go-Live | Launch Operations |
-| 17 | Post-Launch Monitoring | Post-Launch | Live Operations |
-| 18 | Support Handoff | Post-Launch | People & Training |
-| 19 | Documentation Review | Compliance & Security | Compliance & Security |
-| 20 | Training Completion | Staff & Training | People & Training |
+| #   | Section                 | Recommended Group     | Alternative Group (Domain-Based) |
+| --- | ----------------------- | --------------------- | -------------------------------- |
+| 1   | Live-Use Rehearsal      | Staff & Training      | People & Training                |
+| 2   | Credential Binder       | Compliance & Security | Compliance & Security            |
+| 3   | Browser QA              | Systems & Data        | Systems & Integration            |
+| 4   | Staff Training          | Staff & Training      | People & Training                |
+| 5   | Policy Approval         | Compliance & Security | Compliance & Security            |
+| 6   | Role Dry-Run            | Staff & Training      | People & Training                |
+| 7   | Cutover Runbook         | Go-Live               | Launch Operations                |
+| 8   | Data Migration          | Systems & Data        | Systems & Integration            |
+| 9   | System Integration      | Systems & Data        | Systems & Integration            |
+| 10  | Compliance Check        | Compliance & Security | Compliance & Security            |
+| 11  | Security Audit          | Compliance & Security | Compliance & Security            |
+| 12  | Backup Verification     | Systems & Data        | Launch Operations                |
+| 13  | Disaster Recovery       | Post-Launch           | Live Operations                  |
+| 14  | Performance Testing     | Systems & Data        | Systems & Integration            |
+| 15  | User Acceptance Testing | Go-Live               | Launch Operations                |
+| 16  | Go-Live Checklist       | Go-Live               | Launch Operations                |
+| 17  | Post-Launch Monitoring  | Post-Launch           | Live Operations                  |
+| 18  | Support Handoff         | Post-Launch           | People & Training                |
+| 19  | Documentation Review    | Compliance & Security | Compliance & Security            |
+| 20  | Training Completion     | Staff & Training      | People & Training                |

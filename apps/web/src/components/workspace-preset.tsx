@@ -26,10 +26,18 @@ const PRESETS: { id: ViewMode; name: string; description: string; config: Preset
       activeTab: 'staff-training',
       expandedCards: ['live-use-rehearsal', 'staff-training', 'incident-register'],
       hiddenSections: [
-        'vendor-credential', 'production-config', 'operator-health',
-        'restore-drill', 'production-rehearsal', 'integration-events',
-        'browser-qa', 'system-integration', 'document-storage',
-        'policy-approval', 'cutover-readiness', 'cutover-runbook',
+        'vendor-credential',
+        'production-config',
+        'operator-health',
+        'restore-drill',
+        'production-rehearsal',
+        'integration-events',
+        'browser-qa',
+        'system-integration',
+        'document-storage',
+        'policy-approval',
+        'cutover-readiness',
+        'cutover-runbook',
       ],
     },
   },
@@ -42,8 +50,11 @@ const PRESETS: { id: ViewMode; name: string; description: string; config: Preset
       activeTab: 'compliance-security',
       expandedCards: ['credential-binder', 'go-live-packet', 'incident-register'],
       hiddenSections: [
-        'vendor-credential', 'production-config', 'operator-health',
-        'restore-drill', 'production-rehearsal',
+        'vendor-credential',
+        'production-config',
+        'operator-health',
+        'restore-drill',
+        'production-rehearsal',
       ],
     },
   },
@@ -55,9 +66,14 @@ const PRESETS: { id: ViewMode; name: string; description: string; config: Preset
       mode: 'power',
       activeTab: 'go-live',
       expandedCards: [
-        'live-use-rehearsal', 'staff-training', 'credential-binder',
-        'browser-qa', 'system-integration', 'cutover-readiness',
-        'go-live-packet', 'incident-register',
+        'live-use-rehearsal',
+        'staff-training',
+        'credential-binder',
+        'browser-qa',
+        'system-integration',
+        'cutover-readiness',
+        'go-live-packet',
+        'incident-register',
       ],
       hiddenSections: [],
     },
@@ -68,7 +84,12 @@ export function WorkspacePreset({ currentMode, onApplyPreset, onClose }: Workspa
   const [selected, setSelected] = useState<ViewMode>(currentMode);
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/20 p-4 backdrop-blur-sm flex items-center justify-center" role="dialog" aria-modal="true" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 bg-ink/20 p-4 backdrop-blur-sm flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
       <div
         className="w-full max-w-lg rounded-lg border border-border bg-canvas-raised shadow-lg p-6"
         onClick={(e) => e.stopPropagation()}
@@ -93,7 +114,12 @@ export function WorkspacePreset({ currentMode, onApplyPreset, onClose }: Workspa
               )}
             >
               <div className="flex items-center justify-between">
-                <span className={cn('text-small font-semibold', selected === preset.id ? 'text-accent' : 'text-ink')}>
+                <span
+                  className={cn(
+                    'text-small font-semibold',
+                    selected === preset.id ? 'text-accent' : 'text-ink'
+                  )}
+                >
                   {preset.name}
                 </span>
                 {selected === preset.id && <Check className="h-4 w-4 text-accent" />}

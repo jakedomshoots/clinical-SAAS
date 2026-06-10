@@ -96,7 +96,10 @@ function LoginPage() {
           <p className="text-small text-ink-muted text-center mt-1">Sign in to your clinic</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-canvas-raised border border-border rounded-lg shadow-md p-8 max-w-sm mx-auto">
+        <form
+          onSubmit={handleSubmit}
+          className="bg-canvas-raised border border-border rounded-lg shadow-md p-8 max-w-sm mx-auto"
+        >
           {error && (
             <div className="mb-4 rounded-md border border-danger/20 bg-danger/10 px-3 py-2 text-small text-danger">
               {error}
@@ -104,7 +107,9 @@ function LoginPage() {
           )}
 
           <div className="mb-4">
-            <label htmlFor="email" className="mb-1 block text-small font-medium text-ink-secondary">Email</label>
+            <label htmlFor="email" className="mb-1 block text-small font-medium text-ink-secondary">
+              Email
+            </label>
             <input
               id="email"
               type="email"
@@ -117,7 +122,12 @@ function LoginPage() {
           </div>
 
           <div className="mb-6">
-            <label htmlFor="password" className="mb-1 block text-small font-medium text-ink-secondary">Password</label>
+            <label
+              htmlFor="password"
+              className="mb-1 block text-small font-medium text-ink-secondary"
+            >
+              Password
+            </label>
             <input
               id="password"
               type="password"
@@ -147,16 +157,31 @@ function LoginPage() {
               Continue in demo mode
             </button>
           )}
-          <Link to="/patient-portal" className="mt-3 flex w-full items-center justify-center rounded-md text-ink-muted hover:text-ink px-4 py-2 text-sm font-medium transition-colors hover:bg-canvas-sunk">
+          <Link
+            to="/patient-portal"
+            className="mt-3 flex w-full items-center justify-center rounded-md text-ink-muted hover:text-ink px-4 py-2 text-sm font-medium transition-colors hover:bg-canvas-sunk"
+          >
             Open patient portal
           </Link>
         </form>
         {showRotation && (
-          <form onSubmit={handlePasswordRotation} className="mt-4 bg-canvas-raised border border-border rounded-lg shadow-md p-8 max-w-sm mx-auto">
-            <h2 className="font-serif text-headline text-ink text-center">Set a permanent password</h2>
-            <p className="text-small text-ink-muted text-center mt-1">Temporary passwords must be changed before a clinic session starts.</p>
+          <form
+            onSubmit={handlePasswordRotation}
+            className="mt-4 bg-canvas-raised border border-border rounded-lg shadow-md p-8 max-w-sm mx-auto"
+          >
+            <h2 className="font-serif text-headline text-ink text-center">
+              Set a permanent password
+            </h2>
+            <p className="text-small text-ink-muted text-center mt-1">
+              Temporary passwords must be changed before a clinic session starts.
+            </p>
             <div className="mt-4">
-              <label htmlFor="new-password" className="mb-1 block text-small font-medium text-ink-secondary">New password</label>
+              <label
+                htmlFor="new-password"
+                className="mb-1 block text-small font-medium text-ink-secondary"
+              >
+                New password
+              </label>
               <input
                 id="new-password"
                 type="password"

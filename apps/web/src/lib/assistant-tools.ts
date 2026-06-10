@@ -34,13 +34,16 @@ export const ASSISTANT_TOOL_IDS = {
   STAGE_FAX_MATCH: 'clinical.stage_fax_match',
 } as const;
 
-export type AssistantToolId = typeof ASSISTANT_TOOL_IDS[keyof typeof ASSISTANT_TOOL_IDS];
+export type AssistantToolId = (typeof ASSISTANT_TOOL_IDS)[keyof typeof ASSISTANT_TOOL_IDS];
 
-export const ASSISTANT_TOOL_DEFINITIONS: Record<AssistantToolId, {
-  name: string;
-  description: string;
-  requiresConfirmation: boolean;
-}> = {
+export const ASSISTANT_TOOL_DEFINITIONS: Record<
+  AssistantToolId,
+  {
+    name: string;
+    description: string;
+    requiresConfirmation: boolean;
+  }
+> = {
   [ASSISTANT_TOOL_IDS.CREATE_FOLLOW_UP_TASK]: {
     name: 'Create follow-up task',
     description: 'Creates a staff task from the current clinical context.',
@@ -105,14 +108,22 @@ function routeLabelFor(pathname: string) {
 }
 
 function routeAssistantHelp(pathname: string) {
-  if (pathname.startsWith('/patients')) return 'I can help stage outreach, create follow-up tasks, or summarize chart blockers before staff acts.';
-  if (pathname.startsWith('/tasks')) return 'I can help prioritize urgent work, draft patient updates, and keep every task owner-visible.';
-  if (pathname.startsWith('/scheduling')) return 'I can help spot same-day schedule gaps, reminders, and checkout blockers.';
-  if (pathname.startsWith('/faxes')) return 'I can help stage fax matches and flag documents that need human confirmation.';
-  if (pathname.startsWith('/messaging')) return 'I can draft replies for staff review, but I will not send without confirmation.';
-  if (pathname.startsWith('/billing')) return 'I can flag missing charge details and keep billing actions tied to signed clinical work.';
-  if (pathname.startsWith('/integrations') || pathname.startsWith('/setup')) return 'I can point to the next setup blocker and keep launch readiness explicit.';
-  if (pathname.startsWith('/assistant-review')) return 'I can help review staged AI actions, confirmations, and audit trails.';
+  if (pathname.startsWith('/patients'))
+    return 'I can help stage outreach, create follow-up tasks, or summarize chart blockers before staff acts.';
+  if (pathname.startsWith('/tasks'))
+    return 'I can help prioritize urgent work, draft patient updates, and keep every task owner-visible.';
+  if (pathname.startsWith('/scheduling'))
+    return 'I can help spot same-day schedule gaps, reminders, and checkout blockers.';
+  if (pathname.startsWith('/faxes'))
+    return 'I can help stage fax matches and flag documents that need human confirmation.';
+  if (pathname.startsWith('/messaging'))
+    return 'I can draft replies for staff review, but I will not send without confirmation.';
+  if (pathname.startsWith('/billing'))
+    return 'I can flag missing charge details and keep billing actions tied to signed clinical work.';
+  if (pathname.startsWith('/integrations') || pathname.startsWith('/setup'))
+    return 'I can point to the next setup blocker and keep launch readiness explicit.';
+  if (pathname.startsWith('/assistant-review'))
+    return 'I can help review staged AI actions, confirmations, and audit trails.';
   return 'I can help identify the next best clinic action while keeping risky changes confirmation-gated.';
 }
 
@@ -151,7 +162,9 @@ export function useClinicalAssistantTools({
     enabled: Boolean(patientId),
   });
 
-  const urgentTask = tasks?.data.find((task) => task.status !== 'completed' && task.priority === 'urgent');
+  const urgentTask = tasks?.data.find(
+    (task) => task.status !== 'completed' && task.priority === 'urgent'
+  );
   const unmatchedFax = faxes?.data.find((fax) => !fax.patient_id);
   const unreadThread = threads?.data.find((thread) => thread.unread_count > 0);
   const activeTask = tasks?.data.find((task) => task.status === 'in_progress');
@@ -169,7 +182,9 @@ export function useClinicalAssistantTools({
     mutationFn: () =>
       api.post<Task>('/assistant/actions/follow-up-task', {
         context: routeLabel,
-        title: patient ? `Review chart and follow up with ${patientName(patient)}` : 'Review assistant flagged follow-up',
+        title: patient
+          ? `Review chart and follow up with ${patientName(patient)}`
+          : 'Review assistant flagged follow-up',
         priority: patient ? 'high' : 'normal',
         due_date: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
         patient_id: patient?.id ?? urgentTask?.patient_id ?? null,
@@ -184,8 +199,13 @@ export function useClinicalAssistantTools({
     mutationFn: () =>
       api.post('/assistant/actions/portal-reply-draft', {
         context: routeLabel,
-        recipient_id: unreadThread?.participants.find((participant) => participant.name !== 'Clinic Admin')?.id ?? user?.id ?? 'patient',
-        subject: unreadThread?.subject ?? `Follow-up for ${patient ? patientName(patient) : 'your visit'}`,
+        recipient_id:
+          unreadThread?.participants.find((participant) => participant.name !== 'Clinic Admin')
+            ?.id ??
+          user?.id ??
+          'patient',
+        subject:
+          unreadThread?.subject ?? `Follow-up for ${patient ? patientName(patient) : 'your visit'}`,
         body: patient
           ? `Hi ${patient.first_name}, your care team is reviewing your chart and will follow up with next steps.`
           : 'Hi, your care team is reviewing this and will follow up with next steps.',
@@ -280,7 +300,16 @@ export function useClinicalAssistantTools({
           pending: draftPortalReply.isPending,
         },
       ].filter(Boolean) as AssistantSuggestion[],
-    [activeTask, createFollowUpTask, draftPortalReply, matchFaxToPatient, patient, unreadThread, unmatchedFax, urgentTask],
+    [
+      activeTask,
+      createFollowUpTask,
+      draftPortalReply,
+      matchFaxToPatient,
+      patient,
+      unreadThread,
+      unmatchedFax,
+      urgentTask,
+    ]
   );
 
   const contextChips = [

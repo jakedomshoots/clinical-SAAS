@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X, Sparkles, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getOnboardingState, setOnboardingCompleted, incrementOnboardingSession } from '@/lib/persistence';
+import {
+  getOnboardingState,
+  setOnboardingCompleted,
+  incrementOnboardingSession,
+} from '@/lib/persistence';
 
 interface OnboardingTourProps {
   onComplete: () => void;
@@ -29,10 +33,22 @@ export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
   if (dismissed) return null;
 
   const tips = [
-    { title: 'Expandable Cards', body: 'Click any card to expand it and see full details. You can open multiple cards at once to compare data.' },
-    { title: 'Phase Tabs', body: 'Use the tabs at the top to switch between work areas: Staff, Systems, Compliance, Go-Live, and Post-Launch.' },
-    { title: 'Critical Actions', body: 'The strip below tabs shows what needs your attention right now. Red = urgent, amber = in progress.' },
-    { title: 'View Modes', body: 'Switch between Simple, Standard, and Power views using the mode selector in the top bar.' },
+    {
+      title: 'Expandable Cards',
+      body: 'Click any card to expand it and see full details. You can open multiple cards at once to compare data.',
+    },
+    {
+      title: 'Phase Tabs',
+      body: 'Use the tabs at the top to switch between work areas: Staff, Systems, Compliance, Go-Live, and Post-Launch.',
+    },
+    {
+      title: 'Critical Actions',
+      body: 'The strip below tabs shows what needs your attention right now. Red = urgent, amber = in progress.',
+    },
+    {
+      title: 'View Modes',
+      body: 'Switch between Simple, Standard, and Power views using the mode selector in the top bar.',
+    },
   ];
 
   const handleDismiss = () => {
@@ -49,7 +65,11 @@ export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
 
   if (showWelcome) {
     return (
-      <div className="fixed inset-0 z-50 bg-ink/20 p-4 backdrop-blur-sm flex items-center justify-center" role="dialog" aria-modal="true">
+      <div
+        className="fixed inset-0 z-50 bg-ink/20 p-4 backdrop-blur-sm flex items-center justify-center"
+        role="dialog"
+        aria-modal="true"
+      >
         <div className="w-full max-w-md rounded-lg border border-border bg-canvas-raised shadow-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -67,7 +87,8 @@ export function OnboardingTour({ onComplete, onDismiss }: OnboardingTourProps) {
             </button>
           </div>
           <p className="text-body text-ink-secondary leading-relaxed">
-            You're viewing the <strong>Standard</strong> dashboard. Here's what's happening today — and what needs your attention.
+            You're viewing the <strong>Standard</strong> dashboard. Here's what's happening today —
+            and what needs your attention.
           </p>
           <div className="mt-5 flex items-center justify-between">
             <button

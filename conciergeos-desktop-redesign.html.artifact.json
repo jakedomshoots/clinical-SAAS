@@ -5,11 +5,7 @@
   "entry": "conciergeos-desktop-redesign.html",
   "renderer": "html",
   "status": "complete",
-  "exports": [
-    "html",
-    "pdf",
-    "zip"
-  ],
+  "exports": ["html", "pdf", "zip"],
   "primary": true,
   "createdAt": "2026-06-07T18:33:06.115Z",
   "updatedAt": "2026-06-07T18:33:06.181Z",

@@ -1,10 +1,11 @@
 # ConciergeOS UX Research Report
+
 ## How to Transform a Data-Dense Operations Dashboard into an Intuitive Experience for Non-Technical Healthcare Staff
 
 **Prepared for:** ConciergeOS Product Team  
 **Date:** June 9, 2026  
 **Research Lead:** AI Research Agent  
-**Methodology:** Multi-dimensional deep research with 6 parallel sub-agents, 30+ cited sources, cross-verified findings  
+**Methodology:** Multi-dimensional deep research with 6 parallel sub-agents, 30+ cited sources, cross-verified findings
 
 ---
 
@@ -27,6 +28,7 @@ All recommendations are implementable in React + Tailwind v4. **No functionality
 ## 1. The Problem: Current State Analysis
 
 ### What's Working
+
 - Warm editorial palette (parchment canvas, terracotta accent) already de-slopped from AI-generic styling
 - Solid navigation architecture with sidebar + command palette
 - Role-based filtering exists in the data layer
@@ -34,6 +36,7 @@ All recommendations are implementable in React + Tailwind v4. **No functionality
 - Button and badge component system is clean and consistent
 
 ### What's Broken
+
 - **20+ operations sections on one long-scroll page** — no grouping, no hierarchy
 - **All sections fully expanded** — user sees everything at once, creating cognitive overload
 - **Dense multi-column grids** — text bunches up, labels truncate awkwardly, visual clutter
@@ -43,6 +46,7 @@ All recommendations are implementable in React + Tailwind v4. **No functionality
 - **Warn color fails contrast** — `#c9a227` on `#f5f4ed` = 2.4:1, below WCAG AA minimum
 
 ### The User
+
 - **Demographic:** Mid-50s healthcare practice manager
 - **Tech confidence:** Low — "boomer" level, easily frustrated by confusing software
 - **Work context:** Interruption-driven, high-stress, wears multiple hats
@@ -56,18 +60,23 @@ All recommendations are implementable in React + Tailwind v4. **No functionality
 This research followed a structured multi-phase approach:
 
 ### Phase 1: Landscape Scan (8 web searches)
+
 Searched for SaaS UX principles, healthcare software design, progressive disclosure, cognitive load theory, older adult usability, and enterprise simplification patterns.
 
 ### Phase 2: Dimension Decomposition
+
 Identified 12 research dimensions spanning progressive disclosure, information architecture, visual hierarchy, cognitive load, role-based personalization, onboarding, data visualization, navigation, micro-interactions, healthcare benchmarks, enterprise simplification, and accessibility.
 
 ### Phase 3: Parallel Deep-Dive (6 sub-agents)
+
 Launched 6 concurrent research sub-agents, each investigating 1-2 dimensions with web searches and structured analysis. Each agent produced a detailed findings document with cited sources.
 
 ### Phase 4: Cross-Dimension Synthesis
+
 Combined all 6 dimension reports into a unified strategy, identifying cross-cutting themes and resolving conflicts.
 
 ### Phase 5: Report Assembly
+
 This document — the final deliverable with actionable recommendations and implementation roadmap.
 
 ---
@@ -80,11 +89,11 @@ This document — the final deliverable with actionable recommendations and impl
 
 **The three-layer architecture that works:**
 
-| Layer | What the User Sees | Interaction |
-|-------|-------------------|-------------|
-| **Layer 1: Summary** | 5 KPIs + status indicators | At-a-glance, zero clicks |
-| **Layer 2: Exploration** | Expandable cards with summary data | One click to expand |
-| **Layer 3: Deep Dive** | Full tables, reports, configuration | Click "View Details" |
+| Layer                    | What the User Sees                  | Interaction              |
+| ------------------------ | ----------------------------------- | ------------------------ |
+| **Layer 1: Summary**     | 5 KPIs + status indicators          | At-a-glance, zero clicks |
+| **Layer 2: Exploration** | Expandable cards with summary data  | One click to expand      |
+| **Layer 3: Deep Dive**   | Full tables, reports, configuration | Click "View Details"     |
 
 **Case study:** Analytica2026 cut 42 dashboard widgets to 5 KPIs using progressive disclosure. Results: **64% faster time-to-action, 82% fewer support tickets, 50% less churn in 3 months**.
 
@@ -100,13 +109,13 @@ This document — the final deliverable with actionable recommendations and impl
 
 **Recommended grouping for ConciergeOS:**
 
-| Tab | Sections | Count |
-|-----|----------|-------|
-| **Staff & Training** | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal | 4 |
-| **Systems & Data** | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification | 5 |
-| **Compliance & Security** | Credential Binder, Policy Approval, Compliance Check, Security Audit, Documentation Review | 5 |
-| **Go-Live** | User Acceptance Testing, Cutover Runbook, Go-Live Checklist | 3 |
-| **Post-Launch** | Post-Launch Monitoring, Support Handoff, Disaster Recovery | 3 |
+| Tab                       | Sections                                                                                   | Count |
+| ------------------------- | ------------------------------------------------------------------------------------------ | ----- |
+| **Staff & Training**      | Staff Training, Training Completion, Role Dry-Run, Live-Use Rehearsal                      | 4     |
+| **Systems & Data**        | Browser QA, System Integration, Data Migration, Performance Testing, Backup Verification   | 5     |
+| **Compliance & Security** | Credential Binder, Policy Approval, Compliance Check, Security Audit, Documentation Review | 5     |
+| **Go-Live**               | User Acceptance Testing, Cutover Runbook, Go-Live Checklist                                | 3     |
+| **Post-Launch**           | Post-Launch Monitoring, Support Handoff, Disaster Recovery                                 | 3     |
 
 Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attention is needed without clicking.
 
@@ -118,22 +127,24 @@ Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attent
 
 **Typography requirements:**
 
-| Element | Current | Required for 50+ |
-|---------|---------|------------------|
-| Body text | 16px | **18px minimum** |
-| Table cells | 14px | **16px minimum** |
-| Table row height | ~36px | **48px minimum** |
-| Labels | 14px | **16px minimum** |
-| Badges/tags | 12px | **14px minimum** |
-| H1 headline | 32px | **36-40px** |
-| H2 section header | 24px | **28-32px** |
+| Element           | Current | Required for 50+ |
+| ----------------- | ------- | ---------------- |
+| Body text         | 16px    | **18px minimum** |
+| Table cells       | 14px    | **16px minimum** |
+| Table row height  | ~36px   | **48px minimum** |
+| Labels            | 14px    | **16px minimum** |
+| Badges/tags       | 12px    | **14px minimum** |
+| H1 headline       | 32px    | **36-40px**      |
+| H2 section header | 24px    | **28-32px**      |
 
 **Color fixes:**
+
 - The current warn color `#c9a227` on canvas `#f5f4ed` = 2.4:1 contrast (fails WCAG AA)
 - Replace with dark amber `#7a5c1a` for text, or use warn only as a background chip with dark text
 - Target WCAG AAA (7:1) for all operational data
 
 **Spacing requirements:**
+
 - 8px base grid
 - Card padding: 24px
 - Gap between related items: 16-24px
@@ -147,19 +158,20 @@ Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attent
 **Evidence:** Industry consensus across SaaS UX research, healthcare RBAC studies, and practice management software analysis confirms that showing the same dashboard to all users creates information overload and signals product immaturity.
 
 **What successful products do:**
+
 - **Athenahealth:** Practice managers see revenue/staffing; front desk sees check-ins and messages
 - **Demandbase:** Pre-built Sales Dashboard and Marketing Dashboard with different KPIs
 - **AssetSonar:** Admins create role-specific dashboards from a widget library
 
 **ConciergeOS role map:**
 
-| Role | Default View | Sees First | Hidden |
-|------|-------------|------------|--------|
-| **Receptionist** | Schedule + Check-in Queue | Appointments, room status, copay alerts | Revenue, clinical notes, compliance |
-| **Clinician** | Patient Roster | Today's patients, open charts, tasks | Billing, HR, marketing |
-| **Billing Staff** | Claims Queue | Denials, aging, prior auth | Clinical notes (except coding) |
-| **Practice Manager** | Operations Overview | Revenue, staffing, compliance alerts | Deep technical settings |
-| **IT/Operations** | System Health | Audit logs, security alerts, users | PHI (scoped access) |
+| Role                 | Default View              | Sees First                              | Hidden                              |
+| -------------------- | ------------------------- | --------------------------------------- | ----------------------------------- |
+| **Receptionist**     | Schedule + Check-in Queue | Appointments, room status, copay alerts | Revenue, clinical notes, compliance |
+| **Clinician**        | Patient Roster            | Today's patients, open charts, tasks    | Billing, HR, marketing              |
+| **Billing Staff**    | Claims Queue              | Denials, aging, prior auth              | Clinical notes (except coding)      |
+| **Practice Manager** | Operations Overview       | Revenue, staffing, compliance alerts    | Deep technical settings             |
+| **IT/Operations**    | System Health             | Audit logs, security alerts, users      | PHI (scoped access)                 |
 
 **Role switcher:** Place in top bar as "Viewing as: 🏥 Front Desk ▼" with plain-language descriptions and icons. Never hide it in a dropdown menu.
 
@@ -172,6 +184,7 @@ Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attent
 **The rule:** A practice manager should know what's urgent within **3 seconds** of opening the Operations page.
 
 **Triple-encoded status system:**
+
 - 🟢 **On Track** — green dot + check icon + "Complete" text
 - 🟡 **In Progress** — amber dot + clock icon + "In Progress" text
 - 🔴 **Urgent** — red dot + alert icon + "Needs Attention" text
@@ -187,17 +200,18 @@ Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attent
 
 **What to copy:**
 
-| Pattern | Source | Adaptation for ConciergeOS |
-|---------|--------|---------------------------|
-| Calendar-as-homepage | Jane App | Schedule is default for clinical roles |
-| Exception-based dashboard | Athenahealth | "Today's Critical Actions" strip |
-| Color-coded status flow | Tebra | Status dots on every card header |
-| Inline actions | Jane + Tebra | Act without navigating away |
-| Hover previews | Tebra | Hover for quick info without clicking |
-| Global search | Tebra | Persistent search with recent items |
-| Top-tab navigation | DrChrono | 5 primary tabs, no hamburger for core |
+| Pattern                   | Source       | Adaptation for ConciergeOS             |
+| ------------------------- | ------------ | -------------------------------------- |
+| Calendar-as-homepage      | Jane App     | Schedule is default for clinical roles |
+| Exception-based dashboard | Athenahealth | "Today's Critical Actions" strip       |
+| Color-coded status flow   | Tebra        | Status dots on every card header       |
+| Inline actions            | Jane + Tebra | Act without navigating away            |
+| Hover previews            | Tebra        | Hover for quick info without clicking  |
+| Global search             | Tebra        | Persistent search with recent items    |
+| Top-tab navigation        | DrChrono     | 5 primary tabs, no hamburger for core  |
 
 **What to avoid:**
+
 - Dense menu hierarchies (AdvancedMD/NextGen: "too many clicks")
 - Feature clutter on primary screens (DrChrono: "cluttered")
 - Grayed-out upsell features (Tebra: confuses users)
@@ -208,6 +222,7 @@ Each tab shows a status badge (e.g., "🔴 3 urgent") so users know where attent
 ### Finding 7: Cognitive Load Reduction is Measurable
 
 **Evidence:** Cognitive Load Theory identifies three load types:
+
 - **Intrinsic load:** Task complexity — cannot eliminate
 - **Extraneous load:** Poor UI design — MUST eliminate
 - **Germane load:** Learning — want to encourage
@@ -234,6 +249,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 ### Before vs. After: Operations Page
 
 #### BEFORE (Current State)
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Operations                                    [Command ⌘K]  │
@@ -260,6 +276,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 **Problems:** All sections visible, dense grids, no grouping, no urgency signals, 4+ screens of scrolling.
 
 #### AFTER (Proposed State)
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  Operations              Viewing as: 🏥 Front Desk ▼  [⌘K]  │
@@ -295,6 +312,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 ```
 
 **Improvements:**
+
 - Critical actions strip at top — urgency in 3 seconds
 - 5 tabs with status badges — know where to look without clicking
 - Expandable cards — see summaries, expand for detail
@@ -307,6 +325,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 ### Component Specifications
 
 #### Today's Critical Actions Strip
+
 - **Position:** Fixed below page header
 - **Height:** 64px
 - **Content:** 3-4 items, each with status dot + count + label
@@ -314,6 +333,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 - **Interaction:** Clicking an item jumps to the relevant tab + expands the relevant card
 
 #### Phase Tabs
+
 - **Style:** Horizontal tabs, pill-style active state
 - **Active tab:** Terracotta background (`#c96442`) with white text
 - **Inactive tabs:** Transparent with ink text
@@ -321,6 +341,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 - **Max tabs:** 5 (never exceed 6 horizontal tabs)
 
 #### Expandable Cards
+
 - **Header height:** 56px
 - **Padding:** 24px
 - **Border radius:** 12px
@@ -331,6 +352,7 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 - **Animation:** 300ms ease-out height transition
 
 #### Status Badges (Triple-Encoded)
+
 - **Dot:** 10px circle, color-coded
 - **Icon:** 16px inline icon (check, clock, alert, circle)
 - **Text:** 14px label ("Complete", "In Progress", "Needs Attention")
@@ -342,42 +364,42 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 
 ### Phase 1: Foundation (Week 1–2) — High Impact, Low Effort
 
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 1 | Group 20 sections into 5 tabs | 2 days | 🔥🔥🔥 |
-| 2 | Add "Today's Critical Actions" strip | 1 day | 🔥🔥🔥 |
-| 3 | Make sections expandable cards | 2 days | 🔥🔥🔥 |
-| 4 | Add status dots to all card headers | 1 day | 🔥🔥 |
-| 5 | Bump body text to 18px, tables to 16px | 0.5 days | 🔥🔥 |
-| 6 | Fix warn color contrast (`#7a5c1a`) | 0.5 days | 🔥🔥 |
-| 7 | Increase table row height to 48px | 0.5 days | 🔥🔥 |
-| 8 | Add 8px spacing grid, +40% whitespace | 1 day | 🔥 |
+| #   | Task                                   | Effort   | Impact |
+| --- | -------------------------------------- | -------- | ------ |
+| 1   | Group 20 sections into 5 tabs          | 2 days   | 🔥🔥🔥 |
+| 2   | Add "Today's Critical Actions" strip   | 1 day    | 🔥🔥🔥 |
+| 3   | Make sections expandable cards         | 2 days   | 🔥🔥🔥 |
+| 4   | Add status dots to all card headers    | 1 day    | 🔥🔥   |
+| 5   | Bump body text to 18px, tables to 16px | 0.5 days | 🔥🔥   |
+| 6   | Fix warn color contrast (`#7a5c1a`)    | 0.5 days | 🔥🔥   |
+| 7   | Increase table row height to 48px      | 0.5 days | 🔥🔥   |
+| 8   | Add 8px spacing grid, +40% whitespace  | 1 day    | 🔥     |
 
 **Expected outcome:** Operations page goes from overwhelming wall of data to organized, scannable interface. Users can find urgent items in 3 seconds.
 
 ### Phase 2: Personalization (Week 3–6) — High Impact, Medium Effort
 
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 9 | Implement role-based section hiding | 3 days | 🔥🔥🔥 |
-| 10 | Add global search across all sections | 2 days | 🔥🔥 |
-| 11 | Add smart defaults (remember last tab) | 1 day | 🔥🔥 |
-| 12 | Standardize card component across all pages | 2 days | 🔥🔥 |
-| 13 | Replace inline help with contextual tooltips | 1 day | 🔥 |
-| 14 | Add empty states with friendly messaging | 1 day | 🔥 |
+| #   | Task                                         | Effort | Impact |
+| --- | -------------------------------------------- | ------ | ------ |
+| 9   | Implement role-based section hiding          | 3 days | 🔥🔥🔥 |
+| 10  | Add global search across all sections        | 2 days | 🔥🔥   |
+| 11  | Add smart defaults (remember last tab)       | 1 day  | 🔥🔥   |
+| 12  | Standardize card component across all pages  | 2 days | 🔥🔥   |
+| 13  | Replace inline help with contextual tooltips | 1 day  | 🔥     |
+| 14  | Add empty states with friendly messaging     | 1 day  | 🔥     |
 
 **Expected outcome:** Each role sees a relevant, uncluttered view. Users find sections via search when they don't know which tab.
 
 ### Phase 3: Polish (Month 2–3) — High Impact, Higher Effort
 
-| # | Task | Effort | Impact |
-|---|------|--------|--------|
-| 15 | Build pre-built role dashboards | 5 days | 🔥🔥🔥 |
-| 16 | Add role switcher UI in top bar | 2 days | 🔥🔥🔥 |
-| 17 | Add workspace presets (Simple/Standard/Power) | 3 days | 🔥🔥 |
-| 18 | Implement progressive onboarding | 3 days | 🔥🔥 |
-| 19 | Add recent activity feed | 2 days | 🔥 |
-| 20 | Add widget pin/hide within role boundaries | 2 days | 🔥 |
+| #   | Task                                          | Effort | Impact |
+| --- | --------------------------------------------- | ------ | ------ |
+| 15  | Build pre-built role dashboards               | 5 days | 🔥🔥🔥 |
+| 16  | Add role switcher UI in top bar               | 2 days | 🔥🔥🔥 |
+| 17  | Add workspace presets (Simple/Standard/Power) | 3 days | 🔥🔥   |
+| 18  | Implement progressive onboarding              | 3 days | 🔥🔥   |
+| 19  | Add recent activity feed                      | 2 days | 🔥     |
+| 20  | Add widget pin/hide within role boundaries    | 2 days | 🔥     |
 
 **Expected outcome:** Product feels personalized, polished, and professional. New users onboard smoothly. Power users can customize without overwhelming novices.
 
@@ -387,17 +409,17 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 
 ### How ConciergeOS Compares to Healthcare SaaS Leaders
 
-| Dimension | Jane App | Tebra | Athenahealth | ConciergeOS (Current) | ConciergeOS (Proposed) |
-|-----------|----------|-------|--------------|----------------------|------------------------|
-| **Default view** | Calendar | Dashboard/Calendar toggle | Exception-based alerts | 20-section wall | Critical actions + tabs |
-| **Status visibility** | Color-coded slots | Color-coded flow | Exception-only | Mixed, inconsistent | Triple-encoded dots |
-| **Role-based views** | Limited | Yes | Yes | No | Yes, 5 roles |
-| **Information density** | Low | Medium | Low | Very high | Medium |
-| **Progressive disclosure** | Yes | Yes | Yes | No | Yes, 3-tier |
-| **Typography size** | Large | Medium | Large | Small (14px tables) | Large (16px tables) |
-| **Contrast** | High | Medium | High | Medium (warn fails) | High (AAA target) |
-| **Onboarding** | Strong | Medium | Medium | None | Progressive |
-| **Search** | Medium | Strong | Medium | Command palette | Global + command |
+| Dimension                  | Jane App          | Tebra                     | Athenahealth           | ConciergeOS (Current) | ConciergeOS (Proposed)  |
+| -------------------------- | ----------------- | ------------------------- | ---------------------- | --------------------- | ----------------------- |
+| **Default view**           | Calendar          | Dashboard/Calendar toggle | Exception-based alerts | 20-section wall       | Critical actions + tabs |
+| **Status visibility**      | Color-coded slots | Color-coded flow          | Exception-only         | Mixed, inconsistent   | Triple-encoded dots     |
+| **Role-based views**       | Limited           | Yes                       | Yes                    | No                    | Yes, 5 roles            |
+| **Information density**    | Low               | Medium                    | Low                    | Very high             | Medium                  |
+| **Progressive disclosure** | Yes               | Yes                       | Yes                    | No                    | Yes, 3-tier             |
+| **Typography size**        | Large             | Medium                    | Large                  | Small (14px tables)   | Large (16px tables)     |
+| **Contrast**               | High              | Medium                    | High                   | Medium (warn fails)   | High (AAA target)       |
+| **Onboarding**             | Strong            | Medium                    | Medium                 | None                  | Progressive             |
+| **Search**                 | Medium            | Strong                    | Medium                 | Command palette       | Global + command        |
 
 **Target:** Match or exceed Jane App's simplicity + Tebra's functionality + Athenahealth's exception-based focus.
 
@@ -405,14 +427,14 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 
 ## 7. Risk Assessment
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| Users resist collapsed sections ("where did everything go?") | Medium | High | Add "Expand All" button; persist open state; clear expand indicators |
-| Role-based hiding confuses multi-hat users | Medium | Medium | Prominent role switcher; allow multi-role assignment |
-| Larger typography breaks layout | Low | Medium | Test at 18px before committing; use responsive scaling |
-| Tab grouping doesn't match user mental model | Medium | High | Validate with card sort before implementation |
-| Power users complain about hidden features | Low | Medium | "Power User" workspace preset with everything expanded; search finds all |
-| Implementation takes longer than estimated | Medium | Medium | Phase 1 alone delivers 80% of the value; ship that first |
+| Risk                                                         | Likelihood | Impact | Mitigation                                                               |
+| ------------------------------------------------------------ | ---------- | ------ | ------------------------------------------------------------------------ |
+| Users resist collapsed sections ("where did everything go?") | Medium     | High   | Add "Expand All" button; persist open state; clear expand indicators     |
+| Role-based hiding confuses multi-hat users                   | Medium     | Medium | Prominent role switcher; allow multi-role assignment                     |
+| Larger typography breaks layout                              | Low        | Medium | Test at 18px before committing; use responsive scaling                   |
+| Tab grouping doesn't match user mental model                 | Medium     | High   | Validate with card sort before implementation                            |
+| Power users complain about hidden features                   | Low        | Medium | "Power User" workspace preset with everything expanded; search finds all |
+| Implementation takes longer than estimated                   | Medium     | Medium | Phase 1 alone delivers 80% of the value; ship that first                 |
 
 ---
 
@@ -420,29 +442,32 @@ The current ConciergeOS Operations page creates massive extraneous load by prese
 
 How will we know the redesign worked?
 
-| Metric | Current (Estimate) | Target | Measurement |
-|--------|-------------------|--------|-------------|
-| **Time to find urgent item** | 15-30 seconds | < 3 seconds | User testing with 5 non-technical users |
-| **Time-to-action** | Unknown | 64% improvement | Track via analytics (if available) |
-| **Support tickets** | Unknown | 50% reduction | Track post-launch |
-| **Task completion rate** | Unknown | 90%+ | User testing |
-| **User satisfaction** | Unknown | 4.5/5 | Post-session survey |
-| **Error rate** | Unknown | < 5% | User testing |
+| Metric                       | Current (Estimate) | Target          | Measurement                             |
+| ---------------------------- | ------------------ | --------------- | --------------------------------------- |
+| **Time to find urgent item** | 15-30 seconds      | < 3 seconds     | User testing with 5 non-technical users |
+| **Time-to-action**           | Unknown            | 64% improvement | Track via analytics (if available)      |
+| **Support tickets**          | Unknown            | 50% reduction   | Track post-launch                       |
+| **Task completion rate**     | Unknown            | 90%+            | User testing                            |
+| **User satisfaction**        | Unknown            | 4.5/5           | Post-session survey                     |
+| **Error rate**               | Unknown            | < 5%            | User testing                            |
 
 ---
 
 ## 9. Next Steps
 
 ### Immediate (This Week)
+
 1. **Review this report** with the team and prioritize Phase 1 tasks
 2. **Validate tab grouping** — Show the 5 proposed tabs to 2-3 practice managers; confirm the labels make sense
 3. **Contrast audit** — Run the current palette through a WCAG checker (e.g., WebAIM Contrast Checker) and document failures
 
 ### Short-Term (Next 2 Weeks)
+
 4. **Build Phase 1** — Group into tabs, add critical actions strip, make cards expandable, fix typography and colors
 5. **Prototype test** — Create a clickable prototype of the new Operations page and test with 3-5 users in their 50s
 
 ### Medium-Term (Next 2 Months)
+
 6. **Build Phase 2** — Role-based hiding, global search, smart defaults
 7. **Build Phase 3** — Pre-built role dashboards, role switcher, workspace presets, onboarding flow
 8. **Measure** — Track success metrics and iterate based on feedback
@@ -452,6 +477,7 @@ How will we know the redesign worked?
 ## Appendix A: Research Sources
 
 This report synthesizes findings from:
+
 - 6 parallel research sub-agents investigating 12 dimensions
 - 30+ cited web sources including Nielsen Norman Group, UXPin, Lollypop Design, Tim Graf, Design for Ducks, Context.dev, Eleken, Aufait UX, Denver.gov Style Guide, Inclusive Components (Heydon Pickering), and healthcare UX research from Neuron, Medesk, and Himcos
 - 7 healthcare SaaS product analyses: Jane App, Tebra, ChiroHD, AdvancedMD, NextGen, DrChrono, Athenahealth
@@ -460,7 +486,9 @@ This report synthesizes findings from:
 - John Maeda's Laws of Simplicity
 
 ### Research Files
+
 All raw research documents are available in `/Users/jakedom/concierge-os/research/`:
+
 - `phase2-dimension-decomposition.md` — 12 research dimensions defined
 - `dimension1-progressive-disclosure.md` — Progressive disclosure pattern library
 - `dimension2-information-architecture.md` — Operations page IA recommendations
@@ -475,6 +503,7 @@ All raw research documents are available in `/Users/jakedom/concierge-os/researc
 ## Appendix B: Design Token Quick Reference
 
 ### Typography
+
 ```
 --font-headline: Georgia, serif
 --font-body: Inter, sans-serif
@@ -492,6 +521,7 @@ All raw research documents are available in `/Users/jakedom/concierge-os/researc
 ```
 
 ### Colors
+
 ```
 --canvas: #f5f4ed
 --canvas-raised: #faf9f5
@@ -506,6 +536,7 @@ All raw research documents are available in `/Users/jakedom/concierge-os/researc
 ```
 
 ### Spacing
+
 ```
 --space-1: 8px (0.5rem)
 --space-2: 16px (1rem)
@@ -519,6 +550,7 @@ All raw research documents are available in `/Users/jakedom/concierge-os/researc
 ```
 
 ### Status Encoding (Always All Three)
+
 ```
 🟢 Complete: green dot + check icon + "Complete" text
 🟡 In Progress: amber dot + clock icon + "In Progress" text
@@ -528,4 +560,4 @@ All raw research documents are available in `/Users/jakedom/concierge-os/researc
 
 ---
 
-*This report was generated through systematic multi-dimensional research with cross-verified findings. All recommendations are evidence-based, implementable in React + Tailwind v4, and designed to preserve all existing functionality while dramatically improving usability for non-technical healthcare staff.*
+_This report was generated through systematic multi-dimensional research with cross-verified findings. All recommendations are evidence-based, implementable in React + Tailwind v4, and designed to preserve all existing functionality while dramatically improving usability for non-technical healthcare staff._

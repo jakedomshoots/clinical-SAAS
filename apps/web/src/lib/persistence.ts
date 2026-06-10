@@ -11,7 +11,9 @@ export function getStoredTab(): string | null {
 export function setStoredTab(tabId: string): void {
   try {
     localStorage.setItem(`${PREFIX}.active-tab`, tabId);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getStoredExpandedCards(): string[] {
@@ -26,7 +28,9 @@ export function getStoredExpandedCards(): string[] {
 export function setStoredExpandedCards(cards: string[]): void {
   try {
     localStorage.setItem(`${PREFIX}.expanded-cards`, JSON.stringify(cards));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getPinnedSections(role: string): string[] {
@@ -41,7 +45,9 @@ export function getPinnedSections(role: string): string[] {
 export function setPinnedSections(role: string, sections: string[]): void {
   try {
     localStorage.setItem(`${PREFIX}.pinned.${role}`, JSON.stringify(sections));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getHiddenSections(role: string): string[] {
@@ -56,14 +62,18 @@ export function getHiddenSections(role: string): string[] {
 export function setHiddenSections(role: string, sections: string[]): void {
   try {
     localStorage.setItem(`${PREFIX}.hidden.${role}`, JSON.stringify(sections));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function clearOperationsState(): void {
   try {
     localStorage.removeItem(`${PREFIX}.active-tab`);
     localStorage.removeItem(`${PREFIX}.expanded-cards`);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getOnboardingState(): { completed: boolean; sessions: number } {
@@ -79,7 +89,9 @@ export function getOnboardingState(): { completed: boolean; sessions: number } {
 export function setOnboardingCompleted(): void {
   try {
     localStorage.setItem('concierge-os.onboarding.completed', 'true');
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function incrementOnboardingSession(): number {

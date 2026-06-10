@@ -18,17 +18,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ## 1. Pattern Library: 8 Progressive Disclosure Patterns
 
 ### 1.1 Accordion (Collapsible Sections)
+
 **Description:** A vertically stacked list of headers that expand/collapse to show or hide content. Classic accordions allow only one open section at a time; toggle-style variants allow multiple open simultaneously [5].
 
 **Best Use Case:** Long pages with grouped content where users need to scan headings before deciding what to read. Ideal for FAQs, settings panels, and grouped configuration options [1][6].
 
 **Pros:**
+
 - Dramatically reduces vertical scroll length and initial cognitive load [7]
 - Users can scan all section titles at once before committing to any [8]
 - State can be persisted per user (remember which sections are open) [9]
 - Well-understood by non-technical users (common in Salesforce, SharePoint, document editors) [10]
 
 **Cons:**
+
 - Hiding content behind clicks reduces discoverability — users may miss information they don't know exists [11]
 - Opening many sections creates a "hunt-and-peck" experience; scrolling is often easier than repeated clicking [12]
 - Can break user mental models if expanding one section unexpectedly collapses another [11]
@@ -39,17 +42,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.2 Tabs (Horizontal or Vertical)
+
 **Description:** A navigation pattern that divides content into labeled sections, displaying only one panel at a time. Horizontal tabs are most common; vertical tabs work well for many categories [1][6].
 
 **Best Use Case:** Mutually exclusive content categories that users switch between frequently. Ideal for account settings, categorized analytics, or distinct operational workflows [6][13].
 
 **Pros:**
+
 - Creates strong information scent — labels clearly communicate what lives behind each tab [13]
 - Zero vertical displacement when switching; layout remains stable [6]
 - Users can quickly flip between categories to compare or cross-reference [11]
 - Familiar to virtually all users (browser tabs, file folders, physical binders) [14]
 
 **Cons:**
+
 - Horizontal tabs break down beyond ~5-7 items (wrapping or overflow) [12]
 - Hides content completely — users cannot scan across categories [11]
 - Switching tabs loses scroll position and context within the previous tab [6]
@@ -60,17 +66,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.3 Expandable Cards
+
 **Description:** Self-contained card components that expand inline (pushing content down) or overlay (floating above) to reveal additional detail. The card boundary provides a strong visual divider [15].
 
 **Best Use Case:** Dashboards with modular, independent data units where users need summary info at a glance but occasional access to deeper detail. Ideal for KPI cards, task cards, profile cards, and operational status cards [15][16].
 
 **Pros:**
+
 - Preserves spatial context — the card stays in place while expanding [15]
 - Summary information remains scannable even when collapsed [15]
 - Supports rich interactions within the expanded area (tables, forms, charts) [16]
 - Grid layouts feel organized and predictable [17]
 
 **Cons:**
+
 - Inline expansion disrupts grid layout and pushes surrounding cards down [15]
 - Overlay expansion can obscure adjacent content [15]
 - If most users expand every card, a simple list or table is more efficient [15]
@@ -81,17 +90,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.4 Modals / Dialogs
+
 **Description:** Overlay windows that capture focus and display detailed content without navigating away from the current page. Backdrop dimming signals a temporary context shift [1][6].
 
 **Best Use Case:** Record-level detail editing, confirmation flows, or complex forms that would clutter the main view. Ideal when the user needs focused attention on a single task [6][18].
 
 **Pros:**
+
 - Completely removes visual competition — 100% focus on the task [18]
 - User retains clear sense of "where they are" in the app hierarchy [11]
 - Easy to implement "cancel/close" as an escape hatch [6]
 - Standard pattern in enterprise software (Salesforce, Jira, etc.) [18]
 
 **Cons:**
+
 - Breaks flow for tasks that require referencing other page content [15]
 - Can feel heavy for simple actions; overuse creates "modal fatigue" [11]
 - Accessibility challenges: focus trapping, scroll locking, screen reader context [19]
@@ -102,17 +114,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.5 Drill-Down / Master-Detail (Side Panels)
+
 **Description:** Clicking a summary item opens a detail view in an adjacent panel (right side) or replaces the master view. Common in email clients, file explorers, and data tables [11][20].
 
 **Best Use Case:** Browsing through many records where users need to compare or rapidly scan details. Ideal for data tables, email inboxes, and record lists [11][20].
 
 **Pros:**
+
 - Maintains context — master list stays visible while detail is examined [11]
 - Supports rapid scanning: click row → view detail → click next row → view detail [20]
 - No page transitions; feels fast and responsive [20]
 - Side panels can be resized or dismissed, giving user control [21]
 
 **Cons:**
+
 - Requires significant horizontal real estate; problematic on smaller screens [20]
 - Empty state needed when no item is selected [20]
 - Can create visual imbalance if detail panel is much taller than master list [11]
@@ -123,17 +138,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.6 Step Wizard / Stepper
+
 **Description:** A multi-step process broken into sequential stages with a visual progress indicator. Each step reveals only the fields or actions relevant to that stage [1][6].
 
 **Best Use Case:** Linear workflows with dependencies between stages. Ideal for onboarding, complex forms, configuration wizards, and approval workflows [6][22].
 
 **Pros:**
+
 - Reduces perceived complexity — users see only one step at a time [6]
 - Progress indicator reduces anxiety and provides orientation [22]
 - Validates input at each stage, preventing error accumulation [22]
 - Strong match for healthcare workflows that are inherently sequential (e.g., patient intake, claim submission) [6]
 
 **Cons:**
+
 - Poor for non-linear exploration; users cannot jump between unrelated sections [11]
 - If steps are poorly defined, users feel trapped or uncertain about what's coming [22]
 - "Back" navigation must be carefully designed to preserve entered data [22]
@@ -144,17 +162,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.7 Collapsible Sections (Dashboard-Specific)
+
 **Description:** A dashboard-native pattern where entire sections (groups of tiles/widgets) can be collapsed to a header-only state. Popularized by Grafana, Datadog, and Kibana [21].
 
 **Best Use Case:** Dense operational dashboards with many widget groups. Ideal for power users who want to customize their view and for pages with primary/secondary content tiers [21][23].
 
 **Pros:**
+
 - Users control their own information density [21]
 - State persistence means the dashboard "remembers" user preferences [21]
 - "Expand all / Collapse all" controls provide quick reset [23]
 - Sections can be reordered when combined with drag-and-drop [21]
 
 **Cons:**
+
 - Requires clear visual hierarchy to distinguish section headers from content [23]
 - Edit controls (rename, delete, move) must be discoverable but not intrusive [21]
 - Overuse can make a dashboard feel like a "junk drawer" of hidden widgets [10]
@@ -165,17 +186,20 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ---
 
 ### 1.8 Tooltips & Hover Cards
+
 **Description:** Lightweight overlays that appear on hover or focus, revealing supplementary information without requiring a click [1][6].
 
 **Best Use Case:** Definitions, quick stats, or context that enhances understanding without being essential. Ideal for explaining jargon, showing data point details, or previewing content [6][20].
 
 **Pros:**
+
 - Zero-click access to supplementary info [6]
 - Does not disrupt layout or flow [20]
 - Excellent for onboarding and educating users about unfamiliar metrics [20]
 - Can include rich content: charts, images, links [20]
 
 **Cons:**
+
 - Completely inaccessible on touch devices (no hover) [16]
 - Can obscure underlying content [11]
 - Easy to overuse — too many tooltips create "hover anxiety" [11]
@@ -188,6 +212,7 @@ The recommended architecture for ConciergeOS Operations is a **hybrid approach**
 ## 2. Healthcare-Specific Considerations
 
 ### 2.1 The Non-Technical, Mid-50s User Profile
+
 Healthcare practice managers in their 50s are often highly experienced in clinical or administrative workflows but may have limited exposure to complex SaaS interfaces. Research on enterprise UX for diverse user populations highlights several critical factors [3][4][18]:
 
 - **Cognitive load sensitivity increases with age.** Working memory and visual processing speed decline gradually, making dense interfaces disproportionately harder to navigate [3][4]. Progressive disclosure is not merely helpful — it is essential for accessibility.
@@ -197,20 +222,21 @@ Healthcare practice managers in their 50s are often highly experienced in clinic
 
 ### 2.2 Pattern Suitability for Healthcare Staff
 
-| Pattern | Suitability for Non-Technical Healthcare Staff | Rationale |
-|---------|----------------------------------------------|-----------|
-| **Tabs** | ⭐⭐⭐⭐⭐ Excellent | Familiar from physical file folders, browsers, and EMR systems. Strong information scent. |
-| **Accordions** | ⭐⭐⭐⭐☆ Very Good | Common in patient portals, insurance sites, and FAQ pages. Must allow multiple open (toggle style). |
-| **Expandable Cards** | ⭐⭐⭐⭐☆ Very Good | Card metaphor is universally understood. Summary + detail matches how staff review patient charts. |
-| **Modals** | ⭐⭐⭐☆☆ Good | Acceptable for focused tasks (editing a record) but can feel disruptive. Must have clear close buttons. |
-| **Drill-Down / Side Panel** | ⭐⭐⭐⭐☆ Very Good | Excellent for reviewing lists of records (patients, claims, staff). Maintains context. |
-| **Step Wizard** | ⭐⭐⭐⭐⭐ Excellent | Ideal for compliance workflows (credentialing, policy approval) that are inherently sequential. |
-| **Collapsible Sections** | ⭐⭐☆☆☆ Fair | Too abstract for non-technical users unless paired with strong icons and labels. Better for power users. |
-| **Tooltips** | ⭐⭐⭐☆☆ Good | Helpful for explaining medical/billing jargon. Must be touch-friendly (click to open on mobile). |
+| Pattern                     | Suitability for Non-Technical Healthcare Staff | Rationale                                                                                                |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| **Tabs**                    | ⭐⭐⭐⭐⭐ Excellent                           | Familiar from physical file folders, browsers, and EMR systems. Strong information scent.                |
+| **Accordions**              | ⭐⭐⭐⭐☆ Very Good                            | Common in patient portals, insurance sites, and FAQ pages. Must allow multiple open (toggle style).      |
+| **Expandable Cards**        | ⭐⭐⭐⭐☆ Very Good                            | Card metaphor is universally understood. Summary + detail matches how staff review patient charts.       |
+| **Modals**                  | ⭐⭐⭐☆☆ Good                                  | Acceptable for focused tasks (editing a record) but can feel disruptive. Must have clear close buttons.  |
+| **Drill-Down / Side Panel** | ⭐⭐⭐⭐☆ Very Good                            | Excellent for reviewing lists of records (patients, claims, staff). Maintains context.                   |
+| **Step Wizard**             | ⭐⭐⭐⭐⭐ Excellent                           | Ideal for compliance workflows (credentialing, policy approval) that are inherently sequential.          |
+| **Collapsible Sections**    | ⭐⭐☆☆☆ Fair                                   | Too abstract for non-technical users unless paired with strong icons and labels. Better for power users. |
+| **Tooltips**                | ⭐⭐⭐☆☆ Good                                  | Helpful for explaining medical/billing jargon. Must be touch-friendly (click to open on mobile).         |
 
 **Sources:** [3] Neuron UX 2026; [4] Context.dev 2025; [14] OpenELIS Lab Dashboard; [18] Modern.tech Enterprise UX 2026
 
 ### 2.3 Accessibility Imperatives
+
 Healthcare software must meet high accessibility standards, both for compliance and because the user population includes people with age-related vision and motor changes [4][19]:
 
 - **WCAG 2.1 Level AA minimum** for color contrast, keyboard navigation, and screen reader support [4]
@@ -275,13 +301,13 @@ Clicking a row in a data grid opens a focused detail view for editing.
 
 Based on typical healthcare practice management workflows, the sections should be grouped into **4-5 top-level tabs**:
 
-| Tab | Sections | Rationale |
-|-----|----------|-----------|
-| **Pre-Launch** | Live-Use Rehearsal, Credential Binder, Browser QA, Staff Training, Equipment Checklist | All activities that must be completed *before* go-live. |
-| **Compliance** | Policy Approval, Role Dry-Run, Audit Trail, Regulatory Checklist | Governance and risk management activities. |
-| **Go-Live** | Cutover Runbook, Launch Checklist, Rollback Plan, Communication Log | Activities on launch day and immediate contingency. |
-| **Operations** | Support Queue, Incident Log, Feedback Log, Optimization Backlog | Ongoing daily/weekly operational management. |
-| **Reports** | (Analytics dashboards, exportable summaries) | Read-only analytics that don't fit the action-oriented tabs. |
+| Tab            | Sections                                                                               | Rationale                                                    |
+| -------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Pre-Launch** | Live-Use Rehearsal, Credential Binder, Browser QA, Staff Training, Equipment Checklist | All activities that must be completed _before_ go-live.      |
+| **Compliance** | Policy Approval, Role Dry-Run, Audit Trail, Regulatory Checklist                       | Governance and risk management activities.                   |
+| **Go-Live**    | Cutover Runbook, Launch Checklist, Rollback Plan, Communication Log                    | Activities on launch day and immediate contingency.          |
+| **Operations** | Support Queue, Incident Log, Feedback Log, Optimization Backlog                        | Ongoing daily/weekly operational management.                 |
+| **Reports**    | (Analytics dashboards, exportable summaries)                                           | Read-only analytics that don't fit the action-oriented tabs. |
 
 This grouping follows the **temporal workflow** of a practice manager: "What do I do before launch?" → "What do I do on launch day?" → "What do I do every day after?" Temporal grouping is more intuitive than functional grouping for non-technical users [11][22].
 
@@ -301,15 +327,15 @@ This grouping follows the **temporal workflow** of a practice manager: "What do 
 
 ### 4.1 Component Stack Recommendation
 
-| Pattern | Recommended Implementation | Rationale |
-|---------|------------------------------|-----------|
-| **Tabs** | Radix UI `Tabs` primitive + Tailwind styling | WAI-ARIA compliant, keyboard navigation, focus management out of the box [19] |
-| **Expandable Cards** | Custom React component with `framer-motion` for height animation | Radix UI `Collapsible` is also suitable; Framer Motion provides smoother inline expansion [15][19] |
-| **Accordions** | Radix UI `Accordion` primitive | Handles single/multiple open modes, keyboard navigation, ARIA attributes automatically [19] |
-| **Modals** | Radix UI `Dialog` primitive | Focus trapping, scroll locking, escape-to-close, and screen reader announcements built in [19] |
-| **Side Panels** | Radix UI `Dialog` with custom positioning, or custom slide-over | Radix Dialog supports custom portal containers; for persistent side panels, a custom layout component may be simpler |
-| **Step Wizard** | Custom component with Radix `Progress` or custom step indicator | Linear flow is straightforward to build; state management via React context or URL params |
-| **Tooltips** | Radix UI `Tooltip` primitive | Handles hover, focus, and touch interactions; includes collision detection [19] |
+| Pattern              | Recommended Implementation                                       | Rationale                                                                                                            |
+| -------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| **Tabs**             | Radix UI `Tabs` primitive + Tailwind styling                     | WAI-ARIA compliant, keyboard navigation, focus management out of the box [19]                                        |
+| **Expandable Cards** | Custom React component with `framer-motion` for height animation | Radix UI `Collapsible` is also suitable; Framer Motion provides smoother inline expansion [15][19]                   |
+| **Accordions**       | Radix UI `Accordion` primitive                                   | Handles single/multiple open modes, keyboard navigation, ARIA attributes automatically [19]                          |
+| **Modals**           | Radix UI `Dialog` primitive                                      | Focus trapping, scroll locking, escape-to-close, and screen reader announcements built in [19]                       |
+| **Side Panels**      | Radix UI `Dialog` with custom positioning, or custom slide-over  | Radix Dialog supports custom portal containers; for persistent side panels, a custom layout component may be simpler |
+| **Step Wizard**      | Custom component with Radix `Progress` or custom step indicator  | Linear flow is straightforward to build; state management via React context or URL params                            |
+| **Tooltips**         | Radix UI `Tooltip` primitive                                     | Handles hover, focus, and touch interactions; includes collision detection [19]                                      |
 
 **Sources:** [15] Design for Ducks 2025; [19] Radix UI / Reece Johnson 2022
 
@@ -318,6 +344,7 @@ This grouping follows the **temporal workflow** of a practice manager: "What do 
 The app uses a warm, approachable palette: `#f5f4ed` canvas, `#c96442` terracotta accent, Georgia serif headlines, Inter sans-serif body. Progressive disclosure controls must feel tactile and trustworthy, not clinical.
 
 **Tab Styling:**
+
 ```
 /* Active tab */
 bg-white border-b-2 border-[#c96442] text-[#2d2a26] font-medium
@@ -328,11 +355,13 @@ bg-transparent border-b-2 border-transparent text-[#6b6560] hover:text-[#2d2a26]
 /* Tab container */
 bg-[#f5f4ed] border-b border-[#e5e3d9]
 ```
+
 - Use `px-5 py-3` for generous tap targets (minimum 44px height) [16]
 - Active tab uses terracotta underline, not a filled background, to maintain the warm aesthetic
 - Tab text in Inter, 14px, medium weight
 
 **Expandable Card Styling:**
+
 ```
 /* Card container */
 bg-white rounded-lg border border-[#e5e3d9] shadow-sm hover:shadow-md transition-shadow
@@ -346,12 +375,14 @@ p-4 pt-0 border-t border-[#e5e3d9] overflow-hidden
 /* Chevron icon */
 transition-transform duration-200 rotate-0 data-[expanded=true]:rotate-180
 ```
+
 - Card border color `#e5e3d9` (slightly darker than canvas) provides subtle definition without harsh contrast
 - Hover state adds `shadow-md` to signal interactivity
 - Chevron rotation animation (200ms) provides clear state feedback [15]
 - Use `caret` (chevron) icon, not plus/minus — research shows carets are the most reliable expand indicator [15]
 
 **Modal Styling:**
+
 ```
 /* Backdrop */
 bg-[#2d2a26]/40 backdrop-blur-sm
@@ -365,11 +396,13 @@ p-6 border-b border-[#e5e3d9] flex items-center justify-between
 /* Close button */
 text-[#6b6560] hover:text-[#c96442] p-2 rounded-full hover:bg-[#f5f4ed]
 ```
+
 - Rounded corners (`rounded-xl`) feel warmer than sharp corners
 - Backdrop uses warm dark tone, not pure black
 - Modal enters with `scale-95 opacity-0` → `scale-100 opacity-100` transition (150ms ease-out)
 
 **Accordion Styling (if used instead of cards):**
+
 ```
 /* Accordion item */
 border-b border-[#e5e3d9] last:border-b-0
@@ -380,6 +413,7 @@ w-full flex items-center justify-between py-4 px-4 text-left hover:bg-[#faf9f5]
 /* Accordion content */
 overflow-hidden transition-all data-[state=open]:animate-accordion-down
 ```
+
 - Use `animate-accordion-down` and `animate-accordion-up` Tailwind animations for smooth height transitions
 - Padding `py-4` ensures generous tap targets
 
@@ -397,15 +431,18 @@ overflow-hidden transition-all data-[state=open]:animate-accordion-down
 ### 4.4 State Management Patterns
 
 **Tab State:**
+
 - Persist active tab in URL query param (`?tab=pre-launch`) so back button and bookmarks work
 - Default to the tab with the most urgent open items (e.g., if Credential Binder has expiring items, default to Pre-Launch)
 
 **Expandable Card State:**
+
 - Persist open/closed state per user in localStorage or backend user preferences [9][21]
 - Default all cards to **collapsed** on first visit to reduce overwhelm [21]
 - Exception: Cards with active alerts should default to **expanded** so critical information is visible [20]
 
 **Modal vs Side Panel Decision Tree:**
+
 ```
 IF task requires cross-referencing other page content → Side Panel
 IF task is focused and self-contained (edit one record) → Modal

@@ -569,7 +569,13 @@ export interface ProductionRehearsalReport {
 
 export interface LaunchWorkplanItem {
   key: string;
-  source: 'rehearsal' | 'incident' | 'launch_requirement' | 'credential_preflight' | 'vendor_handoff_archive' | 'integration_cutover';
+  source:
+    | 'rehearsal'
+    | 'incident'
+    | 'launch_requirement'
+    | 'credential_preflight'
+    | 'vendor_handoff_archive'
+    | 'integration_cutover';
   category: string;
   label: string;
   detail: string;

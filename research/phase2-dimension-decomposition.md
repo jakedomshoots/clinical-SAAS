@@ -1,9 +1,11 @@
 # ConciergeOS UX Research — Phase 2: Dimension Decomposition
 
 ## Research Goal
+
 Transform ConciergeOS from a data-dense, "AI-slop" interface into an intuitive, polished SaaS product that a mid-50s non-technical healthcare practice manager can use confidently. Keep all current functionality — just present it better.
 
 ## Problem Statement
+
 The Operations page has 20+ sections with dense data grids. The UI feels busy and overwhelming. Words bunch up in cramped layouts. The app has solid bones (navigation, data, API integration) but poor information architecture and visual presentation.
 
 ## Landscape Scan Summary (Phase 1)
@@ -31,61 +33,73 @@ The Operations page has 20+ sections with dense data grids. The UI feels busy an
 ## Research Dimensions (Phase 3)
 
 ### Dimension 1: Progressive Disclosure Patterns for Dense Dashboards
+
 **Question**: What specific UI patterns (accordions, tabs, modals, expandable cards, drill-downs) work best for healthcare operations dashboards with 20+ sections?  
 **Sources**: SaaS design blogs, UX case studies, healthcare dashboard examples  
 **Deliverable**: Pattern library with pros/cons for each, plus specific recommendations for ConciergeOS's 20+ operations sections.
 
 ### Dimension 2: Information Architecture for Complex Operations Pages
+
 **Question**: How should 20+ operational sections (Credential Binder, Browser QA, Staff Training, Policy Approval, Role Dry-Run, Cutover Runbook, etc.) be organized so users find what they need in <3 seconds?  
 **Sources**: IA best practices, card sorting research, healthcare workflow studies  
 **Deliverable**: Recommended grouping strategy, section hierarchy, and navigation structure.
 
 ### Dimension 3: Visual Hierarchy & Typography for Non-Technical Users (50s+)
+
 **Question**: What font sizes, contrast ratios, spacing, and color strategies make dense data readable for users with declining vision and low tech confidence?  
 **Sources**: WCAG 2.1/3.0, aging usability research, healthcare accessibility guidelines  
 **Deliverable**: Specific typography scale, spacing system, and color recommendations for ConciergeOS.
 
 ### Dimension 4: Cognitive Load Reduction in Healthcare SaaS
+
 **Question**: What specific techniques reduce extraneous cognitive load while preserving all functionality? How do we apply chunking, Miller's Law, and Gestalt principles to the Operations page?  
 **Sources**: Cognitive Load Theory research, NNG form design principles, healthcare UX case studies  
 **Deliverable**: Actionable checklist of cognitive load reduction techniques with before/after examples.
 
 ### Dimension 5: Role-Based UI Personalization Patterns
+
 **Question**: How do successful SaaS products implement role-based views? What would a receptionist vs. practice manager vs. clinician see differently in ConciergeOS?  
 **Sources**: AssetSonar, Demandbase, Fanruan documentation, SaaS personalization research  
 **Deliverable**: Role-based dashboard template recommendations for ConciergeOS.
 
 ### Dimension 6: Onboarding & Guided Experiences for Complex Software
+
 **Question**: How do we introduce 20+ operations sections to a new user without overwhelming them? What onboarding patterns work for non-technical healthcare staff?  
 **Sources**: SaaS onboarding research, Notion/Slack onboarding case studies, healthcare software training  
 **Deliverable**: Recommended onboarding flow with progressive feature introduction.
 
 ### Dimension 7: Data Visualization & Status Indicators for Non-Technical Users
+
 **Question**: How should status indicators (pass/fail/pending), metrics, and progress bars be designed so they're instantly understandable without interpretation?  
 **Sources**: Data visualization best practices, healthcare status indicator research, color psychology  
 **Deliverable**: Status indicator design system recommendations.
 
 ### Dimension 8: Navigation Patterns for Multi-Module Healthcare Apps
+
 **Question**: What navigation patterns (sidebar, top nav, breadcrumbs, command palette, global search) work best for apps with 10+ modules and 20+ sub-sections?  
 **Sources**: Navigation UX research, healthcare app navigation patterns, SaaS navigation benchmarks  
 **Deliverable**: Recommended navigation architecture for ConciergeOS.
 
 ### Dimension 9: Micro-Interactions & Feedback Design
+
 **Question**: What subtle animations, hover states, and confirmation feedback make the app feel polished and responsive without being distracting?  
 **Sources**: Micro-interaction design research, SaaS animation benchmarks  
 **Deliverable**: Micro-interaction guidelines for ConciergeOS.
 
 ### Dimension 10: Healthcare SaaS UX Benchmarks — Deep Dive
+
 **Question**: What specific UI decisions make Jane App, Tebra, ChiroHD, and AdvancedMD successful? What can we copy/adapt for ConciergeOS?  
 **Sources**: Product screenshots, review analysis, UX teardowns  
 **Deliverable**: Benchmark comparison matrix with actionable takeaways.
 
 ### Dimension 11: Simplification Without Feature Loss — Enterprise Patterns
+
 **Question**: How do enterprise products like Salesforce, HubSpot, and Notion hide complexity while keeping power features accessible?  
 **Sources**: Enterprise UX case studies, progressive disclosure research, power user mode patterns  
 **Deliverable**: Feature-tiering strategy for ConciergeOS (essential/secondary/advanced).
 
 ### Dimension 12: Accessibility & Readability for Aging Users
+
 **Question**: What specific WCAG and beyond-WCAG practices make software usable for users in their 50s-60s with potential vision, motor, and cognitive changes?  
 **Sources**: WCAG 2.1/3.0, aging and accessibility research, AARP digital literacy studies  
 **Deliverable**: Accessibility checklist specifically for the 50+ demographic.
@@ -109,9 +123,11 @@ After all dimensions are researched, we will synthesize across:
 ---
 
 ## Research Output Location
+
 All dimension research files will be saved to `/Users/jakedom/concierge-os/research/`
 
 ## Success Criteria
+
 - Each dimension produces 3-5 actionable findings with specific UI recommendations
 - Cross-dimension synthesis produces a unified redesign strategy
 - All recommendations are implementable in React + Tailwind v4

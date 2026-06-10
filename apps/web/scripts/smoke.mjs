@@ -72,11 +72,15 @@ async function assertAssets(html) {
   }
 }
 
-const child = spawn('pnpm', ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'], {
-  cwd: new URL('..', import.meta.url),
-  detached: true,
-  stdio: ['ignore', 'pipe', 'pipe'],
-});
+const child = spawn(
+  'pnpm',
+  ['exec', 'vite', 'preview', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
+  {
+    cwd: new URL('..', import.meta.url),
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }
+);
 
 let stderr = '';
 child.stderr.on('data', (chunk) => {

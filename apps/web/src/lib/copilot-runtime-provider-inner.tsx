@@ -35,7 +35,8 @@ export default function CopilotRuntimeProviderInner({
         labels={{
           modalHeaderTitle: 'Concierge OS Copilot',
           chatInputPlaceholder: 'Ask about the current queue or stage a confirmed action...',
-          welcomeMessageText: 'I can help inspect the current operational context and prepare staff-confirmed actions.',
+          welcomeMessageText:
+            'I can help inspect the current operational context and prepare staff-confirmed actions.',
         }}
       />
     </CopilotKitProvider>

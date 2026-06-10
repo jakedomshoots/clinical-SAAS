@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils";
-import type { LucideIcon } from "lucide-react";
+import { cn } from '@/lib/utils';
+import type { LucideIcon } from 'lucide-react';
 import {
   ChevronDown,
   ChevronRight,
@@ -7,14 +7,14 @@ import {
   Clock,
   AlertTriangle,
   Circle,
-} from "lucide-react";
-import { useState, type ReactNode } from "react";
+} from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 
 interface ExpandableCardProps {
   title: string;
   icon?: LucideIcon;
   subtitle?: string;
-  status: "complete" | "in-progress" | "needs-attention" | "not-started";
+  status: 'complete' | 'in-progress' | 'needs-attention' | 'not-started';
   countComplete?: number;
   countPending?: number;
   countUrgent?: number;
@@ -24,19 +24,19 @@ interface ExpandableCardProps {
 
 const statusConfig = {
   complete: {
-    dot: "bg-success",
+    dot: 'bg-success',
     icon: CheckCircle2,
   },
-  "in-progress": {
-    dot: "bg-warn",
+  'in-progress': {
+    dot: 'bg-warn',
     icon: Clock,
   },
-  "needs-attention": {
-    dot: "bg-danger",
+  'needs-attention': {
+    dot: 'bg-danger',
     icon: AlertTriangle,
   },
-  "not-started": {
-    dot: "bg-ink-faint",
+  'not-started': {
+    dot: 'bg-ink-faint',
     icon: Circle,
   },
 };
@@ -67,14 +67,10 @@ export function ExpandableCard({
           {Icon && <Icon className="h-5 w-5 text-ink-muted" />}
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-subhead font-semibold text-ink">
-                {title}
-              </span>
+              <span className="text-subhead font-semibold text-ink">{title}</span>
               <StatusIcon className="h-4 w-4 text-ink-muted" />
             </div>
-            {subtitle && (
-              <span className="text-small text-ink-muted">{subtitle}</span>
-            )}
+            {subtitle && <span className="text-small text-ink-muted">{subtitle}</span>}
           </div>
         </div>
 
@@ -109,8 +105,8 @@ export function ExpandableCard({
 
       <div
         className={cn(
-          "grid transition-all duration-300 ease-in-out",
-          expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"
+          'grid transition-all duration-300 ease-in-out',
+          expanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
         )}
       >
         <div className="overflow-hidden">

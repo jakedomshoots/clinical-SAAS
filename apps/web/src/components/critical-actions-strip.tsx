@@ -1,10 +1,10 @@
-import { cn } from "@/lib/utils";
-import { StatusDot } from "./status-dot";
+import { cn } from '@/lib/utils';
+import { StatusDot } from './status-dot';
 
 interface CriticalAction {
   label: string;
   count: number;
-  status: "complete" | "in-progress" | "needs-attention";
+  status: 'complete' | 'in-progress' | 'needs-attention';
   tabId: string;
   sectionId?: string;
 }
@@ -14,11 +14,8 @@ interface CriticalActionsStripProps {
   onActionClick?: (action: CriticalAction) => void;
 }
 
-export function CriticalActionsStrip({
-  actions,
-  onActionClick,
-}: CriticalActionsStripProps) {
-  const urgentActions = actions.filter((a) => a.status === "needs-attention");
+export function CriticalActionsStrip({ actions, onActionClick }: CriticalActionsStripProps) {
+  const urgentActions = actions.filter((a) => a.status === 'needs-attention');
 
   if (urgentActions.length === 0) {
     return (
@@ -38,8 +35,8 @@ export function CriticalActionsStrip({
           type="button"
           onClick={() => onActionClick?.(action)}
           className={cn(
-            "inline-flex items-center gap-2 text-small text-ink-secondary",
-            "hover:text-ink transition-colors cursor-pointer"
+            'inline-flex items-center gap-2 text-small text-ink-secondary',
+            'hover:text-ink transition-colors cursor-pointer'
           )}
         >
           <StatusDot status={action.status} showLabel={false} size="sm" />

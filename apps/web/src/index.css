@@ -39,12 +39,12 @@
   --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
 
   /* Typography — Font Families */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-serif: "Georgia", "Times New Roman", "Libre Baskerville", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-serif: 'Georgia', 'Times New Roman', 'Libre Baskerville', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 
   /* Typography — Text Sizes */
-  --text-display: 1.75rem;
+  --text-display: 1.5rem;
   --text-display--line-height: 1.1;
   --text-display--letter-spacing: -0.02em;
   --text-display--font-weight: 500;
@@ -58,15 +58,15 @@
   --text-subhead--line-height: 1.3;
   --text-subhead--font-weight: 500;
 
-  --text-body: 1.125rem;
-  --text-body--line-height: 1.6;
+  --text-body: 0.875rem;
+  --text-body--line-height: 1.5;
   --text-body--font-weight: 400;
 
-  --text-small: 0.875rem;
-  --text-small--line-height: 1.5;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.4;
   --text-small--font-weight: 400;
 
-  --text-meta: 0.875rem;
+  --text-meta: 0.8125rem;
   --text-meta--line-height: 1.4;
   --text-meta--letter-spacing: 0.01em;
   --text-meta--font-weight: 500;
@@ -121,5 +121,86 @@
 
   * {
     @apply border-border;
+  }
+}
+
+.dark {
+  --color-canvas: #121211;
+  --color-canvas-raised: #1a1a19;
+  --color-canvas-sunk: #0b0b0a;
+  --color-canvas-dark: #faf9f5;
+  --color-ink: #f3f2ee;
+  --color-ink-secondary: #d1cfc7;
+  --color-ink-muted: #9d9b93;
+  --color-ink-faint: #6d6b63;
+  --color-ink-on-dark: #121211;
+  --color-border: #242422;
+  --color-border-strong: #333330;
+  --color-border-subtle: rgba(243, 242, 238, 0.06);
+}
+
+
+@layer components {
+  /* ── Shared button base ─────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md
+           px-3 py-1.5 text-small font-medium
+           transition-colors duration-150 cursor-pointer
+           active:scale-[0.98] active:transition-transform active:duration-75
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-sm {
+    @apply px-2.5 py-1 text-micro;
+  }
+
+  /* Variants */
+  .btn-primary {
+    @apply bg-accent text-accent-on hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply border border-border bg-canvas-raised text-ink-secondary
+           hover:border-border-strong hover:bg-canvas-sunk;
+  }
+
+  .btn-ghost {
+    @apply text-ink-muted hover:text-ink hover:bg-canvas-sunk;
+  }
+
+  .btn-accent-soft {
+    @apply border border-accent-soft bg-accent-soft text-accent
+           hover:bg-accent hover:text-accent-on;
+  }
+
+  .btn-warn {
+    @apply border border-warn/30 bg-warn/10 text-warn-text
+           hover:bg-warn hover:text-canvas-raised;
+  }
+
+  .btn-danger {
+    @apply border border-danger/20 bg-danger/10 text-danger
+           hover:bg-danger hover:text-white;
+  }
+
+  /* ── Action group: evenly-spaced row of small action buttons ────── */
+  .action-group {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  /* ── Tab pill group ─────────────────────────────────────────────── */
+  .tab-pill {
+    @apply rounded-md px-3 py-1.5 text-small font-medium
+           transition-colors duration-150 cursor-pointer
+           active:scale-[0.98];
+  }
+
+  .tab-pill-active {
+    @apply bg-accent text-accent-on;
+  }
+
+  .tab-pill-inactive {
+    @apply border border-border bg-canvas-raised text-ink-secondary
+           hover:border-border-strong hover:bg-canvas-sunk;
   }
 }

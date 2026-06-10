@@ -9,7 +9,7 @@
     "beforeDevCommand": "pnpm dev",
     "beforeBuildCommand": "pnpm build"
   },
-  "app": {,
+  "app": {
     "windows": [
       {
         "title": "ConciergeOS Server",

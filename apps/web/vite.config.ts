@@ -6,7 +6,11 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ target: 'react', autoCodeSplitting: true, routesDirectory: 'src/router/routes' }),
+    TanStackRouterVite({
+      target: 'react',
+      autoCodeSplitting: true,
+      routesDirectory: 'src/router/routes',
+    }),
     react(),
     tailwindcss(),
   ],

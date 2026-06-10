@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/toast';
 import { useState } from 'react';
 import { useApi } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
@@ -20,14 +21,25 @@ const RECIPIENTS = [
   { id: '00000000-0000-4000-8000-000000000005', name: 'Sam Rivera' },
 ];
 
+const MESSAGE_TEMPLATES = [
+  { label: 'Check-in instructions', text: 'Hi, this is ConciergeOS. Please arrive 15 minutes before your scheduled appointment time and bring a valid photo ID and insurance card. Let us know if you need to reschedule.' },
+  { label: 'Missing documents', text: 'Hi, we are still missing some intake documents for your upcoming visit. Please click the portal link to fill out the Patient Intake Form before your appointment.' },
+  { label: 'Billing inquiry update', text: 'Hello, we have reviewed your insurance claim. The eligibility check has passed and your estimated copay is now updated in the billing center.' },
+  { label: 'Post-visit care check', text: 'Hi, we are checking in after your recent visit. How are you feeling? If you have any questions about your care plan, please reply here.' }
+];
+
 export const Route = createFileRoute('/messaging/')({
   component: MessagesPage,
 });
 
+import { useDocumentTitle } from '@/hooks/use-document-title';
+
 function MessagesPage() {
+  useDocumentTitle('Messages');
   const api = useApi();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const toast = useToast();
   const [selectedThread, setSelectedThread] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [newSubject, setNewSubject] = useState('');
@@ -35,12 +47,22 @@ function MessagesPage() {
   const [replyMessage, setReplyMessage] = useState('');
   const [showCompose, setShowCompose] = useState(false);
 
-  const { data: threads, isLoading: threadsLoading, isError: threadsError, error: threadError } = useQuery({
+  const {
+    data: threads,
+    isLoading: threadsLoading,
+    isError: threadsError,
+    error: threadError,
+  } = useQuery({
     queryKey: [...QUERY_KEYS.MESSAGES, 'threads'],
     queryFn: () => api.get<ThreadListResponse>('/messages/threads'),
   });
 
-  const { data: messages, isLoading: msgsLoading, isError: messagesError, error: messageError } = useQuery({
+  const {
+    data: messages,
+    isLoading: msgsLoading,
+    isError: messagesError,
+    error: messageError,
+  } = useQuery({
     queryKey: [...QUERY_KEYS.MESSAGES, 'threads', selectedThread],
     queryFn: () => {
       if (!selectedThread) return [];
@@ -50,15 +72,26 @@ function MessagesPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (data: { recipient_id: string; subject: string; body: string; thread_id?: string }) =>
-      api.post('/messages', data),
+    mutationFn: (data: {
+      recipient_id: string;
+      subject: string;
+      body: string;
+      thread_id?: string;
+    }) => api.post('/messages', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.MESSAGES, 'threads'] });
-      if (selectedThread) queryClient.invalidateQueries({ queryKey: [...QUERY_KEYS.MESSAGES, 'threads', selectedThread] });
+      if (selectedThread)
+        queryClient.invalidateQueries({
+          queryKey: [...QUERY_KEYS.MESSAGES, 'threads', selectedThread],
+        });
       setNewMessage('');
       setNewSubject('');
       setReplyMessage('');
       setShowCompose(false);
+      toast.success('Message sent successfully');
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to send message');
     },
   });
 
@@ -66,16 +99,15 @@ function MessagesPage() {
     <div>
       <div className="mb-6">
         <h1 className="font-serif text-display text-ink">Messages</h1>
-        <p className="text-small text-ink-muted mt-1">Patient and staff conversations stay draftable until a human sends them.</p>
+        <p className="text-small text-ink-muted mt-1">
+          Patient and staff conversations stay draftable until a human sends them.
+        </p>
       </div>
 
       <div className="flex min-h-[32rem] flex-col gap-0 overflow-hidden border border-border lg:flex-row">
         <div className="max-h-80 shrink-0 border-b border-border flex flex-col lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r">
           <div className="border-b border-border p-3">
-            <button
-              onClick={() => setShowCompose(true)}
-              className="w-full rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover"
-            >
+            <button onClick={() => setShowCompose(true)} className="w-full btn btn-primary">
               New Message
             </button>
           </div>
@@ -84,7 +116,14 @@ function MessagesPage() {
               <LoadingState label="Loading threads" />
             ) : threadsError ? (
               <div className="p-3">
-                <ErrorState title="Unable to load messages" detail={threadError instanceof Error ? threadError.message : 'Message threads could not be loaded.'} />
+                <ErrorState
+                  title="Unable to load messages"
+                  detail={
+                    threadError instanceof Error
+                      ? threadError.message
+                      : 'Message threads could not be loaded.'
+                  }
+                />
               </div>
             ) : (
               threads?.data.map((thread) => (
@@ -96,7 +135,9 @@ function MessagesPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-small truncate max-w-[200px] ${thread.unread_count > 0 ? 'font-medium text-ink' : 'text-ink-muted'}`}>
+                    <span
+                      className={`text-small truncate max-w-[200px] ${thread.unread_count > 0 ? 'font-medium text-ink' : 'text-ink-muted'}`}
+                    >
                       {thread.subject}
                     </span>
                     {thread.unread_count > 0 && (
@@ -120,7 +161,15 @@ function MessagesPage() {
                 title="No messages yet"
                 detail="Start a new patient or staff conversation, or seed demo conversations from Setup."
                 icon={MessageSquare}
-                action={<button type="button" onClick={() => setShowCompose(true)} className="rounded-md bg-accent px-3 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover">New message</button>}
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setShowCompose(true)}
+                    className="btn btn-primary"
+                  >
+                    New message
+                  </button>
+                }
               />
             )}
           </div>
@@ -137,7 +186,9 @@ function MessagesPage() {
                   className="w-full bg-canvas border border-border rounded-sm px-3 py-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent-soft"
                 >
                   {RECIPIENTS.map((recipient) => (
-                    <option key={recipient.id} value={recipient.id}>{recipient.name}</option>
+                    <option key={recipient.id} value={recipient.id}>
+                      {recipient.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -150,6 +201,26 @@ function MessagesPage() {
                   placeholder="Subject"
                 />
               </div>
+              <div className="mb-2">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className="text-micro font-medium text-ink-muted self-center mr-1">Templates:</span>
+                  {MESSAGE_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.label}
+                      type="button"
+                      onClick={() => {
+                        setNewMessage(tmpl.text);
+                        if (!newSubject) {
+                          setNewSubject(tmpl.label);
+                        }
+                      }}
+                      className="rounded-pill bg-canvas-sunk border border-border px-2 py-0.5 text-micro text-ink hover:bg-border transition-colors duration-150 cursor-pointer"
+                    >
+                      {tmpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex gap-2">
                 <textarea
                   value={newMessage}
@@ -161,13 +232,21 @@ function MessagesPage() {
                 <button
                   onClick={() => {
                     if (recipientId && newSubject && newMessage) {
-                      sendMutation.mutate({ recipient_id: recipientId, subject: newSubject, body: newMessage });
+                      sendMutation.mutate({
+                        recipient_id: recipientId,
+                        subject: newSubject,
+                        body: newMessage,
+                      });
                     }
                   }}
                   disabled={sendMutation.isPending || !recipientId || !newSubject || !newMessage}
-                  className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50 self-end"
+                  className="btn btn-primary self-end"
                 >
-                  {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {sendMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </div>
@@ -179,19 +258,36 @@ function MessagesPage() {
                 {msgsLoading ? (
                   <LoadingState label="Loading conversation" />
                 ) : messagesError ? (
-                  <ErrorState title="Unable to load conversation" detail={messageError instanceof Error ? messageError.message : 'This conversation could not be loaded.'} />
+                  <ErrorState
+                    title="Unable to load conversation"
+                    detail={
+                      messageError instanceof Error
+                        ? messageError.message
+                        : 'This conversation could not be loaded.'
+                    }
+                  />
                 ) : (
                   messages?.map((msg) => (
-                    <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-md rounded-lg px-4 py-3 text-sm ${
-                        msg.sender_id === user?.id
-                          ? 'bg-accent text-accent-on'
-                          : 'bg-canvas-sunk text-ink'
-                      }`}>
-                        <div className="mb-1 font-mono text-micro text-ink-faint">{msg.sender_name}</div>
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-md rounded-lg px-4 py-3 text-sm ${
+                          msg.sender_id === user?.id
+                            ? 'bg-accent text-accent-on'
+                            : 'bg-canvas-sunk text-ink'
+                        }`}
+                      >
+                        <div className="mb-1 font-mono text-micro text-ink-faint">
+                          {msg.sender_name}
+                        </div>
                         <div>{msg.body}</div>
                         <div className="mt-1 text-right font-mono text-micro text-ink-faint">
-                          {new Date(msg.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                          {new Date(msg.created_at).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit',
+                          })}
                         </div>
                       </div>
                     </div>
@@ -199,6 +295,19 @@ function MessagesPage() {
                 )}
               </div>
               <div className="border-t border-border p-3">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  <span className="text-micro font-medium text-ink-muted self-center mr-1">Templates:</span>
+                  {MESSAGE_TEMPLATES.map((tmpl) => (
+                    <button
+                      key={tmpl.label}
+                      type="button"
+                      onClick={() => setReplyMessage(tmpl.text)}
+                      className="rounded-pill bg-canvas-sunk border border-border px-2 py-0.5 text-micro text-ink hover:bg-border transition-colors duration-150 cursor-pointer"
+                    >
+                      {tmpl.label}
+                    </button>
+                  ))}
+                </div>
                 <div className="flex gap-2">
                   <textarea
                     value={replyMessage}
@@ -209,7 +318,9 @@ function MessagesPage() {
                   <button
                     onClick={() => {
                       const thread = threads?.data.find((item) => item.id === selectedThread);
-                      const recipient = thread?.participants.find((participant) => participant.id !== user?.id);
+                      const recipient = thread?.participants.find(
+                        (participant) => participant.id !== user?.id
+                      );
                       if (selectedThread && thread && recipient && replyMessage.trim()) {
                         sendMutation.mutate({
                           recipient_id: recipient.id,
@@ -220,9 +331,13 @@ function MessagesPage() {
                       }
                     }}
                     disabled={!replyMessage.trim() || sendMutation.isPending}
-                    className="self-end rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-on hover:bg-accent-hover disabled:opacity-50"
+                    className="btn btn-primary self-end"
                   >
-                    {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {sendMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -231,7 +346,9 @@ function MessagesPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <MessageSquare className="mx-auto mb-3 h-8 w-8 text-ink-faint" />
-                <p className="text-small text-ink-muted">Select a conversation or start a new message</p>
+                <p className="text-small text-ink-muted">
+                  Select a conversation or start a new message
+                </p>
               </div>
             </div>
           )}

@@ -13,7 +13,9 @@ export const appointmentUpdateSchema = z.object({
   start_time: z.string().datetime().optional(),
   end_time: z.string().datetime().optional(),
   type: z.string().optional(),
-  status: z.enum(['scheduled', 'checked_in', 'in_progress', 'completed', 'cancelled', 'no_show']).optional(),
+  status: z
+    .enum(['scheduled', 'checked_in', 'in_progress', 'completed', 'cancelled', 'no_show'])
+    .optional(),
   notes: z.string().nullable().optional(),
 });
 

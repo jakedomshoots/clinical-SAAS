@@ -7,7 +7,8 @@ export const loginSchema = z.object({
 
 export const registerSchema = z.object({
   email: z.string().email(),
-  password: z.string()
+  password: z
+    .string()
     .min(12, 'Password must be at least 12 characters')
     .regex(/[A-Za-z]/, 'Password must include a letter')
     .regex(/[0-9]/, 'Password must include a number')

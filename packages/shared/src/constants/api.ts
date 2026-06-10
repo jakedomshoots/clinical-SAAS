@@ -17,18 +17,24 @@ export const ROUTES = {
   PATIENT_DOCUMENTS: (id: string) => `/api/patients/${id}/documents`,
   PATIENT_DOCUMENT_UPLOAD: (id: string) => `/api/patients/${id}/documents/upload`,
   PATIENT_DOCUMENT_UPLOAD_CONFIRM: (id: string) => `/api/patients/${id}/documents/upload/confirm`,
-  PATIENT_DOCUMENT: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}`,
-  PATIENT_DOCUMENT_ACCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/access`,
-  PATIENT_DOCUMENT_PROCESS: (patientId: string, documentId: string) => `/api/patients/${patientId}/documents/${documentId}/process`,
+  PATIENT_DOCUMENT: (patientId: string, documentId: string) =>
+    `/api/patients/${patientId}/documents/${documentId}`,
+  PATIENT_DOCUMENT_ACCESS: (patientId: string, documentId: string) =>
+    `/api/patients/${patientId}/documents/${documentId}/access`,
+  PATIENT_DOCUMENT_PROCESS: (patientId: string, documentId: string) =>
+    `/api/patients/${patientId}/documents/${documentId}/process`,
   PATIENT_PORTAL_ACCESS_CODE: (id: string) => `/api/patients/${id}/portal-access-code`,
   PATIENT_MEDICATIONS: (id: string) => `/api/patients/${id}/medications`,
-  PATIENT_MEDICATION: (patientId: string, medicationId: string) => `/api/patients/${patientId}/medications/${medicationId}`,
+  PATIENT_MEDICATION: (patientId: string, medicationId: string) =>
+    `/api/patients/${patientId}/medications/${medicationId}`,
   PATIENT_CARE_PLAN: (id: string) => `/api/patients/${id}/care-plan`,
-  PATIENT_CARE_PLAN_ITEM: (patientId: string, itemId: string) => `/api/patients/${patientId}/care-plan/${itemId}`,
+  PATIENT_CARE_PLAN_ITEM: (patientId: string, itemId: string) =>
+    `/api/patients/${patientId}/care-plan/${itemId}`,
   PATIENT_LABS: (id: string) => `/api/patients/${id}/labs`,
   PATIENT_LAB: (patientId: string, labId: string) => `/api/patients/${patientId}/labs/${labId}`,
   PATIENT_ENCOUNTERS: (id: string) => `/api/patients/${id}/encounters`,
-  PATIENT_ENCOUNTER: (patientId: string, encounterId: string) => `/api/patients/${patientId}/encounters/${encounterId}`,
+  PATIENT_ENCOUNTER: (patientId: string, encounterId: string) =>
+    `/api/patients/${patientId}/encounters/${encounterId}`,
   TASKS: '/api/tasks',
   TASK: (id: string) => `/api/tasks/${id}`,
   TASK_WORK_QUEUE: '/api/tasks/work-queue',
@@ -71,7 +77,8 @@ export const ROUTES = {
   BILLING_CASE_REWORK: (caseId: string) => `/api/billing/cases/${caseId}/rework`,
   BILLING_CASE_READINESS: (caseId: string) => `/api/billing/cases/${caseId}/readiness`,
   BILLING_CASE_TIMELINE: (caseId: string) => `/api/billing/cases/${caseId}/timeline`,
-  BILLING_FROM_ENCOUNTER: (encounterId: string) => `/api/billing/cases/from-encounter/${encounterId}`,
+  BILLING_FROM_ENCOUNTER: (encounterId: string) =>
+    `/api/billing/cases/from-encounter/${encounterId}`,
   ELIGIBILITY_CHECK: (patientId: string) => `/api/billing/eligibility/${patientId}`,
   ELIGIBILITY_HISTORY: (patientId: string) => `/api/billing/eligibility/${patientId}/history`,
   PORTAL_INTAKE: '/api/portal-intake',
@@ -87,12 +94,17 @@ export const ROUTES = {
   INTEGRATION_CAPABILITIES: '/api/integration-capabilities',
   INTEGRATION_CONFIG: '/api/integrations/config',
   INTEGRATION_CONFIG_ITEM: (integration: string) => `/api/integrations/config/${integration}`,
-  INTEGRATION_HANDOFF_PACKET: (integration: string) => `/api/integrations/config/${integration}/handoff-packet`,
-  INTEGRATION_HANDOFF_PACKET_ARCHIVE: (integration: string) => `/api/integrations/config/${integration}/handoff-packet/archive`,
+  INTEGRATION_HANDOFF_PACKET: (integration: string) =>
+    `/api/integrations/config/${integration}/handoff-packet`,
+  INTEGRATION_HANDOFF_PACKET_ARCHIVE: (integration: string) =>
+    `/api/integrations/config/${integration}/handoff-packet/archive`,
   INTEGRATION_CONFIG_TEST: (integration: string) => `/api/integrations/config/${integration}/test`,
-  INTEGRATION_SANDBOX_EVIDENCE: (integration: string) => `/api/integrations/config/${integration}/sandbox-evidence`,
-  INTEGRATION_SANDBOX_WORKFLOW_RUN: (integration: string) => `/api/integrations/config/${integration}/sandbox-workflows/run`,
-  INTEGRATION_SANDBOX_WORKFLOW_RUN_ALL: (integration: string) => `/api/integrations/config/${integration}/sandbox-workflows/run-all`,
+  INTEGRATION_SANDBOX_EVIDENCE: (integration: string) =>
+    `/api/integrations/config/${integration}/sandbox-evidence`,
+  INTEGRATION_SANDBOX_WORKFLOW_RUN: (integration: string) =>
+    `/api/integrations/config/${integration}/sandbox-workflows/run`,
+  INTEGRATION_SANDBOX_WORKFLOW_RUN_ALL: (integration: string) =>
+    `/api/integrations/config/${integration}/sandbox-workflows/run-all`,
   INTEGRATION_CREDENTIAL_PREFLIGHT: '/api/integrations/credential-preflight',
   OPERATIONS_INCIDENTS: '/api/operations/incidents',
   OPERATIONS_INCIDENT_TIMELINE: '/api/operations/incident-timeline',
@@ -102,38 +114,52 @@ export const ROUTES = {
   OPERATIONS_PRODUCTION_CONFIG_AUDIT: '/api/operations/production-config-audit',
   OPERATIONS_BROWSER_QA_CHECKLIST: '/api/operations/browser-qa-checklist',
   OPERATIONS_BROWSER_QA_SESSIONS: '/api/operations/browser-qa-sessions',
-  OPERATIONS_BROWSER_QA_SESSION: (sessionId: string) => `/api/operations/browser-qa-sessions/${sessionId}`,
+  OPERATIONS_BROWSER_QA_SESSION: (sessionId: string) =>
+    `/api/operations/browser-qa-sessions/${sessionId}`,
   OPERATIONS_STAFF_TRAINING_CHECKLIST: '/api/operations/staff-training-checklist',
   OPERATIONS_STAFF_TRAINING_SESSIONS: '/api/operations/staff-training-sessions',
-  OPERATIONS_STAFF_TRAINING_SESSION: (sessionId: string) => `/api/operations/staff-training-sessions/${sessionId}`,
+  OPERATIONS_STAFF_TRAINING_SESSION: (sessionId: string) =>
+    `/api/operations/staff-training-sessions/${sessionId}`,
   OPERATIONS_POLICY_APPROVAL_CHECKLIST: '/api/operations/policy-approval-checklist',
   OPERATIONS_POLICY_APPROVAL_SESSIONS: '/api/operations/policy-approval-sessions',
-  OPERATIONS_POLICY_APPROVAL_SESSION: (sessionId: string) => `/api/operations/policy-approval-sessions/${sessionId}`,
+  OPERATIONS_POLICY_APPROVAL_SESSION: (sessionId: string) =>
+    `/api/operations/policy-approval-sessions/${sessionId}`,
   OPERATIONS_RESTORE_DRILL_CHECKLIST: '/api/operations/restore-drill-checklist',
   OPERATIONS_RESTORE_DRILL_SESSIONS: '/api/operations/restore-drill-sessions',
-  OPERATIONS_RESTORE_DRILL_SESSION: (sessionId: string) => `/api/operations/restore-drill-sessions/${sessionId}`,
-  OPERATIONS_RESTORE_DRILL_SESSION_EXPORT: (sessionId: string) => `/api/operations/restore-drill-sessions/${sessionId}/export`,
+  OPERATIONS_RESTORE_DRILL_SESSION: (sessionId: string) =>
+    `/api/operations/restore-drill-sessions/${sessionId}`,
+  OPERATIONS_RESTORE_DRILL_SESSION_EXPORT: (sessionId: string) =>
+    `/api/operations/restore-drill-sessions/${sessionId}/export`,
   OPERATIONS_CUTOVER_RUNBOOK: '/api/operations/cutover-runbook',
   OPERATIONS_CUTOVER_RUNBOOK_SESSIONS: '/api/operations/cutover-runbook-sessions',
-  OPERATIONS_CUTOVER_RUNBOOK_SESSION: (sessionId: string) => `/api/operations/cutover-runbook-sessions/${sessionId}`,
-  OPERATIONS_CUTOVER_RUNBOOK_SESSION_EXPORT: (sessionId: string) => `/api/operations/cutover-runbook-sessions/${sessionId}/export`,
+  OPERATIONS_CUTOVER_RUNBOOK_SESSION: (sessionId: string) =>
+    `/api/operations/cutover-runbook-sessions/${sessionId}`,
+  OPERATIONS_CUTOVER_RUNBOOK_SESSION_EXPORT: (sessionId: string) =>
+    `/api/operations/cutover-runbook-sessions/${sessionId}/export`,
   OPERATIONS_GO_LIVE_PACKET: '/api/operations/go-live-packet',
   OPERATIONS_CREDENTIAL_DRY_RUN_BINDER: '/api/operations/credential-dry-run-binder',
   OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_EXPORT: '/api/operations/credential-dry-run-binder/export',
-  OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_SNAPSHOTS: '/api/operations/credential-dry-run-binder/snapshots',
+  OPERATIONS_CREDENTIAL_DRY_RUN_BINDER_SNAPSHOTS:
+    '/api/operations/credential-dry-run-binder/snapshots',
   OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET: '/api/operations/vendor-credential-request-packet',
-  OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET_EXPORT: '/api/operations/vendor-credential-request-packet/export',
+  OPERATIONS_VENDOR_CREDENTIAL_REQUEST_PACKET_EXPORT:
+    '/api/operations/vendor-credential-request-packet/export',
   OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET: '/api/operations/adapter-implementation-packet',
-  OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET_EXPORT: '/api/operations/adapter-implementation-packet/export',
-  OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET: '/api/operations/integration-cutover-readiness-packet',
-  OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET_EXPORT: '/api/operations/integration-cutover-readiness-packet/export',
-  OPERATIONS_INTEGRATION_CUTOVER_ASSIGNMENT: (integration: string) => `/api/operations/integration-cutover-readiness-packet/${integration}/assignment`,
+  OPERATIONS_ADAPTER_IMPLEMENTATION_PACKET_EXPORT:
+    '/api/operations/adapter-implementation-packet/export',
+  OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET:
+    '/api/operations/integration-cutover-readiness-packet',
+  OPERATIONS_INTEGRATION_CUTOVER_READINESS_PACKET_EXPORT:
+    '/api/operations/integration-cutover-readiness-packet/export',
+  OPERATIONS_INTEGRATION_CUTOVER_ASSIGNMENT: (integration: string) =>
+    `/api/operations/integration-cutover-readiness-packet/${integration}/assignment`,
   OPERATIONS_LIVE_USE_REHEARSAL: '/api/operations/live-use-rehearsal',
   OPERATIONS_LIVE_USE_REHEARSAL_EXPORT: '/api/operations/live-use-rehearsal/export',
   OPERATIONS_GO_LIVE_ATTESTATIONS: '/api/operations/go-live-packet/attestations',
   OPERATIONS_ROLE_DRY_RUN_CHECKLISTS: '/api/operations/role-dry-run-checklists',
   OPERATIONS_ROLE_DRY_RUN_SESSIONS: '/api/operations/role-dry-run-sessions',
-  OPERATIONS_ROLE_DRY_RUN_SESSION: (sessionId: string) => `/api/operations/role-dry-run-sessions/${sessionId}`,
+  OPERATIONS_ROLE_DRY_RUN_SESSION: (sessionId: string) =>
+    `/api/operations/role-dry-run-sessions/${sessionId}`,
   OPERATIONS_LAUNCH_WORKPLAN: '/api/operations/launch-workplan',
   OPERATIONS_LAUNCH_WORKPLAN_SNAPSHOTS: '/api/operations/launch-workplan/snapshots',
   OPERATIONS_LAUNCH_WORKPLAN_EXPORT: '/api/operations/launch-workplan/export',
@@ -141,7 +167,8 @@ export const ROUTES = {
   OPERATIONS_PRODUCTION_REHEARSAL: '/api/operations/production-rehearsal',
   OPERATIONS_PRODUCTION_REHEARSAL_SNAPSHOTS: '/api/operations/production-rehearsal/snapshots',
   OPERATIONS_PRODUCTION_REHEARSAL_EXPORT: '/api/operations/production-rehearsal/export',
-  OPERATIONS_REHEARSAL_ACTION_ASSIGNMENT: (actionKey: string) => `/api/operations/production-rehearsal/actions/${actionKey}/assignment`,
+  OPERATIONS_REHEARSAL_ACTION_ASSIGNMENT: (actionKey: string) =>
+    `/api/operations/production-rehearsal/actions/${actionKey}/assignment`,
   LAUNCH_READINESS: '/api/launch-readiness',
   SESSION_POLICY: '/api/auth/session-policy',
 } as const;

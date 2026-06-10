@@ -73,10 +73,18 @@ export function RecentActivity({ incidents, className }: RecentActivityProps) {
           <div className="space-y-2.5">
             {items.map((item) => (
               <div key={item.id} className="flex items-start gap-2.5">
-                {item.icon === 'incident' && <AlertTriangle className="h-4 w-4 text-danger shrink-0 mt-0.5" />}
-                {item.icon === 'warning' && <AlertTriangle className="h-4 w-4 text-warn shrink-0 mt-0.5" />}
-                {item.icon === 'success' && <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />}
-                {item.icon === 'event' && <Clock className="h-4 w-4 text-ink-muted shrink-0 mt-0.5" />}
+                {item.icon === 'incident' && (
+                  <AlertTriangle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
+                )}
+                {item.icon === 'warning' && (
+                  <AlertTriangle className="h-4 w-4 text-warn shrink-0 mt-0.5" />
+                )}
+                {item.icon === 'success' && (
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                )}
+                {item.icon === 'event' && (
+                  <Clock className="h-4 w-4 text-ink-muted shrink-0 mt-0.5" />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="text-small text-ink-secondary leading-snug">{item.message}</p>
                   <p className="text-micro text-ink-faint mt-0.5">{item.time}</p>

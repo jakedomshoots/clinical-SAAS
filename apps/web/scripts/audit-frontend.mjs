@@ -8,7 +8,10 @@ const bannedPatterns = [
   { pattern: /\bcoming soon\b/i, reason: 'unfinished feature copy' },
   { pattern: /\bTODO\b/i, reason: 'todo marker in frontend source' },
   { pattern: /user-uuid|User ID/i, reason: 'raw user id workflow' },
-  { pattern: /API online|Last sync 2 min|Critical lab callback due now|waiting in Room/i, reason: 'stale hard-coded operational copy' },
+  {
+    pattern: /API online|Last sync 2 min|Critical lab callback due now|waiting in Room/i,
+    reason: 'stale hard-coded operational copy',
+  },
   { pattern: /onClick=\{\(\) => \{\}\}/, reason: 'empty click handler' },
   { pattern: /disabled=\{true\}/, reason: 'permanently disabled frontend control' },
 ];
@@ -58,7 +61,7 @@ async function walk(dir) {
   for (const entry of entries) {
     const path = join(dir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await walk(path));
+      files.push(...(await walk(path)));
     } else if (/\.(tsx?|mjs)$/.test(entry.name)) {
       files.push(path);
     }

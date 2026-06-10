@@ -11,7 +11,7 @@
 
 ConciergeOS's Operations page presents 20+ sections of dense data simultaneously, creating significant extraneous cognitive load for practice managers who are already managing high-stress clinical and administrative workflows. This research identifies 10 evidence-based techniques to reduce cognitive load without removing any functionality, a 3-tier feature categorization strategy specific to healthcare operations, and concrete before/after recommendations for the Operations page redesign.
 
-The core principle guiding all recommendations: **"Simplicity is about subtracting the obvious, and adding the meaningful"** (Maeda, 2006). Every feature remains accessible; only its *presentation* and *discoverability pathway* change.
+The core principle guiding all recommendations: **"Simplicity is about subtracting the obvious, and adding the meaningful"** (Maeda, 2006). Every feature remains accessible; only its _presentation_ and _discoverability pathway_ change.
 
 ---
 
@@ -22,6 +22,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** George Miller's seminal 1956 research established that human working memory can hold approximately 7±2 items simultaneously (Miller, 1956). Modern revisions suggest the true limit is closer to 4±1 chunks for complex information (Cowan, 2001). When a dashboard presents more than 7 distinct elements, users experience confusion and loss of focus — they can no longer hold the information in working memory (IT-Express, 2021).
 
 **Application to ConciergeOS:**
+
 - Group the 20+ Operations sections into **5-7 logical chunks** (e.g., "Patient Flow," "Financials," "Staff & Scheduling," "Compliance," "Communications")
 - Within each chunk, limit visible items to 3-4 at a time
 - Use phone-number formatting logic: "Portugal 763,199" is easier to process than "Portugal 763199" — visual separators create processable chunks
@@ -35,11 +36,13 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** Introduced by Jakob Nielsen in 1995, progressive disclosure is a UX technique that defers advanced features to secondary UI components, showing users only what they need when they need it (Nielsen, 1995; IxDF, 2023). It directly targets extraneous cognitive load — the mental overhead caused by presenting irrelevant information (Sweller, 1988; Tallwave, 2024).
 
 **Three Categories (UXPin, 2026):**
+
 1. **Step-by-step:** Breaking complex workflows into sequential stages
 2. **Conditional:** Hiding elements until explicitly requested (e.g., "Advanced Settings" toggle)
 3. **Contextual:** Surfacing information based on user's current situation
 
 **Application to ConciergeOS:**
+
 - Default view shows only "Today's Critical Actions" (3-5 items)
 - Secondary panels collapse behind labeled accordions
 - Advanced configuration hides behind "More Options" toggles
@@ -54,6 +57,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** Visual hierarchy guides attention through size, color, contrast, and positioning. Eye-tracking studies consistently show that interfaces with clear visual hierarchy lead to faster visual search times and lower error rates (Toptal, 2026). The brain processes structured information 60,000 times faster than unstructured data (3M Corporation, cited in Intellify Solutions, 2023).
 
 **Application to ConciergeOS:**
+
 - **Primary actions:** Largest elements, top-left placement (F-pattern reading), high contrast
 - **Secondary metrics:** Medium size, muted colors, below the fold
 - **Tertiary detail:** Small text, collapsed by default, accessible via drill-down
@@ -68,6 +72,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** Jakob's Law states that users prefer familiar experiences — they favor patterns they've already explored (Nielsen, 2000; IT-Express, 2021). Inconsistent interfaces force users to build new mental models for every screen, dramatically increasing extraneous load. Consistent navigation, layout patterns, terminology, and interaction behaviors reduce relearning and speed up task execution (Acme Minds, 2026).
 
 **Application to ConciergeOS:**
+
 - Standardize button placement: primary actions always bottom-right, secondary top-right
 - Use identical icons for identical concepts across all 20+ sections
 - Maintain consistent terminology (e.g., "Patient" vs. "Client" — pick one, never switch)
@@ -82,6 +87,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** Whitespace improves readability, reduces visual noise, and enhances focus on critical data. Research on dashboard design recommends aiming for at least 20% empty space to prevent clutter-induced comprehension decline (Airflow UI, 2025). Cluttered interfaces decrease comprehension and increase cognitive load measurably (Intellify Solutions, 2023).
 
 **Application to ConciergeOS:**
+
 - Increase padding between cards from 8px to 24px minimum
 - Separate unrelated sections with generous vertical whitespace (48-64px)
 - Reduce border usage — let whitespace do the grouping work (proximity principle)
@@ -96,6 +102,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** For users over 50, multi-column layouts create tracking difficulties as the eye must jump horizontally and vertically simultaneously. Single-column layouts reduce eye movement fatigue and support sequential processing — critical for non-technical users managing complex workflows. Research on mobile and responsive design consistently shows single-column stacking improves comprehension for text-heavy and form-heavy interfaces (Lobehub, 2026).
 
 **Application to ConciergeOS:**
+
 - Primary "Today" view: single column, stacked cards in priority order
 - Secondary dashboard: 2-column grid for comparison data only
 - Never exceed 2 columns for the main Operations view
@@ -110,6 +117,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** The coherence principle from Cognitive Load Theory states that people learn better when extraneous material is excluded rather than included (Mayer & Moreno, 2003). Upfront tooltips, tutorial overlays, and inline explanations add extraneous load by forcing users to process irrelevant information before they need it. Contextual help — appearing only when the user hovers or clicks a help icon — preserves working memory for the actual task (Lemon Learning, 2024).
 
 **Application to ConciergeOS:**
+
 - Remove all inline instructional text from the default view
 - Replace with subtle "?" icons that reveal explanations on hover/click
 - Use progressive onboarding: explain features only when the user first encounters them
@@ -124,6 +132,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** The brain processes visual indicators (color, shape, position) pre-attentively — before conscious attention engages. This means a green/yellow/red status indicator communicates state faster than any text label. Research on clinical communication platforms shows that intelligent alarm management and status filtering are the top-requested features for reducing cognitive burden (Definitive Healthcare/Vocera, 2019; HealthLeaders Media, 2024).
 
 **Application to ConciergeOS:**
+
 - Every section card shows a color-coded status: 🟢 Healthy / 🟡 Attention / 🔴 Action Required
 - Use icon + color combinations (not color alone, for accessibility)
 - Sort the entire Operations page by status severity, not alphabetical order
@@ -138,6 +147,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** Defaults reduce decision fatigue by pre-selecting the most common option. In healthcare EHR research, poorly-constructed user interfaces with too many open choices are directly tied to increased cognitive workloads (NetHealth, 2022). When users must actively choose from 20+ sections every time they log in, they experience decision paralysis.
 
 **Application to ConciergeOS:**
+
 - Pre-expand the 3 most critical sections based on time of day (morning = scheduling, afternoon = billing, end-of-day = compliance)
 - Pre-filter data to "Today" or "This Week" — never show "All Time" by default
 - Auto-select the practice location if the user only manages one site
@@ -152,6 +162,7 @@ The core principle guiding all recommendations: **"Simplicity is about subtracti
 **The Science:** For systems with 20+ sections, browsing (scanning menus) imposes higher cognitive load than targeted search, especially for non-technical users who may not know the exact organizational taxonomy. Search allows direct access to goals without navigating hierarchical mental models. Nielsen's research on information foraging shows that users prefer environments that minimize the "cost" of finding information (Nielsen, 1994).
 
 **Application to ConciergeOS:**
+
 - Prominent global search bar at the top of Operations page
 - Search indexes section names, patient names, common tasks ("submit claim," "schedule follow-up")
 - Command-K shortcut for power users (progressive enabling)
@@ -169,13 +180,13 @@ Based on typical healthcare practice management workflows and frequency-of-use a
 
 These are the actions a practice manager performs every single day. They occupy the top "Today" strip and are never collapsed.
 
-| Section | Rationale | Frequency |
-|---------|-----------|-----------|
-| **Appointment Schedule / Daily Calendar** | Core coordination function; checked multiple times per hour | 10-20x/day |
-| **Patient Check-In Queue** | Real-time flow management; critical for operational rhythm | 5-10x/day |
-| **Today's Billing / Claims to Submit** | Revenue cycle depends on daily submission | 1-2x/day |
-| **Unread Messages / Patient Portal Communications** | Time-sensitive patient communication | 3-5x/day |
-| **Staff On-Call / Shift Status** | Daily staffing verification | 1x/day |
+| Section                                             | Rationale                                                   | Frequency  |
+| --------------------------------------------------- | ----------------------------------------------------------- | ---------- |
+| **Appointment Schedule / Daily Calendar**           | Core coordination function; checked multiple times per hour | 10-20x/day |
+| **Patient Check-In Queue**                          | Real-time flow management; critical for operational rhythm  | 5-10x/day  |
+| **Today's Billing / Claims to Submit**              | Revenue cycle depends on daily submission                   | 1-2x/day   |
+| **Unread Messages / Patient Portal Communications** | Time-sensitive patient communication                        | 3-5x/day   |
+| **Staff On-Call / Shift Status**                    | Daily staffing verification                                 | 1x/day     |
 
 **Design Treatment:** Full-width cards, always expanded, status indicators visible, top of page.
 
@@ -183,16 +194,16 @@ These are the actions a practice manager performs every single day. They occupy 
 
 These are reviewed and acted upon weekly. They appear as collapsed summary cards that expand on click.
 
-| Section | Rationale | Frequency |
-|---------|-----------|-----------|
-| **Insurance Verification Status** | Batch-processed weekly or when new appointments booked | 2-3x/week |
-| **Outstanding Balances / A/R Aging** | Weekly review for collections and follow-up | 1-2x/week |
-| **Supply Inventory / Reorder Alerts** | Checked when alerts trigger or during weekly planning | 1x/week |
-| **Referral Tracking** | Reviewed at weekly care coordination meetings | 1x/week |
-| **Quality Metrics / Patient Satisfaction Scores** | Weekly or monthly performance review | 1x/week |
-| **Compliance Checklist / Audit Prep** | Ongoing but not daily; weekly checkpoint review | 1x/week |
-| **Staff Time-Off Requests / PTO Calendar** | Weekly scheduling adjustments | 1-2x/week |
-| **Lab Results Pending Review** | Batch-reviewed, not individually monitored | 2-3x/week |
+| Section                                           | Rationale                                              | Frequency |
+| ------------------------------------------------- | ------------------------------------------------------ | --------- |
+| **Insurance Verification Status**                 | Batch-processed weekly or when new appointments booked | 2-3x/week |
+| **Outstanding Balances / A/R Aging**              | Weekly review for collections and follow-up            | 1-2x/week |
+| **Supply Inventory / Reorder Alerts**             | Checked when alerts trigger or during weekly planning  | 1x/week   |
+| **Referral Tracking**                             | Reviewed at weekly care coordination meetings          | 1x/week   |
+| **Quality Metrics / Patient Satisfaction Scores** | Weekly or monthly performance review                   | 1x/week   |
+| **Compliance Checklist / Audit Prep**             | Ongoing but not daily; weekly checkpoint review        | 1x/week   |
+| **Staff Time-Off Requests / PTO Calendar**        | Weekly scheduling adjustments                          | 1-2x/week |
+| **Lab Results Pending Review**                    | Batch-reviewed, not individually monitored             | 2-3x/week |
 
 **Design Treatment:** Collapsed cards showing 3 key metrics + status dot. Expands to full view on click. Organized in a single column below Tier 1.
 
@@ -200,18 +211,18 @@ These are reviewed and acted upon weekly. They appear as collapsed summary cards
 
 These are powerful features used monthly, quarterly, or during specific events. They remain fully accessible but do not clutter the daily view.
 
-| Section | Rationale | Frequency |
-|---------|-----------|-----------|
-| **Payer Contract Management** | Reviewed annually or when contracts renew | Quarterly |
-| **Custom Report Builder / Analytics** | Deep-dive analysis for leadership meetings | Monthly |
-| **Integration Settings (EHR, Lab, Pharmacy)** | Set up once, monitored when issues arise | As needed |
-| **User Permissions / Role Management** | Onboarding new staff or security audits | Monthly |
-| **Data Export / Backup Management** | Compliance audits or system migrations | Quarterly |
-| **Billing Code Library / Fee Schedule Updates** | Annual updates or payer changes | Quarterly |
-| **Custom Form Templates** | Built once, used repeatedly; rarely edited | As needed |
-| **Audit Log / System Activity** | Security reviews or compliance investigations | Monthly |
-| **Practice Configuration / Locations & Departments** | Multi-location setup or restructuring | Rarely |
-| **API / Developer Settings** | Technical integrations | Rarely |
+| Section                                              | Rationale                                     | Frequency |
+| ---------------------------------------------------- | --------------------------------------------- | --------- |
+| **Payer Contract Management**                        | Reviewed annually or when contracts renew     | Quarterly |
+| **Custom Report Builder / Analytics**                | Deep-dive analysis for leadership meetings    | Monthly   |
+| **Integration Settings (EHR, Lab, Pharmacy)**        | Set up once, monitored when issues arise      | As needed |
+| **User Permissions / Role Management**               | Onboarding new staff or security audits       | Monthly   |
+| **Data Export / Backup Management**                  | Compliance audits or system migrations        | Quarterly |
+| **Billing Code Library / Fee Schedule Updates**      | Annual updates or payer changes               | Quarterly |
+| **Custom Form Templates**                            | Built once, used repeatedly; rarely edited    | As needed |
+| **Audit Log / System Activity**                      | Security reviews or compliance investigations | Monthly   |
+| **Practice Configuration / Locations & Departments** | Multi-location setup or restructuring         | Rarely    |
+| **API / Developer Settings**                         | Technical integrations                        | Rarely    |
 
 **Design Treatment:** Accessible via a "Settings & Advanced" button at the bottom of the page, or through the global search. Power users can pin any Tier 3 section to their personal dashboard via customization.
 
@@ -316,11 +327,12 @@ The user opens the Operations page and sees a full-width table spanning 20+ colu
 
 All 200+ rows are visible. The user must scroll horizontally and vertically simultaneously. Font size is 12px. Rows are zebra-striped but tightly packed. Every cell is editable inline. There are 8 action buttons per row, all visible, all colored.
 
-*Cognitive load:* The user must hold 20 column meanings in working memory, scan 200 rows, and decide which of 8 actions to take — all while managing a busy practice.
+_Cognitive load:_ The user must hold 20 column meanings in working memory, scan 200 rows, and decide which of 8 actions to take — all while managing a busy practice.
 
 **AFTER (Simplified State — Chunked + Progressive Disclosure)**
 
 The user sees a single card labeled "Billing & Claims" with:
+
 - A status dot: 🔴 (indicating action required)
 - Three summary numbers: "12 Claims Ready to Submit | 3 Claims Denied | $8,400 Outstanding > 90 Days"
 - One primary button: "Review Claims"
@@ -328,13 +340,14 @@ The user sees a single card labeled "Billing & Claims" with:
 The card takes up 1/3 of the screen width. It has 24px padding. The background is white with a subtle shadow.
 
 When the user clicks "Review Claims," the card expands to show:
+
 - A segmented control: [Ready to Submit] [Denied] [Outstanding] [All]
 - The "Ready to Submit" tab is pre-selected (smart default)
 - A clean list of 12 claims, each showing: Patient Name | Payer | Amount | Submit button
 - Advanced columns (Adjustment Code, Authorization Number, Procedure Codes) are hidden behind a "Show Details" toggle per row
 - Bulk actions ("Submit All," "Export") appear only when items are selected
 
-*Cognitive load:* The user processes one decision at a time: (1) Is there a billing issue? (red dot tells them yes), (2) Which category? (3 claims are denied, that's the priority), (3) What action? (resubmit). Working memory is never overloaded with 20 simultaneous columns.
+_Cognitive load:_ The user processes one decision at a time: (1) Is there a billing issue? (red dot tells them yes), (2) Which category? (3 claims are denied, that's the priority), (3) What action? (resubmit). Working memory is never overloaded with 20 simultaneous columns.
 
 ---
 
@@ -346,11 +359,12 @@ A full panel showing: HIPAA Audit Checklist (47 items), OSHA Compliance Status, 
 
 All subsections are expanded. Checklists show every item, checked and unchecked. Staff certifications show a table with Name, Role, Certification, Issued Date, Expiry Date, Days Remaining, Status, Renewal Link. Some items are green, some red, most gray.
 
-*Cognitive load:* The user sees 47 checklist items + 15 staff rows + 5 other compliance modules simultaneously. The red items (urgent) are visually lost among the gray items (irrelevant today).
+_Cognitive load:_ The user sees 47 checklist items + 15 staff rows + 5 other compliance modules simultaneously. The red items (urgent) are visually lost among the gray items (irrelevant today).
 
 **AFTER (Simplified State — Status-First + Tiered)**
 
 The user sees a collapsed card labeled "Compliance" with:
+
 - Status dot: 🟡 (attention needed)
 - Summary: "2 Staff Certifications Expiring Soon | 1 Incomplete HIPAA Checklist Item"
 - Button: "Review Compliance"
@@ -358,6 +372,7 @@ The user sees a collapsed card labeled "Compliance" with:
 This is a **Tier 2** section — collapsed by default, one click away.
 
 When expanded, the user sees:
+
 - A "Urgent" strip at the top: 2 specific staff members with certifications expiring in <30 days
 - A "This Week" strip: 1 incomplete HIPAA checklist item
 - An "On Track" accordion (collapsed): Everything else — 46 checked HIPAA items, 13 staff with current certs, all equipment maintenance up to date
@@ -365,7 +380,7 @@ When expanded, the user sees:
 
 The user never sees "on track" items unless they choose to. The urgent items are visually isolated and actionable.
 
-*Cognitive load:* The user makes one binary decision: is there a compliance issue? (yellow dot = yes, but not critical). Then they see exactly what needs attention. Everything else is respectfully hidden.
+_Cognitive load:_ The user makes one binary decision: is there a compliance issue? (yellow dot = yes, but not critical). Then they see exactly what needs attention. Everything else is respectfully hidden.
 
 ---
 
@@ -377,31 +392,34 @@ The page is a scrolling wall of 20+ sections, each fully expanded, arranged in a
 
 Each section is a dense data table or form. The page scrolls for 4+ screen heights. There is no visual priority — every section competes for attention equally. The user must remember where each section lives in the grid.
 
-*Cognitive load:* This is a classic violation of Miller's Law. The user cannot hold 20 sections in working memory. They develop coping mechanisms: scrolling endlessly, using browser find (Ctrl+F), or simply ignoring most of the page and focusing on 2-3 familiar sections.
+_Cognitive load:_ This is a classic violation of Miller's Law. The user cannot hold 20 sections in working memory. They develop coping mechanisms: scrolling endlessly, using browser find (Ctrl+F), or simply ignoring most of the page and focusing on 2-3 familiar sections.
 
 **AFTER (Simplified State — Chunked + Hierarchical)**
 
 The page has a single-column layout with three zones:
 
 **Zone 1: Today (pinned, always visible)**
+
 - 4-5 cards in a horizontal strip or stacked vertically
 - Each card: title, status dot, 3 numbers, one action button
 - Examples: "Schedule: 24 appointments, 3 no-shows, 2 new patients" | "Messages: 8 unread, 2 urgent" | "Billing: 12 claims ready"
 
 **Zone 2: This Week (collapsible chunk)**
+
 - 5-7 collapsed cards in a single column
 - Each card shows title + status + 3 summary metrics
 - One click expands any card
 - Cards are grouped by the 5 logical chunks (Patient Flow, Financials, etc.)
 
 **Zone 3: Search + Advanced (bottom)**
+
 - Global search bar: "Search patients, tasks, reports..."
 - "Settings & Advanced" button revealing Tier 3 features
 - "Customize Dashboard" link for power users
 
 The total page height is 1.5-2 screens. The user never scrolls more than twice to reach anything. Visual hierarchy makes the priority unmistakable: Today → This Week → Everything Else.
 
-*Cognitive load:* The user processes the page in three sequential steps: (1) Is there anything urgent today? (Zone 1), (2) What needs attention this week? (Zone 2), (3) Do I need something specific? (Search). At no point are they exposed to more than 5-7 items simultaneously.
+_Cognitive load:_ The user processes the page in three sequential steps: (1) Is there anything urgent today? (Zone 1), (2) What needs attention this week? (Zone 2), (3) Do I need something specific? (Search). At no point are they exposed to more than 5-7 items simultaneously.
 
 ---
 
@@ -426,6 +444,7 @@ This user profile has specific implications for the design strategy:
 ## 7. Summary Checklist for Implementation
 
 ### Design Principles (Always Apply)
+
 - [ ] Never show more than 5-7 items in any single view (Miller's Law)
 - [ ] Every section must have a visible status indicator (Status-at-a-Glance)
 - [ ] Whitespace must be at least 20% of any screen area
@@ -435,6 +454,7 @@ This user profile has specific implications for the design strategy:
 - [ ] Consistent terminology, icons, and placement across all 20+ sections
 
 ### Structural Changes (Apply to Operations Page)
+
 - [ ] Group 20+ sections into 5 logical chunks
 - [ ] Tier 1 (Daily): Always visible, top of page, fully expanded
 - [ ] Tier 2 (Weekly): Collapsed cards, single column, one-click expand
@@ -444,6 +464,7 @@ This user profile has specific implications for the design strategy:
 - [ ] Implement smart defaults (time-of-day, role-based, last-used)
 
 ### Interaction Patterns (Apply Per Section)
+
 - [ ] Progressive disclosure: show summary, hide detail behind click
 - [ ] Contextual help: tooltips on hover, not inline text
 - [ ] Search over browsing: Command-K global search
@@ -451,6 +472,7 @@ This user profile has specific implications for the design strategy:
 - [ ] Workspace presets: Simple / Standard / Power User
 
 ### Validation Steps
+
 - [ ] Conduct 5 usability tests with non-technical practice managers over 50
 - [ ] Measure time-to-task for top 5 daily actions (before vs. after)
 - [ ] Track error rates on critical actions (claim submission, scheduling)
@@ -461,66 +483,66 @@ This user profile has specific implications for the design strategy:
 
 ## References
 
-1. **Acme Minds (2026).** "UI/UX Design Best Practices for Enterprise Software in 2026." *Acme Minds Blog.* https://www.acmeminds.com/blogs/ui-ux-design-best-practices-for-enterprise-software-in-2026/
+1. **Acme Minds (2026).** "UI/UX Design Best Practices for Enterprise Software in 2026." _Acme Minds Blog._ https://www.acmeminds.com/blogs/ui-ux-design-best-practices-for-enterprise-software-in-2026/
 
-2. **Candu.ai (2025).** "How Notion Crafts a Personalized Onboarding Experience." *Candu.ai Blog.* https://www.candu.ai/blog/how-notion-crafts-a-personalized-onboarding-experience-6-lessons-to-guide-new-users
+2. **Candu.ai (2025).** "How Notion Crafts a Personalized Onboarding Experience." _Candu.ai Blog._ https://www.candu.ai/blog/how-notion-crafts-a-personalized-onboarding-experience-6-lessons-to-guide-new-users
 
-3. **Clevyr (2024).** "Is Salesforce Too Complex for Your Business? Simplify with HubSpot." *Clevyr Blog.* https://clevyr.com/blog/post/how-complex-is-salesforce
+3. **Clevyr (2024).** "Is Salesforce Too Complex for Your Business? Simplify with HubSpot." _Clevyr Blog._ https://clevyr.com/blog/post/how-complex-is-salesforce
 
-4. **Cowan, N. (2001).** "The Magical Number 4 in Short-Term Memory: A Reconsideration of Mental Storage Capacity." *Behavioral and Brain Sciences, 24*(1), 87-114.
+4. **Cowan, N. (2001).** "The Magical Number 4 in Short-Term Memory: A Reconsideration of Mental Storage Capacity." _Behavioral and Brain Sciences, 24_(1), 87-114.
 
-5. **CureMD (n.d.).** "Features of a Good EMR." *CureMD Whitepaper.* https://www.curemd.com/emr-whitepaper/white-paper-by-curemd.pdf
+5. **CureMD (n.d.).** "Features of a Good EMR." _CureMD Whitepaper._ https://www.curemd.com/emr-whitepaper/white-paper-by-curemd.pdf
 
-6. **Definitive Healthcare (2019).** "Cognitive Overload in Healthcare: How to Ease the Pain." *Definitive Healthcare Blog.* https://www.definitivehc.com/blog/healthcare-cognitive-overload
+6. **Definitive Healthcare (2019).** "Cognitive Overload in Healthcare: How to Ease the Pain." _Definitive Healthcare Blog._ https://www.definitivehc.com/blog/healthcare-cognitive-overload
 
-7. **Definitive Healthcare & Vocera (2019).** "New Report: Vocera and Definitive Healthcare Examine Symptoms of Cognitive Overload." *Definitive Healthcare Press Release.* https://www.definitivehc.com/about/press/vocera-definitive-healthcare-cognitive-burden
+7. **Definitive Healthcare & Vocera (2019).** "New Report: Vocera and Definitive Healthcare Examine Symptoms of Cognitive Overload." _Definitive Healthcare Press Release._ https://www.definitivehc.com/about/press/vocera-definitive-healthcare-cognitive-burden
 
-8. **Flawless Inbound (2025).** "HubSpot vs Salesforce: Why HubSpot is the Clear Choice." *Flawless Inbound Blog.* https://www.flawlessinbound.ca/blog/hubspot-vs-salesforce-why-hubspot-is-the-clear-choice
+8. **Flawless Inbound (2025).** "HubSpot vs Salesforce: Why HubSpot is the Clear Choice." _Flawless Inbound Blog._ https://www.flawlessinbound.ca/blog/hubspot-vs-salesforce-why-hubspot-is-the-clear-choice
 
-9. **HealthLeaders Media (2024).** "Cognitive Overload Among Nurses: Exploring Causes, Risks and Solutions." *HealthLeaders Media.* https://www.healthleadersmedia.com/nursing/cognitive-overload-among-nurses-exploring-causes-risks-and-solutions
+9. **HealthLeaders Media (2024).** "Cognitive Overload Among Nurses: Exploring Causes, Risks and Solutions." _HealthLeaders Media._ https://www.healthleadersmedia.com/nursing/cognitive-overload-among-nurses-exploring-causes-risks-and-solutions
 
-10. **IT-Express (2021).** "Miller's Law and Dashboard Design." *IT-Express, Kathmandu University.* https://itmeet.kucc.ku.edu.np/docs/IT-EXPRESS-2021.pdf
+10. **IT-Express (2021).** "Miller's Law and Dashboard Design." _IT-Express, Kathmandu University._ https://itmeet.kucc.ku.edu.np/docs/IT-EXPRESS-2021.pdf
 
-11. **IxDF (2023).** "What is Progressive Disclosure?" *Interaction Design Foundation.* https://ixdf.org/literature/topics/progressive-disclosure
+11. **IxDF (2023).** "What is Progressive Disclosure?" _Interaction Design Foundation._ https://ixdf.org/literature/topics/progressive-disclosure
 
-12. **Lemon Learning (2024).** "Cognitive Load Theory: Types and Principles for Reduction." *Lemon Learning Blog.* https://lemonlearning.com/blog/cognitive-load-theory-types-and-principles-for-reduction
+12. **Lemon Learning (2024).** "Cognitive Load Theory: Types and Principles for Reduction." _Lemon Learning Blog._ https://lemonlearning.com/blog/cognitive-load-theory-types-and-principles-for-reduction
 
-13. **Maeda, J. (2006).** *The Laws of Simplicity.* MIT Press.
+13. **Maeda, J. (2006).** _The Laws of Simplicity._ MIT Press.
 
-14. **Mayer, R. E., & Moreno, R. (2003).** "Nine Ways to Reduce Cognitive Load in Multimedia Learning." *Educational Psychologist, 38*(1), 43-52.
+14. **Mayer, R. E., & Moreno, R. (2003).** "Nine Ways to Reduce Cognitive Load in Multimedia Learning." _Educational Psychologist, 38_(1), 43-52.
 
-15. **Miller, G. A. (1956).** "The Magical Number Seven, Plus or Minus Two: Some Limits on Our Capacity for Processing Information." *Psychological Review, 63*(2), 81-97.
+15. **Miller, G. A. (1956).** "The Magical Number Seven, Plus or Minus Two: Some Limits on Our Capacity for Processing Information." _Psychological Review, 63_(2), 81-97.
 
-16. **NetHealth (2022).** "How To Reduce Cognitive Overload When Transitioning Rehab Therapy EHR Solutions." *NetHealth Blog.* https://www.nethealth.com/blog/reduce-cognitive-overload-rehab-therapy-ehr-emr-transition/
+16. **NetHealth (2022).** "How To Reduce Cognitive Overload When Transitioning Rehab Therapy EHR Solutions." _NetHealth Blog._ https://www.nethealth.com/blog/reduce-cognitive-overload-rehab-therapy-ehr-emr-transition/
 
-17. **Nielsen, J. (1994).** "Enhancing the Explanatory Power of Usability Heuristics." *CHI '94 Proceedings.*
+17. **Nielsen, J. (1994).** "Enhancing the Explanatory Power of Usability Heuristics." _CHI '94 Proceedings._
 
-18. **Nielsen, J. (1995).** "Progressive Disclosure." *Nielsen Norman Group.*
+18. **Nielsen, J. (1995).** "Progressive Disclosure." _Nielsen Norman Group._
 
-19. **Nielsen, J. (2000).** "Jakob's Law of Internet User Experience." *Nielsen Norman Group.*
+19. **Nielsen, J. (2000).** "Jakob's Law of Internet User Experience." _Nielsen Norman Group._
 
-20. **Notion Blog (2026).** "Introducing Notion's Developer Platform." *Notion Official Blog.* https://www.notion.com/blog/introducing-developer-platform
+20. **Notion Blog (2026).** "Introducing Notion's Developer Platform." _Notion Official Blog._ https://www.notion.com/blog/introducing-developer-platform
 
-21. **Orbix Studio (2025).** "Churn Reduction by Design: 5 UX Strategies That Minimize Customer Loss." *Orbix Studio Blog.* https://www.orbix.studio/blogs/reduce-customer-churn-ux-design-strategies
+21. **Orbix Studio (2025).** "Churn Reduction by Design: 5 UX Strategies That Minimize Customer Loss." _Orbix Studio Blog._ https://www.orbix.studio/blogs/reduce-customer-churn-ux-design-strategies
 
-22. **Psyforu (2025).** "The Power of Grouping: Exploring Gestalt Principles in Design." *Psyforu.* https://psyforu.com/the-power-of-grouping-exploring-gestalt-principles-in-design/
+22. **Psyforu (2025).** "The Power of Grouping: Exploring Gestalt Principles in Design." _Psyforu._ https://psyforu.com/the-power-of-grouping-exploring-gestalt-principles-in-design/
 
-23. **Sweller, J. (1988).** "Cognitive Load During Problem Solving: Effects on Learning." *Cognitive Science, 12*(2), 257-285.
+23. **Sweller, J. (1988).** "Cognitive Load During Problem Solving: Effects on Learning." _Cognitive Science, 12_(2), 257-285.
 
-24. **Sweller, J., van Merriënboer, J. J. G., & Paas, F. (1998).** "Cognitive Architecture and Instructional Design." *Educational Psychology Review, 10*(3), 251-296.
+24. **Sweller, J., van Merriënboer, J. J. G., & Paas, F. (1998).** "Cognitive Architecture and Instructional Design." _Educational Psychology Review, 10_(3), 251-296.
 
-25. **Tallwave (2024).** "Cognitive Load Theory in UX Design." *Tallwave Blog.* https://tallwave.com/blog/cognitive-load-in-ux/
+25. **Tallwave (2024).** "Cognitive Load Theory in UX Design." _Tallwave Blog._ https://tallwave.com/blog/cognitive-load-in-ux/
 
-26. **Thomas Frank (2025).** "Every Notion Feature Released in 2024." *ThomasJFrank.com.* https://thomasjfrank.com/every-notion-feature-released-in-2024/
+26. **Thomas Frank (2025).** "Every Notion Feature Released in 2024." _ThomasJFrank.com._ https://thomasjfrank.com/every-notion-feature-released-in-2024/
 
-27. **Toptal (2026).** "Gestalt Principles: Strategic Framework for UI/UX Leaders." *Toptal Design Blog.* https://www.toptal.com/designers/ui/gestalt-principles-of-design
+27. **Toptal (2026).** "Gestalt Principles: Strategic Framework for UI/UX Leaders." _Toptal Design Blog._ https://www.toptal.com/designers/ui/gestalt-principles-of-design
 
-28. **UXPin (2026).** "What Is Progressive Disclosure in UX? Definition, Examples & Best Practices." *UXPin Blog.* https://www.uxpin.com/studio/blog/what-is-progressive-disclosure/
+28. **UXPin (2026).** "What Is Progressive Disclosure in UX? Definition, Examples & Best Practices." _UXPin Blog._ https://www.uxpin.com/studio/blog/what-is-progressive-disclosure/
 
-29. **Venditori (2025).** "HubSpot vs. Salesforce: A Strategic Analysis." *Venditori Blog.* https://www.venditori.co/en/blog-post/insight/hubspot-vs-salesforce-a-strategic-analysis-for-your-companys-digital-transformation
+29. **Venditori (2025).** "HubSpot vs. Salesforce: A Strategic Analysis." _Venditori Blog._ https://www.venditori.co/en/blog-post/insight/hubspot-vs-salesforce-a-strategic-analysis-for-your-companys-digital-transformation
 
-30. **Xtivia (2024).** "Moving to Salesforce Lightning Experience?" *Xtivia Blog.* https://www.xtivia.com/blog/moving-to-salesforce-lightning-experience/
+30. **Xtivia (2024).** "Moving to Salesforce Lightning Experience?" _Xtivia Blog._ https://www.xtivia.com/blog/moving-to-salesforce-lightning-experience/
 
 ---
 
-*Document prepared for ConciergeOS Product & Design Team. All recommendations are evidence-based and designed for implementation without feature removal.*
+_Document prepared for ConciergeOS Product & Design Team. All recommendations are evidence-based and designed for implementation without feature removal._

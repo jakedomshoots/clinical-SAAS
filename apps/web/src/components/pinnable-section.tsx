@@ -1,7 +1,12 @@
 import { useState, useCallback } from 'react';
 import { Pin, PinOff, EyeOff, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getPinnedSections, setPinnedSections, getHiddenSections, setHiddenSections } from '@/lib/persistence';
+import {
+  getPinnedSections,
+  setPinnedSections,
+  getHiddenSections,
+  setHiddenSections,
+} from '@/lib/persistence';
 import type { UserRole } from '@/lib/view-mode';
 
 interface PinnableSectionProps {
@@ -38,7 +43,9 @@ export function PinnableSection({ sectionId, role, children, headerExtra }: Pinn
           onClick={togglePin}
           className={cn(
             'flex h-7 w-7 items-center justify-center rounded-md transition-colors',
-            pinned ? 'text-accent bg-accent-soft' : 'text-ink-faint hover:text-accent hover:bg-canvas-sunk'
+            pinned
+              ? 'text-accent bg-accent-soft'
+              : 'text-ink-faint hover:text-accent hover:bg-canvas-sunk'
           )}
           title={pinned ? 'Unpin section' : 'Pin section'}
           aria-label={pinned ? 'Unpin section' : 'Pin section'}
@@ -70,9 +77,7 @@ export function HiddenSectionsButton({ role, onUnhide }: HiddenSectionsButtonPro
 
   return (
     <div className="flex items-center justify-center py-4">
-      <button
-        className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-4 py-2 text-small text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors"
-      >
+      <button className="inline-flex items-center gap-2 rounded-md border border-border bg-canvas-raised px-4 py-2 text-small text-ink-muted hover:text-ink hover:bg-canvas-sunk transition-colors">
         <Eye className="h-4 w-4" />
         Show hidden sections ({hidden.length})
       </button>

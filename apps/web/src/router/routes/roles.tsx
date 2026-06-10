@@ -15,7 +15,17 @@ import {
 } from 'lucide-react';
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
-import { ROUTES, type Appointment, type AppointmentStatus, type AuditEvent, type Fax, type MessageThread, type Task, type TodayQueue, type WorkloadSummary } from '@concierge-os/shared';
+import {
+  ROUTES,
+  type Appointment,
+  type AppointmentStatus,
+  type AuditEvent,
+  type Fax,
+  type MessageThread,
+  type Task,
+  type TodayQueue,
+  type WorkloadSummary,
+} from '@concierge-os/shared';
 
 export const Route = createFileRoute('/roles')({
   component: RoleViewsPage,
@@ -30,7 +40,10 @@ function dateOnly(date: Date) {
   return date.toISOString().split('T')[0];
 }
 
+import { useDocumentTitle } from '@/hooks/use-document-title';
+
 function RoleViewsPage() {
+  useDocumentTitle('Role Views');
   const api = useApi();
   const queryClient = useQueryClient();
   const today = new Date('2026-06-03T12:00:00-04:00');
@@ -39,7 +52,10 @@ function RoleViewsPage() {
 
   const { data: todayQueue } = useQuery({
     queryKey: [...QUERY_KEYS.TODAY_QUEUE, 'role-views'],
-    queryFn: () => api.get<TodayQueue>(`${ROUTES.TODAY_QUEUE}?start_date=${dateOnly(today)}&end_date=${dateOnly(tomorrow)}`),
+    queryFn: () =>
+      api.get<TodayQueue>(
+        `${ROUTES.TODAY_QUEUE}?start_date=${dateOnly(today)}&end_date=${dateOnly(tomorrow)}`
+      ),
   });
   const { data: tasks } = useQuery({
     queryKey: [...QUERY_KEYS.TASKS, 'role-views'],
@@ -63,13 +79,21 @@ function RoleViewsPage() {
   });
 
   const queueItems = todayQueue?.data ?? [];
-  const openTasks = tasks?.data.filter((task) => task.status !== 'completed' && task.status !== 'cancelled') ?? [];
+  const openTasks =
+    tasks?.data.filter((task) => task.status !== 'completed' && task.status !== 'cancelled') ?? [];
   const clinicalTasks = openTasks.filter((task) => ['urgent', 'high'].includes(task.priority));
   const unmatchedFaxes = faxes?.data.filter((fax) => !fax.patient_id) ?? [];
-  const unreadMessages = threads?.data.reduce((total, thread) => total + thread.unread_count, 0) ?? 0;
+  const unreadMessages =
+    threads?.data.reduce((total, thread) => total + thread.unread_count, 0) ?? 0;
   const blockedPatients = queueItems.filter((item) => item.checkout_readiness === 'blocked');
-  const checkedInPatients = queueItems.filter((item) => ['checked_in', 'roomed', 'provider_review', 'checkout', 'in_progress'].includes(item.appointment.status));
-  const providerReady = queueItems.filter((item) => item.urgent_tasks > 0 || item.documents_needing_review > 0);
+  const checkedInPatients = queueItems.filter((item) =>
+    ['checked_in', 'roomed', 'provider_review', 'checkout', 'in_progress'].includes(
+      item.appointment.status
+    )
+  );
+  const providerReady = queueItems.filter(
+    (item) => item.urgent_tasks > 0 || item.documents_needing_review > 0
+  );
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: AppointmentStatus }) =>
       api.patch<Appointment>(`/schedule/appointments/${id}`, { status }),
@@ -123,9 +147,27 @@ function RoleViewsPage() {
       icon: Stethoscope,
       summary: `${providerReady.length} charts need review`,
       metrics: [
-        ['Doc reviews', String(queueItems.reduce((sum, item) => sum + item.documents_needing_review, 0))],
-        ['Clinical review', String(queueItems.reduce((sum, item) => sum + item.medications_needing_review + item.labs_needing_review + item.care_plan_blockers, 0))],
-        ['Unsigned notes', String(queueItems.reduce((sum, item) => sum + item.unsigned_encounters, 0))],
+        [
+          'Doc reviews',
+          String(queueItems.reduce((sum, item) => sum + item.documents_needing_review, 0)),
+        ],
+        [
+          'Clinical review',
+          String(
+            queueItems.reduce(
+              (sum, item) =>
+                sum +
+                item.medications_needing_review +
+                item.labs_needing_review +
+                item.care_plan_blockers,
+              0
+            )
+          ),
+        ],
+        [
+          'Unsigned notes',
+          String(queueItems.reduce((sum, item) => sum + item.unsigned_encounters, 0)),
+        ],
         ['Urgent tasks', String(queueItems.reduce((sum, item) => sum + item.urgent_tasks, 0))],
       ],
       actions: [
@@ -150,7 +192,10 @@ function RoleViewsPage() {
         ...(workload?.data.slice(0, 3).map((bucket) => ({
           label: bucket.assigned_to_name ?? `${bucket.owner_role} unassigned`,
           detail: `${bucket.open_items + bucket.source_linked_tasks} open, ${bucket.escalated_items + bucket.urgent_tasks} escalated`,
-          tone: bucket.escalated_items > 0 || bucket.blocked_items > 0 || bucket.urgent_tasks > 0 ? 'red' : 'neutral',
+          tone:
+            bucket.escalated_items > 0 || bucket.blocked_items > 0 || bucket.urgent_tasks > 0
+              ? 'red'
+              : 'neutral',
           to: '/roles',
         })) ?? []),
         ...unmatchedFaxes.slice(0, 2).map((fax) => ({
@@ -176,7 +221,10 @@ function RoleViewsPage() {
           <p className="text-small text-ink-muted">Operational work by role</p>
           <h1 className="mt-1 font-serif text-display text-ink">Role Views</h1>
         </div>
-        <Link to="/" className="inline-flex items-center gap-1 rounded-md border border-border-strong bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1 rounded-md border border-border-strong bg-canvas-raised px-3 py-2 text-sm font-medium text-ink-secondary hover:bg-canvas-sunk"
+        >
           Command Center
           <ArrowRight className="h-3.5 w-3.5" />
         </Link>
@@ -208,7 +256,10 @@ function RoleViewsPage() {
 
             <div className="divide-y divide-border">
               {actions.map((action) => (
-                <div key={`${title}-${action.label}-${action.detail}`} className="flex items-start gap-3 px-4 py-3 hover:bg-canvas-sunk/50">
+                <div
+                  key={`${title}-${action.label}-${action.detail}`}
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-canvas-sunk/50"
+                >
                   {action.tone === 'red' ? (
                     <AlertTriangle className="mt-0.5 h-4 w-4 text-danger" />
                   ) : action.tone === 'amber' ? (
@@ -222,7 +273,12 @@ function RoleViewsPage() {
                   </Link>
                   {'appointmentId' in action && action.appointmentId && action.nextStatus ? (
                     <button
-                      onClick={() => statusMutation.mutate({ id: action.appointmentId, status: action.nextStatus as AppointmentStatus })}
+                      onClick={() =>
+                        statusMutation.mutate({
+                          id: action.appointmentId,
+                          status: action.nextStatus as AppointmentStatus,
+                        })
+                      }
                       className="rounded-md border border-accent-soft bg-accent-soft px-2 py-1 text-xs font-medium text-accent hover:bg-accent-soft"
                     >
                       {nextVisitLabel(action.nextStatus)}
@@ -245,11 +301,30 @@ function RoleViewsPage() {
 
       <section className="grid gap-3 md:grid-cols-3">
         {[
-          { to: '/tasks', label: 'Task queue', detail: `${openTasks.length} open tasks`, icon: ClipboardList },
-          { to: '/faxes', label: 'Fax inbox', detail: `${unmatchedFaxes.length} unmatched inbound`, icon: FileText },
-          { to: '/messaging', label: 'Messages', detail: `${unreadMessages} unread messages`, icon: MessageSquare },
+          {
+            to: '/tasks',
+            label: 'Task queue',
+            detail: `${openTasks.length} open tasks`,
+            icon: ClipboardList,
+          },
+          {
+            to: '/faxes',
+            label: 'Fax inbox',
+            detail: `${unmatchedFaxes.length} unmatched inbound`,
+            icon: FileText,
+          },
+          {
+            to: '/messaging',
+            label: 'Messages',
+            detail: `${unreadMessages} unread messages`,
+            icon: MessageSquare,
+          },
         ].map(({ to, label, detail, icon: Icon }) => (
-          <Link key={to} to={to} className="rounded-md border border-border bg-canvas-raised p-4 hover:bg-canvas-sunk">
+          <Link
+            key={to}
+            to={to}
+            className="rounded-md border border-border bg-canvas-raised p-4 hover:bg-canvas-sunk"
+          >
             <Icon className="h-4 w-4 text-accent" />
             <div className="mt-3 text-sm font-semibold text-ink">{label}</div>
             <div className="mt-1 text-xs text-ink-muted">{detail}</div>

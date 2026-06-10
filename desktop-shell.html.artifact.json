@@ -5,11 +5,7 @@
   "entry": "desktop-shell.html",
   "renderer": "html",
   "status": "complete",
-  "exports": [
-    "html",
-    "pdf",
-    "zip"
-  ],
+  "exports": ["html", "pdf", "zip"],
   "createdAt": "2026-06-07T18:30:47.614Z",
   "updatedAt": "2026-06-07T18:30:47.614Z",
   "metadata": {
