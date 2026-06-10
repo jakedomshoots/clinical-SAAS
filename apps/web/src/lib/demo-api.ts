@@ -6360,7 +6360,8 @@ function threads(): MessageThread[] {
           name,
         })),
         last_message: lastMessage,
-        unread_count: sorted.filter((item) => !item.is_read).length,
+        unread_count: sorted.filter((item) => item.recipient_id === uuid(1) && !item.is_read)
+          .length,
       };
     })
     .sort((a, b) => b.last_message.created_at.localeCompare(a.last_message.created_at));
@@ -9801,6 +9802,34 @@ export async function demoRequest<T>(
   const threadMatch = path.match(/^\/messages\/threads\/([^/]+)$/);
   if (threadMatch) {
     return messages.filter((message) => message.thread_id === threadMatch[1]) as T;
+  }
+
+  const threadReadMatch = path.match(/^\/messages\/threads\/([^/]+)\/read$/);
+  if (threadReadMatch && method === 'POST') {
+    const threadMessages = messages.filter((message) => message.thread_id === threadReadMatch[1]);
+    if (threadMessages.length === 0) return undefined;
+    let markedCount = 0;
+    messages = messages.map((message) => {
+      if (
+        message.thread_id === threadReadMatch[1] &&
+        message.recipient_id === uuid(1) &&
+        !message.is_read
+      ) {
+        markedCount += 1;
+        return { ...message, is_read: true };
+      }
+      return message;
+    });
+    if (markedCount > 0) {
+      logDemoEvent({
+        event_type: 'message.thread_read',
+        entity_type: 'message_thread',
+        entity_id: threadReadMatch[1],
+        payload: { message_count: markedCount },
+      });
+    }
+    saveDemoData();
+    return messages.filter((message) => message.thread_id === threadReadMatch[1]) as T;
   }
 
   if (path === '/messages' && method === 'POST') {

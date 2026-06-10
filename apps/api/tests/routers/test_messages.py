@@ -55,6 +55,55 @@ async def test_mark_message_read(client: AsyncClient, auth_headers, admin_user):
 
 
 @pytest.mark.asyncio
+async def test_mark_thread_read_clears_unread_count_for_current_user(
+    client: AsyncClient,
+    auth_headers,
+    admin_user,
+    db: AsyncSession,
+):
+    sender = await make_user(
+        db,
+        UserRole.provider,
+        "thread-reader-sender@clinic.example.com",
+        organization_id=admin_user.organization_id,
+    )
+    first = await client.post(
+        "/api/messages",
+        json={
+            "recipient_id": admin_user.id,
+            "subject": "Unread thread",
+            "body": "First unread message.",
+        },
+        headers=headers_for(sender),
+    )
+    thread_id = first.json()["thread_id"]
+    second = await client.post(
+        "/api/messages",
+        json={
+            "recipient_id": admin_user.id,
+            "subject": "Unread thread",
+            "body": "Second unread message.",
+            "thread_id": thread_id,
+        },
+        headers=headers_for(sender),
+    )
+
+    assert second.status_code == 201
+    before = await client.get("/api/messages/threads", headers=auth_headers)
+    assert before.status_code == 200
+    thread_before = next(item for item in before.json()["data"] if item["id"] == thread_id)
+    assert thread_before["unread_count"] == 2
+
+    marked = await client.post(f"/api/messages/threads/{thread_id}/read", headers=auth_headers)
+
+    assert marked.status_code == 200
+    assert all(message["is_read"] for message in marked.json())
+    after = await client.get("/api/messages/threads", headers=auth_headers)
+    thread_after = next(item for item in after.json()["data"] if item["id"] == thread_id)
+    assert thread_after["unread_count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_send_message_rejects_cross_org_recipient(
     client: AsyncClient,
     auth_headers,

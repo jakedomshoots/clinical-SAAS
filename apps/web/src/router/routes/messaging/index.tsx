@@ -29,6 +29,31 @@ const MESSAGE_TEMPLATES = [
   { label: 'Post-visit care check', text: 'Hi, we are checking in after your recent visit. How are you feeling? If you have any questions about your care plan, please reply here.' }
 ];
 
+function clearThreadUnreadFromQueryData<T>(value: T, threadId: string): T {
+  if (!value || typeof value !== 'object' || !('data' in value)) return value;
+  const candidate = value as { data?: unknown };
+  if (!Array.isArray(candidate.data)) return value;
+
+  let changed = false;
+  const data = candidate.data.map((item) => {
+    if (
+      item &&
+      typeof item === 'object' &&
+      'id' in item &&
+      'unread_count' in item &&
+      item.id === threadId &&
+      typeof item.unread_count === 'number' &&
+      item.unread_count > 0
+    ) {
+      changed = true;
+      return { ...item, unread_count: 0 };
+    }
+    return item;
+  });
+
+  return changed ? ({ ...value, data } as T) : value;
+}
+
 export const Route = createFileRoute('/messaging/')({
   component: MessagesPage,
 });
@@ -96,6 +121,29 @@ function MessagesPage() {
     },
   });
 
+  const markThreadReadMutation = useMutation({
+    mutationFn: (threadId: string) => api.post<Message[]>(`/messages/threads/${threadId}/read`),
+    onMutate: async (threadId) => {
+      await queryClient.cancelQueries({ queryKey: QUERY_KEYS.MESSAGES });
+      queryClient.setQueriesData({ queryKey: QUERY_KEYS.MESSAGES }, (previous) =>
+        clearThreadUnreadFromQueryData(previous, threadId)
+      );
+    },
+    onSettled: async (_data, _error, threadId) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES }),
+        queryClient.invalidateQueries({ queryKey: QUERY_KEYS.THREAD(threadId) }),
+      ]);
+    },
+  });
+
+  function openThread(thread: MessageThread) {
+    setSelectedThread(thread.id);
+    if (thread.unread_count > 0) {
+      markThreadReadMutation.mutate(thread.id);
+    }
+  }
+
   return (
     <div>
       <div className="mb-6">
@@ -134,7 +182,7 @@ function MessagesPage() {
               threads?.data.map((thread) => (
                 <button
                   key={thread.id}
-                  onClick={() => setSelectedThread(thread.id)}
+                  onClick={() => openThread(thread)}
                   className={`w-full px-4 py-3 text-left transition-colors duration-150 hover:bg-canvas-sunk/50 ${
                     selectedThread === thread.id ? 'bg-canvas-sunk' : ''
                   }`}

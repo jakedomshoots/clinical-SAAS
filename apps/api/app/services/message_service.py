@@ -187,6 +187,40 @@ async def mark_read(db: AsyncSession, user: User, msg_id: str) -> dict | None:
     return await get_message(db, user, msg.id)
 
 
+async def mark_thread_read(db: AsyncSession, user: User, thread_id: str) -> list[dict] | None:
+    result = await db.execute(
+        select(Message).where(
+            Message.thread_id == thread_id,
+            Message.organization_id == user.organization_id,
+            or_(Message.sender_id == user.id, Message.recipient_id == user.id),
+        )
+    )
+    thread_messages = result.scalars().all()
+    if not thread_messages:
+        return None
+
+    unread_for_user = [
+        message
+        for message in thread_messages
+        if message.recipient_id == user.id and not message.is_read
+    ]
+    for message in unread_for_user:
+        message.is_read = True
+
+    if unread_for_user:
+        await db.commit()
+        await log_event(
+            db,
+            "message.thread_read",
+            "message_thread",
+            thread_id,
+            actor_id=user.id,
+            payload={"message_count": len(unread_for_user)},
+        )
+
+    return await list_messages(db, user, thread_id)
+
+
 def _make_msg_dict(m: Message, user_map: dict[str, str]) -> dict:
     return {
         "id": m.id,

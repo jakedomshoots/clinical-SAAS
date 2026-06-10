@@ -28,6 +28,14 @@ async def list_messages(thread_id: str, db: DbDep, current_user: CurrentUserDep)
     return [MessageOut(**m) for m in data]
 
 
+@router.post("/threads/{thread_id}/read", response_model=list[MessageOut])
+async def mark_thread_read(thread_id: str, db: DbDep, current_user: CurrentUserDep):
+    data = await message_service.mark_thread_read(db, current_user, thread_id)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Thread not found")
+    return [MessageOut(**m) for m in data]
+
+
 @router.post("", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def send_message(data: MessageSend, db: DbDep, current_user: ClinicalUserDep):
     msg = await message_service.send_message(db, current_user, data.model_dump())
