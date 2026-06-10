@@ -18,6 +18,7 @@ import { Route as PortalIntakeRouteImport } from './router/routes/portal-intake'
 import { Route as PatientPortalRouteImport } from './router/routes/patient-portal'
 import { Route as LoginRouteImport } from './router/routes/login'
 import { Route as IntegrationsRouteImport } from './router/routes/integrations'
+import { Route as ClickyRouteImport } from './router/routes/clicky'
 import { Route as BillingRouteImport } from './router/routes/billing'
 import { Route as AssistantReviewRouteImport } from './router/routes/assistant-review'
 import { Route as IndexRouteImport } from './router/routes/index'
@@ -72,6 +73,11 @@ const LoginRoute = LoginRouteImport.update({
 const IntegrationsRoute = IntegrationsRouteImport.update({
   id: '/integrations',
   path: '/integrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClickyRoute = ClickyRouteImport.update({
+  id: '/clicky',
+  path: '/clicky',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BillingRoute = BillingRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/assistant-review': typeof AssistantReviewRoute
   '/billing': typeof BillingRoute
+  '/clicky': typeof ClickyRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/patient-portal': typeof PatientPortalRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/assistant-review': typeof AssistantReviewRoute
   '/billing': typeof BillingRoute
+  '/clicky': typeof ClickyRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/patient-portal': typeof PatientPortalRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/assistant-review': typeof AssistantReviewRoute
   '/billing': typeof BillingRoute
+  '/clicky': typeof ClickyRoute
   '/integrations': typeof IntegrationsRoute
   '/login': typeof LoginRoute
   '/patient-portal': typeof PatientPortalRoute
@@ -195,6 +204,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assistant-review'
     | '/billing'
+    | '/clicky'
     | '/integrations'
     | '/login'
     | '/patient-portal'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assistant-review'
     | '/billing'
+    | '/clicky'
     | '/integrations'
     | '/login'
     | '/patient-portal'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
     | '/'
     | '/assistant-review'
     | '/billing'
+    | '/clicky'
     | '/integrations'
     | '/login'
     | '/patient-portal'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AssistantReviewRoute: typeof AssistantReviewRoute
   BillingRoute: typeof BillingRoute
+  ClickyRoute: typeof ClickyRoute
   IntegrationsRoute: typeof IntegrationsRoute
   LoginRoute: typeof LoginRoute
   PatientPortalRoute: typeof PatientPortalRoute
@@ -342,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IntegrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/clicky': {
+      id: '/clicky'
+      path: '/clicky'
+      fullPath: '/clicky'
+      preLoaderRoute: typeof ClickyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/billing': {
       id: '/billing'
       path: '/billing'
@@ -419,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AssistantReviewRoute: AssistantReviewRoute,
   BillingRoute: BillingRoute,
+  ClickyRoute: ClickyRoute,
   IntegrationsRoute: IntegrationsRoute,
   LoginRoute: LoginRoute,
   PatientPortalRoute: PatientPortalRoute,

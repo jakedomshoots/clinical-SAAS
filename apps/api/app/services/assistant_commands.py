@@ -1,5 +1,8 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.fax import Fax, FaxDirection
+from app.models.patient import Patient
 from app.models.user import User
 from app.schemas.assistant import (
     AssistantCommandRequest,
@@ -57,6 +60,50 @@ def _navigation_target(command: str) -> tuple[str, str] | None:
     return None
 
 
+async def _first_patient_id(db: AsyncSession, user: User) -> str | None:
+    return (
+        await db.execute(
+            select(Patient.id)
+            .where(
+                Patient.organization_id == user.organization_id,
+                Patient.is_active.is_(True),
+            )
+            .order_by(Patient.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def _first_portal_reply_recipient_id(db: AsyncSession, user: User) -> str | None:
+    return (
+        await db.execute(
+            select(User.id)
+            .where(
+                User.organization_id == user.organization_id,
+                User.id != user.id,
+                User.is_active.is_(True),
+            )
+            .order_by(User.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def _first_unmatched_inbound_fax_id(db: AsyncSession, user: User) -> str | None:
+    return (
+        await db.execute(
+            select(Fax.id)
+            .where(
+                Fax.organization_id == user.organization_id,
+                Fax.direction == FaxDirection.inbound,
+                Fax.patient_id.is_(None),
+            )
+            .order_by(Fax.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
 async def interpret_command(
     db: AsyncSession,
     user: User,
@@ -66,6 +113,36 @@ async def interpret_command(
     normalized = command.lower()
     route_label = _route_label(request.route_path)
     patient_id = request.entity_id or _patient_id_from_path(request.route_path)
+
+    if any(word in normalized for word in ("blocker", "blockers", "readiness", "launch")):
+        proposal = await assistant_proposals.create_proposal(
+            db,
+            AssistantProposalCreate(
+                proposal_type="operations.review_blocker",
+                title="Review launch blockers",
+                summary=command,
+                route_path=request.route_path,
+                entity_type=None,
+                entity_id=None,
+                payload={
+                    "context": route_label,
+                    "review_focus": "launch blockers",
+                    "route_path": request.route_path,
+                },
+                confidence_reason=(
+                    "The command requested blocker review without asking for an automatic write."
+                ),
+                source="concierge_command",
+                input_mode=request.input_mode,
+                original_command=command,
+            ),
+            user,
+        )
+        return AssistantCommandResult(
+            result_type="proposal",
+            message="Blocker review proposal staged for review.",
+            proposal=proposal,
+        )
 
     if any(word in normalized for word in ("summarize", "summary", "what am i looking at")):
         return AssistantCommandResult(
@@ -98,6 +175,96 @@ async def interpret_command(
         return AssistantCommandResult(
             result_type="proposal",
             message="Navigation proposal staged for review.",
+            proposal=proposal,
+        )
+
+    if any(
+        phrase in normalized
+        for phrase in ("portal reply", "draft reply", "message reply", "reply to patient")
+    ):
+        if not can_use_tool(user, "clinical.draft_portal_reply"):
+            return AssistantCommandResult(
+                result_type="blocked",
+                message="Your role cannot stage portal reply draft proposals.",
+            )
+        recipient_id = await _first_portal_reply_recipient_id(db, user)
+        if not recipient_id:
+            return AssistantCommandResult(
+                result_type="clarification",
+                message="Add a message recipient before drafting a portal reply.",
+            )
+        proposal = await assistant_proposals.create_proposal(
+            db,
+            AssistantProposalCreate(
+                proposal_type="clinical.draft_portal_reply",
+                title="Draft portal reply",
+                summary=command,
+                route_path=request.route_path,
+                entity_type=None,
+                entity_id=None,
+                payload={
+                    "context": route_label,
+                    "recipient_id": recipient_id,
+                    "subject": "Care team follow-up",
+                    "body": (
+                        "Your care team reviewed your question about the lab result and will "
+                        "follow up with the next step after provider review."
+                    ),
+                },
+                confidence_reason=(
+                    "The command requested a portal reply draft, which remains unsent until staff review."
+                ),
+                source="concierge_command",
+                input_mode=request.input_mode,
+                original_command=command,
+            ),
+            user,
+        )
+        return AssistantCommandResult(
+            result_type="proposal",
+            message="Portal reply draft proposal staged for review.",
+            proposal=proposal,
+        )
+
+    if any(phrase in normalized for phrase in ("fax match", "match fax", "stage fax")):
+        if not can_use_tool(user, "clinical.stage_fax_match"):
+            return AssistantCommandResult(
+                result_type="blocked",
+                message="Your role cannot stage fax match proposals.",
+            )
+        fax_id = await _first_unmatched_inbound_fax_id(db, user)
+        matched_patient_id = patient_id or await _first_patient_id(db, user)
+        if not fax_id or not matched_patient_id:
+            return AssistantCommandResult(
+                result_type="clarification",
+                message="An unmatched inbound fax and patient are required before staging a fax match.",
+            )
+        proposal = await assistant_proposals.create_proposal(
+            db,
+            AssistantProposalCreate(
+                proposal_type="clinical.stage_fax_match",
+                title="Stage fax match",
+                summary=command,
+                route_path="/faxes",
+                entity_type="fax",
+                entity_id=fax_id,
+                payload={
+                    "context": route_label,
+                    "fax_id": fax_id,
+                    "patient_id": matched_patient_id,
+                },
+                confidence_reason=(
+                    "The command requested fax matching; ConciergeOS found an unmatched inbound fax and patient candidate."
+                ),
+                source="concierge_command",
+                input_mode=request.input_mode,
+                original_command=command,
+            ),
+            user,
+        )
+        return AssistantCommandResult(
+            result_type="proposal",
+            message="Fax match proposal staged for review.",
             proposal=proposal,
         )
 

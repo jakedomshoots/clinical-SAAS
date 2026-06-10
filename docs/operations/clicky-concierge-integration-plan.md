@@ -10,3 +10,5 @@ The active direction is ConciergeOS-native Clicky-style functionality:
 - Implementation plan: `docs/superpowers/plans/2026-06-10-native-clicky-command-layer.md`
 
 Current product rule: typed commands, voice commands, contextual guidance, persistent staged proposals, inline proposal review, audit events, and confirmation-gated clinical writes are built directly into ConciergeOS. The feature can be enabled or disabled without depending on the external Clicky app.
+
+Current implementation note: Clicky now has a dedicated `/clicky` workspace plus an optional floating overlay that can sit over normal ConciergeOS routes. The original `/Users/jakedom/Documents/clicky-main` project remains reference-only; ConciergeOS owns command interpretation, proposal staging, confirmation, and audit behavior.

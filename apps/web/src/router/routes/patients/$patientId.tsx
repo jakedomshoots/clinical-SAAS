@@ -1620,7 +1620,7 @@ function PatientChartPage() {
                   Historical Trend: {selectedLabPanel}
                 </h3>
                 <div className="h-44 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                     <LineChart data={labTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                       <XAxis dataKey="date" stroke="var(--ink-muted)" fontSize={9} tickLine={false} />

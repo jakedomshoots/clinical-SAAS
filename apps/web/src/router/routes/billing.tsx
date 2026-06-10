@@ -4,9 +4,9 @@ import { SearchablePatientPicker } from '@/components/searchable-patient-picker'
 import { useToast } from '@/components/toast';
 import { InlineAssistantProposals } from '@/components/assistant/inline-proposals';
 import { Button } from '@/components/button';
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ClipboardCheck, CreditCard, Loader2, ShieldCheck } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts';
 import { ErrorBoundary } from '@/components/error-boundary';
 import {
   ROUTES,
@@ -28,6 +28,81 @@ export const Route = createFileRoute('/billing')({
 });
 
 import { useDocumentTitle } from '@/hooks/use-document-title';
+
+type PipelineDatum = {
+  name: string;
+  value: number;
+  color: string;
+};
+
+function BillingPipelineChart({ data }: { data: PipelineDatum[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      setSize({
+        width: Math.max(0, Math.floor(rect.width)),
+        height: Math.max(0, Math.floor(rect.height)),
+      });
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={containerRef} className="h-36 min-h-36 w-full min-w-0">
+      {size.width > 0 && size.height > 0 && (
+        <BarChart
+          width={size.width}
+          height={size.height}
+          layout="vertical"
+          data={data}
+          margin={{ top: 5, right: 10, left: 20, bottom: 5 }}
+        >
+          <XAxis
+            type="number"
+            stroke="#b8b3aa"
+            fontSize={11}
+            fontWeight={500}
+            tickLine={false}
+            axisLine={false}
+          />
+          <YAxis
+            dataKey="name"
+            type="category"
+            stroke="#d8d1c5"
+            fontSize={11}
+            fontWeight={600}
+            tickLine={false}
+            axisLine={false}
+            width={112}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: 'var(--canvas-raised)',
+              borderColor: 'var(--border)',
+              color: 'var(--ink)',
+              fontSize: '11px',
+            }}
+          />
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Bar>
+        </BarChart>
+      )}
+    </div>
+  );
+}
 
 function BillingPage() {
   useDocumentTitle('Billing');
@@ -259,47 +334,7 @@ function BillingPage() {
               <CreditCard className="h-4 w-4 text-accent" />
               Billing Pipeline Funnel
             </h2>
-            <div className="h-36 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  layout="vertical"
-                  data={pipelineData}
-                  margin={{ top: 5, right: 10, left: 20, bottom: 5 }}
-                >
-                  <XAxis
-                    type="number"
-                    stroke="#b8b3aa"
-                    fontSize={11}
-                    fontWeight={500}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    stroke="#d8d1c5"
-                    fontSize={11}
-                    fontWeight={600}
-                    tickLine={false}
-                    axisLine={false}
-                    width={112}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--canvas-raised)',
-                      borderColor: 'var(--border)',
-                      color: 'var(--ink)',
-                      fontSize: '11px',
-                    }}
-                  />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={14}>
-                    {pipelineData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <BillingPipelineChart data={pipelineData} />
           </div>
         )}
       </ErrorBoundary>

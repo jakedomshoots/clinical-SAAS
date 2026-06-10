@@ -257,6 +257,105 @@ async def test_command_can_return_current_view_summary(client, auth_headers):
 
 
 @pytest.mark.asyncio
+async def test_command_creates_portal_reply_proposal(client, auth_headers, db: AsyncSession):
+    recipient = await make_user(db, UserRole.provider, "assistant-command-recipient@example.com")
+
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "draft portal reply about the lab result",
+            "input_mode": "typed",
+            "route_path": "/messaging",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["proposal_type"] == "clinical.draft_portal_reply"
+    assert body["proposal"]["payload"]["recipient_id"] == recipient.id
+    assert body["proposal"]["payload"]["subject"] == "Care team follow-up"
+    assert "lab result" in body["proposal"]["payload"]["body"].lower()
+
+
+@pytest.mark.asyncio
+async def test_command_creates_fax_match_proposal(client, auth_headers, db: AsyncSession):
+    patient_id = await create_patient(client, auth_headers)
+    inbound = Fax(
+        direction=FaxDirection.inbound,
+        status=FaxStatus.received,
+        from_number="+13125550111",
+        to_number="+13125550999",
+        pages=3,
+        ocr_text="Referral packet awaiting chart match.",
+    )
+    db.add(inbound)
+    await db.commit()
+    await db.refresh(inbound)
+
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "stage fax match to the first patient",
+            "input_mode": "typed",
+            "route_path": "/faxes",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["proposal_type"] == "clinical.stage_fax_match"
+    assert body["proposal"]["payload"]["fax_id"] == inbound.id
+    assert body["proposal"]["payload"]["patient_id"] == patient_id
+
+
+@pytest.mark.asyncio
+async def test_command_creates_blocker_review_proposal(client, auth_headers):
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "review launch blockers",
+            "input_mode": "typed",
+            "route_path": "/operations",
+        },
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["result_type"] == "proposal"
+    assert body["proposal"]["proposal_type"] == "operations.review_blocker"
+    assert body["proposal"]["route_path"] == "/operations"
+    assert body["proposal"]["payload"]["review_focus"] == "launch blockers"
+
+
+@pytest.mark.asyncio
+async def test_command_blocks_fax_match_without_front_office_role(
+    client,
+    db: AsyncSession,
+):
+    provider = await make_user(db, UserRole.provider, "assistant-command-provider@example.com")
+
+    response = await client.post(
+        "/api/assistant/actions/commands",
+        json={
+            "command": "stage fax match",
+            "input_mode": "typed",
+            "route_path": "/faxes",
+        },
+        headers=headers_for(provider),
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["result_type"] == "blocked"
+    assert "cannot stage fax match" in body["message"]
+
+
+@pytest.mark.asyncio
 async def test_command_returns_clarification_for_ambiguous_request(client, auth_headers):
     response = await client.post(
         "/api/assistant/actions/commands",

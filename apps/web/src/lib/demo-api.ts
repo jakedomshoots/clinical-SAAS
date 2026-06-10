@@ -8180,6 +8180,47 @@ export async function demoRequest<T>(
       };
     };
 
+    const routeLabel = (() => {
+      if (request.route_path.startsWith('/patients/')) return 'Patient chart';
+      if (request.route_path.startsWith('/patients')) return 'Patient search';
+      if (request.route_path.startsWith('/tasks')) return 'Task queue';
+      if (request.route_path.startsWith('/scheduling')) return 'Schedule';
+      if (request.route_path.startsWith('/faxes')) return 'Fax center';
+      if (request.route_path.startsWith('/messaging')) return 'Messages';
+      if (request.route_path.startsWith('/billing')) return 'Billing cases';
+      if (request.route_path.startsWith('/operations')) return 'Operations';
+      if (request.route_path.startsWith('/setup')) return 'Setup';
+      return 'Command center';
+    })();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    if (
+      normalized.includes('blocker') ||
+      normalized.includes('blockers') ||
+      normalized.includes('readiness') ||
+      normalized.includes('launch')
+    ) {
+      return createCommandProposal({
+        proposal_type: 'operations.review_blocker',
+        title: 'Review launch blockers',
+        summary: command,
+        route_path: request.route_path,
+        entity_type: null,
+        entity_id: null,
+        payload: {
+          context: routeLabel,
+          review_focus: 'launch blockers',
+          route_path: request.route_path,
+        },
+        confidence_reason:
+          'The command requested blocker review without asking for an automatic write.',
+        source: 'concierge_command',
+        input_mode: request.input_mode,
+        original_command: command,
+        expires_at: expiresAt,
+      }) as T;
+    }
+
     if (normalized.includes('summarize') || normalized.includes('summary')) {
       return {
         result_type: 'answer',
@@ -8219,9 +8260,80 @@ export async function demoRequest<T>(
           source: 'concierge_command',
           input_mode: request.input_mode,
           original_command: command,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: expiresAt,
         }) as T;
       }
+    }
+
+    if (
+      normalized.includes('portal reply') ||
+      normalized.includes('draft reply') ||
+      normalized.includes('message reply') ||
+      normalized.includes('reply to patient')
+    ) {
+      const recipientId =
+        threads()[0]?.participants.find((participant) => participant.id !== uuid(1))?.id ??
+        patients[0]?.id ??
+        uuid(101);
+      return createCommandProposal({
+        proposal_type: 'clinical.draft_portal_reply',
+        title: 'Draft portal reply',
+        summary: command,
+        route_path: request.route_path,
+        entity_type: null,
+        entity_id: null,
+        payload: {
+          context: routeLabel,
+          recipient_id: recipientId,
+          subject: 'Care team follow-up',
+          body:
+            'Your care team reviewed your question about the lab result and will follow up with the next step after provider review.',
+        },
+        confidence_reason:
+          'The command requested a portal reply draft, which remains unsent until staff review.',
+        source: 'concierge_command',
+        input_mode: request.input_mode,
+        original_command: command,
+        expires_at: expiresAt,
+      }) as T;
+    }
+
+    if (
+      normalized.includes('fax match') ||
+      normalized.includes('match fax') ||
+      normalized.includes('stage fax')
+    ) {
+      const patientId =
+        request.entity_id ??
+        (request.route_path.startsWith('/patients/') ? request.route_path.split('/')[2] : null) ??
+        patients[0]?.id;
+      const faxId = faxes.find((fax) => fax.direction === 'inbound' && !fax.patient_id)?.id;
+      if (!patientId || !faxId) {
+        return {
+          result_type: 'clarification',
+          message: 'An unmatched inbound fax and patient are required before staging a fax match.',
+          proposal: null,
+        } as T;
+      }
+      return createCommandProposal({
+        proposal_type: 'clinical.stage_fax_match',
+        title: 'Stage fax match',
+        summary: command,
+        route_path: '/faxes',
+        entity_type: 'fax',
+        entity_id: faxId,
+        payload: {
+          context: routeLabel,
+          fax_id: faxId,
+          patient_id: patientId,
+        },
+        confidence_reason:
+          'The command requested fax matching; ConciergeOS found an unmatched inbound fax and patient candidate.',
+        source: 'concierge_command',
+        input_mode: request.input_mode,
+        original_command: command,
+        expires_at: expiresAt,
+      }) as T;
     }
 
     if (
@@ -8257,7 +8369,7 @@ export async function demoRequest<T>(
         source: 'concierge_command',
         input_mode: request.input_mode,
         original_command: command,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: expiresAt,
       }) as T;
     }
 

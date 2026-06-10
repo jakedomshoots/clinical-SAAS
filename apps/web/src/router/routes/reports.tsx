@@ -297,7 +297,7 @@ function ReportsPage() {
                 Daily trend metrics for visits, open tasks, and active billing cases
               </p>
               <div className="mt-4 h-64 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                   <AreaChart
                     data={trendData}
                     margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -368,7 +368,7 @@ function ReportsPage() {
                     </span>
                   </div>
                   <div className="mt-4 h-40 w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                       <PieChart>
                         <Pie
                           data={schedulePieData}
@@ -423,7 +423,7 @@ function ReportsPage() {
                     </span>
                   </div>
                   <div className="mt-4 h-40 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                       <BarChart
                         data={workBarData}
                         margin={{ top: 20, right: 0, left: -30, bottom: 0 }}
@@ -486,7 +486,7 @@ function ReportsPage() {
                     </span>
                   </div>
                   <div className="mt-4 h-40 w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                       <PieChart>
                         <Pie
                           data={frontOfficePieData}
@@ -541,7 +541,7 @@ function ReportsPage() {
                     </span>
                   </div>
                   <div className="mt-4 h-40 w-full flex items-center justify-center">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={1}>
                       <PieChart>
                         <Pie
                           data={billingPieData}
