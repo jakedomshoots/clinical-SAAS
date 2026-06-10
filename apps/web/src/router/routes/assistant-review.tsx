@@ -1,9 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Bot, ShieldCheck } from 'lucide-react';
-import type { AuditEvent } from '@concierge-os/shared';
+import type { AssistantProposal, AuditEvent } from '@concierge-os/shared';
+import { useToast } from '@/components/toast';
 import { useApi } from '@/lib/api-client';
+import {
+  confirmAssistantProposal,
+  dismissAssistantProposal,
+  fetchAssistantProposals,
+} from '@/lib/assistant-tools';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { LoadingState, humanizeWorkflowLabel } from '@/lib/ui-state';
 
@@ -18,12 +24,69 @@ export const Route = createFileRoute('/assistant-review')({
 
 function AssistantReviewPage() {
   const api = useApi();
+  const navigate = Route.useNavigate();
+  const queryClient = useQueryClient();
+  const toast = useToast();
   const [actionFilter, setActionFilter] = useState('all');
   const [search, setSearch] = useState('');
   const { data, isLoading } = useQuery({
     queryKey: [...QUERY_KEYS.AUDIT, 'assistant-review'],
     queryFn: () => api.get<ListResponse<AuditEvent>>('/audit?page=1&page_size=50'),
   });
+  const { data: proposals = [], isLoading: proposalsLoading } = useQuery({
+    queryKey: [...QUERY_KEYS.ASSISTANT_PROPOSALS],
+    queryFn: () => fetchAssistantProposals(api),
+  });
+
+  const proposalActionPath: Partial<Record<AssistantProposal['proposal_type'], string>> = {
+    'clinical.create_follow_up_task': '/assistant/actions/follow-up-task',
+    'clinical.draft_portal_reply': '/assistant/actions/portal-reply-draft',
+    'clinical.stage_fax_match': '/assistant/actions/fax-match',
+  };
+
+  const invalidateAssistantReview = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.ASSISTANT_PROPOSALS }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.AUDIT }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.TASKS }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.FAXES }),
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.MESSAGES }),
+    ]);
+  };
+
+  const dismissMutation = useMutation({
+    mutationFn: (proposalId: string) => dismissAssistantProposal(api, proposalId),
+    onSuccess: async () => {
+      toast.success('Clicky proposal dismissed');
+      await invalidateAssistantReview();
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to dismiss proposal');
+    },
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: async (proposal: AssistantProposal) => {
+      const actionPath = proposalActionPath[proposal.proposal_type];
+      if (actionPath) {
+        await api.post(actionPath, proposal.payload);
+      } else if (
+        proposal.proposal_type === 'navigation.open_route' ||
+        proposal.proposal_type === 'operations.review_blocker'
+      ) {
+        await navigate({ to: proposal.route_path });
+      }
+      return confirmAssistantProposal(api, proposal.id);
+    },
+    onSuccess: async () => {
+      toast.success('Clicky proposal reviewed');
+      await invalidateAssistantReview();
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : 'Failed to review proposal');
+    },
+  });
+
   const rows = (data?.data ?? [])
     .filter((event) => event.event_type.startsWith('assistant.'))
     .filter((event) => actionFilter === 'all' || event.event_type === actionFilter)
@@ -71,6 +134,73 @@ function AssistantReviewPage() {
             <div className="mt-1 font-serif text-2xl font-medium text-ink">{value}</div>
           </div>
         ))}
+      </section>
+      <section
+        className="overflow-hidden rounded-md border border-border bg-canvas-raised"
+        aria-label="Clicky proposals"
+      >
+        <div className="border-b border-border px-4 py-3">
+          <h2 className="text-base font-semibold text-ink">Clicky proposals</h2>
+          <p className="mt-1 text-small text-ink-muted">
+            Review staged voice and screen suggestions before ConciergeOS writes anything.
+          </p>
+        </div>
+        {proposalsLoading ? (
+          <LoadingState label="Loading Clicky proposals" />
+        ) : proposals.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-ink-faint">
+            No pending Clicky proposals.
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {proposals.map((proposal) => (
+              <article
+                key={proposal.id}
+                className="grid gap-3 px-4 py-4 md:grid-cols-[1fr_16rem]"
+              >
+                <div>
+                  <div className="mb-2 flex flex-wrap gap-2 text-xs">
+                    <span className="rounded-pill bg-canvas-sunk px-2 py-0.5 text-micro font-medium text-ink-muted">
+                      {humanizeWorkflowLabel(proposal.proposal_type)}
+                    </span>
+                    <span className="rounded-pill bg-accent/10 px-2 py-0.5 text-micro font-medium text-accent">
+                      Source: Clicky
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-semibold text-ink">{proposal.title}</h3>
+                  <p className="mt-1 text-sm text-ink-secondary">{proposal.summary}</p>
+                  <p className="mt-2 text-xs text-ink-muted">{proposal.confidence_reason}</p>
+                  <details className="mt-2 text-xs text-ink-secondary">
+                    <summary className="cursor-pointer font-medium text-ink-secondary">
+                      Staged payload
+                    </summary>
+                    <pre className="mt-2 max-h-32 overflow-auto rounded bg-canvas p-2 text-[11px]">
+                      {JSON.stringify(proposal.payload, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+                <div className="flex flex-wrap items-start gap-2 md:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => confirmMutation.mutate(proposal)}
+                    disabled={confirmMutation.isPending || dismissMutation.isPending}
+                    className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Review action
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => dismissMutation.mutate(proposal.id)}
+                    disabled={confirmMutation.isPending || dismissMutation.isPending}
+                    className="rounded-sm border border-border px-3 py-2 text-sm font-semibold text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
       <section className="flex flex-wrap gap-2 rounded-md border border-border bg-canvas-raised p-3">
         <select

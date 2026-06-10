@@ -1,6 +1,7 @@
 import type {
   AdapterImplementationItem,
   AdapterImplementationPacket,
+  AssistantProposal,
   Appointment,
   AuditEvent,
   AuditReviewSummary,
@@ -4639,6 +4640,7 @@ interface DemoStore {
   policyApprovalSessions?: PolicyApprovalSession[];
   restoreDrillSessions?: RestoreDrillSession[];
   cutoverRunbookSessions?: CutoverRunbookSession[];
+  assistantProposals?: AssistantProposal[];
 }
 
 interface IntegrationEvent {
@@ -4787,6 +4789,7 @@ let staffTrainingSessions: StaffTrainingSession[] = [];
 let policyApprovalSessions: PolicyApprovalSession[] = [];
 let restoreDrillSessions: RestoreDrillSession[] = [];
 let cutoverRunbookSessions: CutoverRunbookSession[] = [];
+let demoAssistantProposals: AssistantProposal[] = [];
 const encounterTemplates: EncounterTemplate[] = [
   {
     id: 'office_visit',
@@ -5587,6 +5590,7 @@ function saveDemoData() {
       policyApprovalSessions,
       restoreDrillSessions,
       cutoverRunbookSessions,
+      assistantProposals: demoAssistantProposals,
     })
   );
 }
@@ -6322,6 +6326,7 @@ if (storedDemoData) {
   policyApprovalSessions = storedDemoData.policyApprovalSessions ?? policyApprovalSessions;
   restoreDrillSessions = storedDemoData.restoreDrillSessions ?? restoreDrillSessions;
   cutoverRunbookSessions = storedDemoData.cutoverRunbookSessions ?? cutoverRunbookSessions;
+  demoAssistantProposals = storedDemoData.assistantProposals ?? demoAssistantProposals;
 }
 
 function paginate<T>(rows: T[], page: number, pageSize: number) {
@@ -8119,6 +8124,50 @@ export async function demoRequest<T>(
         : user
     );
     return demoUsers.find((user) => user.id === userMatch[1]) as T;
+  }
+
+  if (path === '/assistant/actions/proposals' && method === 'GET') {
+    return demoAssistantProposals.filter((proposal) => proposal.status === 'pending') as T;
+  }
+
+  if (path === '/assistant/actions/proposals' && method === 'POST') {
+    const proposal = body as Omit<
+      AssistantProposal,
+      'id' | 'status' | 'created_at' | 'created_by_user_id' | 'resolved_at' | 'resolved_by_user_id'
+    >;
+    const created: AssistantProposal = {
+      ...proposal,
+      id: `demo-clicky-proposal-${Date.now()}`,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      created_by_user_id: uuid(1),
+      resolved_at: null,
+      resolved_by_user_id: null,
+    };
+    demoAssistantProposals = [created, ...demoAssistantProposals];
+    saveDemoData();
+    return created as T;
+  }
+
+  const assistantProposalResolveMatch = path.match(
+    /^\/assistant\/actions\/proposals\/([^/]+)\/(confirm|dismiss)$/
+  );
+  if (assistantProposalResolveMatch && method === 'POST') {
+    const [, proposalId, action] = assistantProposalResolveMatch;
+    let updated: AssistantProposal | undefined;
+    demoAssistantProposals = demoAssistantProposals.map((proposal) => {
+      if (proposal.id !== proposalId) return proposal;
+      updated = {
+        ...proposal,
+        status: action === 'confirm' ? 'confirmed' : 'dismissed',
+        resolved_at: new Date().toISOString(),
+        resolved_by_user_id: uuid(1),
+      };
+      return updated;
+    });
+    if (!updated) throw new Error('Proposal not found');
+    saveDemoData();
+    return updated as T;
   }
 
   if (path === '/assistant/actions/follow-up-task' && method === 'POST') {

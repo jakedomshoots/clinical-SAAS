@@ -25,6 +25,112 @@ async def create_patient(client: AsyncClient, auth_headers) -> str:
 
 
 @pytest.mark.asyncio
+async def test_assistant_context_returns_role_policy_and_safe_summary(client, auth_headers):
+    response = await client.get(
+        "/api/assistant/actions/context?path=/patients/00000000-0000-4000-8000-000000000101",
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["route"]["path"] == "/patients/00000000-0000-4000-8000-000000000101"
+    assert body["route"]["label"] == "Patient chart"
+    assert "clinical.create_follow_up_task" in body["allowed_tools"]
+    assert body["work_summary"]["urgent_open_tasks"] >= 0
+    assert "Require ConciergeOS confirmation before writes." in body["assistant_rules"]
+
+
+@pytest.mark.asyncio
+async def test_clicky_can_create_and_list_pending_proposals(client, auth_headers):
+    proposal = {
+        "proposal_type": "clinical.create_follow_up_task",
+        "title": "Create follow-up task",
+        "summary": "Follow up with the patient tomorrow morning.",
+        "route_path": "/patients/00000000-0000-4000-8000-000000000101",
+        "entity_type": "patient",
+        "entity_id": "00000000-0000-4000-8000-000000000101",
+        "payload": {
+            "context": "Patient chart",
+            "title": "Follow up tomorrow morning",
+            "priority": "normal",
+        },
+        "confidence_reason": "The user asked for a follow-up task while viewing the patient chart.",
+        "source": "clicky",
+    }
+
+    create_response = await client.post(
+        "/api/assistant/actions/proposals",
+        json=proposal,
+        headers=auth_headers,
+    )
+
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["status"] == "pending"
+    assert created["source"] == "clicky"
+
+    list_response = await client.get("/api/assistant/actions/proposals", headers=auth_headers)
+    assert list_response.status_code == 200
+    assert any(item["id"] == created["id"] for item in list_response.json())
+
+
+@pytest.mark.asyncio
+async def test_assistant_proposal_can_be_dismissed(client, auth_headers):
+    proposal_response = await client.post(
+        "/api/assistant/actions/proposals",
+        json={
+            "proposal_type": "operations.review_blocker",
+            "title": "Review launch blocker",
+            "summary": "Review the readiness blocker in setup.",
+            "route_path": "/setup",
+            "entity_type": None,
+            "entity_id": None,
+            "payload": {"context": "Setup checklist"},
+            "confidence_reason": "The user asked what blocks launch readiness.",
+            "source": "clicky",
+        },
+        headers=auth_headers,
+    )
+    proposal_id = proposal_response.json()["id"]
+
+    dismiss_response = await client.post(
+        f"/api/assistant/actions/proposals/{proposal_id}/dismiss",
+        headers=auth_headers,
+    )
+
+    assert dismiss_response.status_code == 200
+    assert dismiss_response.json()["status"] == "dismissed"
+
+
+@pytest.mark.asyncio
+async def test_assistant_proposal_can_be_marked_confirmed(client, auth_headers):
+    proposal_response = await client.post(
+        "/api/assistant/actions/proposals",
+        json={
+            "proposal_type": "navigation.open_route",
+            "title": "Open task queue",
+            "summary": "Navigate to the task queue.",
+            "route_path": "/tasks",
+            "entity_type": None,
+            "entity_id": None,
+            "payload": {"context": "Task queue"},
+            "confidence_reason": "The user asked where to find urgent work.",
+            "source": "clicky",
+        },
+        headers=auth_headers,
+    )
+    proposal_id = proposal_response.json()["id"]
+
+    confirm_response = await client.post(
+        f"/api/assistant/actions/proposals/{proposal_id}/confirm",
+        headers=auth_headers,
+    )
+
+    assert confirm_response.status_code == 200
+    assert confirm_response.json()["status"] == "confirmed"
+
+
+@pytest.mark.asyncio
 async def test_assistant_creates_follow_up_task(client: AsyncClient, auth_headers):
     patient_id = await create_patient(client, auth_headers)
 
@@ -81,8 +187,16 @@ async def test_assistant_portal_reply_rejects_thread_for_different_recipient(
     auth_headers,
     db: AsyncSession,
 ):
-    thread_recipient = await make_user(db, UserRole.provider, "assistant-thread-recipient@clinic.example.com")
-    other_recipient = await make_user(db, UserRole.provider, "assistant-other-recipient@clinic.example.com")
+    thread_recipient = await make_user(
+        db,
+        UserRole.provider,
+        "assistant-thread-recipient@clinic.example.com",
+    )
+    other_recipient = await make_user(
+        db,
+        UserRole.provider,
+        "assistant-other-recipient@clinic.example.com",
+    )
     thread = await client.post(
         "/api/messages",
         json={

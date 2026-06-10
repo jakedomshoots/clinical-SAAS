@@ -53,6 +53,7 @@ export const QUERY_KEYS = {
   MESSAGES: ['messages'] as const,
   THREAD: (id: string) => ['messages', 'threads', id] as const,
   AUDIT: ['audit'] as const,
+  ASSISTANT_PROPOSALS: ['assistant-proposals'] as const,
   READINESS: ['readiness'] as const,
   DAILY_CLOSEOUT: ['reports', 'daily-closeout'] as const,
   SETTINGS: ['settings'] as const,

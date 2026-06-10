@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import type { Fax, MessageThread, Patient, Task } from '@concierge-os/shared';
+import type { AssistantProposal, Fax, MessageThread, Patient, Task } from '@concierge-os/shared';
 import { useApi } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth';
 import { QUERY_KEYS } from '@/lib/query-keys';
@@ -35,6 +35,26 @@ export const ASSISTANT_TOOL_IDS = {
 } as const;
 
 export type AssistantToolId = (typeof ASSISTANT_TOOL_IDS)[keyof typeof ASSISTANT_TOOL_IDS];
+
+export async function fetchAssistantProposals(api: {
+  get: <T>(path: string) => Promise<T>;
+}): Promise<AssistantProposal[]> {
+  return api.get<AssistantProposal[]>('/assistant/actions/proposals');
+}
+
+export async function dismissAssistantProposal(
+  api: { post: <T>(path: string, body?: unknown) => Promise<T> },
+  proposalId: string
+): Promise<AssistantProposal> {
+  return api.post<AssistantProposal>(`/assistant/actions/proposals/${proposalId}/dismiss`);
+}
+
+export async function confirmAssistantProposal(
+  api: { post: <T>(path: string, body?: unknown) => Promise<T> },
+  proposalId: string
+): Promise<AssistantProposal> {
+  return api.post<AssistantProposal>(`/assistant/actions/proposals/${proposalId}/confirm`);
+}
 
 export const ASSISTANT_TOOL_DEFINITIONS: Record<
   AssistantToolId,
