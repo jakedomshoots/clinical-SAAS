@@ -71,7 +71,7 @@ AssistantProposalType = Literal[
 ]
 
 AssistantProposalStatus = Literal["pending", "confirmed", "dismissed", "expired", "failed"]
-AssistantProposalSource = Literal["clicky", "concierge_command"]
+AssistantProposalSource = Literal["concierge_command"]
 AssistantCommandInputMode = Literal["typed", "voice"]
 
 

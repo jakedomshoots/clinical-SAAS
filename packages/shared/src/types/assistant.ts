@@ -7,7 +7,7 @@ export type AssistantProposalType =
   | 'workspace.summarize_current_view';
 
 export type AssistantProposalStatus = 'pending' | 'confirmed' | 'dismissed' | 'expired' | 'failed';
-export type AssistantProposalSource = 'clicky' | 'concierge_command';
+export type AssistantProposalSource = 'concierge_command';
 export type AssistantCommandInputMode = 'typed' | 'voice';
 
 export interface AssistantRouteContext {

@@ -84,4 +84,4 @@ These are the next highest-value AI moat items after the acquisition package:
 - Stages reviewable proposals instead of executing blind mutations.
 - Keeps manager audit visibility.
 - Can be disabled per deployment.
-- Does not depend on the old external Clicky app.
+- Does not depend on an external assistant runtime.

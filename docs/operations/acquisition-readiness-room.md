@@ -38,8 +38,6 @@ Use these documents as the acquisition room table of contents:
 - Production launch checklist: `docs/operations/production-launch-checklist.md`
 - Vendor adapter plan: `docs/integrations/vendor-adapter-plan.md`
 - Compliance procedures: `docs/compliance/phi-retention-and-incident-response.md`
-- Native AI command spec: `docs/superpowers/specs/2026-06-10-native-clicky-command-layer-design.md`
-- Native AI command implementation plan: `docs/superpowers/plans/2026-06-10-native-clicky-command-layer.md`
 
 ## Buyer Narrative
 

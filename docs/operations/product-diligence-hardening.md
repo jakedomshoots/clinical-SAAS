@@ -14,9 +14,7 @@ not confuse the native Concierge OS direction.
 - Production claims must be tied to the launch checklist and vendor evidence.
 - Native AI command functionality should be called Concierge command, native AI
   command, Assistant proposal, or Assistant Review.
-- The old Clicky project may be referenced only as historical product
-  inspiration in the superseded integration plan and native command spec.
-- User-facing UI should not imply an external Clicky API dependency.
+- User-facing UI should not imply an external assistant dependency.
 - Placeholder vendor adapters should be explained as blocked live-use lanes, not
   hidden as complete integrations.
 - "In production this would..." comments should not appear in buyer-facing UI.
@@ -25,7 +23,7 @@ not confuse the native Concierge OS direction.
 ## Current Cleanup Completed
 
 - Assistant Review now labels staged work as Assistant proposals rather than
-  legacy Clicky-branded proposal copy.
+  legacy branded proposal copy.
 - Demo-created assistant proposal IDs now use `demo-assistant-proposal-*`.
 - The acquisition room, hosted demo guide, and AI differentiation docs make the
   synthetic-data and live-use boundaries explicit.
@@ -67,7 +65,7 @@ Avoid:
 
 - "live-ready" unless all launch checklist gates are actually satisfied;
 - "autonomous AI";
-- "external Clicky integration" for the current product;
+- "external assistant integration" for the current product;
 - "production adapter complete" without vendor evidence;
 - "HIPAA complete" without signed BAA and clinic policy approval.
 

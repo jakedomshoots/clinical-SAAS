@@ -18,7 +18,6 @@ const routes = [
   '/integrations',
   '/reports',
   '/assistant-review',
-  '/clicky',
   '/operations',
   '/setup',
   '/staff',

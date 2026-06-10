@@ -42,7 +42,7 @@ async def test_assistant_context_returns_role_policy_and_safe_summary(client, au
 
 
 @pytest.mark.asyncio
-async def test_clicky_can_create_and_list_pending_proposals(client, auth_headers):
+async def test_assistant_can_create_and_list_pending_proposals(client, auth_headers):
     proposal = {
         "proposal_type": "clinical.create_follow_up_task",
         "title": "Create follow-up task",
@@ -56,7 +56,7 @@ async def test_clicky_can_create_and_list_pending_proposals(client, auth_headers
             "priority": "normal",
         },
         "confidence_reason": "The user asked for a follow-up task while viewing the patient chart.",
-        "source": "clicky",
+        "source": "concierge_command",
     }
 
     create_response = await client.post(
@@ -68,7 +68,7 @@ async def test_clicky_can_create_and_list_pending_proposals(client, auth_headers
     assert create_response.status_code == 201
     created = create_response.json()
     assert created["status"] == "pending"
-    assert created["source"] == "clicky"
+    assert created["source"] == "concierge_command"
 
     list_response = await client.get("/api/assistant/actions/proposals", headers=auth_headers)
     assert list_response.status_code == 200
@@ -88,7 +88,7 @@ async def test_assistant_proposal_can_be_dismissed(client, auth_headers):
             "entity_id": None,
             "payload": {"context": "Setup checklist"},
             "confidence_reason": "The user asked what blocks launch readiness.",
-            "source": "clicky",
+            "source": "concierge_command",
         },
         headers=auth_headers,
     )
@@ -116,7 +116,7 @@ async def test_assistant_proposal_can_be_marked_confirmed(client, auth_headers):
             "entity_id": None,
             "payload": {"context": "Task queue"},
             "confidence_reason": "The user asked where to find urgent work.",
-            "source": "clicky",
+            "source": "concierge_command",
         },
         headers=auth_headers,
     )

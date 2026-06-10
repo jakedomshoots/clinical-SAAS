@@ -14,8 +14,6 @@ import { useClinicalAssistantTools, type AssistantAction } from '@/lib/assistant
 import { useApi } from '@/lib/api-client';
 import { QUERY_KEYS } from '@/lib/query-keys';
 import { ErrorState } from '@/lib/ui-state';
-import { ClickyFloatingOverlay } from '@/components/clicky/clicky-floating-overlay';
-import { ClickyAddOnProvider, useClickyAddOn } from '@/lib/clicky-overlay';
 import { ROUTES, type ClinicSettings, type ClinicSettingsUpdate } from '@concierge-os/shared';
 import { ToastProvider } from '@/components/toast';
 import {
@@ -101,7 +99,6 @@ function SideNav({ theme, onThemeToggle }: { theme: 'light' | 'dark'; onThemeTog
       label: 'Daily Work',
       items: [
         { to: '/', label: 'Command', icon: Gauge },
-        { to: '/clicky', label: 'Clicky', icon: Command },
         { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
         { to: '/scheduling', label: 'Schedule', icon: Calendar },
         { to: '/tasks', label: 'Tasks', icon: ClipboardList, badge: urgentTasks || undefined },
@@ -279,7 +276,6 @@ function MobileNav({ open, onClose, theme, onThemeToggle }: { open: boolean; onC
   const { urgentTasks, unreadMessages, unmatchedFaxes } = useNavBadges();
   const navItems = [
     { to: '/', label: 'Command', icon: Gauge },
-    { to: '/clicky', label: 'Clicky', icon: Command },
     { to: '/roles', label: 'Role Views', icon: LayoutDashboard },
     { to: '/patients', label: 'Patients', icon: Users },
     { to: '/staff', label: 'Staff', icon: ShieldCheck },
@@ -377,16 +373,12 @@ function MobileNav({ open, onClose, theme, onThemeToggle }: { open: boolean; onC
 function SettingsPanel({
   open,
   density,
-  clickyCommandsEnabled,
   onDensityChange,
-  onClickyCommandsToggle,
   onClose,
 }: {
   open: boolean;
   density: 'comfortable' | 'compact';
-  clickyCommandsEnabled: boolean;
   onDensityChange: () => void;
-  onClickyCommandsToggle: () => void;
   onClose: () => void;
 }) {
   const api = useApi();
@@ -557,26 +549,6 @@ function SettingsPanel({
           </section>
 
           <section>
-            <h3 className="text-meta font-medium uppercase text-ink-faint">Clicky Add-on</h3>
-            <div className="mt-2 rounded-md border border-border bg-canvas p-3">
-              <label className="flex items-center justify-between gap-3 text-small text-ink-secondary">
-                <span>
-                  <span className="block font-medium text-ink">Enable Clicky commands</span>
-                  <span className="text-micro text-ink-muted">
-                    Search stays available when this is off.
-                  </span>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={clickyCommandsEnabled}
-                  onChange={onClickyCommandsToggle}
-                  className="h-4 w-4 accent-accent"
-                />
-              </label>
-            </div>
-          </section>
-
-          <section>
             <h3 className="text-meta font-medium uppercase text-ink-faint">Density</h3>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(['comfortable', 'compact'] as const).map((option) => (
@@ -603,7 +575,6 @@ function SettingsPanel({
               {[
                 'React shell ready',
                 'Demo API fallback ready',
-                'Clicky add-on ready',
                 'Backend infra not required for frontend review',
               ].map((item) => (
                 <li key={item} className="flex items-center gap-2">
@@ -670,12 +641,6 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
   const navActions = useMemo(
     () => [
-      {
-        label: 'Open Clicky',
-        detail: 'Dedicated command workspace and overlay',
-        to: '/clicky',
-        icon: Command,
-      },
       {
         label: 'Open Command Center',
         detail: 'Clinic dashboard and live work',
@@ -1030,7 +995,6 @@ function RouteTitle({ pathname }: { pathname: string }) {
       '/staff': 'Staff',
       '/reports': 'Reports',
       '/assistant-review': 'Assistant Log',
-      '/clicky': 'Clicky',
       '/operations': 'Operations',
       '/setup': 'Setup',
       '/integrations': 'Integrations',
@@ -1043,8 +1007,27 @@ function RouteTitle({ pathname }: { pathname: string }) {
   return null;
 }
 
+function NotFoundPage() {
+  return (
+    <div className="mx-auto flex min-h-[50vh] max-w-xl flex-col justify-center gap-4">
+      <div>
+        <p className="text-meta font-medium uppercase text-ink-faint">Page unavailable</p>
+        <h1 className="mt-2 font-serif text-title text-ink">This workspace page is not available</h1>
+        <p className="mt-2 text-body text-ink-muted">
+          Return to the command center to continue clinic work.
+        </p>
+      </div>
+      <Link
+        to="/"
+        className="inline-flex w-fit items-center justify-center rounded-md bg-accent px-4 py-2 text-small font-medium text-accent-on hover:bg-accent-hover"
+      >
+        Open Command Center
+      </Link>
+    </div>
+  );
+}
+
 function AuthenticatedShell({ pathname }: { pathname: string }) {
-  const { nativeCommandsEnabled, toggleNativeCommands } = useClickyAddOn();
   const [commandOpen, setCommandOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -1122,14 +1105,11 @@ function AuthenticatedShell({ pathname }: { pathname: string }) {
         <SettingsPanel
           open={settingsOpen}
           density={density}
-          clickyCommandsEnabled={nativeCommandsEnabled}
           onDensityChange={() =>
             setDensity((current) => (current === 'comfortable' ? 'compact' : 'comfortable'))
           }
-          onClickyCommandsToggle={toggleNativeCommands}
           onClose={() => setSettingsOpen(false)}
         />
-        <ClickyFloatingOverlay />
       </div>
     </>
   );
@@ -1150,9 +1130,7 @@ function RootLayout() {
   return (
     <ToastProvider>
       <ViewModeProvider>
-        <ClickyAddOnProvider>
-          <AuthenticatedShell pathname={pathname} />
-        </ClickyAddOnProvider>
+        <AuthenticatedShell pathname={pathname} />
       </ViewModeProvider>
     </ToastProvider>
   );
@@ -1160,6 +1138,7 @@ function RootLayout() {
 
 export const Route = createRootRoute({
   component: RootLayout,
+  notFoundComponent: NotFoundPage,
   errorComponent: ({ error }) => (
     <div className="min-h-screen bg-canvas p-6">
       <ErrorState title="The frontend hit a runtime error" detail={error.message} />
