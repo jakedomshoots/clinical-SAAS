@@ -18,8 +18,7 @@ def _generate_mrn() -> str:
 
 def _portal_code_expires_at() -> datetime:
     return (
-        datetime.now(UTC)
-        + timedelta(minutes=settings.patient_portal_access_code_expire_minutes)
+        datetime.now(UTC) + timedelta(minutes=settings.patient_portal_access_code_expire_minutes)
     ).replace(tzinfo=None)
 
 

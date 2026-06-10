@@ -127,9 +127,7 @@ async def validate_competency(
     service: TrainingService = Depends(get_training_service),
 ) -> dict[str, Any]:
     """Validate staff competency."""
-    record = service.validate_competency(
-        user_id, module, validated_by, level, evidence
-    )
+    record = service.validate_competency(user_id, module, validated_by, level, evidence)
 
     if not record:
         raise HTTPException(status_code=404, detail="Training record not found")

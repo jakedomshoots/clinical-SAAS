@@ -8,13 +8,13 @@ API Docs: https://docs.daily.co/
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
 
-from app.integrations.base import BaseIntegrationClient
 from app.config import settings
+from app.integrations.base import BaseIntegrationClient
 
 
 class DailyClient(BaseIntegrationClient):
@@ -101,7 +101,7 @@ class DailyClient(BaseIntegrationClient):
                 "user_name": user_name,
                 "user_id": user_id,
                 "is_owner": is_owner,
-                "exp": int((datetime.now(timezone.utc).timestamp()) + (expires_in_minutes * 60)),
+                "exp": int((datetime.now(UTC).timestamp()) + (expires_in_minutes * 60)),
             },
         }
         async with self._client() as client:

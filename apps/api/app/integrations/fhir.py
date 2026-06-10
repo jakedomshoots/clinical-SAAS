@@ -10,12 +10,9 @@ Certification criteria: §170.315(g)(7), (g)(9), (g)(10)
 
 from __future__ import annotations
 
-import uuid
-from datetime import date, datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from app.database import get_db
@@ -23,7 +20,6 @@ from app.models.patient import Patient
 from app.models.patient_clinical import (
     PatientLabResult,
     PatientMedication,
-    PatientEncounter,
 )
 from app.routers.auth import get_current_user
 
@@ -33,6 +29,7 @@ router = APIRouter(prefix="/fhir/r4", tags=["FHIR"])
 # ---------------------------------------------------------------------------
 # FHIR Resource Models
 # ---------------------------------------------------------------------------
+
 
 class FHIRPatient(BaseModel):
     resourceType: str = "Patient"
@@ -134,6 +131,7 @@ class FHIRCapabilityStatement(BaseModel):
 # Conversion helpers
 # ---------------------------------------------------------------------------
 
+
 def patient_to_fhir(p: Patient) -> FHIRPatient:
     """Convert internal Patient to FHIR Patient resource."""
     address = []
@@ -204,7 +202,13 @@ def medication_to_fhir(m: PatientMedication) -> FHIRMedicationRequest:
         id=str(m.id),
         status="active" if m.status == "active" else "stopped",
         medicationCodeableConcept={
-            "coding": [{"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "unknown", "display": m.name}],
+            "coding": [
+                {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "code": "unknown",
+                    "display": m.name,
+                }
+            ],
             "text": m.name,
         },
         subject={"reference": f"Patient/{m.patient_id}"},
@@ -234,9 +238,20 @@ def allergy_to_fhir(allergy_data: dict, patient_id: str, idx: int) -> FHIRAllerg
             ]
         },
         category=["medication"],
-        code={"coding": [{"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": "unknown", "display": allergy_data.get("allergen", "Unknown")}], "text": allergy_data.get("allergen", "Unknown")},
+        code={
+            "coding": [
+                {
+                    "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                    "code": "unknown",
+                    "display": allergy_data.get("allergen", "Unknown"),
+                }
+            ],
+            "text": allergy_data.get("allergen", "Unknown"),
+        },
         patient={"reference": f"Patient/{patient_id}"},
-        reaction=[{"manifestation": [{"text": allergy_data.get("reaction", "")}]}] if allergy_data.get("reaction") else [],
+        reaction=[{"manifestation": [{"text": allergy_data.get("reaction", "")}]}]
+        if allergy_data.get("reaction")
+        else [],
     )
 
 
@@ -272,7 +287,13 @@ def problem_to_fhir(problem_data: dict, patient_id: str, idx: int) -> FHIRCondit
             }
         ],
         code={
-            "coding": [{"system": "http://hl7.org/fhir/sid/icd-10-cm", "code": problem_data.get("icd10", "unknown"), "display": problem_data.get("description", "Unknown")}],
+            "coding": [
+                {
+                    "system": "http://hl7.org/fhir/sid/icd-10-cm",
+                    "code": problem_data.get("icd10", "unknown"),
+                    "display": problem_data.get("description", "Unknown"),
+                }
+            ],
             "text": problem_data.get("description", "Unknown"),
         },
         subject={"reference": f"Patient/{patient_id}"},
@@ -285,15 +306,19 @@ def problem_to_fhir(problem_data: dict, patient_id: str, idx: int) -> FHIRCondit
 # FHIR API Endpoints
 # ---------------------------------------------------------------------------
 
+
 @router.get("/metadata", response_model=FHIRCapabilityStatement)
 async def fhir_metadata(request: Request) -> FHIRCapabilityStatement:
     """FHIR CapabilityStatement — required for ONC certification."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     return FHIRCapabilityStatement(
         id="concierge-os-capability",
         date=now,
         software={"name": "Concierge OS", "version": "1.0.0"},
-        implementation={"description": "Concierge OS FHIR Server", "url": str(request.base_url) + "fhir/r4"},
+        implementation={
+            "description": "Concierge OS FHIR Server",
+            "url": str(request.base_url) + "fhir/r4",
+        },
         rest=[
             {
                 "mode": "server",
@@ -337,7 +362,10 @@ async def fhir_metadata(request: Request) -> FHIRCapabilityStatement:
                     {
                         "type": "MedicationRequest",
                         "interaction": [{"code": "read"}, {"code": "search-type"}],
-                        "searchParam": [{"name": "patient", "type": "reference"}, {"name": "status", "type": "token"}],
+                        "searchParam": [
+                            {"name": "patient", "type": "reference"},
+                            {"name": "status", "type": "token"},
+                        ],
                     },
                     {
                         "type": "AllergyIntolerance",
@@ -347,12 +375,18 @@ async def fhir_metadata(request: Request) -> FHIRCapabilityStatement:
                     {
                         "type": "Condition",
                         "interaction": [{"code": "read"}, {"code": "search-type"}],
-                        "searchParam": [{"name": "patient", "type": "reference"}, {"name": "category", "type": "token"}],
+                        "searchParam": [
+                            {"name": "patient", "type": "reference"},
+                            {"name": "category", "type": "token"},
+                        ],
                     },
                     {
                         "type": "Immunization",
                         "interaction": [{"code": "read"}, {"code": "search-type"}],
-                        "searchParam": [{"name": "patient", "type": "reference"}, {"name": "date", "type": "date"}],
+                        "searchParam": [
+                            {"name": "patient", "type": "reference"},
+                            {"name": "date", "type": "date"},
+                        ],
                     },
                 ],
             }
@@ -405,7 +439,7 @@ async def fhir_search_patient(
     return FHIRBundle(
         id="search-patient-bundle",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )
@@ -453,7 +487,7 @@ async def fhir_search_observation(
     return FHIRBundle(
         id="search-observation-bundle",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )
@@ -486,7 +520,9 @@ async def fhir_search_medication_request(
         query = query.filter(PatientMedication.patient_id == patient_id)
     if status:
         is_active = status == "active"
-        query = query.filter(PatientMedication.status == ("active" if is_active else "discontinued"))
+        query = query.filter(
+            PatientMedication.status == ("active" if is_active else "discontinued")
+        )
 
     meds = query.limit(500).all()
     entries = [
@@ -500,7 +536,7 @@ async def fhir_search_medication_request(
     return FHIRBundle(
         id="search-medication-bundle",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )
@@ -533,7 +569,7 @@ async def fhir_search_allergy(
     return FHIRBundle(
         id="search-allergy-bundle",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )
@@ -567,7 +603,7 @@ async def fhir_search_condition(
     return FHIRBundle(
         id="search-condition-bundle",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )
@@ -576,6 +612,7 @@ async def fhir_search_condition(
 # ---------------------------------------------------------------------------
 # USCDI / Patient Access API — Required for ONC (g)(10)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/Patient/{patient_id}/$everything", response_model=FHIRBundle)
 async def fhir_patient_everything(
@@ -588,34 +625,59 @@ async def fhir_patient_everything(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
-    entries = [{"fullUrl": f"Patient/{patient.id}", "resource": patient_to_fhir(patient).model_dump(mode="json")}]
+    entries = [
+        {
+            "fullUrl": f"Patient/{patient.id}",
+            "resource": patient_to_fhir(patient).model_dump(mode="json"),
+        }
+    ]
 
     # Labs as Observations
     labs = db.query(PatientLabResult).filter(PatientLabResult.patient_id == patient_id).all()
-    entries.extend([{"fullUrl": f"Observation/{lab.id}", "resource": lab_to_fhir(lab).model_dump(mode="json")} for lab in labs])
+    entries.extend(
+        [
+            {
+                "fullUrl": f"Observation/{lab.id}",
+                "resource": lab_to_fhir(lab).model_dump(mode="json"),
+            }
+            for lab in labs
+        ]
+    )
 
     # Medications
     meds = db.query(PatientMedication).filter(PatientMedication.patient_id == patient_id).all()
-    entries.extend([{"fullUrl": f"MedicationRequest/{m.id}", "resource": medication_to_fhir(m).model_dump(mode="json")} for m in meds])
+    entries.extend(
+        [
+            {
+                "fullUrl": f"MedicationRequest/{m.id}",
+                "resource": medication_to_fhir(m).model_dump(mode="json"),
+            }
+            for m in meds
+        ]
+    )
 
     # Allergies from JSON
     for idx, allergy_data in enumerate(patient.allergies or []):
-        entries.append({
-            "fullUrl": f"AllergyIntolerance/allergy-{patient_id}-{idx}",
-            "resource": allergy_to_fhir(allergy_data, patient_id, idx).model_dump(mode="json"),
-        })
+        entries.append(
+            {
+                "fullUrl": f"AllergyIntolerance/allergy-{patient_id}-{idx}",
+                "resource": allergy_to_fhir(allergy_data, patient_id, idx).model_dump(mode="json"),
+            }
+        )
 
     # Problems from JSON
     for idx, problem_data in enumerate(patient.problem_list or []):
-        entries.append({
-            "fullUrl": f"Condition/problem-{patient_id}-{idx}",
-            "resource": problem_to_fhir(problem_data, patient_id, idx).model_dump(mode="json"),
-        })
+        entries.append(
+            {
+                "fullUrl": f"Condition/problem-{patient_id}-{idx}",
+                "resource": problem_to_fhir(problem_data, patient_id, idx).model_dump(mode="json"),
+            }
+        )
 
     return FHIRBundle(
         id=f"patient-{patient_id}-everything",
         type="searchset",
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         entry=entries,
         meta={"total": len(entries)},
     )

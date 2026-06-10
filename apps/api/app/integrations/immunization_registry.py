@@ -9,7 +9,7 @@ MCIR (MI), and others via AIRA connections.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -29,7 +29,10 @@ class ImmunizationRegistryClient:
     def _client(self) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             base_url=self._base_url,
-            headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/hl7-v2"},
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/hl7-v2",
+            },
             timeout=60.0,
         )
 
@@ -60,7 +63,7 @@ class ImmunizationRegistryClient:
         vis_date: str | None = None,
     ) -> str:
         """Generate HL7 VXU^V04 message for vaccine administration."""
-        now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        now = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         msg_id = f"VXU-{patient_id}-{now}"
 
         # MSH segment
@@ -86,8 +89,7 @@ class ImmunizationRegistryClient:
 
         # ORC segment
         orc = (
-            f"ORC|RE||{msg_id}|||||||||"
-            f"{administered_by_npi}^^^^^^^^NPI^{administered_by_name}"
+            f"ORC|RE||{msg_id}|||||||||" f"{administered_by_npi}^^^^^^^^NPI^{administered_by_name}"
         )
 
         # RXA segment
@@ -114,12 +116,8 @@ class ImmunizationRegistryClient:
                 f"OBX|1|CE|59784-9^Disease with vaccine type^LN|1|"
                 f"{vaccine_cvx}^^{vaccine_name}^CVX||||||F"
             )
-            obx_segments.append(
-                f"OBX|2|DT|29769-7^VIS Publication Date^LN|1|{vis_dt}||||||F"
-            )
-            obx_segments.append(
-                f"OBX|3|CE|59785-6^VIS Presentation Date^LN|1|{vis_dt}||||||F"
-            )
+            obx_segments.append(f"OBX|2|DT|29769-7^VIS Publication Date^LN|1|{vis_dt}||||||F")
+            obx_segments.append(f"OBX|3|CE|59785-6^VIS Presentation Date^LN|1|{vis_dt}||||||F")
 
         segments = [msh, pid, orc, rxa, rxr] + obx_segments
         return "\r".join(segments) + "\r"
@@ -181,7 +179,7 @@ class ImmunizationRegistryClient:
         patient_dob: str,
     ) -> dict[str, Any]:
         """Query state registry for patient's immunization history."""
-        now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        now = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         msg_id = f"QBP-{patient_id}-{now}"
 
         qbp = (

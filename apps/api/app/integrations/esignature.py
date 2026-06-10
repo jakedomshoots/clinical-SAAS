@@ -7,7 +7,7 @@ Uses DocuSign or HelloSign API for legally binding signatures.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -94,15 +94,13 @@ class DocuSignClient:
 
         if custom_fields:
             envelope["customFields"] = {
-                "textCustomFields": [
-                    {"name": k, "value": v} for k, v in custom_fields.items()
-                ]
+                "textCustomFields": [{"name": k, "value": v} for k, v in custom_fields.items()]
             }
 
         if not self._api_key:
             return {
                 "status": "demo",
-                "envelope_id": f"demo-{datetime.now(timezone.utc).isoformat()}",
+                "envelope_id": f"demo-{datetime.now(UTC).isoformat()}",
                 "message": "DocuSign not configured — demo mode",
             }
 
@@ -120,9 +118,7 @@ class DocuSignClient:
             return {"status": "demo", "envelope_id": envelope_id}
 
         async with self._client() as client:
-            resp = await client.get(
-                f"/v2.1/accounts/{self._account_id}/envelopes/{envelope_id}"
-            )
+            resp = await client.get(f"/v2.1/accounts/{self._account_id}/envelopes/{envelope_id}")
             resp.raise_for_status()
             return resp.json()
 
@@ -135,7 +131,9 @@ class DocuSignClient:
             resp.raise_for_status()
             return resp.content
 
-    async def void_envelope(self, envelope_id: str, reason: str = "Voided by sender") -> dict[str, Any]:
+    async def void_envelope(
+        self, envelope_id: str, reason: str = "Voided by sender"
+    ) -> dict[str, Any]:
         """Void an in-flight envelope."""
         async with self._client() as client:
             resp = await client.put(
@@ -190,11 +188,14 @@ class ConsentManager:
     @classmethod
     def get_consent_template(cls, consent_type: str) -> dict:
         """Get template metadata for a consent type."""
-        return cls.CONSENT_TYPES.get(consent_type, {
-            "name": "Generic Consent",
-            "description": "General consent form",
-            "required": False,
-        })
+        return cls.CONSENT_TYPES.get(
+            consent_type,
+            {
+                "name": "Generic Consent",
+                "description": "General consent form",
+                "required": False,
+            },
+        )
 
     @classmethod
     def list_consent_types(cls) -> dict[str, dict]:

@@ -88,12 +88,16 @@ async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_hea
         },
         headers=auth_headers,
     )
-    await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Outside lab",
-        "source": "Outside Lab",
-        "document_type": "Lab result",
-        "status": "needs_review",
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside lab",
+            "source": "Outside Lab",
+            "document_type": "Lab result",
+            "status": "needs_review",
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get(
         "/api/schedule/today-queue?start_date=2026-06-05&end_date=2026-06-06",
@@ -122,7 +126,9 @@ async def test_today_queue_reports_blocked_patient(client: AsyncClient, auth_hea
 
 
 @pytest.mark.asyncio
-async def test_completed_visit_requires_resolved_chart_blockers(client: AsyncClient, auth_headers, admin_user):
+async def test_completed_visit_requires_resolved_chart_blockers(
+    client: AsyncClient, auth_headers, admin_user
+):
     patient_id = await create_patient(client, auth_headers)
     start = datetime(2026, 6, 5, 10, 0)
     end = start + timedelta(minutes=30)
@@ -137,12 +143,16 @@ async def test_completed_visit_requires_resolved_chart_blockers(client: AsyncCli
         headers=auth_headers,
     )
     appointment_id = appointment_res.json()["id"]
-    encounter_res = await client.post(f"/api/patients/{patient_id}/encounters", json={
-        "appointment_id": appointment_id,
-        "provider_id": admin_user.id,
-        "encounter_type": "office_visit",
-        "status": "provider_review",
-    }, headers=auth_headers)
+    encounter_res = await client.post(
+        f"/api/patients/{patient_id}/encounters",
+        json={
+            "appointment_id": appointment_id,
+            "provider_id": admin_user.id,
+            "encounter_type": "office_visit",
+            "status": "provider_review",
+        },
+        headers=auth_headers,
+    )
 
     blocked = await client.patch(
         f"/api/schedule/appointments/{appointment_id}",
@@ -167,7 +177,9 @@ async def test_completed_visit_requires_resolved_chart_blockers(client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_appointment_changes_record_calendar_sync_events(client: AsyncClient, auth_headers, admin_user):
+async def test_appointment_changes_record_calendar_sync_events(
+    client: AsyncClient, auth_headers, admin_user
+):
     patient_id = await create_patient(client, auth_headers)
     start = datetime(2026, 6, 5, 11, 0)
     end = start + timedelta(minutes=30)
@@ -183,7 +195,10 @@ async def test_appointment_changes_record_calendar_sync_events(client: AsyncClie
     )
     await client.patch(
         f"/api/schedule/appointments/{created.json()['id']}",
-        json={"start_time": (start + timedelta(minutes=15)).isoformat(), "end_time": (end + timedelta(minutes=15)).isoformat()},
+        json={
+            "start_time": (start + timedelta(minutes=15)).isoformat(),
+            "end_time": (end + timedelta(minutes=15)).isoformat(),
+        },
         headers=auth_headers,
     )
 
@@ -218,7 +233,9 @@ async def test_set_and_get_provider_availability(client: AsyncClient, auth_heade
 
 
 @pytest.mark.asyncio
-async def test_queue_appointment_reminders_records_communication_events(client: AsyncClient, auth_headers, admin_user):
+async def test_queue_appointment_reminders_records_communication_events(
+    client: AsyncClient, auth_headers, admin_user
+):
     patient_id = await create_patient(client, auth_headers)
     await client.patch(
         f"/api/patients/{patient_id}",
@@ -251,11 +268,17 @@ async def test_queue_appointment_reminders_records_communication_events(client: 
     assert reminders.status_code == 200
     assert reminders.json()["queued"] == 4
 
-    events = await client.get("/api/integrations/events?integration=communications", headers=auth_headers)
+    events = await client.get(
+        "/api/integrations/events?integration=communications", headers=auth_headers
+    )
     actions = {event["action"] for event in events.json()["data"]}
     assert "appointment.reminder.sms" in actions
     assert "appointment.reminder.email" in actions
-    offsets = {event["payload"]["offset_minutes"] for event in events.json()["data"] if event["action"].startswith("appointment.reminder")}
+    offsets = {
+        event["payload"]["offset_minutes"]
+        for event in events.json()["data"]
+        if event["action"].startswith("appointment.reminder")
+    }
     assert offsets == {1440, 120}
 
 
@@ -286,9 +309,13 @@ async def test_queue_appointment_reminders_skips_channels_without_consent(
 
     assert reminders.status_code == 200
     assert reminders.json()["queued"] == 0
-    events = await client.get("/api/integrations/events?integration=communications", headers=auth_headers)
+    events = await client.get(
+        "/api/integrations/events?integration=communications", headers=auth_headers
+    )
     assert events.json()["total"] == 0
-    audit = await client.get("/api/audit?event_type=appointment.reminders_queued", headers=auth_headers)
+    audit = await client.get(
+        "/api/audit?event_type=appointment.reminders_queued", headers=auth_headers
+    )
     assert audit.json()["data"][0]["payload"]["blocked_channels"]
 
 
@@ -365,7 +392,9 @@ async def test_create_appointment_rejects_cross_org_provider(
 
 
 @pytest.mark.asyncio
-async def test_create_appointment_rejects_provider_conflict(client: AsyncClient, auth_headers, admin_user):
+async def test_create_appointment_rejects_provider_conflict(
+    client: AsyncClient, auth_headers, admin_user
+):
     patient_id = await create_patient(client, auth_headers)
     second_patient_id = await create_patient(client, auth_headers)
     start = datetime(2026, 6, 5, 18, 0)
@@ -405,7 +434,9 @@ async def test_create_appointment_rejects_provider_conflict(client: AsyncClient,
 
 
 @pytest.mark.asyncio
-async def test_appointment_slot_check_reports_availability_warning(client: AsyncClient, auth_headers, admin_user):
+async def test_appointment_slot_check_reports_availability_warning(
+    client: AsyncClient, auth_headers, admin_user
+):
     await client.post(
         "/api/schedule/availability",
         json={

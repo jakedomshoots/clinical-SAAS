@@ -8,7 +8,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.integrations.immunization_registry import ImmunizationRegistryClient, get_registry_for_state
+from app.integrations.immunization_registry import (
+    ImmunizationRegistryClient,
+)
 from app.models.patient import Patient
 from app.models.user import User
 from app.routers.auth import get_current_user
@@ -20,6 +22,7 @@ router = APIRouter(prefix="/immunizations", tags=["Immunization Registry"])
 async def list_registry_urls() -> dict[str, str]:
     """List state immunization registry URLs."""
     from app.integrations.immunization_registry import STATE_REGISTRY_URLS
+
     return STATE_REGISTRY_URLS
 
 

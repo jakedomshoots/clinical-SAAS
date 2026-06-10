@@ -32,9 +32,7 @@ async def list_faxes(
 
     total = (await db.execute(countq)).scalar() or 0
     offset = (page - 1) * page_size
-    result = await db.execute(
-        query.order_by(Fax.created_at.desc()).offset(offset).limit(page_size)
-    )
+    result = await db.execute(query.order_by(Fax.created_at.desc()).offset(offset).limit(page_size))
     faxes = result.scalars().all()
 
     pat_ids = {f.patient_id for f in faxes if f.patient_id}

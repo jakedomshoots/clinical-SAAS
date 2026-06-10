@@ -1,5 +1,6 @@
-import pytest
 from types import SimpleNamespace
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,14 +11,18 @@ from tests.conftest import headers_for, make_user
 
 @pytest.mark.asyncio
 async def test_create_patient(client: AsyncClient, auth_headers):
-    res = await client.post("/api/patients", json={
-        "first_name": "John",
-        "last_name": "Doe",
-        "dob": "1980-05-15",
-        "gender": "Male",
-        "phone": "555-0100",
-        "email": "john@example.com",
-    }, headers=auth_headers)
+    res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "John",
+            "last_name": "Doe",
+            "dob": "1980-05-15",
+            "gender": "Male",
+            "phone": "555-0100",
+            "email": "john@example.com",
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 201
     data = res.json()
     assert data["first_name"] == "John"
@@ -28,12 +33,26 @@ async def test_create_patient(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_list_patients(client: AsyncClient, auth_headers):
-    await client.post("/api/patients", json={
-        "first_name": "Alice", "last_name": "Smith", "dob": "1990-01-01", "gender": "Female",
-    }, headers=auth_headers)
-    await client.post("/api/patients", json={
-        "first_name": "Bob", "last_name": "Jones", "dob": "1985-06-15", "gender": "Male",
-    }, headers=auth_headers)
+    await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Alice",
+            "last_name": "Smith",
+            "dob": "1990-01-01",
+            "gender": "Female",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Bob",
+            "last_name": "Jones",
+            "dob": "1985-06-15",
+            "gender": "Male",
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get("/api/patients", headers=auth_headers)
     assert res.status_code == 200
@@ -46,9 +65,16 @@ async def test_list_patients(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_get_patient(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Jane", "last_name": "Doe", "dob": "1982-03-20", "gender": "Female",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Jane",
+            "last_name": "Doe",
+            "dob": "1982-03-20",
+            "gender": "Female",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
     res = await client.get(f"/api/patients/{patient_id}", headers=auth_headers)
@@ -58,15 +84,26 @@ async def test_get_patient(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_update_patient(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Old", "last_name": "Name", "dob": "1970-01-01", "gender": "Other",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Old",
+            "last_name": "Name",
+            "dob": "1970-01-01",
+            "gender": "Other",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    res = await client.patch(f"/api/patients/{patient_id}", json={
-        "first_name": "New",
-        "phone": "555-9999",
-    }, headers=auth_headers)
+    res = await client.patch(
+        f"/api/patients/{patient_id}",
+        json={
+            "first_name": "New",
+            "phone": "555-9999",
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 200
     data = res.json()
     assert data["first_name"] == "New"
@@ -76,9 +113,16 @@ async def test_update_patient(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_deactivate_patient(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Delete", "last_name": "Me", "dob": "1950-12-25", "gender": "Male",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Delete",
+            "last_name": "Me",
+            "dob": "1950-12-25",
+            "gender": "Male",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
     res = await client.delete(f"/api/patients/{patient_id}", headers=auth_headers)
@@ -88,12 +132,26 @@ async def test_deactivate_patient(client: AsyncClient, auth_headers):
 
 @pytest.mark.asyncio
 async def test_search_patients(client: AsyncClient, auth_headers):
-    await client.post("/api/patients", json={
-        "first_name": "Searchable", "last_name": "Person", "dob": "1995-07-07", "gender": "Female",
-    }, headers=auth_headers)
-    await client.post("/api/patients", json={
-        "first_name": "Other", "last_name": "Guy", "dob": "1995-08-08", "gender": "Male",
-    }, headers=auth_headers)
+    await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Searchable",
+            "last_name": "Person",
+            "dob": "1995-07-07",
+            "gender": "Female",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Other",
+            "last_name": "Guy",
+            "dob": "1995-08-08",
+            "gender": "Male",
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get("/api/patients?search=Searchable", headers=auth_headers)
     assert res.status_code == 200
@@ -119,16 +177,20 @@ async def test_patient_requires_auth(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_patient_with_allergies(client: AsyncClient, auth_headers):
-    res = await client.post("/api/patients", json={
-        "first_name": "Allergic",
-        "last_name": "Patient",
-        "dob": "1988-03-15",
-        "gender": "Female",
-        "allergies": [
-            {"substance": "Penicillin", "reaction": "Rash", "severity": "moderate"},
-            {"substance": "Peanuts", "reaction": "Anaphylaxis", "severity": "severe"},
-        ],
-    }, headers=auth_headers)
+    res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Allergic",
+            "last_name": "Patient",
+            "dob": "1988-03-15",
+            "gender": "Female",
+            "allergies": [
+                {"substance": "Penicillin", "reaction": "Rash", "severity": "moderate"},
+                {"substance": "Peanuts", "reaction": "Anaphylaxis", "severity": "severe"},
+            ],
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 201
     data = res.json()
     assert len(data["allergies"]) == 2
@@ -141,9 +203,16 @@ async def test_patient_list_is_scoped_to_user_organization(
     auth_headers,
     db: AsyncSession,
 ):
-    await client.post("/api/patients", json={
-        "first_name": "Scoped", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Scoped",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     other_user = await make_user(
         db,
         UserRole.admin,
@@ -163,9 +232,16 @@ async def test_patient_get_is_scoped_to_user_organization(
     auth_headers,
     db: AsyncSession,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Hidden", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Hidden",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
     other_user = await make_user(
         db,
@@ -180,28 +256,41 @@ async def test_patient_get_is_scoped_to_user_organization(
 
 
 @pytest.mark.asyncio
-async def test_patient_documents_can_be_created_listed_and_updated(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Document", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_patient_documents_can_be_created_listed_and_updated(
+    client: AsyncClient, auth_headers
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Document",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Outside cardiology note",
-        "source": "North Shore Cardiology",
-        "document_type": "Consult note",
-        "status": "needs_review",
-        "matched_by": "manual",
-        "pages": 6,
-        "source_contact": "Dr. Priya Rao",
-        "source_phone": "555-0101",
-        "source_fax": "555-0102",
-        "source_reference": "Referral packet NSC-44",
-        "requested_by": "Front desk",
-        "routed_to_role": "provider",
-        "review_priority": "high",
-        "summary": "Medication recommendations and follow-up plan.",
-    }, headers=auth_headers)
+    document_res = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside cardiology note",
+            "source": "North Shore Cardiology",
+            "document_type": "Consult note",
+            "status": "needs_review",
+            "matched_by": "manual",
+            "pages": 6,
+            "source_contact": "Dr. Priya Rao",
+            "source_phone": "555-0101",
+            "source_fax": "555-0102",
+            "source_reference": "Referral packet NSC-44",
+            "requested_by": "Front desk",
+            "routed_to_role": "provider",
+            "review_priority": "high",
+            "summary": "Medication recommendations and follow-up plan.",
+        },
+        headers=auth_headers,
+    )
 
     assert document_res.status_code == 201
     document = document_res.json()
@@ -224,7 +313,11 @@ async def test_patient_documents_can_be_created_listed_and_updated(client: Async
 
     update_res = await client.patch(
         f"/api/patients/{patient_id}/documents/{document['id']}",
-        json={"status": "filed", "review_note": "Reviewed by provider; no medication change.", "reviewed_by": "Dr. Chen"},
+        json={
+            "status": "filed",
+            "review_note": "Reviewed by provider; no medication change.",
+            "reviewed_by": "Dr. Chen",
+        },
         headers=auth_headers,
     )
     assert update_res.status_code == 200
@@ -241,57 +334,97 @@ async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
     auth_headers,
     db: AsyncSession,
 ):
-    patient_res = await client.post("/api/patients", json={
-        "first_name": "Queue", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown", "phone": "555-1000",
-    }, headers=auth_headers)
+    patient_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Queue",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+            "phone": "555-1000",
+        },
+        headers=auth_headers,
+    )
     patient_id = patient_res.json()["id"]
-    other_patient_res = await client.post("/api/patients", json={
-        "first_name": "Filed", "last_name": "Patient", "dob": "1981-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    other_patient_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Filed",
+            "last_name": "Patient",
+            "dob": "1981-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     other_patient_id = other_patient_res.json()["id"]
-    await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Incoming orthopedic note",
-        "source": "Ortho Partners",
-        "document_type": "Consult note",
-        "status": "needs_review",
-        "source_contact": "Records desk",
-        "source_phone": "555-2000",
-        "source_reference": "ORTHO-22",
-        "routed_to_role": "ma_nurse",
-        "review_priority": "high",
-        "summary": "Outside note needs medication reconciliation.",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Normal front desk packet",
-        "source": "Front Office",
-        "document_type": "Insurance",
-        "status": "needs_review",
-        "routed_to_role": "front_desk",
-        "review_priority": "normal",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{other_patient_id}/documents", json={
-        "title": "Already filed note",
-        "source": "Filed Office",
-        "document_type": "Referral",
-        "status": "filed",
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Incoming orthopedic note",
+            "source": "Ortho Partners",
+            "document_type": "Consult note",
+            "status": "needs_review",
+            "source_contact": "Records desk",
+            "source_phone": "555-2000",
+            "source_reference": "ORTHO-22",
+            "routed_to_role": "ma_nurse",
+            "review_priority": "high",
+            "summary": "Outside note needs medication reconciliation.",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Normal front desk packet",
+            "source": "Front Office",
+            "document_type": "Insurance",
+            "status": "needs_review",
+            "routed_to_role": "front_desk",
+            "review_priority": "normal",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{other_patient_id}/documents",
+        json={
+            "title": "Already filed note",
+            "source": "Filed Office",
+            "document_type": "Referral",
+            "status": "filed",
+        },
+        headers=auth_headers,
+    )
     other_user = await make_user(
         db,
         UserRole.admin,
         "other-org-doc-queue@clinic.example.com",
         organization_id="other-org",
     )
-    other_patient = await client.post("/api/patients", json={
-        "first_name": "Other", "last_name": "Org", "dob": "1970-01-01", "gender": "Unknown",
-    }, headers=headers_for(other_user))
-    await client.post(f"/api/patients/{other_patient.json()['id']}/documents", json={
-        "title": "Other org note",
-        "source": "Hidden Office",
-        "document_type": "Consult note",
-        "status": "needs_review",
-    }, headers=headers_for(other_user))
+    other_patient = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Other",
+            "last_name": "Org",
+            "dob": "1970-01-01",
+            "gender": "Unknown",
+        },
+        headers=headers_for(other_user),
+    )
+    await client.post(
+        f"/api/patients/{other_patient.json()['id']}/documents",
+        json={
+            "title": "Other org note",
+            "source": "Hidden Office",
+            "document_type": "Consult note",
+            "status": "needs_review",
+        },
+        headers=headers_for(other_user),
+    )
 
-    queue_res = await client.get("/api/patients/documents/review-queue?status=needs_review", headers=auth_headers)
+    queue_res = await client.get(
+        "/api/patients/documents/review-queue?status=needs_review", headers=auth_headers
+    )
 
     assert queue_res.status_code == 200
     queue = queue_res.json()
@@ -320,9 +453,16 @@ async def test_patient_document_review_queue_is_org_scoped_and_patient_labeled(
 
 @pytest.mark.asyncio
 async def test_patient_document_upload_can_be_confirmed(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Upload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Upload",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
     prepared = await client.post(
         f"/api/patients/{patient_id}/documents/upload",
@@ -376,20 +516,31 @@ async def test_patient_document_upload_verification_rejects_content_type_mismatc
     auth_headers,
     monkeypatch,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Verify", "last_name": "Upload", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Verify",
+            "last_name": "Upload",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
     prepared = await client.post(
         f"/api/patients/{patient_id}/documents/upload",
         json={"filename": "outside-note.pdf", "content_type": "application/pdf"},
         headers=auth_headers,
     )
-    monkeypatch.setattr(patient_document_service.settings, "document_upload_verification_required", True)
+    monkeypatch.setattr(
+        patient_document_service.settings, "document_upload_verification_required", True
+    )
     monkeypatch.setattr(
         patient_document_service.minio,
         "stat_object",
-        lambda bucket, object_key: SimpleNamespace(content_type="text/plain", metadata={"checksum": "demo-checksum"}),
+        lambda bucket, object_key: SimpleNamespace(
+            content_type="text/plain", metadata={"checksum": "demo-checksum"}
+        ),
     )
 
     confirmed = await client.post(
@@ -413,21 +564,36 @@ async def test_patient_document_upload_verification_rejects_content_type_mismatc
 
 @pytest.mark.asyncio
 async def test_patient_document_access_reports_availability(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Access", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Access",
+            "last_name": "Document",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    metadata_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Metadata only",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-    }, headers=auth_headers)
-    file_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "File backed",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/file-backed.pdf",
-    }, headers=auth_headers)
+    metadata_doc = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Metadata only",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+        },
+        headers=auth_headers,
+    )
+    file_doc = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "File backed",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+            "file_url": f"s3://concierge-os/patients/{patient_id}/documents/file-backed.pdf",
+        },
+        headers=auth_headers,
+    )
 
     metadata_access = await client.get(
         f"/api/patients/{patient_id}/documents/{metadata_doc.json()['id']}/access?reason=Chart%20review",
@@ -481,18 +647,33 @@ async def test_patient_document_access_reports_availability(client: AsyncClient,
 
     audit = await client.get("/api/audit?entity_type=patient_document", headers=auth_headers)
     assert any(event["event_type"] == "patient_document.accessed" for event in audit.json()["data"])
-    assert any(event["event_type"] == "patient_document.download_handoff" for event in audit.json()["data"])
+    assert any(
+        event["event_type"] == "patient_document.download_handoff" for event in audit.json()["data"]
+    )
 
-    history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
+    history = await client.get(
+        f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers
+    )
     assert history.status_code == 200
-    assert any(event["event_type"] == "patient_document.accessed" for event in history.json()["data"])
+    assert any(
+        event["event_type"] == "patient_document.accessed" for event in history.json()["data"]
+    )
 
 
 @pytest.mark.asyncio
-async def test_patient_document_upload_prepare_returns_signed_target(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Upload", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_patient_document_upload_prepare_returns_signed_target(
+    client: AsyncClient, auth_headers
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Upload",
+            "last_name": "Document",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
     res = await client.post(
@@ -524,11 +705,19 @@ async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_a
     monkeypatch.setattr(
         patient_document_service,
         "_presigned_get_url",
-        lambda file_url, patient_id: f"https://storage.example.test/download?target={file_url}&X-Amz-Signature=test",
+        lambda file_url,
+        patient_id: f"https://storage.example.test/download?target={file_url}&X-Amz-Signature=test",
     )
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Signed", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Signed",
+            "last_name": "Document",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
     prepared = await client.post(
@@ -539,12 +728,16 @@ async def test_patient_document_handoffs_include_presigned_urls_when_signer_is_a
     assert prepared.status_code == 200
     assert prepared.json()["upload_url"].startswith("https://storage.example.test/upload?")
 
-    file_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Signed file backed",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/signed-file-backed.pdf",
-    }, headers=auth_headers)
+    file_doc = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Signed file backed",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+            "file_url": f"s3://concierge-os/patients/{patient_id}/documents/signed-file-backed.pdf",
+        },
+        headers=auth_headers,
+    )
     file_access = await client.get(
         f"/api/patients/{patient_id}/documents/{file_doc.json()['id']}/access?reason=Chart%20review",
         headers=auth_headers,
@@ -562,9 +755,16 @@ async def test_patient_document_upload_confirm_rejects_unprepared_target(
     client: AsyncClient,
     auth_headers,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Upload", "last_name": "Guard", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Upload",
+            "last_name": "Guard",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
     prepared = await client.post(
         f"/api/patients/{patient_id}/documents/upload",
@@ -597,22 +797,37 @@ async def test_patient_document_create_and_update_reject_unscoped_file_urls(
     client: AsyncClient,
     auth_headers,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Storage", "last_name": "Guard", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Storage",
+            "last_name": "Guard",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    unsafe_create = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Unsafe file backed",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-        "file_url": "s3://concierge-os/other-patient/file.pdf",
-    }, headers=auth_headers)
-    safe_doc = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Safe metadata",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-    }, headers=auth_headers)
+    unsafe_create = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Unsafe file backed",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+            "file_url": "s3://concierge-os/other-patient/file.pdf",
+        },
+        headers=auth_headers,
+    )
+    safe_doc = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Safe metadata",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+        },
+        headers=auth_headers,
+    )
     unsafe_update = await client.patch(
         f"/api/patients/{patient_id}/documents/{safe_doc.json()['id']}",
         json={"file_url": "s3://concierge-os/patients/other/documents/file.pdf"},
@@ -624,17 +839,30 @@ async def test_patient_document_create_and_update_reject_unscoped_file_urls(
 
 
 @pytest.mark.asyncio
-async def test_patient_document_processing_classifies_and_creates_review_task(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Process", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_patient_document_processing_classifies_and_creates_review_task(
+    client: AsyncClient, auth_headers
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Process",
+            "last_name": "Document",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Outside CMP lab",
-        "source": "Outside Lab",
-        "document_type": "Lab result",
-        "file_url": f"s3://concierge-os/patients/{patient_id}/documents/cmp.pdf",
-    }, headers=auth_headers)
+    document_res = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside CMP lab",
+            "source": "Outside Lab",
+            "document_type": "Lab result",
+            "file_url": f"s3://concierge-os/patients/{patient_id}/documents/cmp.pdf",
+        },
+        headers=auth_headers,
+    )
 
     processed = await client.post(
         f"/api/patients/{patient_id}/documents/{document_res.json()['id']}/process",
@@ -657,15 +885,26 @@ async def test_patient_documents_are_scoped_to_user_organization(
     auth_headers,
     db: AsyncSession,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Hidden", "last_name": "Document", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Hidden",
+            "last_name": "Document",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    document_res = await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Protected outside record",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-    }, headers=auth_headers)
+    document_res = await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Protected outside record",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+        },
+        headers=auth_headers,
+    )
     document_id = document_res.json()["id"]
     other_user = await make_user(
         db,
@@ -688,22 +927,37 @@ async def test_patient_documents_are_scoped_to_user_organization(
 
 @pytest.mark.asyncio
 async def test_patient_chart_summary_reports_checkout_blockers(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Checkout", "last_name": "Ready", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Checkout",
+            "last_name": "Ready",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Critical outside lab",
-        "source": "Outside Lab",
-        "document_type": "Lab result",
-        "status": "needs_review",
-        "pages": 2,
-    }, headers=auth_headers)
-    await client.post("/api/tasks", json={
-        "title": "Call patient before checkout",
-        "priority": "urgent",
-        "patient_id": patient_id,
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Critical outside lab",
+            "source": "Outside Lab",
+            "document_type": "Lab result",
+            "status": "needs_review",
+            "pages": 2,
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        "/api/tasks",
+        json={
+            "title": "Call patient before checkout",
+            "priority": "urgent",
+            "patient_id": patient_id,
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
 
@@ -723,9 +977,16 @@ async def test_patient_chart_summary_is_scoped_to_user_organization(
     auth_headers,
     db: AsyncSession,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Private", "last_name": "Summary", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Private",
+            "last_name": "Summary",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
     other_user = await make_user(
         db,
@@ -734,31 +995,48 @@ async def test_patient_chart_summary_is_scoped_to_user_organization(
         organization_id="other-org",
     )
 
-    res = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=headers_for(other_user))
+    res = await client.get(
+        f"/api/patients/{patient_id}/chart-summary", headers=headers_for(other_user)
+    )
 
     assert res.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_patient_medications_and_care_plan_are_persisted(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Clinical", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Clinical",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    med_res = await client.post(f"/api/patients/{patient_id}/medications", json={
-        "name": "Metformin ER",
-        "dose": "500 mg",
-        "directions": "2 tablets with dinner",
-        "source": "Active med list",
-        "status": "review",
-    }, headers=auth_headers)
-    care_res = await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "owner_role": "Provider",
-        "item": "Review medication list before checkout.",
-        "due": "Today",
-        "status": "open",
-    }, headers=auth_headers)
+    med_res = await client.post(
+        f"/api/patients/{patient_id}/medications",
+        json={
+            "name": "Metformin ER",
+            "dose": "500 mg",
+            "directions": "2 tablets with dinner",
+            "source": "Active med list",
+            "status": "review",
+        },
+        headers=auth_headers,
+    )
+    care_res = await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "owner_role": "Provider",
+            "item": "Review medication list before checkout.",
+            "due": "Today",
+            "status": "open",
+        },
+        headers=auth_headers,
+    )
 
     assert med_res.status_code == 201
     assert care_res.status_code == 201
@@ -790,19 +1068,30 @@ async def test_patient_medications_and_care_plan_are_persisted(client: AsyncClie
 
 @pytest.mark.asyncio
 async def test_patient_labs_are_persisted_and_reviewable(client: AsyncClient, auth_headers):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Lab", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Lab",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    lab_res = await client.post(f"/api/patients/{patient_id}/labs", json={
-        "collected_at": "2026-06-03T08:00:00",
-        "panel": "CMP",
-        "result": "Potassium 5.9 mmol/L",
-        "flag": "Critical",
-        "status": "needs_review",
-        "source": "Outside Lab",
-    }, headers=auth_headers)
+    lab_res = await client.post(
+        f"/api/patients/{patient_id}/labs",
+        json={
+            "collected_at": "2026-06-03T08:00:00",
+            "panel": "CMP",
+            "result": "Potassium 5.9 mmol/L",
+            "flag": "Critical",
+            "status": "needs_review",
+            "source": "Outside Lab",
+        },
+        headers=auth_headers,
+    )
 
     assert lab_res.status_code == 201
     lab = lab_res.json()
@@ -827,32 +1116,51 @@ async def test_patient_chart_summary_blocks_checkout_for_unresolved_clinical_ite
     client: AsyncClient,
     auth_headers,
 ):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Safety", "last_name": "Closeout", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Safety",
+            "last_name": "Closeout",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    await client.post(f"/api/patients/{patient_id}/medications", json={
-        "name": "Warfarin",
-        "dose": "5 mg",
-        "directions": "Daily",
-        "source": "Outside med list",
-        "status": "review",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/labs", json={
-        "collected_at": "2026-06-03T08:00:00",
-        "panel": "INR",
-        "result": "INR 5.2",
-        "flag": "Critical",
-        "status": "needs_review",
-        "source": "Outside Lab",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "owner_role": "Provider",
-        "item": "Adjust anticoagulation plan before checkout.",
-        "due": "Today",
-        "status": "blocked",
-        "escalation": "Provider",
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/medications",
+        json={
+            "name": "Warfarin",
+            "dose": "5 mg",
+            "directions": "Daily",
+            "source": "Outside med list",
+            "status": "review",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/labs",
+        json={
+            "collected_at": "2026-06-03T08:00:00",
+            "panel": "INR",
+            "result": "INR 5.2",
+            "flag": "Critical",
+            "status": "needs_review",
+            "source": "Outside Lab",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "owner_role": "Provider",
+            "item": "Adjust anticoagulation plan before checkout.",
+            "due": "Today",
+            "status": "blocked",
+            "escalation": "Provider",
+        },
+        headers=auth_headers,
+    )
 
     summary = await client.get(f"/api/patients/{patient_id}/chart-summary", headers=auth_headers)
 
@@ -868,20 +1176,33 @@ async def test_patient_chart_summary_blocks_checkout_for_unresolved_clinical_ite
 
 
 @pytest.mark.asyncio
-async def test_patient_encounters_can_be_created_and_signed(client: AsyncClient, auth_headers, admin_user):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Encounter", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_patient_encounters_can_be_created_and_signed(
+    client: AsyncClient, auth_headers, admin_user
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Encounter",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
 
-    encounter_res = await client.post(f"/api/patients/{patient_id}/encounters", json={
-        "provider_id": admin_user.id,
-        "encounter_type": "annual_wellness",
-        "status": "provider_review",
-        "summary": "Preventive visit with medication reconciliation.",
-        "assessment": "Stable chronic conditions.",
-        "plan": "Follow up in 3 months.",
-    }, headers=auth_headers)
+    encounter_res = await client.post(
+        f"/api/patients/{patient_id}/encounters",
+        json={
+            "provider_id": admin_user.id,
+            "encounter_type": "annual_wellness",
+            "status": "provider_review",
+            "summary": "Preventive visit with medication reconciliation.",
+            "assessment": "Stable chronic conditions.",
+            "plan": "Follow up in 3 months.",
+        },
+        headers=auth_headers,
+    )
 
     assert encounter_res.status_code == 201
     encounter = encounter_res.json()
@@ -912,38 +1233,67 @@ async def test_patient_encounters_can_be_created_and_signed(client: AsyncClient,
 
 
 @pytest.mark.asyncio
-async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncClient, auth_headers, admin_user):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Handoff", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_patient_checkout_handoff_collects_unresolved_work(
+    client: AsyncClient, auth_headers, admin_user
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Handoff",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    await client.post(f"/api/patients/{patient_id}/documents", json={
-        "title": "Outside record",
-        "source": "Outside Office",
-        "document_type": "Clinical record",
-        "status": "needs_review",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/medications", json={
-        "name": "Potassium chloride",
-        "status": "held",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/labs", json={
-        "panel": "CMP",
-        "result": "Potassium 5.9",
-        "status": "needs_review",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "assigned_to_id": admin_user.id,
-        "owner_role": "Provider",
-        "item": "Review potassium before checkout.",
-        "status": "open",
-        "escalation": "same_day",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/encounters", json={
-        "provider_id": admin_user.id,
-        "encounter_type": "office_visit",
-        "status": "provider_review",
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/documents",
+        json={
+            "title": "Outside record",
+            "source": "Outside Office",
+            "document_type": "Clinical record",
+            "status": "needs_review",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/medications",
+        json={
+            "name": "Potassium chloride",
+            "status": "held",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/labs",
+        json={
+            "panel": "CMP",
+            "result": "Potassium 5.9",
+            "status": "needs_review",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "assigned_to_id": admin_user.id,
+            "owner_role": "Provider",
+            "item": "Review potassium before checkout.",
+            "status": "open",
+            "escalation": "same_day",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/encounters",
+        json={
+            "provider_id": admin_user.id,
+            "encounter_type": "office_visit",
+            "status": "provider_review",
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get(f"/api/patients/{patient_id}/checkout-handoff", headers=auth_headers)
 
@@ -961,30 +1311,51 @@ async def test_patient_checkout_handoff_collects_unresolved_work(client: AsyncCl
 
 
 @pytest.mark.asyncio
-async def test_checkout_handoff_item_can_be_converted_to_task(client: AsyncClient, auth_headers, admin_user):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Tasked", "last_name": "Handoff", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_checkout_handoff_item_can_be_converted_to_task(
+    client: AsyncClient, auth_headers, admin_user
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Tasked",
+            "last_name": "Handoff",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    care_res = await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "assigned_to_id": admin_user.id,
-        "owner_role": "Provider",
-        "item": "Resolve checkout blocker before patient leaves.",
-        "status": "blocked",
-        "escalation": "same_day",
-    }, headers=auth_headers)
+    care_res = await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "assigned_to_id": admin_user.id,
+            "owner_role": "Provider",
+            "item": "Resolve checkout blocker before patient leaves.",
+            "status": "blocked",
+            "escalation": "same_day",
+        },
+        headers=auth_headers,
+    )
     source_id = care_res.json()["id"]
 
-    task_res = await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
-        "source_type": "care_plan",
-        "source_id": source_id,
-        "priority": "urgent",
-    }, headers=auth_headers)
-    duplicate_res = await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
-        "source_type": "care_plan",
-        "source_id": source_id,
-        "priority": "urgent",
-    }, headers=auth_headers)
+    task_res = await client.post(
+        f"/api/patients/{patient_id}/checkout-handoff/tasks",
+        json={
+            "source_type": "care_plan",
+            "source_id": source_id,
+            "priority": "urgent",
+        },
+        headers=auth_headers,
+    )
+    duplicate_res = await client.post(
+        f"/api/patients/{patient_id}/checkout-handoff/tasks",
+        json={
+            "source_type": "care_plan",
+            "source_id": source_id,
+            "priority": "urgent",
+        },
+        headers=auth_headers,
+    )
 
     assert task_res.status_code == 201
     task = task_res.json()
@@ -998,33 +1369,58 @@ async def test_checkout_handoff_item_can_be_converted_to_task(client: AsyncClien
 
 
 @pytest.mark.asyncio
-async def test_checkout_workload_groups_open_items_by_owner(client: AsyncClient, auth_headers, admin_user):
-    create_res = await client.post("/api/patients", json={
-        "first_name": "Workload", "last_name": "Patient", "dob": "1990-01-01", "gender": "Unknown",
-    }, headers=auth_headers)
+async def test_checkout_workload_groups_open_items_by_owner(
+    client: AsyncClient, auth_headers, admin_user
+):
+    create_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Workload",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+        },
+        headers=auth_headers,
+    )
     patient_id = create_res.json()["id"]
-    await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "assigned_to_id": admin_user.id,
-        "owner_role": "Provider",
-        "item": "Review checkout blocker.",
-        "status": "blocked",
-        "escalation": "same_day",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "owner_role": "Front desk",
-        "item": "Schedule follow-up.",
-        "status": "open",
-    }, headers=auth_headers)
-    care_task = await client.post(f"/api/patients/{patient_id}/care-plan", json={
-        "owner_role": "Provider",
-        "item": "Create urgent checkout task.",
-        "status": "blocked",
-    }, headers=auth_headers)
-    await client.post(f"/api/patients/{patient_id}/checkout-handoff/tasks", json={
-        "source_type": "care_plan",
-        "source_id": care_task.json()["id"],
-        "priority": "urgent",
-    }, headers=auth_headers)
+    await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "assigned_to_id": admin_user.id,
+            "owner_role": "Provider",
+            "item": "Review checkout blocker.",
+            "status": "blocked",
+            "escalation": "same_day",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "owner_role": "Front desk",
+            "item": "Schedule follow-up.",
+            "status": "open",
+        },
+        headers=auth_headers,
+    )
+    care_task = await client.post(
+        f"/api/patients/{patient_id}/care-plan",
+        json={
+            "owner_role": "Provider",
+            "item": "Create urgent checkout task.",
+            "status": "blocked",
+        },
+        headers=auth_headers,
+    )
+    await client.post(
+        f"/api/patients/{patient_id}/checkout-handoff/tasks",
+        json={
+            "source_type": "care_plan",
+            "source_id": care_task.json()["id"],
+            "priority": "urgent",
+        },
+        headers=auth_headers,
+    )
 
     res = await client.get("/api/patients/workload/checkout", headers=auth_headers)
 

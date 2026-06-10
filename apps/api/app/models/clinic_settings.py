@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, JSON, String, Text
+from sqlalchemy import JSON, DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -15,7 +15,9 @@ class ClinicSettings(Base):
     __tablename__ = "clinic_settings"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, unique=True, index=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, unique=True, index=True
+    )
     reminder_offsets_minutes: Mapped[list[int]] = mapped_column(JSON, default=lambda: [1440, 120])
     reminder_sms_template: Mapped[str] = mapped_column(
         Text,

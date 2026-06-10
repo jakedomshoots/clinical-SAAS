@@ -8,17 +8,18 @@ from __future__ import annotations
 import asyncio
 import functools
 import random
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Callable, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 
 
 class CircuitState(str, Enum):
-    CLOSED = "closed"      # Normal operation
-    OPEN = "open"          # Failing, reject requests
+    CLOSED = "closed"  # Normal operation
+    OPEN = "open"  # Failing, reject requests
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
@@ -37,9 +38,7 @@ class RetryConfig:
     max_delay: float = 60.0
     strategy: RetryStrategy = RetryStrategy.EXPONENTIAL
     jitter: bool = True
-    retryable_exceptions: tuple[type[Exception], ...] = field(
-        default_factory=lambda: (Exception,)
-    )
+    retryable_exceptions: tuple[type[Exception], ...] = field(default_factory=lambda: (Exception,))
     on_retry: Callable[[Exception, int], None] | None = None
     on_exhausted: Callable[[Exception], None] | None = None
 
@@ -89,7 +88,7 @@ class CircuitBreaker:
             # Check if recovery timeout has passed
             if self._stats.last_failure_time:
                 last_failure = datetime.fromisoformat(self._stats.last_failure_time)
-                elapsed = (datetime.now(timezone.utc) - last_failure).total_seconds()
+                elapsed = (datetime.now(UTC) - last_failure).total_seconds()
                 if elapsed >= self.config.recovery_timeout:
                     self._stats.state = CircuitState.HALF_OPEN
                     self._half_open_calls = 0
@@ -106,7 +105,7 @@ class CircuitBreaker:
         self._stats.total_calls += 1
         self._stats.total_successes += 1
         self._stats.success_count += 1
-        self._stats.last_success_time = datetime.now(timezone.utc).isoformat()
+        self._stats.last_success_time = datetime.now(UTC).isoformat()
 
         if self._stats.state == CircuitState.HALF_OPEN:
             self._half_open_calls += 1
@@ -121,11 +120,12 @@ class CircuitBreaker:
         self._stats.total_failures += 1
         self._stats.failure_count += 1
         self._stats.success_count = 0
-        self._stats.last_failure_time = datetime.now(timezone.utc).isoformat()
+        self._stats.last_failure_time = datetime.now(UTC).isoformat()
 
-        if self._stats.state == CircuitState.HALF_OPEN:
-            self._stats.state = CircuitState.OPEN
-        elif self._stats.failure_count >= self.config.failure_threshold:
+        if (
+            self._stats.state == CircuitState.HALF_OPEN
+            or self._stats.failure_count >= self.config.failure_threshold
+        ):
             self._stats.state = CircuitState.OPEN
 
     async def execute(self, fn: Callable[..., T], *args: Any, **kwargs: Any) -> T:
@@ -142,13 +142,14 @@ class CircuitBreaker:
                 result = fn(*args, **kwargs)
             self.record_success()
             return result
-        except Exception as e:
+        except Exception:
             self.record_failure()
             raise
 
 
 class CircuitBreakerOpenError(Exception):
     """Raised when circuit breaker is open."""
+
     pass
 
 
@@ -180,9 +181,7 @@ class RetryService:
         if circuit_breaker_name:
             cb = self.get_circuit_breaker(circuit_breaker_name)
             if not cb.can_execute():
-                raise CircuitBreakerOpenError(
-                    f"Circuit breaker '{circuit_breaker_name}' is OPEN"
-                )
+                raise CircuitBreakerOpenError(f"Circuit breaker '{circuit_breaker_name}' is OPEN")
 
         last_exception: Exception | None = None
 
@@ -263,20 +262,22 @@ class RetryService:
             @functools.wraps(fn)
             async def async_wrapper(*args: Any, **kwargs: Any) -> T:
                 return await self.execute_with_retry(
-                    fn, *args,
-                    config=config,
-                    circuit_breaker_name=circuit_breaker_name,
-                    **kwargs
+                    fn, *args, config=config, circuit_breaker_name=circuit_breaker_name, **kwargs
                 )
 
             @functools.wraps(fn)
             def sync_wrapper(*args: Any, **kwargs: Any) -> T:
                 # For sync functions, run in executor
                 import concurrent.futures
+
                 with concurrent.futures.ThreadPoolExecutor() as executor:
                     future = executor.submit(
                         self._sync_execute_with_retry,
-                        fn, args, kwargs, config, circuit_breaker_name
+                        fn,
+                        args,
+                        kwargs,
+                        config,
+                        circuit_breaker_name,
                     )
                     return future.result()
 
@@ -301,9 +302,7 @@ class RetryService:
         if circuit_breaker_name:
             cb = self.get_circuit_breaker(circuit_breaker_name)
             if not cb.can_execute():
-                raise CircuitBreakerOpenError(
-                    f"Circuit breaker '{circuit_breaker_name}' is OPEN"
-                )
+                raise CircuitBreakerOpenError(f"Circuit breaker '{circuit_breaker_name}' is OPEN")
 
         last_exception: Exception | None = None
 
@@ -368,6 +367,7 @@ retry_service = RetryService()
 
 
 # Convenience decorators
+
 
 def with_retry(
     max_attempts: int = 3,

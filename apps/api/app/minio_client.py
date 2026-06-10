@@ -1,4 +1,5 @@
 from minio import Minio
+
 from app.config import settings
 
 minio = Minio(

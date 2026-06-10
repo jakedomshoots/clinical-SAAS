@@ -1,5 +1,6 @@
 import asyncio
 import json
+from contextlib import suppress
 from dataclasses import dataclass
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
@@ -53,12 +54,12 @@ class ConnectionManager:
             for connection in user_connections:
                 if organization_id and connection.organization_id != organization_id:
                     continue
-                try:
+                with suppress(Exception):
                     await connection.websocket.send_text(
-                        message if isinstance(message, str) else message.decode("utf-8", errors="ignore")
+                        message
+                        if isinstance(message, str)
+                        else message.decode("utf-8", errors="ignore")
                     )
-                except Exception:
-                    pass
 
 
 manager = ConnectionManager()
@@ -164,8 +165,6 @@ async def websocket_endpoint(websocket: WebSocket):
         pass
     finally:
         listener_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await listener_task
-        except asyncio.CancelledError:
-            pass
         manager.disconnect(websocket, user_id)

@@ -26,7 +26,9 @@ def generate_temporary_password() -> str:
 
 
 def temporary_password_expires_at() -> datetime:
-    return (datetime.now(UTC) + timedelta(hours=TEMPORARY_PASSWORD_EXPIRE_HOURS)).replace(tzinfo=None)
+    return (datetime.now(UTC) + timedelta(hours=TEMPORARY_PASSWORD_EXPIRE_HOURS)).replace(
+        tzinfo=None
+    )
 
 
 def temporary_password_is_expired(user: User) -> bool:
@@ -100,7 +102,11 @@ async def complete_password_rotation(
     new_password: str,
 ) -> User | None:
     user = await get_user_by_email(db, email)
-    if user is None or not user.is_active or not verify_password(current_password, user.hashed_password):
+    if (
+        user is None
+        or not user.is_active
+        or not verify_password(current_password, user.hashed_password)
+    ):
         return None
     if not user.password_must_change:
         return user

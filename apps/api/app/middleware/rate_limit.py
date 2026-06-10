@@ -7,8 +7,9 @@ Supports burst handling and distributed rate limiting via Redis.
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -132,8 +133,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
             # Remove old entries
             self._local_store[client_id] = [
-                t for t in self._local_store[client_id]
-                if t > window_start
+                t for t in self._local_store[client_id] if t > window_start
             ]
 
             # Check limits
@@ -175,10 +175,7 @@ class RateLimiter:
             self._store[key] = []
 
         # Clean old entries
-        self._store[key] = [
-            t for t in self._store[key]
-            if t > window_start
-        ]
+        self._store[key] = [t for t in self._store[key] if t > window_start]
 
         # Check limit
         if len(self._store[key]) >= self.config.requests_per_minute:

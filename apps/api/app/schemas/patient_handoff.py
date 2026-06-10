@@ -1,3 +1,5 @@
+from pydantic import BaseModel
+
 from app.schemas.patient import PatientOut
 from app.schemas.patient_chart import PatientChartSummaryOut
 from app.schemas.patient_clinical import (
@@ -7,7 +9,6 @@ from app.schemas.patient_clinical import (
     PatientMedicationOut,
 )
 from app.schemas.patient_document import PatientDocumentOut
-from pydantic import BaseModel
 
 
 class PatientCheckoutTaskCreate(BaseModel):

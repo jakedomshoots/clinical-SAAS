@@ -27,9 +27,7 @@ ASSISTANT_TOOL_POLICY: dict[str, set[UserRole]] = {
 
 
 def allowed_tools_for(user: User) -> list[str]:
-    return sorted(
-        tool_id for tool_id, roles in ASSISTANT_TOOL_POLICY.items() if user.role in roles
-    )
+    return sorted(tool_id for tool_id, roles in ASSISTANT_TOOL_POLICY.items() if user.role in roles)
 
 
 def can_use_tool(user: User, tool_id: str) -> bool:

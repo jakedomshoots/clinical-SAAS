@@ -6,10 +6,10 @@ status tracking, and appeals for medications and procedures.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -23,6 +23,7 @@ router = APIRouter(prefix="/prior-auth", tags=["Prior Authorization"])
 # ePA status tracking model (simplified — real implementation uses
 # CoverMyMeds or Surescripts ePA API)
 # ---------------------------------------------------------------------------
+
 
 class PriorAuthStatus:
     draft = "draft"
@@ -119,14 +120,14 @@ async def create_prior_auth(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Create a prior authorization request."""
-    pa_id = f"PA-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    pa_id = f"PA-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
     return {
         "id": pa_id,
         "status": PriorAuthStatus.submitted,
         "patient_id": data["patient_id"],
         "medication_or_procedure": data.get("medication") or data.get("cpt_code"),
         "payer_id": data.get("payer_id"),
-        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "submitted_at": datetime.now(UTC).isoformat(),
         "submitted_by": current_user.id,
         "estimated_response_time": "24-72 hours",
         "next_steps": [
@@ -148,7 +149,7 @@ async def get_prior_auth_status(
     return {
         "id": pa_id,
         "status": PriorAuthStatus.pending_info,
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
         "payer_response": "Additional clinical documentation required",
         "required_documents": [
             "Chart notes supporting medical necessity",
@@ -169,7 +170,7 @@ async def appeal_prior_auth(
     return {
         "id": pa_id,
         "status": PriorAuthStatus.appealed,
-        "appeal_submitted_at": datetime.now(timezone.utc).isoformat(),
+        "appeal_submitted_at": datetime.now(UTC).isoformat(),
         "appeal_reason": data.get("reason", "Medical necessity"),
         "supporting_documents": data.get("documents", []),
         "estimated_response_time": "5-10 business days",

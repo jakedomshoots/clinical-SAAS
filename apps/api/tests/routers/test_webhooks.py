@@ -13,7 +13,9 @@ def webhook_body(payload: dict) -> bytes:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
 
-def webhook_headers(body: bytes, timestamp: datetime | None = None, signature: str | None = None) -> dict[str, str]:
+def webhook_headers(
+    body: bytes, timestamp: datetime | None = None, signature: str | None = None
+) -> dict[str, str]:
     occurred_at = timestamp or datetime.now(UTC)
     timestamp_value = str(int(occurred_at.timestamp()))
     digest = hmac.new(
@@ -29,7 +31,9 @@ def webhook_headers(body: bytes, timestamp: datetime | None = None, signature: s
 
 
 @pytest.mark.asyncio
-async def test_fax_webhook_records_integration_event(client: AsyncClient, auth_headers, monkeypatch):
+async def test_fax_webhook_records_integration_event(
+    client: AsyncClient, auth_headers, monkeypatch
+):
     monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
 
     payload = {
@@ -258,15 +262,19 @@ async def test_communications_webhook_updates_task_delivery(
 ):
     monkeypatch.setattr("app.routers.webhooks.settings.webhook_shared_secret", WEBHOOK_SECRET)
 
-    patient_res = await client.post("/api/patients", json={
-        "first_name": "Callback",
-        "last_name": "Patient",
-        "dob": "1990-01-01",
-        "gender": "Unknown",
-        "phone": "555-0100",
-        "sms_consent": True,
-        "preferred_contact_channel": "sms",
-    }, headers=auth_headers)
+    patient_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Callback",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+            "phone": "555-0100",
+            "sms_consent": True,
+            "preferred_contact_channel": "sms",
+        },
+        headers=auth_headers,
+    )
     task_res = await client.post(
         "/api/tasks",
         json={"title": "Call patient", "patient_id": patient_res.json()["id"]},
@@ -302,6 +310,8 @@ async def test_communications_webhook_updates_task_delivery(
 
     assert callback.status_code == 202
     assert callback.json()["applied"] is True
-    listed = await client.get(f"/api/tasks?patient_id={patient_res.json()['id']}", headers=auth_headers)
+    listed = await client.get(
+        f"/api/tasks?patient_id={patient_res.json()['id']}", headers=auth_headers
+    )
     assert listed.json()["data"][0]["delivery_status"] == "delivered"
     assert listed.json()["data"][0]["delivered_at"] is not None

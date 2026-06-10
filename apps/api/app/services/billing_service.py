@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.billing import BillingCase, BillingStatus
 from app.models.audit import AuditLog
+from app.models.billing import BillingCase, BillingStatus
 from app.models.integration_event import IntegrationEvent
 from app.models.patient import Patient
 from app.models.patient_clinical import EncounterStatus, PatientEncounter
@@ -19,7 +19,9 @@ def _utcnow() -> datetime:
 
 async def list_cases(db: AsyncSession, user: User) -> tuple[list[BillingCase], int]:
     query = select(BillingCase).where(BillingCase.organization_id == user.organization_id)
-    countq = select(func.count(BillingCase.id)).where(BillingCase.organization_id == user.organization_id)
+    countq = select(func.count(BillingCase.id)).where(
+        BillingCase.organization_id == user.organization_id
+    )
     total = (await db.execute(countq)).scalar() or 0
     result = await db.execute(query.order_by(BillingCase.created_at.desc()).limit(100))
     return list(result.scalars().all()), total
@@ -31,7 +33,9 @@ async def work_queue(db: AsyncSession, user: User) -> dict:
             await db.execute(
                 select(BillingCase).where(BillingCase.organization_id == user.organization_id)
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     readiness = [_claim_readiness(case) for case in rows]
     return {
@@ -47,7 +51,9 @@ async def work_queue(db: AsyncSession, user: User) -> dict:
             or "Diagnosis codes are required." in item["blockers"]
         ),
         "eligibility_needed_count": sum(
-            1 for item in readiness if "Eligibility must be checked and eligible." in item["blockers"]
+            1
+            for item in readiness
+            if "Eligibility must be checked and eligible." in item["blockers"]
         ),
         "denial_rework_count": sum(
             1 for case in rows if case.status == BillingStatus.denied and not case.denial_worked_at
@@ -74,69 +80,104 @@ async def list_charge_review(db: AsyncSession, user: User) -> tuple[list[dict], 
             PatientEncounter.status == EncounterStatus.signed,
             PatientEncounter.appointment_id.not_in(billed_encounters),
         )
-        .order_by(PatientEncounter.signed_at.desc().nulls_last(), PatientEncounter.updated_at.desc())
+        .order_by(
+            PatientEncounter.signed_at.desc().nulls_last(), PatientEncounter.updated_at.desc()
+        )
         .limit(100)
     )
     rows = []
     for encounter, patient in result.all():
-        rows.append({
-            "encounter_id": encounter.id,
-            "patient_id": encounter.patient_id,
-            "patient_name": f"{patient.first_name} {patient.last_name}",
-            "appointment_id": encounter.appointment_id,
-            "encounter_type": encounter.encounter_type,
-            "signed_at": encounter.signed_at,
-            "summary": encounter.summary,
-            "recommended_cpt_codes": ["99213"],
-            "recommended_diagnosis_codes": [],
-        })
+        rows.append(
+            {
+                "encounter_id": encounter.id,
+                "patient_id": encounter.patient_id,
+                "patient_name": f"{patient.first_name} {patient.last_name}",
+                "appointment_id": encounter.appointment_id,
+                "encounter_type": encounter.encounter_type,
+                "signed_at": encounter.signed_at,
+                "summary": encounter.summary,
+                "recommended_cpt_codes": ["99213"],
+                "recommended_diagnosis_codes": [],
+            }
+        )
     return rows, len(rows)
 
 
 async def create_case(db: AsyncSession, user: User, data: dict) -> BillingCase | None:
-    patient = (await db.execute(select(Patient.id).where(Patient.id == data["patient_id"], Patient.organization_id == user.organization_id))).scalar_one_or_none()
+    patient = (
+        await db.execute(
+            select(Patient.id).where(
+                Patient.id == data["patient_id"], Patient.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not patient:
         return None
     case = BillingCase(organization_id=user.organization_id, **data)
     if not case.payer:
-        patient_row = (await db.execute(select(Patient).where(Patient.id == data["patient_id"]))).scalar_one()
+        patient_row = (
+            await db.execute(select(Patient).where(Patient.id == data["patient_id"]))
+        ).scalar_one()
         case.payer = (patient_row.insurance or {}).get("provider")
     db.add(case)
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.case_created", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id})
+    await log_event(
+        db,
+        "billing.case_created",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={"patient_id": case.patient_id},
+    )
     return case
 
 
-async def create_case_from_encounter(db: AsyncSession, user: User, encounter_id: str) -> BillingCase | None:
-    encounter = (await db.execute(
-        select(PatientEncounter).where(
-            PatientEncounter.id == encounter_id,
-            PatientEncounter.organization_id == user.organization_id,
+async def create_case_from_encounter(
+    db: AsyncSession, user: User, encounter_id: str
+) -> BillingCase | None:
+    encounter = (
+        await db.execute(
+            select(PatientEncounter).where(
+                PatientEncounter.id == encounter_id,
+                PatientEncounter.organization_id == user.organization_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if not encounter:
         return None
-    existing = (await db.execute(
-        select(BillingCase).where(
-            BillingCase.organization_id == user.organization_id,
-            BillingCase.patient_id == encounter.patient_id,
-            BillingCase.appointment_id == encounter.appointment_id,
+    existing = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.organization_id == user.organization_id,
+                BillingCase.patient_id == encounter.patient_id,
+                BillingCase.appointment_id == encounter.appointment_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()
     if existing:
         return existing
-    return await create_case(db, user, {
-        "patient_id": encounter.patient_id,
-        "appointment_id": encounter.appointment_id,
-        "cpt_codes": ["99213"],
-        "diagnosis_codes": [],
-        "notes": f"Charge capture from {encounter.encounter_type} encounter.",
-    })
+    return await create_case(
+        db,
+        user,
+        {
+            "patient_id": encounter.patient_id,
+            "appointment_id": encounter.appointment_id,
+            "cpt_codes": ["99213"],
+            "diagnosis_codes": [],
+            "notes": f"Charge capture from {encounter.encounter_type} encounter.",
+        },
+    )
 
 
 async def check_eligibility(db: AsyncSession, user: User, patient_id: str) -> dict | None:
-    patient = (await db.execute(select(Patient).where(Patient.id == patient_id, Patient.organization_id == user.organization_id))).scalar_one_or_none()
+    patient = (
+        await db.execute(
+            select(Patient).where(
+                Patient.id == patient_id, Patient.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not patient:
         return None
     payer = (patient.insurance or {}).get("provider")
@@ -151,17 +192,28 @@ async def check_eligibility(db: AsyncSession, user: User, patient_id: str) -> di
     for case in result.scalars().all():
         case.eligibility_status = status
     await db.commit()
-    await log_event(db, "billing.eligibility_checked", "patient", patient.id, actor_id=user.id, payload={"payer": payer, "status": status})
+    await log_event(
+        db,
+        "billing.eligibility_checked",
+        "patient",
+        patient.id,
+        actor_id=user.id,
+        payload={"payer": payer, "status": status},
+    )
     return {
         "patient_id": patient.id,
         "payer": payer,
         "status": status,
         "reference_id": f"demo-elig-{patient.id[-6:]}",
-        "message": "Demo eligibility staged. Configure a payer clearinghouse before live use." if payer else "Insurance is missing from chart.",
+        "message": "Demo eligibility staged. Configure a payer clearinghouse before live use."
+        if payer
+        else "Insurance is missing from chart.",
     }
 
 
-async def eligibility_history(db: AsyncSession, user: User, patient_id: str) -> tuple[list[AuditLog], int]:
+async def eligibility_history(
+    db: AsyncSession, user: User, patient_id: str
+) -> tuple[list[AuditLog], int]:
     result = await db.execute(
         select(AuditLog)
         .where(
@@ -178,7 +230,13 @@ async def eligibility_history(db: AsyncSession, user: User, patient_id: str) -> 
 
 
 async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) -> BillingCase | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     for field, value in data.items():
@@ -190,19 +248,40 @@ async def update_case(db: AsyncSession, user: User, case_id: str, data: dict) ->
         case.submission_ready_at = case.submission_ready_at or _utcnow()
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.case_updated", "billing_case", case.id, actor_id=user.id, payload={"updated_fields": list(data.keys())})
+    await log_event(
+        db,
+        "billing.case_updated",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={"updated_fields": list(data.keys())},
+    )
     return case
 
 
 async def claim_readiness(db: AsyncSession, user: User, case_id: str) -> dict | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     return _claim_readiness(case)
 
 
-async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[list[dict], int] | None:
-    exists = (await db.execute(select(BillingCase.id).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+async def case_timeline(
+    db: AsyncSession, user: User, case_id: str
+) -> tuple[list[dict], int] | None:
+    exists = (
+        await db.execute(
+            select(BillingCase.id).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not exists:
         return None
     audit_result = await db.execute(
@@ -258,7 +337,13 @@ async def case_timeline(db: AsyncSession, user: User, case_id: str) -> tuple[lis
 
 
 async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     readiness = _claim_readiness(case)
@@ -272,7 +357,18 @@ async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase
     case.notes = "\n".join(filter(None, [case.notes, "Claim staged for clearinghouse submission."]))
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.claim_submitted", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "payer": case.payer, "claim_control_number": case.claim_control_number})
+    await log_event(
+        db,
+        "billing.claim_submitted",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": case.patient_id,
+            "payer": case.payer,
+            "claim_control_number": case.claim_control_number,
+        },
+    )
     await record_event(
         db,
         user,
@@ -283,13 +379,26 @@ async def submit_case(db: AsyncSession, user: User, case_id: str) -> BillingCase
         entity_type="billing_case",
         entity_id=case.id,
         idempotency_key=f"claim:submit:{case.id}",
-        payload={"patient_id": case.patient_id, "payer": case.payer, "cpt_codes": case.cpt_codes, "claim_control_number": case.claim_control_number},
+        payload={
+            "patient_id": case.patient_id,
+            "payer": case.payer,
+            "cpt_codes": case.cpt_codes,
+            "claim_control_number": case.claim_control_number,
+        },
     )
     return case
 
 
-async def record_payment(db: AsyncSession, user: User, case_id: str, data: dict | None = None) -> BillingCase | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+async def record_payment(
+    db: AsyncSession, user: User, case_id: str, data: dict | None = None
+) -> BillingCase | None:
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     data = data or {}
@@ -301,12 +410,31 @@ async def record_payment(db: AsyncSession, user: User, case_id: str, data: dict 
     case.notes = "\n".join(filter(None, [case.notes, data.get("notes") or "Payment recorded."]))
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.payment_recorded", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "paid_amount": case.paid_amount, "remittance_status": case.remittance_status})
+    await log_event(
+        db,
+        "billing.payment_recorded",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={
+            "patient_id": case.patient_id,
+            "paid_amount": case.paid_amount,
+            "remittance_status": case.remittance_status,
+        },
+    )
     return case
 
 
-async def deny_case(db: AsyncSession, user: User, case_id: str, reason: str | None = None) -> BillingCase | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+async def deny_case(
+    db: AsyncSession, user: User, case_id: str, reason: str | None = None
+) -> BillingCase | None:
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     case.status = BillingStatus.denied
@@ -315,23 +443,47 @@ async def deny_case(db: AsyncSession, user: User, case_id: str, reason: str | No
     case.notes = "\n".join(filter(None, [case.notes, case.denial_reason]))
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.claim_denied", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "reason": reason})
+    await log_event(
+        db,
+        "billing.claim_denied",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={"patient_id": case.patient_id, "reason": reason},
+    )
     return case
 
 
-async def rework_denial(db: AsyncSession, user: User, case_id: str, notes: str | None = None) -> BillingCase | None:
-    case = (await db.execute(select(BillingCase).where(BillingCase.id == case_id, BillingCase.organization_id == user.organization_id))).scalar_one_or_none()
+async def rework_denial(
+    db: AsyncSession, user: User, case_id: str, notes: str | None = None
+) -> BillingCase | None:
+    case = (
+        await db.execute(
+            select(BillingCase).where(
+                BillingCase.id == case_id, BillingCase.organization_id == user.organization_id
+            )
+        )
+    ).scalar_one_or_none()
     if not case:
         return None
     case.denial_worked_at = _utcnow()
-    case.notes = "\n".join(filter(None, [case.notes, notes or "Denial worked and ready to resubmit."]))
+    case.notes = "\n".join(
+        filter(None, [case.notes, notes or "Denial worked and ready to resubmit."])
+    )
     readiness = _claim_readiness(case)
     case.status = BillingStatus.ready if readiness["ready"] else BillingStatus.draft
     if readiness["ready"]:
         case.submission_ready_at = _utcnow()
     await db.commit()
     await db.refresh(case)
-    await log_event(db, "billing.denial_reworked", "billing_case", case.id, actor_id=user.id, payload={"patient_id": case.patient_id, "ready": readiness["ready"]})
+    await log_event(
+        db,
+        "billing.denial_reworked",
+        "billing_case",
+        case.id,
+        actor_id=user.id,
+        payload={"patient_id": case.patient_id, "ready": readiness["ready"]},
+    )
     return case
 
 

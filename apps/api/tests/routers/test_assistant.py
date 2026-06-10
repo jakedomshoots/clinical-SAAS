@@ -421,8 +421,7 @@ async def test_assistant_stages_fax_match(
     audit = await client.get("/api/audit?entity_type=fax", headers=auth_headers)
     assert audit.status_code == 200
     assert any(
-        event["event_type"] == "assistant.fax_match_staged"
-        for event in audit.json()["data"]
+        event["event_type"] == "assistant.fax_match_staged" for event in audit.json()["data"]
     )
 
 

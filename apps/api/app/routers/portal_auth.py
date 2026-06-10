@@ -21,21 +21,31 @@ from app.schemas.portal_intake import PortalIntakeCreate, PortalIntakeOut
 from app.services import patient_document_service, portal_intake_service
 from app.services.audit_service import log_event
 from app.services.auth_service import create_patient_portal_token, verify_password
-from app.services.rate_limit_service import auth_rate_limit_exceeded, clear_auth_failures, record_auth_failure
+from app.services.rate_limit_service import (
+    auth_rate_limit_exceeded,
+    clear_auth_failures,
+    record_auth_failure,
+)
 
 router = APIRouter(prefix="/api/portal/auth", tags=["portal-auth"])
 
 
 @router.post("/login", response_model=PatientPortalTokenResponse)
-async def portal_login(data: PatientPortalLogin, request: Request, db: AsyncSession = Depends(get_db)):
+async def portal_login(
+    data: PatientPortalLogin, request: Request, db: AsyncSession = Depends(get_db)
+):
     try:
         dob = date.fromisoformat(data.dob)
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date of birth") from exc
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid date of birth"
+        ) from exc
     client_host = request.client.host if request.client else "unknown"
     rate_limit_key = f"portal:{client_host}:{data.email.lower()}:{data.dob}"
     if await auth_rate_limit_exceeded("portal-login", rate_limit_key):
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many portal login attempts")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many portal login attempts"
+        )
     patient = (
         await db.execute(
             select(Patient).where(
@@ -47,7 +57,9 @@ async def portal_login(data: PatientPortalLogin, request: Request, db: AsyncSess
     ).scalar_one_or_none()
     if not patient:
         await record_auth_failure("portal-login", rate_limit_key)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials"
+        )
     if (
         not patient.portal_access_code_hash
         or not patient.portal_access_code_expires_at
@@ -55,7 +67,9 @@ async def portal_login(data: PatientPortalLogin, request: Request, db: AsyncSess
         or not verify_password(data.access_code, patient.portal_access_code_hash)
     ):
         await record_auth_failure("portal-login", rate_limit_key)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal credentials"
+        )
     await clear_auth_failures("portal-login", rate_limit_key)
     token = create_patient_portal_token(patient.id, patient.organization_id)
     await log_event(
@@ -66,14 +80,22 @@ async def portal_login(data: PatientPortalLogin, request: Request, db: AsyncSess
         payload={"patient_id": patient.id},
         organization_id=patient.organization_id,
     )
-    return PatientPortalTokenResponse(access_token=token, patient=PatientPortalPatientOut.model_validate(patient))
+    return PatientPortalTokenResponse(
+        access_token=token, patient=PatientPortalPatientOut.model_validate(patient)
+    )
 
 
-async def get_portal_patient(credentials=Depends(security_scheme), db: AsyncSession = Depends(get_db)) -> Patient:
+async def get_portal_patient(
+    credentials=Depends(security_scheme), db: AsyncSession = Depends(get_db)
+) -> Patient:
     try:
-        payload = jwt.decode(credentials.credentials, settings.secret_key, algorithms=[settings.jwt_algorithm])
+        payload = jwt.decode(
+            credentials.credentials, settings.secret_key, algorithms=[settings.jwt_algorithm]
+        )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal token") from None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal token"
+        ) from None
     if payload.get("role") != "patient" or payload.get("portal") is not True:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid portal token")
     patient = (
@@ -86,7 +108,9 @@ async def get_portal_patient(credentials=Depends(security_scheme), db: AsyncSess
         )
     ).scalar_one_or_none()
     if not patient:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Patient not found or inactive")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Patient not found or inactive"
+        )
     return patient
 
 
@@ -104,7 +128,9 @@ async def portal_create_intake(
     payload = data.model_dump()
     payload["patient_id"] = patient.id
     payload["source"] = "patient_portal"
-    submission = await portal_intake_service.create_submission(db, SimpleNamespace(id=None, organization_id=patient.organization_id), payload)
+    submission = await portal_intake_service.create_submission(
+        db, SimpleNamespace(id=None, organization_id=patient.organization_id), payload
+    )
     if not submission:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PortalIntakeOut.model_validate(submission)
@@ -116,20 +142,34 @@ async def portal_prepare_document_upload(
     patient: Patient = Depends(get_portal_patient),
     db: AsyncSession = Depends(get_db),
 ):
-    upload = await patient_document_service.prepare_document_upload(db, SimpleNamespace(id=None, organization_id=patient.organization_id), patient.id, data.model_dump())
+    upload = await patient_document_service.prepare_document_upload(
+        db,
+        SimpleNamespace(id=None, organization_id=patient.organization_id),
+        patient.id,
+        data.model_dump(),
+    )
     if not upload:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientDocumentUploadPrepareOut(**upload)
 
 
-@router.post("/documents/upload/confirm", response_model=PatientDocumentOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/documents/upload/confirm",
+    response_model=PatientDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def portal_confirm_document_upload(
     data: PatientDocumentUploadConfirm,
     patient: Patient = Depends(get_portal_patient),
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        document = await patient_document_service.confirm_document_upload(db, SimpleNamespace(id=None, organization_id=patient.organization_id), patient.id, data.model_dump())
+        document = await patient_document_service.confirm_document_upload(
+            db,
+            SimpleNamespace(id=None, organization_id=patient.organization_id),
+            patient.id,
+            data.model_dump(),
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not document:

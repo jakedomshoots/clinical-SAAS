@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -156,12 +156,14 @@ def _check_ncci(procedures: list[dict]) -> list[dict]:
     for i, cpt1 in enumerate(cpt_list):
         for j, cpt2 in enumerate(cpt_list):
             if i != j and (cpt1, cpt2) in NCCI_EDITS:
-                issues.append({
-                    "severity": "error",
-                    "category": "ncci",
-                    "message": f"NCCI edit: {cpt1} bundles with {cpt2}",
-                    "suggestion": f"Consider modifier 59 on {cpt2} if distinct session",
-                })
+                issues.append(
+                    {
+                        "severity": "error",
+                        "category": "ncci",
+                        "message": f"NCCI edit: {cpt1} bundles with {cpt2}",
+                        "suggestion": f"Consider modifier 59 on {cpt2} if distinct session",
+                    }
+                )
     return issues
 
 
@@ -170,12 +172,14 @@ def _check_prior_auth(procedures: list[dict]) -> list[dict]:
     issues = []
     for proc in procedures:
         if proc["code"] in PRIOR_AUTH_CPTS:
-            issues.append({
-                "severity": "warning",
-                "category": "authorization",
-                "message": f"CPT {proc['code']} may require prior authorization",
-                "suggestion": "Verify prior auth obtained or submit without",
-            })
+            issues.append(
+                {
+                    "severity": "warning",
+                    "category": "authorization",
+                    "message": f"CPT {proc['code']} may require prior authorization",
+                    "suggestion": "Verify prior auth obtained or submit without",
+                }
+            )
     return issues
 
 
@@ -226,13 +230,16 @@ def scrub_claim(claim: dict[str, Any]) -> dict[str, Any]:
         "errors": errors,
         "warnings": warnings,
         "info": info,
-        "estimated_clean_claim_rate": 95.0 if clean else max(0, 95 - len(errors) * 15 - len(warnings) * 5),
+        "estimated_clean_claim_rate": 95.0
+        if clean
+        else max(0, 95 - len(errors) * 15 - len(warnings) * 5),
     }
 
 
 # ---------------------------------------------------------------------------
 # API Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post("/scrub")
 async def scrub_claim_endpoint(
@@ -280,22 +287,34 @@ DENIAL_CATEGORIES: dict[str, dict] = {
 }
 
 COMMON_DENIAL_REASONS: dict[str, dict] = {
-    "CO-16": {"reason": "Claim/service lacks information", "action": "Add missing info and resubmit"},
+    "CO-16": {
+        "reason": "Claim/service lacks information",
+        "action": "Add missing info and resubmit",
+    },
     "CO-18": {"reason": "Duplicate claim/service", "action": "Verify not already paid"},
     "CO-22": {"reason": "Coordination of benefits", "action": "Verify primary/secondary insurance"},
     "CO-29": {"reason": "Time limit for filing expired", "action": "Appeal with documentation"},
     "CO-45": {"reason": "Charge exceeds fee schedule", "action": "Write off or adjust charge"},
     "CO-50": {"reason": "Non-covered service", "action": "Bill patient or appeal"},
     "CO-96": {"reason": "Non-covered charge", "action": "Verify coding / bill patient"},
-    "CO-97": {"reason": "Benefit for service included in another payment", "action": "Review bundling / appeal"},
+    "CO-97": {
+        "reason": "Benefit for service included in another payment",
+        "action": "Review bundling / appeal",
+    },
     "CO-109": {"reason": "Claim not covered by this payer", "action": "Verify insurance / COB"},
-    "CO-197": {"reason": "Precertification/authorization missing", "action": "Obtain retro auth or appeal"},
+    "CO-197": {
+        "reason": "Precertification/authorization missing",
+        "action": "Obtain retro auth or appeal",
+    },
     "PR-2": {"reason": "Deductible not met", "action": "Bill patient"},
     "PR-3": {"reason": "Co-insurance", "action": "Bill patient"},
     "PR-96": {"reason": "Non-covered charge", "action": "Bill patient"},
     "OA-18": {"reason": "Exact duplicate claim", "action": "Verify status with payer"},
     "OA-23": {"reason": "Impact of prior payer(s) adjudication", "action": "Review COB"},
-    "OA-94": {"reason": "Processed as primary when secondary expected", "action": "Resubmit with correct COB"},
+    "OA-94": {
+        "reason": "Processed as primary when secondary expected",
+        "action": "Resubmit with correct COB",
+    },
 }
 
 

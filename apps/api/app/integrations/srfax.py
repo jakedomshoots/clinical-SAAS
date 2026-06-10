@@ -29,6 +29,7 @@ class SRFaxClient(ConfiguredIntegration):
     @property
     def _access_id(self) -> str:
         from app.config import settings
+
         return getattr(settings, "srfax_access_id", "")
 
     def _payload(self, action: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -84,6 +85,7 @@ class SRFaxClient(ConfiguredIntegration):
             params["sFileContent_1"] = content
         elif file_content:
             import base64
+
             params["sFaxType"] = "SINGLE"
             params["sFileName_1"] = file_name
             params["sFileContent_1"] = base64.b64encode(file_content).decode()
@@ -210,6 +212,7 @@ class SRFaxClient(ConfiguredIntegration):
             raise RuntimeError(f"SRFax error: {result.get('Result', 'Unknown error')}")
 
         import base64
+
         return base64.b64decode(result.get("Result", ""))
 
     @with_api_retry(circuit_breaker="srfax")

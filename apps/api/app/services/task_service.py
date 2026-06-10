@@ -136,7 +136,9 @@ async def work_queue_summary(db: AsyncSession, user: User) -> dict:
     source_buckets: dict[str, int] = {}
     for task, role in rows:
         role_key = role.value if role else "unassigned"
-        bucket = role_buckets.setdefault(role_key, {"open_count": 0, "urgent_count": 0, "overdue_count": 0})
+        bucket = role_buckets.setdefault(
+            role_key, {"open_count": 0, "urgent_count": 0, "overdue_count": 0}
+        )
         bucket["open_count"] += 1
         if task.priority == TaskPriority.urgent:
             bucket["urgent_count"] += 1
@@ -146,9 +148,13 @@ async def work_queue_summary(db: AsyncSession, user: User) -> dict:
         source_buckets[source_key] = source_buckets.get(source_key, 0) + 1
 
     urgent_count = sum(1 for task in tasks if task.priority == TaskPriority.urgent)
-    high_priority_count = sum(1 for task in tasks if task.priority in {TaskPriority.high, TaskPriority.urgent})
+    high_priority_count = sum(
+        1 for task in tasks if task.priority in {TaskPriority.high, TaskPriority.urgent}
+    )
     overdue_count = sum(1 for task in tasks if task.due_date and task.due_date < now)
-    due_today_count = sum(1 for task in tasks if task.due_date and now <= task.due_date <= today_end)
+    due_today_count = sum(
+        1 for task in tasks if task.due_date and now <= task.due_date <= today_end
+    )
     unassigned_count = sum(1 for task in tasks if not task.assigned_to_id)
     blocked_count = sum(1 for task in tasks if task.status == TaskStatus.blocked)
     return {
@@ -217,16 +223,24 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
     task = result.scalar_one_or_none()
     if not task:
         return None
-    if "assigned_to_id" in data and data["assigned_to_id"] and not await _user_in_org(
-        db,
-        user,
-        data["assigned_to_id"],
+    if (
+        "assigned_to_id" in data
+        and data["assigned_to_id"]
+        and not await _user_in_org(
+            db,
+            user,
+            data["assigned_to_id"],
+        )
     ):
         return None
-    if "patient_id" in data and data["patient_id"] and not await _patient_in_org(
-        db,
-        user,
-        data["patient_id"],
+    if (
+        "patient_id" in data
+        and data["patient_id"]
+        and not await _patient_in_org(
+            db,
+            user,
+            data["patient_id"],
+        )
     ):
         return None
     before = {
@@ -251,7 +265,9 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
         "assigned_to_id": task.assigned_to_id,
         "due_date": task.due_date.isoformat() if task.due_date else None,
     }
-    event_type = f"task.{task.status.value}" if before["status"] != task.status.value else "task.updated"
+    event_type = (
+        f"task.{task.status.value}" if before["status"] != task.status.value else "task.updated"
+    )
     await log_event(
         db,
         event_type,
@@ -270,7 +286,9 @@ async def update_task(db: AsyncSession, user: User, task_id: str, data: dict) ->
 
 async def draft_patient_outreach(db: AsyncSession, user: User, task_id: str) -> dict | None:
     result = await db.execute(
-        select(Task, Patient).join(Patient, Task.patient_id == Patient.id).where(
+        select(Task, Patient)
+        .join(Patient, Task.patient_id == Patient.id)
+        .where(
             Task.id == task_id,
             Task.organization_id == user.organization_id,
             Patient.organization_id == user.organization_id,
@@ -375,13 +393,17 @@ async def stage_patient_outreach_delivery(
 
 async def outreach_summary(db: AsyncSession, user: User) -> dict:
     rows = (
-        await db.execute(
-            select(Task).where(
-                Task.organization_id == user.organization_id,
-                Task.delivery_status.is_not(None),
+        (
+            await db.execute(
+                select(Task).where(
+                    Task.organization_id == user.organization_id,
+                    Task.delivery_status.is_not(None),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return {
         "queued_count": sum(1 for task in rows if task.delivery_status == "queued"),
         "delivered_count": sum(1 for task in rows if task.delivery_status == "delivered"),
@@ -493,45 +515,55 @@ def _task_work_queue_actions(
 ) -> list[dict]:
     actions = []
     if blocked_count:
-        actions.append({
-            "key": "blocked",
-            "label": "Resolve blocked work",
-            "detail": f"{blocked_count} task(s) are blocked.",
-            "severity": "critical",
-            "route": "/tasks",
-        })
+        actions.append(
+            {
+                "key": "blocked",
+                "label": "Resolve blocked work",
+                "detail": f"{blocked_count} task(s) are blocked.",
+                "severity": "critical",
+                "route": "/tasks",
+            }
+        )
     if overdue_count:
-        actions.append({
-            "key": "overdue",
-            "label": "Clear overdue work",
-            "detail": f"{overdue_count} active task(s) are past due.",
-            "severity": "critical",
-            "route": "/tasks",
-        })
+        actions.append(
+            {
+                "key": "overdue",
+                "label": "Clear overdue work",
+                "detail": f"{overdue_count} active task(s) are past due.",
+                "severity": "critical",
+                "route": "/tasks",
+            }
+        )
     if urgent_count:
-        actions.append({
-            "key": "urgent",
-            "label": "Review urgent work",
-            "detail": f"{urgent_count} urgent task(s) need same-day ownership.",
-            "severity": "critical",
-            "route": "/tasks",
-        })
+        actions.append(
+            {
+                "key": "urgent",
+                "label": "Review urgent work",
+                "detail": f"{urgent_count} urgent task(s) need same-day ownership.",
+                "severity": "critical",
+                "route": "/tasks",
+            }
+        )
     if unassigned_count:
-        actions.append({
-            "key": "unassigned",
-            "label": "Assign open work",
-            "detail": f"{unassigned_count} active task(s) have no owner.",
-            "severity": "warning",
-            "route": "/tasks",
-        })
+        actions.append(
+            {
+                "key": "unassigned",
+                "label": "Assign open work",
+                "detail": f"{unassigned_count} active task(s) have no owner.",
+                "severity": "warning",
+                "route": "/tasks",
+            }
+        )
     if due_today_count:
-        actions.append({
-            "key": "due_today",
-            "label": "Prepare today's queue",
-            "detail": f"{due_today_count} task(s) are due today.",
-            "severity": "warning",
-            "route": "/tasks",
-        })
+        actions.append(
+            {
+                "key": "due_today",
+                "label": "Prepare today's queue",
+                "detail": f"{due_today_count} task(s) are due today.",
+                "severity": "warning",
+                "route": "/tasks",
+            }
+        )
     return actions
 
 

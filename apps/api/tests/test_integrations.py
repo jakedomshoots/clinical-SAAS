@@ -9,12 +9,12 @@ from app.integrations.sandbox import (
     SandboxClearinghouseClient,
     SandboxCommunicationsClient,
     SandboxEHRClient,
+    SandboxERxClient,
     SandboxFaxProviderClient,
-    SandboxPortalClient,
+    SandboxIdentityClient,
     SandboxLabsHIEClient,
     SandboxPaymentsClient,
-    SandboxERxClient,
-    SandboxIdentityClient,
+    SandboxPortalClient,
 )
 
 
@@ -86,7 +86,9 @@ async def test_sandbox_adapters_implement_contract_operations():
 async def test_new_sandbox_adapters_implement_contract_operations():
     labs = await SandboxLabsHIEClient("sandbox").submit_lab_order("patient-1", {"test": "CBC"})
     payment = await SandboxPaymentsClient("sandbox").process_payment("patient-1", 10000, "card")
-    erx = await SandboxERxClient("sandbox").send_prescription("patient-1", {"medication": "Amoxicillin"})
+    erx = await SandboxERxClient("sandbox").send_prescription(
+        "patient-1", {"medication": "Amoxicillin"}
+    )
     identity = await SandboxIdentityClient("sandbox").authenticate_user("user-1", "password")
 
     assert labs["status"] == "submitted"

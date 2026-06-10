@@ -6,10 +6,10 @@ referrals, hospital discharge summaries) into the patient's chart.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -44,51 +44,59 @@ async def review_external_documents(
     for med in external_meds:
         med_name = med["name"].lower()
         if med_name not in existing_names:
-            suggestions.append({
-                "type": "medication",
-                "action": "add",
-                "item": med,
-                "reason": f"New medication from external source: {med['name']}",
-            })
+            suggestions.append(
+                {
+                    "type": "medication",
+                    "action": "add",
+                    "item": med,
+                    "reason": f"New medication from external source: {med['name']}",
+                }
+            )
         else:
             # Check for dose changes
             existing = next((m for m in existing_meds if m["name"].lower() == med_name), None)
             if existing and existing.get("dose") != med.get("dose"):
-                conflicts.append({
-                    "type": "medication_dose",
-                    "item": med["name"],
-                    "existing": existing.get("dose"),
-                    "incoming": med.get("dose"),
-                    "suggestion": "Review and update dose",
-                })
+                conflicts.append(
+                    {
+                        "type": "medication_dose",
+                        "item": med["name"],
+                        "existing": existing.get("dose"),
+                        "incoming": med.get("dose"),
+                        "suggestion": "Review and update dose",
+                    }
+                )
 
     # Allergy reconciliation
     external_allergies = external_data.get("allergies", [])
     existing_allergies = {a["substance"].lower() for a in data.get("existing_allergies", [])}
     for allergy in external_allergies:
         if allergy["substance"].lower() not in existing_allergies:
-            suggestions.append({
-                "type": "allergy",
-                "action": "add",
-                "item": allergy,
-                "reason": f"New allergy from external source: {allergy['substance']}",
-            })
+            suggestions.append(
+                {
+                    "type": "allergy",
+                    "action": "add",
+                    "item": allergy,
+                    "reason": f"New allergy from external source: {allergy['substance']}",
+                }
+            )
 
     # Problem list reconciliation
     external_problems = external_data.get("problems", [])
     existing_problems = {p["code"].lower() for p in data.get("existing_problems", [])}
     for problem in external_problems:
         if problem["code"].lower() not in existing_problems:
-            suggestions.append({
-                "type": "problem",
-                "action": "add",
-                "item": problem,
-                "reason": f"New problem from external source: {problem['description']}",
-            })
+            suggestions.append(
+                {
+                    "type": "problem",
+                    "action": "add",
+                    "item": problem,
+                    "reason": f"New problem from external source: {problem['description']}",
+                }
+            )
 
     return {
         "patient_id": patient_id,
-        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": datetime.now(UTC).isoformat(),
         "reviewed_by": current_user.id,
         "total_conflicts": len(conflicts),
         "total_suggestions": len(suggestions),
@@ -110,13 +118,15 @@ async def merge_external_data(
 
     merged = []
     for item in approved_items:
-        merged.append({
-            "type": item["type"],
-            "action": item["action"],
-            "item": item["item"],
-            "merged_at": datetime.now(timezone.utc).isoformat(),
-            "merged_by": current_user.id,
-        })
+        merged.append(
+            {
+                "type": item["type"],
+                "action": item["action"],
+                "item": item["item"],
+                "merged_at": datetime.now(UTC).isoformat(),
+                "merged_by": current_user.id,
+            }
+        )
 
     return {
         "patient_id": patient_id,

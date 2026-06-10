@@ -43,6 +43,34 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM"]
+ignore = [
+    # Ruff's formatter enforces wrapping; E501 still flags intentional long
+    # strings, URLs, CSV headers, and user-facing copy that should stay intact.
+    "E501",
+    # Keep existing str/Enum classes stable for SQLAlchemy and API serialization.
+    "UP042",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = [
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Depends",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Header",
+    "fastapi.Path",
+    "fastapi.Query",
+    "fastapi.Security",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/integrations/fhir.py" = [
+    # FHIR JSON resources intentionally use HL7 camelCase field names.
+    "N815",
+]
+"app/models/__init__.py" = ["F401"]
+"app/routers/__init__.py" = ["F401"]
 
 [tool.mypy]
 python_version = "3.12"

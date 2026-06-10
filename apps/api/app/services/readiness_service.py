@@ -61,6 +61,7 @@ def _add_legacy_integration_aliases(integrations: dict) -> None:
 
 async def _check_database() -> dict:
     try:
+
         async def ping_database() -> None:
             async with async_session_factory() as db:
                 await db.execute(text("select 1"))
@@ -117,7 +118,12 @@ def _latest_backup_status(repo_root: Path) -> dict:
     backup_root = repo_root / "backups"
     manifests = sorted(backup_root.glob("*/manifest.txt"), reverse=True)
     if not manifests:
-        return {"ok": False, "path": "backups", "last_success_at": None, "error": "No backup manifest found"}
+        return {
+            "ok": False,
+            "path": "backups",
+            "last_success_at": None,
+            "error": "No backup manifest found",
+        }
     latest = manifests[0]
     created_at = None
     for line in latest.read_text().splitlines():
@@ -134,7 +140,12 @@ def _latest_backup_status(repo_root: Path) -> dict:
 def _latest_restore_status(repo_root: Path) -> dict:
     marker = repo_root / "backups" / "latest-restore.txt"
     if not marker.exists():
-        return {"ok": False, "path": "backups/latest-restore.txt", "last_success_at": None, "error": "No restore marker found"}
+        return {
+            "ok": False,
+            "path": "backups/latest-restore.txt",
+            "last_success_at": None,
+            "error": "No restore marker found",
+        }
     restored_at = None
     for line in marker.read_text().splitlines():
         if line.startswith("restored_at="):

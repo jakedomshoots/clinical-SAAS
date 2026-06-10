@@ -1,6 +1,6 @@
-import secrets
 import hashlib
 import hmac
+import secrets
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -134,7 +134,9 @@ async def _receive_webhook(
                 status=str(delivery_status),
                 error=data.payload.get("error"),
             )
-    return WebhookOut(id=event.id, integration=event.integration, status=event.status.value, applied=applied)
+    return WebhookOut(
+        id=event.id, integration=event.integration, status=event.status.value, applied=applied
+    )
 
 
 @router.post("/fax", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -146,7 +148,9 @@ async def receive_fax_webhook(
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
     signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("fax", data, db, secret, timestamp, signature, await request.body())
+    return await _receive_webhook(
+        "fax", data, db, secret, timestamp, signature, await request.body()
+    )
 
 
 @router.post("/portal", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -158,7 +162,9 @@ async def receive_portal_webhook(
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
     signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("portal", data, db, secret, timestamp, signature, await request.body())
+    return await _receive_webhook(
+        "portal", data, db, secret, timestamp, signature, await request.body()
+    )
 
 
 @router.post("/calendar", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -170,7 +176,9 @@ async def receive_calendar_webhook(
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
     signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("calendar", data, db, secret, timestamp, signature, await request.body())
+    return await _receive_webhook(
+        "calendar", data, db, secret, timestamp, signature, await request.body()
+    )
 
 
 @router.post("/ehr", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -182,7 +190,9 @@ async def receive_ehr_webhook(
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
     signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("ehr", data, db, secret, timestamp, signature, await request.body())
+    return await _receive_webhook(
+        "ehr", data, db, secret, timestamp, signature, await request.body()
+    )
 
 
 @router.post("/communications", response_model=WebhookOut, status_code=status.HTTP_202_ACCEPTED)
@@ -194,4 +204,6 @@ async def receive_communications_webhook(
     timestamp: str | None = Header(default=None, alias="X-Concierge-Webhook-Timestamp"),
     signature: str | None = Header(default=None, alias="X-Concierge-Webhook-Signature"),
 ):
-    return await _receive_webhook("communications", data, db, secret, timestamp, signature, await request.body())
+    return await _receive_webhook(
+        "communications", data, db, secret, timestamp, signature, await request.body()
+    )

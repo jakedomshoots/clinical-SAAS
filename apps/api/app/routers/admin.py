@@ -10,13 +10,13 @@ Provides endpoints for:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.integrations.factory import IntegrationFactory
-from app.services.audit_service import AuditCategory, AuditService
+from app.services.audit_service import AuditService
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -41,7 +41,7 @@ async def get_dashboard_summary(
     system_status = await _get_system_status()
 
     return {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "integrations": integrations,
         "audit_stats": stats,
         "system_status": system_status,
@@ -71,7 +71,7 @@ async def get_single_integration_health(
     return {
         "integration": integration_key,
         "health": health.as_dict(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
@@ -111,7 +111,7 @@ async def get_user_activity_summary(
     audit_service: AuditService = Depends(get_audit_service),
 ) -> dict[str, Any]:
     """Get user activity summary."""
-    start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    start_time = datetime.now(UTC) - timedelta(hours=hours)
     events = audit_service._chain.get_events(
         start_time=start_time.isoformat(),
         limit=10000,
@@ -198,6 +198,7 @@ async def get_system_metrics(
 
 # Helper functions
 
+
 async def _get_integration_health() -> list[dict[str, Any]]:
     """Get health status for all integrations."""
     factory = IntegrationFactory()
@@ -207,15 +208,17 @@ async def _get_integration_health() -> list[dict[str, Any]]:
         client = factory.get_client(key)
         if client:
             health = await client.health()
-            results.append({
-                "key": key,
-                "name": client.name,
-                "configured": health.configured,
-                "healthy": health.ok,
-                "mode": health.as_dict().get("mode", "unknown"),
-                "adapter_implemented": health.adapter_implemented,
-                "last_check": datetime.now(timezone.utc).isoformat(),
-            })
+            results.append(
+                {
+                    "key": key,
+                    "name": client.name,
+                    "configured": health.configured,
+                    "healthy": health.ok,
+                    "mode": health.as_dict().get("mode", "unknown"),
+                    "adapter_implemented": health.adapter_implemented,
+                    "last_check": datetime.now(UTC).isoformat(),
+                }
+            )
 
     return results
 
@@ -225,7 +228,7 @@ async def _get_audit_stats(
     hours: int = 24,
 ) -> dict[str, Any]:
     """Get audit statistics."""
-    start_time = datetime.now(timezone.utc) - timedelta(hours=hours)
+    start_time = datetime.now(UTC) - timedelta(hours=hours)
     events = audit_service._chain.get_events(
         start_time=start_time.isoformat(),
         limit=10000,
@@ -261,7 +264,7 @@ async def _get_system_status() -> dict[str, Any]:
             "cache": "healthy",
             "object_storage": "healthy",
         },
-        "last_updated": datetime.now(timezone.utc).isoformat(),
+        "last_updated": datetime.now(UTC).isoformat(),
     }
 
 

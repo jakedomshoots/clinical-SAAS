@@ -1,5 +1,6 @@
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,25 +8,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.audit import AuditLog
 from app.models.user import User, UserRole
-from app.services.auth_service import authenticate_user, create_access_token, hash_password, seed_admin
+from app.services.auth_service import (
+    authenticate_user,
+    create_access_token,
+    hash_password,
+    seed_admin,
+)
 from tests.conftest import headers_for, make_user
 
 
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient, admin_user, db: AsyncSession):
-    res = await client.post("/api/auth/login", json={
-        "email": "admin@clinic.example.com",
-        "password": "admin123!",
-    })
+    res = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "admin@clinic.example.com",
+            "password": "admin123!",
+        },
+    )
     assert res.status_code == 200
     data = res.json()
     assert data["access_token"]
     assert data["token_type"] == "bearer"
     assert data["user"]["email"] == "admin@clinic.example.com"
     assert data["user"]["role"] == "admin"
-    refreshed = (
-        await db.execute(select(User).where(User.id == admin_user.id))
-    ).scalar_one()
+    refreshed = (await db.execute(select(User).where(User.id == admin_user.id))).scalar_one()
     assert refreshed.last_login_at is not None
 
 
@@ -38,10 +45,13 @@ async def test_production_login_requires_external_mfa_handoff_for_staff(
 ):
     monkeypatch.setattr(settings, "app_env", "production")
 
-    res = await client.post("/api/auth/login", json={
-        "email": "admin@clinic.example.com",
-        "password": "admin123!",
-    })
+    res = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "admin@clinic.example.com",
+            "password": "admin123!",
+        },
+    )
 
     assert res.status_code == 403
     assert res.json()["detail"] == "Production staff login requires external MFA provider handoff"
@@ -68,10 +78,13 @@ async def test_production_login_blocks_local_token_even_when_staff_has_local_mfa
     admin_user.mfa_enabled = True
     await db.commit()
 
-    res = await client.post("/api/auth/login", json={
-        "email": "admin@clinic.example.com",
-        "password": "admin123!",
-    })
+    res = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "admin@clinic.example.com",
+            "password": "admin123!",
+        },
+    )
 
     assert res.status_code == 403
     audit = (
@@ -193,19 +206,25 @@ async def test_patient_portal_login_rejects_email_and_dob_without_valid_code(
 
 @pytest.mark.asyncio
 async def test_login_wrong_password(client: AsyncClient, admin_user):
-    res = await client.post("/api/auth/login", json={
-        "email": "admin@clinic.example.com",
-        "password": "wrongpassword!",
-    })
+    res = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "admin@clinic.example.com",
+            "password": "wrongpassword!",
+        },
+    )
     assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_login_nonexistent_user(client: AsyncClient):
-    res = await client.post("/api/auth/login", json={
-        "email": "nobody@clinic.example.com",
-        "password": "whatever123!",
-    })
+    res = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "nobody@clinic.example.com",
+            "password": "whatever123!",
+        },
+    )
     assert res.status_code == 401
 
 
@@ -226,12 +245,16 @@ async def test_me_without_token(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_register_new_user(client: AsyncClient, auth_headers):
-    res = await client.post("/api/auth/register", json={
-        "email": "provider@clinic.example.com",
-        "password": "provider123!",
-        "display_name": "Dr. Smith",
-        "role": "provider",
-    }, headers=auth_headers)
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "provider@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Dr. Smith",
+            "role": "provider",
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 201
     data = res.json()
     assert data["email"] == "provider@clinic.example.com"
@@ -244,41 +267,57 @@ async def test_registered_user_must_rotate_temporary_password_before_login(
     client: AsyncClient,
     auth_headers,
 ):
-    created = await client.post("/api/auth/register", json={
-        "email": "rotate-provider@clinic.example.com",
-        "password": "provider123!",
-        "display_name": "Rotate Provider",
-        "role": "provider",
-    }, headers=auth_headers)
+    created = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "rotate-provider@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Rotate Provider",
+            "role": "provider",
+        },
+        headers=auth_headers,
+    )
     assert created.status_code == 201
     assert created.json()["password_must_change"] is True
     assert created.json()["temporary_password_expires_at"] is not None
 
-    blocked_login = await client.post("/api/auth/login", json={
-        "email": "rotate-provider@clinic.example.com",
-        "password": "provider123!",
-    })
+    blocked_login = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "rotate-provider@clinic.example.com",
+            "password": "provider123!",
+        },
+    )
     assert blocked_login.status_code == 403
     assert blocked_login.json()["detail"] == "Password change required before login"
 
-    rotated = await client.post("/api/auth/complete-password-rotation", json={
-        "email": "rotate-provider@clinic.example.com",
-        "current_password": "provider123!",
-        "new_password": "provider456!!",
-    })
+    rotated = await client.post(
+        "/api/auth/complete-password-rotation",
+        json={
+            "email": "rotate-provider@clinic.example.com",
+            "current_password": "provider123!",
+            "new_password": "provider456!!",
+        },
+    )
     assert rotated.status_code == 200
     assert rotated.json()["user"]["password_must_change"] is False
     assert rotated.json()["user"]["temporary_password_expires_at"] is None
     assert rotated.json()["access_token"]
 
-    old_login = await client.post("/api/auth/login", json={
-        "email": "rotate-provider@clinic.example.com",
-        "password": "provider123!",
-    })
-    normal_login = await client.post("/api/auth/login", json={
-        "email": "rotate-provider@clinic.example.com",
-        "password": "provider456!!",
-    })
+    old_login = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "rotate-provider@clinic.example.com",
+            "password": "provider123!",
+        },
+    )
+    normal_login = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "rotate-provider@clinic.example.com",
+            "password": "provider456!!",
+        },
+    )
     assert old_login.status_code == 401
     assert normal_login.status_code == 200
 
@@ -289,24 +328,33 @@ async def test_expired_temporary_password_cannot_be_rotated(
     auth_headers,
     db: AsyncSession,
 ):
-    created = await client.post("/api/auth/register", json={
-        "email": "expired-temp@clinic.example.com",
-        "password": "provider123!",
-        "display_name": "Expired Temp",
-        "role": "provider",
-    }, headers=auth_headers)
+    created = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "expired-temp@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Expired Temp",
+            "role": "provider",
+        },
+        headers=auth_headers,
+    )
     assert created.status_code == 201
     user = (
         await db.execute(select(User).where(User.email == "expired-temp@clinic.example.com"))
     ).scalar_one()
-    user.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=1)
+    user.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+        minutes=1
+    )
     await db.commit()
 
-    rotated = await client.post("/api/auth/complete-password-rotation", json={
-        "email": "expired-temp@clinic.example.com",
-        "current_password": "provider123!",
-        "new_password": "provider456!!",
-    })
+    rotated = await client.post(
+        "/api/auth/complete-password-rotation",
+        json={
+            "email": "expired-temp@clinic.example.com",
+            "current_password": "provider123!",
+            "new_password": "provider456!!",
+        },
+    )
 
     assert rotated.status_code == 403
     assert rotated.json()["detail"] == "Temporary password expired"
@@ -314,12 +362,15 @@ async def test_expired_temporary_password_cannot_be_rotated(
 
 @pytest.mark.asyncio
 async def test_register_requires_authentication(client: AsyncClient):
-    res = await client.post("/api/auth/register", json={
-        "email": "noauth@clinic.example.com",
-        "password": "provider123!",
-        "display_name": "No Auth",
-        "role": "provider",
-    })
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "noauth@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "No Auth",
+            "role": "provider",
+        },
+    )
     assert res.status_code == 403
 
 
@@ -340,35 +391,47 @@ async def test_register_requires_admin_or_manager(
     await db.refresh(provider)
     token = create_access_token(provider.id, provider.role.value)
 
-    res = await client.post("/api/auth/register", json={
-        "email": "blocked@clinic.example.com",
-        "password": "provider123!",
-        "display_name": "Blocked User",
-        "role": "provider",
-    }, headers={"Authorization": f"Bearer {token}"})
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "blocked@clinic.example.com",
+            "password": "provider123!",
+            "display_name": "Blocked User",
+            "role": "provider",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
 
     assert res.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_register_duplicate_email(client: AsyncClient, admin_user, auth_headers):
-    res = await client.post("/api/auth/register", json={
-        "email": "admin@clinic.example.com",
-        "password": "another123!!",
-        "display_name": "Duplicate",
-        "role": "provider",
-    }, headers=auth_headers)
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "admin@clinic.example.com",
+            "password": "another123!!",
+            "display_name": "Duplicate",
+            "role": "provider",
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 409
 
 
 @pytest.mark.asyncio
 async def test_register_requires_strong_password(client: AsyncClient, auth_headers):
-    res = await client.post("/api/auth/register", json={
-        "email": "weak@clinic.example.com",
-        "password": "weak",
-        "display_name": "Weak Password",
-        "role": "provider",
-    }, headers=auth_headers)
+    res = await client.post(
+        "/api/auth/register",
+        json={
+            "email": "weak@clinic.example.com",
+            "password": "weak",
+            "display_name": "Weak Password",
+            "role": "provider",
+        },
+        headers=auth_headers,
+    )
     assert res.status_code == 422
 
 

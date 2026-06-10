@@ -7,9 +7,7 @@ DEFAULT_MINIO_SECRET_KEY = "minioadmin"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_env: str = "development"
     database_url: str = "postgresql+asyncpg://concierge:concierge_dev@localhost:5432/concierge_os"

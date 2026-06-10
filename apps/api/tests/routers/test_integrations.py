@@ -101,7 +101,15 @@ async def test_list_integration_config_reports_required_fields(
     assert res.status_code == 200
     body = res.json()
     keys = {item["key"] for item in body["data"]}
-    assert {"ehr", "fax", "portal", "calendar", "communications", "copilotkit", "clearinghouse"} <= keys
+    assert {
+        "ehr",
+        "fax",
+        "portal",
+        "calendar",
+        "communications",
+        "copilotkit",
+        "clearinghouse",
+    } <= keys
     fax = next(item for item in body["data"] if item["key"] == "fax")
     assert fax["configured"] is False
     assert fax["fields"][0]["key"] == "FAX_PROVIDER_API_KEY"
@@ -187,7 +195,10 @@ async def test_update_integration_config_saves_vendor_profile_metadata(
     assert body["vendor_profile"]["owner_name"] == "Avery Ops"
     assert body["vendor_profile"]["owner_email"] == "avery@example.test"
     assert body["vendor_profile"]["support_contact"] == "support@metrofax.example"
-    assert body["vendor_profile"]["contract_reference_url"] == "https://vendor.example.test/contracts/fax"
+    assert (
+        body["vendor_profile"]["contract_reference_url"]
+        == "https://vendor.example.test/contracts/fax"
+    )
     assert body["vendor_profile"]["profile_complete"] is True
     assert body["vendor_profile"]["missing_fields"] == []
 
@@ -381,10 +392,16 @@ async def test_vendor_handoff_packet_archive_is_audit_backed(
 
     assert archived.status_code == 201
     assert archived.json()["integration"] == "fax"
-    assert archived.json()["archive_reference_url"] == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+    assert (
+        archived.json()["archive_reference_url"]
+        == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+    )
     assert archived.json()["packet_status"] == packet.json()["status"]
     assert packet.json()["latest_archive"]["archive_note"] == "Archived for July launch review."
-    assert packet.json()["latest_archive"]["archive_reference_url"] == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+    assert (
+        packet.json()["latest_archive"]["archive_reference_url"]
+        == "s3://launch-evidence/fax-vendor-handoff-packet.json"
+    )
 
     events = await client.get(
         "/api/audit?event_type=integration.handoff_packet_archived",
@@ -415,10 +432,7 @@ async def test_connection_test_records_integration_event(
     assert tested.json()["configured"] is True
     assert tested.json()["status"] == "failed"
     assert events.status_code == 200
-    assert any(
-        event["action"] == "integration.connection_test"
-        for event in events.json()["data"]
-    )
+    assert any(event["action"] == "integration.connection_test" for event in events.json()["data"])
 
 
 @pytest.mark.asyncio
@@ -478,7 +492,9 @@ async def test_sandbox_evidence_updates_credential_preflight(
         headers=auth_headers,
     )
     preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
-    clearinghouse = next(item for item in preflight.json()["data"] if item["key"] == "clearinghouse")
+    clearinghouse = next(
+        item for item in preflight.json()["data"] if item["key"] == "clearinghouse"
+    )
 
     for test_label in clearinghouse["sandbox_tests"]:
         evidence = await client.post(
@@ -496,8 +512,12 @@ async def test_sandbox_evidence_updates_credential_preflight(
         assert evidence.json()["reference_url"] == "https://vendor.example.test/evidence/123"
 
     updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
-    updated_clearinghouse = next(item for item in updated.json()["data"] if item["key"] == "clearinghouse")
-    sandbox_step = next(step for step in updated_clearinghouse["steps"] if step["key"] == "sandbox_workflows")
+    updated_clearinghouse = next(
+        item for item in updated.json()["data"] if item["key"] == "clearinghouse"
+    )
+    sandbox_step = next(
+        step for step in updated_clearinghouse["steps"] if step["key"] == "sandbox_workflows"
+    )
     assert sandbox_step["status"] == "ready"
     assert all(item["status"] == "passed" for item in updated_clearinghouse["sandbox_evidence"])
 
@@ -573,7 +593,9 @@ async def test_placeholder_adapter_blocks_credential_preflight_even_with_sandbox
 ):
     integration_config_service._draft_values.clear()
     integration_config_service._last_tests.clear()
-    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234")
+    monkeypatch.setattr(
+        integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234"
+    )
     preflight = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
     fax = next(item for item in preflight.json()["data"] if item["key"] == "fax")
 
@@ -647,7 +669,9 @@ async def test_run_sandbox_workflow_records_passing_evidence(
     )
     updated = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
     updated_fax = next(item for item in updated.json()["data"] if item["key"] == "fax")
-    evidence = next(item for item in updated_fax["sandbox_evidence"] if item["test_label"] == test_label)
+    evidence = next(
+        item for item in updated_fax["sandbox_evidence"] if item["test_label"] == test_label
+    )
 
     assert ran.status_code == 201
     assert ran.json()["status"] == "passed"
@@ -730,7 +754,9 @@ async def test_production_vendor_readiness_requires_vendor_reference_urls(
     auth_headers = headers_for(user)
     integration_config_service._draft_values.clear()
     integration_config_service._last_tests.clear()
-    monkeypatch.setattr(integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234")
+    monkeypatch.setattr(
+        integration_config_service.settings, "fax_provider_api_key", "fax-secret-1234"
+    )
 
     async def fake_health_by_key():
         return {
@@ -761,15 +787,23 @@ async def test_production_vendor_readiness_requires_vendor_reference_urls(
         )
         assert evidence.status_code == 201
 
-    missing_references = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
-    fax_without_refs = next(item for item in missing_references.json()["data"] if item["key"] == "fax")
-    sandbox_step = next(step for step in fax_without_refs["steps"] if step["key"] == "sandbox_workflows")
+    missing_references = await client.get(
+        "/api/integrations/credential-preflight", headers=auth_headers
+    )
+    fax_without_refs = next(
+        item for item in missing_references.json()["data"] if item["key"] == "fax"
+    )
+    sandbox_step = next(
+        step for step in fax_without_refs["steps"] if step["key"] == "sandbox_workflows"
+    )
 
     assert fax_without_refs["readiness_mode"] == "production_vendor"
     assert fax_without_refs["production_ready"] is False
     assert fax_without_refs["status"] == "staged"
     assert sandbox_step["status"] == "pending"
-    assert any("vendor sandbox reference" in blocker.lower() for blocker in fax_without_refs["blockers"])
+    assert any(
+        "vendor sandbox reference" in blocker.lower() for blocker in fax_without_refs["blockers"]
+    )
 
     for test_label in fax["sandbox_tests"]:
         evidence = await client.post(
@@ -786,7 +820,9 @@ async def test_production_vendor_readiness_requires_vendor_reference_urls(
 
     ready = await client.get("/api/integrations/credential-preflight", headers=auth_headers)
     ready_fax = next(item for item in ready.json()["data"] if item["key"] == "fax")
-    ready_sandbox_step = next(step for step in ready_fax["steps"] if step["key"] == "sandbox_workflows")
+    ready_sandbox_step = next(
+        step for step in ready_fax["steps"] if step["key"] == "sandbox_workflows"
+    )
 
     assert ready_fax["production_ready"] is True
     assert ready_fax["status"] == "ready"
@@ -801,7 +837,9 @@ async def test_provider_cannot_manage_integration_config(
     provider = await make_user(db, UserRole.provider, "integration-config-provider@example.com")
 
     listed = await client.get("/api/integrations/config", headers=headers_for(provider))
-    preflight = await client.get("/api/integrations/credential-preflight", headers=headers_for(provider))
+    preflight = await client.get(
+        "/api/integrations/credential-preflight", headers=headers_for(provider)
+    )
     tested = await client.post("/api/integrations/config/ehr/test", headers=headers_for(provider))
     ran = await client.post(
         "/api/integrations/config/ehr/sandbox-workflows/run",

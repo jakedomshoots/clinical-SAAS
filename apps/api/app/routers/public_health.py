@@ -102,6 +102,8 @@ async def query_pdmp(
         patient_last_name=data["patient_last_name"],
         patient_dob=data["patient_dob"],
         patient_gender=data["patient_gender"],
-        requesting_provider_npi=data.get("requesting_provider_npi", getattr(current_user, "npi", "")),
+        requesting_provider_npi=data.get(
+            "requesting_provider_npi", getattr(current_user, "npi", "")
+        ),
         purpose=data.get("purpose", "TREATMENT"),
     )

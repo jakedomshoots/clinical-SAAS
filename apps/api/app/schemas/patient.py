@@ -88,13 +88,13 @@ class PatientOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    @field_serializer('dob')
+    @field_serializer("dob")
     def serialize_dob(self, d: date) -> str:
         return d.isoformat()
 
-    @field_serializer('created_at', 'updated_at')
+    @field_serializer("created_at", "updated_at")
     def serialize_dt(self, dt: datetime) -> str:
-        return dt.isoformat() if dt else ''
+        return dt.isoformat() if dt else ""
 
 
 class PatientListOut(BaseModel):

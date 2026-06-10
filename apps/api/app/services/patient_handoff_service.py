@@ -24,10 +24,9 @@ from app.schemas.patient_clinical import (
 )
 from app.schemas.patient_document import PatientDocumentOut
 from app.schemas.patient_handoff import PatientCheckoutHandoffOut
+from app.services.audit_service import log_event
 from app.services.patient_chart_service import get_patient_chart_summary
 from app.services.task_service import get_task
-from app.services.audit_service import log_event
-
 
 CHECKOUT_SOURCE_TYPES = {
     "document",
@@ -69,49 +68,69 @@ async def get_checkout_handoff(
         return None
 
     documents = (
-        await db.execute(
-            select(PatientDocument)
-            .where(
-                PatientDocument.patient_id == patient_id,
-                PatientDocument.organization_id == user.organization_id,
-                PatientDocument.status == PatientDocumentStatus.needs_review,
+        (
+            await db.execute(
+                select(PatientDocument)
+                .where(
+                    PatientDocument.patient_id == patient_id,
+                    PatientDocument.organization_id == user.organization_id,
+                    PatientDocument.status == PatientDocumentStatus.needs_review,
+                )
+                .order_by(PatientDocument.received_at.desc())
             )
-            .order_by(PatientDocument.received_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     medications = (
-        await db.execute(
-            select(PatientMedication)
-            .where(
-                PatientMedication.patient_id == patient_id,
-                PatientMedication.organization_id == user.organization_id,
-                PatientMedication.status.in_([MedicationStatus.review, MedicationStatus.held]),
+        (
+            await db.execute(
+                select(PatientMedication)
+                .where(
+                    PatientMedication.patient_id == patient_id,
+                    PatientMedication.organization_id == user.organization_id,
+                    PatientMedication.status.in_([MedicationStatus.review, MedicationStatus.held]),
+                )
+                .order_by(PatientMedication.name.asc())
             )
-            .order_by(PatientMedication.name.asc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     labs = (
-        await db.execute(
-            select(PatientLabResult)
-            .where(
-                PatientLabResult.patient_id == patient_id,
-                PatientLabResult.organization_id == user.organization_id,
-                PatientLabResult.status.in_([LabResultStatus.new, LabResultStatus.needs_review]),
+        (
+            await db.execute(
+                select(PatientLabResult)
+                .where(
+                    PatientLabResult.patient_id == patient_id,
+                    PatientLabResult.organization_id == user.organization_id,
+                    PatientLabResult.status.in_(
+                        [LabResultStatus.new, LabResultStatus.needs_review]
+                    ),
+                )
+                .order_by(PatientLabResult.collected_at.desc().nulls_last())
             )
-            .order_by(PatientLabResult.collected_at.desc().nulls_last())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     care_plan = (
-        await db.execute(
-            select(PatientCarePlanItem)
-            .where(
-                PatientCarePlanItem.patient_id == patient_id,
-                PatientCarePlanItem.organization_id == user.organization_id,
-                PatientCarePlanItem.status.in_([CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]),
+        (
+            await db.execute(
+                select(PatientCarePlanItem)
+                .where(
+                    PatientCarePlanItem.patient_id == patient_id,
+                    PatientCarePlanItem.organization_id == user.organization_id,
+                    PatientCarePlanItem.status.in_(
+                        [CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]
+                    ),
+                )
+                .order_by(PatientCarePlanItem.created_at.asc())
             )
-            .order_by(PatientCarePlanItem.created_at.asc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assignee_ids = {item.assigned_to_id for item in care_plan if item.assigned_to_id}
     assignee_map = {}
     if assignee_ids:
@@ -123,26 +142,33 @@ async def get_checkout_handoff(
         )
         assignee_map = {item.id: item.display_name for item in assignees}
     encounters = (
-        await db.execute(
-            select(PatientEncounter)
-            .where(
-                PatientEncounter.patient_id == patient_id,
-                PatientEncounter.organization_id == user.organization_id,
-                PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+        (
+            await db.execute(
+                select(PatientEncounter)
+                .where(
+                    PatientEncounter.patient_id == patient_id,
+                    PatientEncounter.organization_id == user.organization_id,
+                    PatientEncounter.status.in_(
+                        [EncounterStatus.draft, EncounterStatus.provider_review]
+                    ),
+                )
+                .order_by(PatientEncounter.created_at.desc())
             )
-            .order_by(PatientEncounter.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     return PatientCheckoutHandoffOut(
         patient=PatientOut.model_validate(patient),
         chart_summary=chart_summary,
         documents_needing_review=[PatientDocumentOut.model_validate(item) for item in documents],
-        medications_needing_review=[PatientMedicationOut.model_validate(item) for item in medications],
+        medications_needing_review=[
+            PatientMedicationOut.model_validate(item) for item in medications
+        ],
         labs_needing_review=[PatientLabResultOut.model_validate(item) for item in labs],
         care_plan_open_items=[
-            _care_plan_out(item, assignee_map.get(item.assigned_to_id))
-            for item in care_plan
+            _care_plan_out(item, assignee_map.get(item.assigned_to_id)) for item in care_plan
         ],
         unsigned_encounters=[PatientEncounterOut.model_validate(item) for item in encounters],
     )
@@ -223,7 +249,9 @@ async def create_checkout_handoff_task(
     return await get_task(db, user, task.id)
 
 
-def _care_plan_out(item: PatientCarePlanItem, assigned_to_name: str | None) -> PatientCarePlanItemOut:
+def _care_plan_out(
+    item: PatientCarePlanItem, assigned_to_name: str | None
+) -> PatientCarePlanItemOut:
     data = PatientCarePlanItemOut.model_validate(item).model_dump()
     data["assigned_to_name"] = assigned_to_name
     return PatientCarePlanItemOut(**data)
@@ -263,7 +291,9 @@ async def _get_open_handoff_source(
         return (
             await db.execute(
                 select(PatientLabResult).where(
-                    PatientLabResult.status.in_([LabResultStatus.new, LabResultStatus.needs_review]),
+                    PatientLabResult.status.in_(
+                        [LabResultStatus.new, LabResultStatus.needs_review]
+                    ),
                     *[getattr(PatientLabResult, key) == value for key, value in common.items()],
                 )
             )
@@ -272,7 +302,9 @@ async def _get_open_handoff_source(
         return (
             await db.execute(
                 select(PatientCarePlanItem).where(
-                    PatientCarePlanItem.status.in_([CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]),
+                    PatientCarePlanItem.status.in_(
+                        [CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]
+                    ),
                     *[getattr(PatientCarePlanItem, key) == value for key, value in common.items()],
                 )
             )
@@ -280,7 +312,9 @@ async def _get_open_handoff_source(
     return (
         await db.execute(
             select(PatientEncounter).where(
-                PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+                PatientEncounter.status.in_(
+                    [EncounterStatus.draft, EncounterStatus.provider_review]
+                ),
                 *[getattr(PatientEncounter, key) == value for key, value in common.items()],
             )
         )
@@ -307,5 +341,7 @@ def _default_task_description(source_type: str, source) -> str:
     if source_type == "lab":
         return f"{source.panel}: {source.result}; status {source.status.value}."
     if source_type == "care_plan":
-        return source.note or f"{source.owner_role} checkout work item; status {source.status.value}."
+        return (
+            source.note or f"{source.owner_role} checkout work item; status {source.status.value}."
+        )
     return source.summary or f"{source.encounter_type} is {source.status.value}."

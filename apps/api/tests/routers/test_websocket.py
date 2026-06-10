@@ -19,7 +19,9 @@ class FakeWebSocket:
 
 
 def test_websocket_bearer_token_is_read_from_header_not_query():
-    header_socket = SimpleNamespace(headers={"authorization": "Bearer header-token"}, query_params={"token": "query-token"})
+    header_socket = SimpleNamespace(
+        headers={"authorization": "Bearer header-token"}, query_params={"token": "query-token"}
+    )
     query_only_socket = SimpleNamespace(headers={}, query_params={"token": "query-token"})
 
     assert _bearer_token_from_websocket(header_socket) == "header-token"

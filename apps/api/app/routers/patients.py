@@ -36,8 +36,8 @@ from app.schemas.patient_document import (
     PatientDocumentListOut,
     PatientDocumentOut,
     PatientDocumentProcessOut,
-    PatientDocumentQueueOut,
     PatientDocumentQueueItemOut,
+    PatientDocumentQueueOut,
     PatientDocumentUpdate,
     PatientDocumentUploadConfirm,
     PatientDocumentUploadPrepare,
@@ -83,7 +83,9 @@ async def list_patients(
         search=search,
         is_active=is_active,
     )
-    return PatientListOut(data=[PatientOut(**p) for p in data], total=total, page=page, page_size=page_size)
+    return PatientListOut(
+        data=[PatientOut(**p) for p in data], total=total, page=page, page_size=page_size
+    )
 
 
 @router.get("/documents/review-queue", response_model=PatientDocumentQueueOut)
@@ -170,7 +172,9 @@ async def create_patient_checkout_handoff_task(
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Checkout handoff source not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Checkout handoff source not found"
+        )
     return TaskOut(**task)
 
 
@@ -295,7 +299,11 @@ async def prepare_patient_document_upload(
     return PatientDocumentUploadPrepareOut(**upload)
 
 
-@router.post("/{patient_id}/documents/upload/confirm", response_model=PatientDocumentOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{patient_id}/documents/upload/confirm",
+    response_model=PatientDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def confirm_patient_document_upload(
     patient_id: str,
     data: PatientDocumentUploadConfirm,
@@ -350,7 +358,9 @@ async def get_patient_document_access(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    access = await patient_document_service.get_document_access(db, current_user, patient_id, document_id, reason)
+    access = await patient_document_service.get_document_access(
+        db, current_user, patient_id, document_id, reason
+    )
     if not access:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     return PatientDocumentAccessOut(**access)
@@ -376,7 +386,9 @@ async def get_patient_document_download(
     return handoff
 
 
-@router.post("/{patient_id}/documents/{document_id}/process", response_model=PatientDocumentProcessOut)
+@router.post(
+    "/{patient_id}/documents/{document_id}/process", response_model=PatientDocumentProcessOut
+)
 async def process_patient_document(
     patient_id: str,
     document_id: str,
@@ -404,17 +416,25 @@ async def list_patient_medications(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     data, total = result
-    return PatientMedicationListOut(data=[PatientMedicationOut(**item) for item in data], total=total)
+    return PatientMedicationListOut(
+        data=[PatientMedicationOut(**item) for item in data], total=total
+    )
 
 
-@router.post("/{patient_id}/medications", response_model=PatientMedicationOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{patient_id}/medications",
+    response_model=PatientMedicationOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_patient_medication(
     patient_id: str,
     data: PatientMedicationCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(clinical_write_required),
 ):
-    med = await patient_clinical_service.create_medication(db, current_user, patient_id, data.model_dump())
+    med = await patient_clinical_service.create_medication(
+        db, current_user, patient_id, data.model_dump()
+    )
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientMedicationOut(**med)
@@ -431,7 +451,9 @@ async def update_patient_medication(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    med = await patient_clinical_service.update_medication(db, current_user, patient_id, medication_id, update_data)
+    med = await patient_clinical_service.update_medication(
+        db, current_user, patient_id, medication_id, update_data
+    )
     if not med:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
     return PatientMedicationOut(**med)
@@ -447,17 +469,25 @@ async def list_patient_care_plan(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     data, total = result
-    return PatientCarePlanItemListOut(data=[PatientCarePlanItemOut(**item) for item in data], total=total)
+    return PatientCarePlanItemListOut(
+        data=[PatientCarePlanItemOut(**item) for item in data], total=total
+    )
 
 
-@router.post("/{patient_id}/care-plan", response_model=PatientCarePlanItemOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{patient_id}/care-plan",
+    response_model=PatientCarePlanItemOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_patient_care_plan_item(
     patient_id: str,
     data: PatientCarePlanItemCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(clinical_write_required),
 ):
-    item = await patient_clinical_service.create_care_plan_item(db, current_user, patient_id, data.model_dump())
+    item = await patient_clinical_service.create_care_plan_item(
+        db, current_user, patient_id, data.model_dump()
+    )
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
     return PatientCarePlanItemOut(**item)
@@ -474,9 +504,13 @@ async def update_patient_care_plan_item(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    item = await patient_clinical_service.update_care_plan_item(db, current_user, patient_id, item_id, update_data)
+    item = await patient_clinical_service.update_care_plan_item(
+        db, current_user, patient_id, item_id, update_data
+    )
     if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Care plan item not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Care plan item not found"
+        )
     return PatientCarePlanItemOut(**item)
 
 
@@ -493,7 +527,9 @@ async def list_patient_labs(
     return PatientLabResultListOut(data=[PatientLabResultOut(**item) for item in data], total=total)
 
 
-@router.post("/{patient_id}/labs", response_model=PatientLabResultOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{patient_id}/labs", response_model=PatientLabResultOut, status_code=status.HTTP_201_CREATED
+)
 async def create_patient_lab(
     patient_id: str,
     data: PatientLabResultCreate,
@@ -517,7 +553,9 @@ async def update_patient_lab(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    lab = await patient_clinical_service.update_lab(db, current_user, patient_id, lab_id, update_data)
+    lab = await patient_clinical_service.update_lab(
+        db, current_user, patient_id, lab_id, update_data
+    )
     if not lab:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lab result not found")
     return PatientLabResultOut(**lab)
@@ -536,16 +574,25 @@ async def list_patient_encounters(
     return PatientEncounterListOut(data=[PatientEncounterOut(**item) for item in data], total=total)
 
 
-@router.post("/{patient_id}/encounters", response_model=PatientEncounterOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{patient_id}/encounters",
+    response_model=PatientEncounterOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_patient_encounter(
     patient_id: str,
     data: PatientEncounterCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(clinical_write_required),
 ):
-    encounter = await patient_clinical_service.create_encounter(db, current_user, patient_id, data.model_dump())
+    encounter = await patient_clinical_service.create_encounter(
+        db, current_user, patient_id, data.model_dump()
+    )
     if not encounter:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient, appointment, or provider not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient, appointment, or provider not found",
+        )
     return PatientEncounterOut(**encounter)
 
 
@@ -560,7 +607,9 @@ async def update_patient_encounter(
     update_data = data.model_dump(exclude_unset=True)
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
-    encounter = await patient_clinical_service.update_encounter(db, current_user, patient_id, encounter_id, update_data)
+    encounter = await patient_clinical_service.update_encounter(
+        db, current_user, patient_id, encounter_id, update_data
+    )
     if not encounter:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encounter not found")
     return PatientEncounterOut(**encounter)

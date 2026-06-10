@@ -21,9 +21,9 @@ from app.models.task import Task, TaskPriority, TaskStatus
 from app.models.user import User
 from app.schemas.patient_chart import PatientChartSummaryCounts, PatientChartSummaryOut
 from app.schemas.patient_document import PatientDocumentOut
+from app.services.audit_service import log_event
 from app.services.fax_service import _make_fax_dict
 from app.services.schedule_service import _make_appt_dict
-from app.services.audit_service import log_event
 from app.services.task_service import _make_task_dict
 
 
@@ -59,65 +59,81 @@ async def get_patient_chart_summary(
     upcoming_window = now + timedelta(days=30)
 
     document_rows = (
-        await db.execute(
-            select(PatientDocument)
-            .where(
-                PatientDocument.patient_id == patient_id,
-                PatientDocument.organization_id == user.organization_id,
+        (
+            await db.execute(
+                select(PatientDocument)
+                .where(
+                    PatientDocument.patient_id == patient_id,
+                    PatientDocument.organization_id == user.organization_id,
+                )
+                .order_by(PatientDocument.received_at.desc())
+                .limit(5)
             )
-            .order_by(PatientDocument.received_at.desc())
-            .limit(5)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     open_task_rows = (
-        await db.execute(
-            select(Task)
-            .where(
-                Task.patient_id == patient_id,
-                Task.organization_id == user.organization_id,
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
+        (
+            await db.execute(
+                select(Task)
+                .where(
+                    Task.patient_id == patient_id,
+                    Task.organization_id == user.organization_id,
+                    Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
+                )
+                .order_by(Task.due_date.asc().nulls_last(), Task.created_at.desc())
+                .limit(5)
             )
-            .order_by(Task.due_date.asc().nulls_last(), Task.created_at.desc())
-            .limit(5)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     fax_rows = (
-        await db.execute(
-            select(Fax)
-            .where(
-                Fax.patient_id == patient_id,
-                Fax.organization_id == user.organization_id,
+        (
+            await db.execute(
+                select(Fax)
+                .where(
+                    Fax.patient_id == patient_id,
+                    Fax.organization_id == user.organization_id,
+                )
+                .order_by(Fax.created_at.desc())
+                .limit(5)
             )
-            .order_by(Fax.created_at.desc())
-            .limit(5)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     appointment_rows = (
-        await db.execute(
-            select(Appointment)
-            .where(
-                Appointment.patient_id == patient_id,
-                Appointment.organization_id == user.organization_id,
-                Appointment.start_time >= now,
-                Appointment.start_time <= upcoming_window,
-                Appointment.status.in_(
-                    [
-                        AppointmentStatus.scheduled,
-                        AppointmentStatus.checked_in,
-                        AppointmentStatus.roomed,
-                        AppointmentStatus.provider_review,
-                        AppointmentStatus.checkout,
-                        AppointmentStatus.in_progress,
-                    ]
-                ),
+        (
+            await db.execute(
+                select(Appointment)
+                .where(
+                    Appointment.patient_id == patient_id,
+                    Appointment.organization_id == user.organization_id,
+                    Appointment.start_time >= now,
+                    Appointment.start_time <= upcoming_window,
+                    Appointment.status.in_(
+                        [
+                            AppointmentStatus.scheduled,
+                            AppointmentStatus.checked_in,
+                            AppointmentStatus.roomed,
+                            AppointmentStatus.provider_review,
+                            AppointmentStatus.checkout,
+                            AppointmentStatus.in_progress,
+                        ]
+                    ),
+                )
+                .order_by(Appointment.start_time.asc())
+                .limit(5)
             )
-            .order_by(Appointment.start_time.asc())
-            .limit(5)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     documents_total = (
         await db.execute(
@@ -160,7 +176,9 @@ async def get_patient_chart_summary(
             select(func.count(PatientEncounter.id)).where(
                 PatientEncounter.patient_id == patient_id,
                 PatientEncounter.organization_id == user.organization_id,
-                PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+                PatientEncounter.status.in_(
+                    [EncounterStatus.draft, EncounterStatus.provider_review]
+                ),
             )
         )
     ).scalar() or 0

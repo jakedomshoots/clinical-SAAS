@@ -330,9 +330,7 @@ async def callback(
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     try:
-        user, tokens = await authenticate_with_provider(
-            provider, code, pkce_verifier
-        )
+        user, tokens = await authenticate_with_provider(provider, code, pkce_verifier)
 
         # Create session
         session_token = _session_manager.create_session(user)

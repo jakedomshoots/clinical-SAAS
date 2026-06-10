@@ -6,7 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.deps import clinical_write_required, get_current_user
 from app.models.user import User
-from app.schemas.billing import BillingCaseCreate, BillingCaseListOut, BillingCaseOut, BillingCaseUpdate, BillingClaimReadinessOut, BillingPaymentIn, BillingReworkIn, BillingTimelineEventOut, BillingTimelineOut, BillingWorkQueueOut, ChargeReviewItemOut, ChargeReviewListOut, EligibilityCheckOut
+from app.schemas.billing import (
+    BillingCaseCreate,
+    BillingCaseListOut,
+    BillingCaseOut,
+    BillingCaseUpdate,
+    BillingClaimReadinessOut,
+    BillingPaymentIn,
+    BillingReworkIn,
+    BillingTimelineEventOut,
+    BillingTimelineOut,
+    BillingWorkQueueOut,
+    ChargeReviewItemOut,
+    ChargeReviewListOut,
+    EligibilityCheckOut,
+)
 from app.services import billing_service
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
@@ -19,7 +33,9 @@ ClinicalUserDep = Annotated[User, Depends(clinical_write_required)]
 @router.get("/cases", response_model=BillingCaseListOut)
 async def list_billing_cases(db: DbDep, current_user: CurrentUserDep):
     data, total = await billing_service.list_cases(db, current_user)
-    return BillingCaseListOut(data=[BillingCaseOut.model_validate(item) for item in data], total=total)
+    return BillingCaseListOut(
+        data=[BillingCaseOut.model_validate(item) for item in data], total=total
+    )
 
 
 @router.get("/charge-review", response_model=ChargeReviewListOut)
@@ -41,8 +57,14 @@ async def create_billing_case(data: BillingCaseCreate, db: DbDep, current_user: 
     return BillingCaseOut.model_validate(case)
 
 
-@router.post("/cases/from-encounter/{encounter_id}", response_model=BillingCaseOut, status_code=status.HTTP_201_CREATED)
-async def create_billing_case_from_encounter(encounter_id: str, db: DbDep, current_user: ClinicalUserDep):
+@router.post(
+    "/cases/from-encounter/{encounter_id}",
+    response_model=BillingCaseOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_billing_case_from_encounter(
+    encounter_id: str, db: DbDep, current_user: ClinicalUserDep
+):
     case = await billing_service.create_case_from_encounter(db, current_user, encounter_id)
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encounter not found")
@@ -60,12 +82,18 @@ async def check_eligibility(patient_id: str, db: DbDep, current_user: ClinicalUs
 @router.get("/eligibility/{patient_id}/history", response_model=BillingTimelineOut)
 async def eligibility_history(patient_id: str, db: DbDep, current_user: CurrentUserDep):
     data, total = await billing_service.eligibility_history(db, current_user, patient_id)
-    return BillingTimelineOut(data=[BillingTimelineEventOut.model_validate(item) for item in data], total=total)
+    return BillingTimelineOut(
+        data=[BillingTimelineEventOut.model_validate(item) for item in data], total=total
+    )
 
 
 @router.patch("/cases/{case_id}", response_model=BillingCaseOut)
-async def update_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep):
-    case = await billing_service.update_case(db, current_user, case_id, data.model_dump(exclude_unset=True))
+async def update_billing_case(
+    case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep
+):
+    case = await billing_service.update_case(
+        db, current_user, case_id, data.model_dump(exclude_unset=True)
+    )
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
     return BillingCaseOut.model_validate(case)
@@ -77,7 +105,9 @@ async def billing_case_timeline(case_id: str, db: DbDep, current_user: CurrentUs
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
     data, total = result
-    return BillingTimelineOut(data=[BillingTimelineEventOut.model_validate(item) for item in data], total=total)
+    return BillingTimelineOut(
+        data=[BillingTimelineEventOut.model_validate(item) for item in data], total=total
+    )
 
 
 @router.get("/cases/{case_id}/readiness", response_model=BillingClaimReadinessOut)
@@ -100,7 +130,9 @@ async def submit_billing_case(case_id: str, db: DbDep, current_user: ClinicalUse
 
 
 @router.post("/cases/{case_id}/payment", response_model=BillingCaseOut)
-async def record_billing_payment(case_id: str, db: DbDep, current_user: ClinicalUserDep, data: BillingPaymentIn | None = None):
+async def record_billing_payment(
+    case_id: str, db: DbDep, current_user: ClinicalUserDep, data: BillingPaymentIn | None = None
+):
     case = await billing_service.record_payment(
         db,
         current_user,
@@ -113,7 +145,9 @@ async def record_billing_payment(case_id: str, db: DbDep, current_user: Clinical
 
 
 @router.post("/cases/{case_id}/deny", response_model=BillingCaseOut)
-async def deny_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep):
+async def deny_billing_case(
+    case_id: str, data: BillingCaseUpdate, db: DbDep, current_user: ClinicalUserDep
+):
     case = await billing_service.deny_case(db, current_user, case_id, data.notes)
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")
@@ -121,7 +155,9 @@ async def deny_billing_case(case_id: str, data: BillingCaseUpdate, db: DbDep, cu
 
 
 @router.post("/cases/{case_id}/rework", response_model=BillingCaseOut)
-async def rework_billing_denial(case_id: str, data: BillingReworkIn, db: DbDep, current_user: ClinicalUserDep):
+async def rework_billing_denial(
+    case_id: str, data: BillingReworkIn, db: DbDep, current_user: ClinicalUserDep
+):
     case = await billing_service.rework_denial(db, current_user, case_id, data.notes)
     if not case:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Billing case not found")

@@ -158,9 +158,7 @@ class GoogleCalendarClient(ConfiguredIntegration):
         self.require_configured()
 
         async with self._client() as client:
-            response = await client.delete(
-                f"/calendars/{calendar_id}/events/{event_id}"
-            )
+            response = await client.delete(f"/calendars/{calendar_id}/events/{event_id}")
             response.raise_for_status()
 
         return {"event_id": event_id, "calendar_id": calendar_id, "deleted": True}
@@ -243,8 +241,7 @@ class GoogleCalendarClient(ConfiguredIntegration):
             "calendars": {
                 cal_id: {
                     "busy": [
-                        {"start": b.get("start"), "end": b.get("end")}
-                        for b in info.get("busy", [])
+                        {"start": b.get("start"), "end": b.get("end")} for b in info.get("busy", [])
                     ],
                 }
                 for cal_id, info in data.get("calendars", {}).items()

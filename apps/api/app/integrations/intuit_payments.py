@@ -25,6 +25,7 @@ class IntuitPaymentsClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         base_url = getattr(settings, "intuit_payments_base_url", "https://sandbox.api.intuit.com")
         if not base_url:
             base_url = "https://sandbox.api.intuit.com"
@@ -40,6 +41,7 @@ class IntuitPaymentsClient(ConfiguredIntegration):
 
     def _request_id(self) -> str:
         import uuid
+
         return str(uuid.uuid4())
 
     @with_api_retry(circuit_breaker="intuit_payments")
@@ -141,8 +143,8 @@ class IntuitPaymentsClient(ConfiguredIntegration):
     async def get_payment_history(self, patient_id: str) -> list[dict[str, Any]]:
         """Get payment history for a patient.
 
-        Note: Intuit doesn't store patient IDs. This queries recent
-transactions and filters by metadata if available.
+                Note: Intuit doesn't store patient IDs. This queries recent
+        transactions and filters by metadata if available.
         """
         self.require_configured()
 
@@ -191,9 +193,7 @@ transactions and filters by metadata if available.
         self.require_configured()
 
         async with self._client() as client:
-            response = await client.post(
-                f"/quickbooks/v4/payments/charges/{transaction_id}/void"
-            )
+            response = await client.post(f"/quickbooks/v4/payments/charges/{transaction_id}/void")
             response.raise_for_status()
             data = response.json()
 

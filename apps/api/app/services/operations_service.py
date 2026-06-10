@@ -5,23 +5,22 @@ from uuid import uuid4
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.audit import AuditLog
-from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
-from app.models.patient_clinical import EncounterStatus, PatientEncounter
-from app.models.patient_document import PatientDocument, PatientDocumentStatus
-from app.models.task import Task, TaskPriority, TaskStatus
-from app.models.user import User
 from app.config import (
     DEFAULT_MINIO_ACCESS_KEY,
     DEFAULT_MINIO_SECRET_KEY,
     DEFAULT_SECRET_KEY,
     settings,
 )
-from app.services import integration_config_service, user_service
+from app.models.audit import AuditLog
+from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
+from app.models.patient_clinical import EncounterStatus, PatientEncounter
+from app.models.patient_document import PatientDocument, PatientDocumentStatus
+from app.models.task import Task, TaskPriority, TaskStatus
+from app.models.user import User
+from app.services import integration_config_service, patient_document_service, user_service
 from app.services.audit_service import log_event
 from app.services.csv_safety import neutralize_csv_formula
 from app.services.launch_readiness_service import launch_readiness
-from app.services import patient_document_service
 from app.services.readiness_service import check_readiness
 
 SNAPSHOT_EVENT_TYPE = "operations.readiness_snapshot"
@@ -59,29 +58,36 @@ async def incident_register(db: AsyncSession, user: User) -> dict:
 async def incident_timeline(db: AsyncSession, user: User, limit: int = 30) -> dict:
     items: list[dict] = []
     failed_events = (
-        await db.execute(
-            select(IntegrationEvent)
-            .where(
-                IntegrationEvent.organization_id == user.organization_id,
-                IntegrationEvent.status == IntegrationEventStatus.failed,
+        (
+            await db.execute(
+                select(IntegrationEvent)
+                .where(
+                    IntegrationEvent.organization_id == user.organization_id,
+                    IntegrationEvent.status == IntegrationEventStatus.failed,
+                )
+                .order_by(IntegrationEvent.updated_at.desc())
+                .limit(limit)
             )
-            .order_by(IntegrationEvent.updated_at.desc())
-            .limit(limit)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for event in failed_events:
-        items.append({
-            "key": f"integration_event:{event.integration}:{event.action}",
-            "occurred_at": event.updated_at,
-            "severity": "critical",
-            "category": "integration",
-            "title": f"{event.integration.replace('_', ' ').title()} failed",
-            "detail": event.error or f"{event.action} failed after {event.attempts} attempt(s).",
-            "source": "integration_events",
-            "route": "/operations",
-            "entity_type": event.entity_type,
-            "entity_id": event.entity_id,
-        })
+        items.append(
+            {
+                "key": f"integration_event:{event.integration}:{event.action}",
+                "occurred_at": event.updated_at,
+                "severity": "critical",
+                "category": "integration",
+                "title": f"{event.integration.replace('_', ' ').title()} failed",
+                "detail": event.error
+                or f"{event.action} failed after {event.attempts} attempt(s).",
+                "source": "integration_events",
+                "route": "/operations",
+                "entity_type": event.entity_type,
+                "entity_id": event.entity_id,
+            }
+        )
 
     sensitive_event_types = [
         "auth.login_blocked",
@@ -93,16 +99,20 @@ async def incident_timeline(db: AsyncSession, user: User, limit: int = 30) -> di
         "integration_event.retry",
     ]
     audit_events = (
-        await db.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type.in_(sensitive_event_types),
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type.in_(sensitive_event_types),
+                )
+                .order_by(AuditLog.created_at.desc())
+                .limit(limit)
             )
-            .order_by(AuditLog.created_at.desc())
-            .limit(limit)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     for event in audit_events:
         items.append(_timeline_item_from_audit(event))
 
@@ -126,45 +136,63 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
     document_storage = await document_storage_readiness(db, user)
     role_matrix = await user_service.role_access_matrix(db, user)
     failed_events = (
-        await db.execute(
-            select(IntegrationEvent)
-            .where(
-                IntegrationEvent.organization_id == user.organization_id,
-                IntegrationEvent.status == IntegrationEventStatus.failed,
+        (
+            await db.execute(
+                select(IntegrationEvent)
+                .where(
+                    IntegrationEvent.organization_id == user.organization_id,
+                    IntegrationEvent.status == IntegrationEventStatus.failed,
+                )
+                .order_by(IntegrationEvent.updated_at.desc())
             )
-            .order_by(IntegrationEvent.updated_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     blocked_logins = (
-        await db.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type == "auth.login_blocked",
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type == "auth.login_blocked",
+                )
+                .order_by(AuditLog.created_at.desc())
             )
-            .order_by(AuditLog.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     document_access = (
-        await db.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type.in_(["patient_document.accessed", "patient_document.download_handoff"]),
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type.in_(
+                        ["patient_document.accessed", "patient_document.download_handoff"]
+                    ),
+                )
+                .order_by(AuditLog.created_at.desc())
             )
-            .order_by(AuditLog.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     audit_exports = (
-        await db.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type == "audit.exported",
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type == "audit.exported",
+                )
+                .order_by(AuditLog.created_at.desc())
             )
-            .order_by(AuditLog.created_at.desc())
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     recovery = await user_service.recovery_summary(db, user)
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
@@ -176,7 +204,9 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
             bool(failed_events),
             "critical",
             len(failed_events),
-            failed_events[0].error if failed_events and failed_events[0].error else f"{len(failed_events)} failed integration event(s).",
+            failed_events[0].error
+            if failed_events and failed_events[0].error
+            else f"{len(failed_events)} failed integration event(s).",
             "/operations",
             failed_events[0].updated_at if failed_events else None,
         ),
@@ -261,8 +291,12 @@ async def alert_rules(db: AsyncSession, user: User) -> dict:
         "data": rules,
         "total": len(rules),
         "triggered_count": sum(1 for item in rules if item["status"] == "triggered"),
-        "critical_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "critical"),
-        "warning_count": sum(1 for item in rules if item["status"] == "triggered" and item["severity"] == "warning"),
+        "critical_count": sum(
+            1 for item in rules if item["status"] == "triggered" and item["severity"] == "critical"
+        ),
+        "warning_count": sum(
+            1 for item in rules if item["status"] == "triggered" and item["severity"] == "warning"
+        ),
         "generated_at": datetime.now(UTC),
     }
 
@@ -289,16 +323,22 @@ async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
     ).scalar() or 0
     stored_documents = max(0, total_documents - metadata_only_documents)
     handoff_events = (
-        await db.execute(
-            select(AuditLog)
-            .where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type.in_(["patient_document.accessed", "patient_document.download_handoff"]),
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type.in_(
+                        ["patient_document.accessed", "patient_document.download_handoff"]
+                    ),
+                )
+                .order_by(AuditLog.created_at.desc())
+                .limit(200)
             )
-            .order_by(AuditLog.created_at.desc())
-            .limit(200)
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     recent_handoffs = [_document_storage_handoff(event) for event in handoff_events]
     unsigned_handoffs = sum(
@@ -356,8 +396,12 @@ async def document_storage_readiness(db: AsyncSession, user: User) -> dict:
             "Have staff request a fresh document access link when the original handoff expires.",
         ),
     ]
-    critical = sum(1 for check in checks if check["status"] == "triggered" and check["severity"] == "critical")
-    warnings = sum(1 for check in checks if check["status"] == "triggered" and check["severity"] == "warning")
+    critical = sum(
+        1 for check in checks if check["status"] == "triggered" and check["severity"] == "critical"
+    )
+    warnings = sum(
+        1 for check in checks if check["status"] == "triggered" and check["severity"] == "warning"
+    )
     score = max(0, 100 - critical * 35 - warnings * 15)
     return {
         "status": "blocked" if critical else "attention" if warnings else "ready",
@@ -453,9 +497,7 @@ async def operator_health(db: AsyncSession, user: User) -> dict:
     warning = sum(1 for check in checks if check["status"] == "warning")
     score = round(sum(check["score"] for check in checks) / len(checks)) if checks else 0
     recommended_actions = [
-        _operator_action(check)
-        for check in checks
-        if check["status"] != "healthy"
+        _operator_action(check) for check in checks if check["status"] != "healthy"
     ]
     return {
         "status": "critical" if critical else "attention" if warning else "healthy",
@@ -555,7 +597,13 @@ def production_config_audit() -> dict:
             "critical",
             "Object storage should use production credentials and secure transport.",
             "Set production MINIO/S3 endpoint, access key, secret key, bucket, and MINIO_SECURE=true.",
-            ["MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET", "MINIO_SECURE"],
+            [
+                "MINIO_ENDPOINT",
+                "MINIO_ACCESS_KEY",
+                "MINIO_SECRET_KEY",
+                "MINIO_BUCKET",
+                "MINIO_SECURE",
+            ],
             [".env.production.example", "docs/operations/production-launch-checklist.md"],
         ),
         _config_check(
@@ -573,7 +621,8 @@ def production_config_audit() -> dict:
             "communications_provider",
             "Integrations",
             "Production communications provider",
-            settings.communications_provider != "demo" and bool(settings.communications_provider_api_key),
+            settings.communications_provider != "demo"
+            and bool(settings.communications_provider_api_key),
             "warning",
             f"Current communications provider is {settings.communications_provider}.",
             "Select the production SMS/email/portal provider and set COMMUNICATIONS_PROVIDER_API_KEY.",
@@ -599,16 +648,76 @@ def production_config_audit() -> dict:
 
 def browser_qa_checklist() -> dict:
     items = [
-        _browser_qa_item("login", "Login", "Confirm staff login and demo-mode entry load the expected workspace.", "/login", "Access"),
-        _browser_qa_item("patients", "Patients", "Search patients, open a profile, and confirm chart tabs render.", "/patients", "Clinical"),
-        _browser_qa_item("scheduling", "Scheduling", "Open today queue, schedule views, and conflict-check controls.", "/scheduling", "Front office"),
-        _browser_qa_item("documents", "Patient documents", "Review document list, access metadata, upload flow, and filing controls from a patient chart.", "/patients", "Clinical"),
-        _browser_qa_item("faxes", "Faxes", "Review inbound/outbound fax queues, matching, and status actions.", "/faxes", "Front office"),
-        _browser_qa_item("billing", "Billing", "Review charge capture, claim readiness, eligibility history, and billing work queue.", "/billing", "Revenue"),
-        _browser_qa_item("audit", "Audit", "Confirm audit list, patient access history, and export controls are reachable.", "/operations", "Compliance"),
-        _browser_qa_item("assistant_actions", "Assistant actions", "Review confirmation-gated assistant actions and policy surface.", "/assistant-review", "AI safety"),
-        _browser_qa_item("portal_intake", "Portal intake", "Process intake, appointment conversion, and document conversion workflows.", "/portal-intake", "Patient access"),
-        _browser_qa_item("reports", "Reports", "Review daily closeout risks, recommended actions, and CSV export.", "/reports", "Operations"),
+        _browser_qa_item(
+            "login",
+            "Login",
+            "Confirm staff login and demo-mode entry load the expected workspace.",
+            "/login",
+            "Access",
+        ),
+        _browser_qa_item(
+            "patients",
+            "Patients",
+            "Search patients, open a profile, and confirm chart tabs render.",
+            "/patients",
+            "Clinical",
+        ),
+        _browser_qa_item(
+            "scheduling",
+            "Scheduling",
+            "Open today queue, schedule views, and conflict-check controls.",
+            "/scheduling",
+            "Front office",
+        ),
+        _browser_qa_item(
+            "documents",
+            "Patient documents",
+            "Review document list, access metadata, upload flow, and filing controls from a patient chart.",
+            "/patients",
+            "Clinical",
+        ),
+        _browser_qa_item(
+            "faxes",
+            "Faxes",
+            "Review inbound/outbound fax queues, matching, and status actions.",
+            "/faxes",
+            "Front office",
+        ),
+        _browser_qa_item(
+            "billing",
+            "Billing",
+            "Review charge capture, claim readiness, eligibility history, and billing work queue.",
+            "/billing",
+            "Revenue",
+        ),
+        _browser_qa_item(
+            "audit",
+            "Audit",
+            "Confirm audit list, patient access history, and export controls are reachable.",
+            "/operations",
+            "Compliance",
+        ),
+        _browser_qa_item(
+            "assistant_actions",
+            "Assistant actions",
+            "Review confirmation-gated assistant actions and policy surface.",
+            "/assistant-review",
+            "AI safety",
+        ),
+        _browser_qa_item(
+            "portal_intake",
+            "Portal intake",
+            "Process intake, appointment conversion, and document conversion workflows.",
+            "/portal-intake",
+            "Patient access",
+        ),
+        _browser_qa_item(
+            "reports",
+            "Reports",
+            "Review daily closeout risks, recommended actions, and CSV export.",
+            "/reports",
+            "Operations",
+        ),
     ]
     return {
         "generated_at": datetime.now(UTC),
@@ -620,25 +729,27 @@ def browser_qa_checklist() -> dict:
 async def start_browser_qa_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = browser_qa_checklist()
     session_id = str(uuid4())
-    payload = _recalculate_browser_qa_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Browser QA run",
-        "browser": data.get("browser"),
-        "status": "in_progress",
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "completed_by": None,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_at": None,
-        "items": [
-            {
-                **item,
-                "qa_status": "pending",
-                "note": None,
-            }
-            for item in checklist["items"]
-        ],
-    })
+    payload = _recalculate_browser_qa_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Browser QA run",
+            "browser": data.get("browser"),
+            "status": "in_progress",
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "completed_by": None,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "items": [
+                {
+                    **item,
+                    "qa_status": "pending",
+                    "note": None,
+                }
+                for item in checklist["items"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         BROWSER_QA_SESSION_EVENT_TYPE,
@@ -664,7 +775,9 @@ async def list_browser_qa_sessions(db: AsyncSession, user: User) -> tuple[list[d
     return list(sessions.values())[:25], len(sessions)
 
 
-async def update_browser_qa_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_browser_qa_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_browser_qa_session_event(db, user, session_id)
     if not latest:
         return None
@@ -707,31 +820,146 @@ async def update_browser_qa_session(db: AsyncSession, user: User, session_id: st
 
 def staff_training_checklist() -> dict:
     roles = [
-        _training_role("front_desk", "Front desk", "Patient access, intake, scheduling, communications, and checkout expectations.", [
-            _training_item("daily_flow", "Daily workflow", "Review command center, patient lookup, scheduling, portal intake, and checkout handoff.", "/", "Workflow"),
-            _training_item("access_phi", "Access and PHI", "Review patient privacy expectations, minimum necessary access, and screen discipline.", "/roles", "Compliance"),
-            _training_item("escalation", "Escalation", "Review how to route patient blockers, failed outreach, and urgent front-office issues.", "/tasks", "Operations"),
-        ]),
-        _training_role("ma_nurse", "MA / nurse", "Clinical intake, documents, medication review, labs, care plan, and escalation expectations.", [
-            _training_item("clinical_rooming", "Clinical rooming", "Review documents, medications, labs, and care-plan workflow in the patient chart.", "/patients", "Workflow"),
-            _training_item("phi_audit", "PHI and audit trail", "Review audit-visible patient chart access and documentation expectations.", "/operations", "Compliance"),
-            _training_item("incident_response", "Incident response", "Review escalation steps for privacy, safety, document, and integration incidents.", "/operations", "Operations"),
-        ]),
-        _training_role("provider", "Provider", "Clinical review, assistant confirmation, encounter signing, and checkout ownership.", [
-            _training_item("provider_workflow", "Provider workflow", "Review chart blockers, documents, labs, medications, encounters, and checkout tasks.", "/patients", "Workflow"),
-            _training_item("assistant_policy", "Assistant policy", "Review confirmation-gated assistant actions and safe-use expectations.", "/assistant-review", "AI safety"),
-            _training_item("clinical_closeout", "Clinical closeout", "Review signed encounters, follow-up tasks, and patient handoff expectations.", "/reports", "Operations"),
-        ]),
-        _training_role("billing", "Billing", "Charge capture, eligibility, claim readiness, denial rework, payment, and audit expectations.", [
-            _training_item("billing_workflow", "Billing workflow", "Review charge review, claim readiness, eligibility history, denial rework, and payment recording.", "/billing", "Workflow"),
-            _training_item("payer_data_phi", "Payer data and PHI", "Review payer data handling, minimum necessary access, and billing audit expectations.", "/roles", "Compliance"),
-            _training_item("clearinghouse_incidents", "Clearinghouse incidents", "Review failed integration events, retries, and vendor escalation.", "/integrations", "Operations"),
-        ]),
-        _training_role("manager", "Manager", "Launch evidence, access review, audit export, readiness, incidents, and go-live sign-off.", [
-            _training_item("launch_evidence", "Launch evidence", "Review go-live packet, operator health, config audit, QA evidence, and dry-run sessions.", "/operations", "Launch"),
-            _training_item("access_review", "Access review", "Review staff roles, MFA gaps, stale access reviews, and offboarding expectations.", "/staff", "Compliance"),
-            _training_item("incident_backup", "Incident and backup response", "Review incident-response steps, backup/restore validation, and audit export ownership.", "/operations", "Operations"),
-        ]),
+        _training_role(
+            "front_desk",
+            "Front desk",
+            "Patient access, intake, scheduling, communications, and checkout expectations.",
+            [
+                _training_item(
+                    "daily_flow",
+                    "Daily workflow",
+                    "Review command center, patient lookup, scheduling, portal intake, and checkout handoff.",
+                    "/",
+                    "Workflow",
+                ),
+                _training_item(
+                    "access_phi",
+                    "Access and PHI",
+                    "Review patient privacy expectations, minimum necessary access, and screen discipline.",
+                    "/roles",
+                    "Compliance",
+                ),
+                _training_item(
+                    "escalation",
+                    "Escalation",
+                    "Review how to route patient blockers, failed outreach, and urgent front-office issues.",
+                    "/tasks",
+                    "Operations",
+                ),
+            ],
+        ),
+        _training_role(
+            "ma_nurse",
+            "MA / nurse",
+            "Clinical intake, documents, medication review, labs, care plan, and escalation expectations.",
+            [
+                _training_item(
+                    "clinical_rooming",
+                    "Clinical rooming",
+                    "Review documents, medications, labs, and care-plan workflow in the patient chart.",
+                    "/patients",
+                    "Workflow",
+                ),
+                _training_item(
+                    "phi_audit",
+                    "PHI and audit trail",
+                    "Review audit-visible patient chart access and documentation expectations.",
+                    "/operations",
+                    "Compliance",
+                ),
+                _training_item(
+                    "incident_response",
+                    "Incident response",
+                    "Review escalation steps for privacy, safety, document, and integration incidents.",
+                    "/operations",
+                    "Operations",
+                ),
+            ],
+        ),
+        _training_role(
+            "provider",
+            "Provider",
+            "Clinical review, assistant confirmation, encounter signing, and checkout ownership.",
+            [
+                _training_item(
+                    "provider_workflow",
+                    "Provider workflow",
+                    "Review chart blockers, documents, labs, medications, encounters, and checkout tasks.",
+                    "/patients",
+                    "Workflow",
+                ),
+                _training_item(
+                    "assistant_policy",
+                    "Assistant policy",
+                    "Review confirmation-gated assistant actions and safe-use expectations.",
+                    "/assistant-review",
+                    "AI safety",
+                ),
+                _training_item(
+                    "clinical_closeout",
+                    "Clinical closeout",
+                    "Review signed encounters, follow-up tasks, and patient handoff expectations.",
+                    "/reports",
+                    "Operations",
+                ),
+            ],
+        ),
+        _training_role(
+            "billing",
+            "Billing",
+            "Charge capture, eligibility, claim readiness, denial rework, payment, and audit expectations.",
+            [
+                _training_item(
+                    "billing_workflow",
+                    "Billing workflow",
+                    "Review charge review, claim readiness, eligibility history, denial rework, and payment recording.",
+                    "/billing",
+                    "Workflow",
+                ),
+                _training_item(
+                    "payer_data_phi",
+                    "Payer data and PHI",
+                    "Review payer data handling, minimum necessary access, and billing audit expectations.",
+                    "/roles",
+                    "Compliance",
+                ),
+                _training_item(
+                    "clearinghouse_incidents",
+                    "Clearinghouse incidents",
+                    "Review failed integration events, retries, and vendor escalation.",
+                    "/integrations",
+                    "Operations",
+                ),
+            ],
+        ),
+        _training_role(
+            "manager",
+            "Manager",
+            "Launch evidence, access review, audit export, readiness, incidents, and go-live sign-off.",
+            [
+                _training_item(
+                    "launch_evidence",
+                    "Launch evidence",
+                    "Review go-live packet, operator health, config audit, QA evidence, and dry-run sessions.",
+                    "/operations",
+                    "Launch",
+                ),
+                _training_item(
+                    "access_review",
+                    "Access review",
+                    "Review staff roles, MFA gaps, stale access reviews, and offboarding expectations.",
+                    "/staff",
+                    "Compliance",
+                ),
+                _training_item(
+                    "incident_backup",
+                    "Incident and backup response",
+                    "Review incident-response steps, backup/restore validation, and audit export ownership.",
+                    "/operations",
+                    "Operations",
+                ),
+            ],
+        ),
     ]
     return {
         "generated_at": datetime.now(UTC),
@@ -744,31 +972,33 @@ def staff_training_checklist() -> dict:
 async def start_staff_training_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = staff_training_checklist()
     session_id = str(uuid4())
-    payload = _recalculate_staff_training_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Staff training",
-        "trainer_name": data.get("trainer_name"),
-        "status": "in_progress",
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "completed_by": None,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_at": None,
-        "roles": [
-            {
-                **role,
-                "items": [
-                    {
-                        **item,
-                        "training_status": "pending",
-                        "note": None,
-                    }
-                    for item in role["items"]
-                ],
-            }
-            for role in checklist["roles"]
-        ],
-    })
+    payload = _recalculate_staff_training_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Staff training",
+            "trainer_name": data.get("trainer_name"),
+            "status": "in_progress",
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "completed_by": None,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "roles": [
+                {
+                    **role,
+                    "items": [
+                        {
+                            **item,
+                            "training_status": "pending",
+                            "note": None,
+                        }
+                        for item in role["items"]
+                    ],
+                }
+                for role in checklist["roles"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         STAFF_TRAINING_SESSION_EVENT_TYPE,
@@ -794,7 +1024,9 @@ async def list_staff_training_sessions(db: AsyncSession, user: User) -> tuple[li
     return list(sessions.values())[:25], len(sessions)
 
 
-async def update_staff_training_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_staff_training_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_staff_training_session_event(db, user, session_id)
     if not latest:
         return None
@@ -864,7 +1096,10 @@ def policy_approval_checklist() -> dict:
             "Review monthly access review, offboarding, privileged-account MFA, and audit export responsibilities.",
             "/staff",
             "Security",
-            ["docs/compliance/phi-retention-and-incident-response.md", "docs/operations/production-launch-checklist.md"],
+            [
+                "docs/compliance/phi-retention-and-incident-response.md",
+                "docs/operations/production-launch-checklist.md",
+            ],
         ),
         _policy_item(
             "backup_restore",
@@ -872,7 +1107,10 @@ def policy_approval_checklist() -> dict:
             "Review backup validation, restore drills, retention location, access controls, RTO, and RPO approval.",
             "/operations",
             "Resilience",
-            ["docs/operations/production-launch-checklist.md", "docs/operations/deployment-runbook.md"],
+            [
+                "docs/operations/production-launch-checklist.md",
+                "docs/operations/deployment-runbook.md",
+            ],
         ),
         _policy_item(
             "patient_outreach",
@@ -880,7 +1118,10 @@ def policy_approval_checklist() -> dict:
             "Review consent-gated SMS/email/portal outreach, blocked states, retries, and delivery callback responsibilities.",
             "/tasks",
             "Communications",
-            ["docs/operations/daily-use-readiness.md", "docs/operations/production-launch-checklist.md"],
+            [
+                "docs/operations/daily-use-readiness.md",
+                "docs/operations/production-launch-checklist.md",
+            ],
         ),
         _policy_item(
             "assistant_policy",
@@ -904,7 +1145,10 @@ def restore_drill_checklist() -> dict:
             "backup_created",
             "Backup created",
             "Run a current backup and identify the backup folder used for the drill.",
-            ["docs/operations/production-launch-checklist.md", "docs/operations/deployment-runbook.md"],
+            [
+                "docs/operations/production-launch-checklist.md",
+                "docs/operations/deployment-runbook.md",
+            ],
         ),
         _restore_drill_item(
             "backup_validated",
@@ -943,24 +1187,25 @@ def restore_drill_checklist() -> dict:
 async def start_restore_drill_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = restore_drill_checklist()
     session_id = str(uuid4())
-    payload = _recalculate_restore_drill_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Restore drill",
-        "owner_name": data.get("owner_name"),
-        "backup_reference": data.get("backup_reference"),
-        "status": "in_progress",
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_by": None,
-        "completed_at": None,
-        "rto_minutes": None,
-        "rpo_minutes": None,
-        "items": [
-            {**item, "drill_status": "pending", "note": None}
-            for item in checklist["items"]
-        ],
-    })
+    payload = _recalculate_restore_drill_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Restore drill",
+            "owner_name": data.get("owner_name"),
+            "backup_reference": data.get("backup_reference"),
+            "status": "in_progress",
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_by": None,
+            "completed_at": None,
+            "rto_minutes": None,
+            "rpo_minutes": None,
+            "items": [
+                {**item, "drill_status": "pending", "note": None} for item in checklist["items"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         RESTORE_DRILL_SESSION_EVENT_TYPE,
@@ -974,14 +1219,20 @@ async def start_restore_drill_session(db: AsyncSession, user: User, data: dict) 
 
 async def list_restore_drill_sessions(db: AsyncSession, user: User) -> tuple[list[dict], int]:
     rows = (
-        await db.execute(
-            select(AuditLog).where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type == RESTORE_DRILL_SESSION_EVENT_TYPE,
-                AuditLog.entity_type == "operations",
-            ).order_by(AuditLog.created_at.desc())
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type == RESTORE_DRILL_SESSION_EVENT_TYPE,
+                    AuditLog.entity_type == "operations",
+                )
+                .order_by(AuditLog.created_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     latest_by_session: dict[str, dict] = {}
     for event in rows:
         session = _restore_drill_session_from_audit(event)
@@ -995,7 +1246,9 @@ async def get_restore_drill_session(db: AsyncSession, user: User, session_id: st
     return _restore_drill_session_from_audit(latest) if latest else None
 
 
-async def update_restore_drill_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_restore_drill_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_restore_drill_session_event(db, user, session_id)
     if not latest:
         return None
@@ -1035,25 +1288,27 @@ async def update_restore_drill_session(db: AsyncSession, user: User, session_id:
 async def start_policy_approval_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = policy_approval_checklist()
     session_id = str(uuid4())
-    payload = _recalculate_policy_approval_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Policy approval",
-        "reviewer_name": data.get("reviewer_name"),
-        "status": "in_progress",
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "completed_by": None,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_at": None,
-        "items": [
-            {
-                **item,
-                "approval_status": "pending",
-                "note": None,
-            }
-            for item in checklist["items"]
-        ],
-    })
+    payload = _recalculate_policy_approval_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Policy approval",
+            "reviewer_name": data.get("reviewer_name"),
+            "status": "in_progress",
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "completed_by": None,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "items": [
+                {
+                    **item,
+                    "approval_status": "pending",
+                    "note": None,
+                }
+                for item in checklist["items"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         POLICY_APPROVAL_SESSION_EVENT_TYPE,
@@ -1079,7 +1334,9 @@ async def list_policy_approval_sessions(db: AsyncSession, user: User) -> tuple[l
     return list(sessions.values())[:25], len(sessions)
 
 
-async def update_policy_approval_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_policy_approval_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_policy_approval_session_event(db, user, session_id)
     if not latest:
         return None
@@ -1122,25 +1379,122 @@ async def update_policy_approval_session(db: AsyncSession, user: User, session_i
 
 def cutover_runbook() -> dict:
     phases = [
-        _cutover_phase("pre_cutover", "Pre-cutover", "Confirm launch inputs and freeze risky changes before the cutover window.", [
-            _cutover_step("confirm_owner", "Confirm cutover owner", "Confirm cutover owner, vendor contacts, escalation channel, and decision authority.", "manager", -60, None),
-            _cutover_step("final_backup", "Run final backup", "Run backup and confirm restore marker or documented rollback snapshot.", "operations", -45, "Backup fails or restore marker is missing."),
-            _cutover_step("freeze_changes", "Freeze noncritical changes", "Pause noncritical workflow changes and confirm staff are using the rehearsal plan.", "manager", -30, "Unexpected configuration drift is detected."),
-        ]),
-        _cutover_phase("cutover_window", "Cutover window", "Switch production-facing configuration and verify critical access paths.", [
-            _cutover_step("deploy_release", "Deploy release", "Deploy the approved release and confirm health checks.", "operations", 0, "Health check fails after deploy."),
-            _cutover_step("verify_identity", "Verify identity access", "Confirm admin/manager/provider/front desk access and session policy.", "manager", 10, "Privileged user cannot authenticate."),
-            _cutover_step("enable_integrations", "Enable integrations", "Enable approved vendor credentials and confirm credential preflight.", "operations", 20, "Credential preflight has blocking items."),
-        ]),
-        _cutover_phase("validation", "Validation", "Validate clinical, front-office, billing, and audit workflows before staff use.", [
-            _cutover_step("patient_chart_smoke", "Validate patient chart", "Open patient search, chart, documents, meds, care plan, and checkout handoff.", "ma_nurse", 30, "Patient chart or document workflow fails."),
-            _cutover_step("front_office_smoke", "Validate front office", "Validate scheduling, portal intake, messaging, faxes, and reports.", "front_desk", 40, "Scheduling, intake, or fax workflow fails."),
-            _cutover_step("billing_smoke", "Validate billing", "Validate charge review, claim readiness, eligibility, and audit trail visibility.", "billing", 50, "Billing or eligibility workflow fails."),
-        ]),
-        _cutover_phase("rollback", "Rollback decision", "Make an explicit go/no-go decision and document rollback readiness.", [
-            _cutover_step("rollback_tree", "Review rollback decision tree", "Review blockers, owner authority, communication path, and rollback trigger thresholds.", "manager", 55, "Any critical validation gate remains unresolved."),
-            _cutover_step("go_no_go", "Record go/no-go", "Record go/no-go decision, final owner, and follow-up monitoring plan.", "manager", 60, "Go/no-go owner does not approve launch."),
-        ]),
+        _cutover_phase(
+            "pre_cutover",
+            "Pre-cutover",
+            "Confirm launch inputs and freeze risky changes before the cutover window.",
+            [
+                _cutover_step(
+                    "confirm_owner",
+                    "Confirm cutover owner",
+                    "Confirm cutover owner, vendor contacts, escalation channel, and decision authority.",
+                    "manager",
+                    -60,
+                    None,
+                ),
+                _cutover_step(
+                    "final_backup",
+                    "Run final backup",
+                    "Run backup and confirm restore marker or documented rollback snapshot.",
+                    "operations",
+                    -45,
+                    "Backup fails or restore marker is missing.",
+                ),
+                _cutover_step(
+                    "freeze_changes",
+                    "Freeze noncritical changes",
+                    "Pause noncritical workflow changes and confirm staff are using the rehearsal plan.",
+                    "manager",
+                    -30,
+                    "Unexpected configuration drift is detected.",
+                ),
+            ],
+        ),
+        _cutover_phase(
+            "cutover_window",
+            "Cutover window",
+            "Switch production-facing configuration and verify critical access paths.",
+            [
+                _cutover_step(
+                    "deploy_release",
+                    "Deploy release",
+                    "Deploy the approved release and confirm health checks.",
+                    "operations",
+                    0,
+                    "Health check fails after deploy.",
+                ),
+                _cutover_step(
+                    "verify_identity",
+                    "Verify identity access",
+                    "Confirm admin/manager/provider/front desk access and session policy.",
+                    "manager",
+                    10,
+                    "Privileged user cannot authenticate.",
+                ),
+                _cutover_step(
+                    "enable_integrations",
+                    "Enable integrations",
+                    "Enable approved vendor credentials and confirm credential preflight.",
+                    "operations",
+                    20,
+                    "Credential preflight has blocking items.",
+                ),
+            ],
+        ),
+        _cutover_phase(
+            "validation",
+            "Validation",
+            "Validate clinical, front-office, billing, and audit workflows before staff use.",
+            [
+                _cutover_step(
+                    "patient_chart_smoke",
+                    "Validate patient chart",
+                    "Open patient search, chart, documents, meds, care plan, and checkout handoff.",
+                    "ma_nurse",
+                    30,
+                    "Patient chart or document workflow fails.",
+                ),
+                _cutover_step(
+                    "front_office_smoke",
+                    "Validate front office",
+                    "Validate scheduling, portal intake, messaging, faxes, and reports.",
+                    "front_desk",
+                    40,
+                    "Scheduling, intake, or fax workflow fails.",
+                ),
+                _cutover_step(
+                    "billing_smoke",
+                    "Validate billing",
+                    "Validate charge review, claim readiness, eligibility, and audit trail visibility.",
+                    "billing",
+                    50,
+                    "Billing or eligibility workflow fails.",
+                ),
+            ],
+        ),
+        _cutover_phase(
+            "rollback",
+            "Rollback decision",
+            "Make an explicit go/no-go decision and document rollback readiness.",
+            [
+                _cutover_step(
+                    "rollback_tree",
+                    "Review rollback decision tree",
+                    "Review blockers, owner authority, communication path, and rollback trigger thresholds.",
+                    "manager",
+                    55,
+                    "Any critical validation gate remains unresolved.",
+                ),
+                _cutover_step(
+                    "go_no_go",
+                    "Record go/no-go",
+                    "Record go/no-go decision, final owner, and follow-up monitoring plan.",
+                    "manager",
+                    60,
+                    "Go/no-go owner does not approve launch.",
+                ),
+            ],
+        ),
     ]
     return {
         "generated_at": datetime.now(UTC),
@@ -1156,35 +1510,37 @@ async def start_cutover_runbook_session(db: AsyncSession, user: User, data: dict
     scheduled_for = data.get("scheduled_for")
     if hasattr(scheduled_for, "isoformat"):
         scheduled_for = scheduled_for.isoformat()
-    payload = _recalculate_cutover_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Production cutover rehearsal",
-        "cutover_owner": data.get("cutover_owner"),
-        "scheduled_for": scheduled_for,
-        "status": "in_progress",
-        "rollback_status": "not_reviewed",
-        "rollback_decision": None,
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "completed_by": None,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_at": None,
-        "phases": [
-            {
-                **phase,
-                "steps": [
-                    {
-                        **step,
-                        "step_status": "pending",
-                        "owner_name": None,
-                        "note": None,
-                    }
-                    for step in phase["steps"]
-                ],
-            }
-            for phase in runbook["phases"]
-        ],
-    })
+    payload = _recalculate_cutover_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Production cutover rehearsal",
+            "cutover_owner": data.get("cutover_owner"),
+            "scheduled_for": scheduled_for,
+            "status": "in_progress",
+            "rollback_status": "not_reviewed",
+            "rollback_decision": None,
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "completed_by": None,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "phases": [
+                {
+                    **phase,
+                    "steps": [
+                        {
+                            **step,
+                            "step_status": "pending",
+                            "owner_name": None,
+                            "note": None,
+                        }
+                        for step in phase["steps"]
+                    ],
+                }
+                for phase in runbook["phases"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
@@ -1215,7 +1571,9 @@ async def get_cutover_runbook_session(db: AsyncSession, user: User, session_id: 
     return _cutover_runbook_session_from_audit(latest) if latest else None
 
 
-async def update_cutover_runbook_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_cutover_runbook_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_cutover_runbook_session_event(db, user, session_id)
     if not latest:
         return None
@@ -1346,15 +1704,25 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
             "credential_preflight",
             "Credential preflight",
             "ready" if preflight["blocking_count"] == 0 else "blocking",
-            round((preflight["ready_count"] / preflight["total"]) * 100) if preflight["total"] else 0,
+            round((preflight["ready_count"] / preflight["total"]) * 100)
+            if preflight["total"]
+            else 0,
             f"{preflight['blocking_count']} missing or blocked integration item(s), {preflight['staged_count']} staged.",
             "/integrations",
         ),
         _gate(
             "access_review",
             "Access review",
-            "ready" if access_review["due_count"] == 0 and access_review["privileged_without_mfa_count"] == 0 else "blocking",
-            max(0, 100 - access_review["due_count"] * 15 - access_review["privileged_without_mfa_count"] * 20),
+            "ready"
+            if access_review["due_count"] == 0
+            and access_review["privileged_without_mfa_count"] == 0
+            else "blocking",
+            max(
+                0,
+                100
+                - access_review["due_count"] * 15
+                - access_review["privileged_without_mfa_count"] * 20,
+            ),
             f"{access_review['due_count']} access review item(s) due; {access_review['privileged_without_mfa_count']} privileged account(s) without MFA.",
             "/staff",
         ),
@@ -1362,10 +1730,12 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
             "backup_restore",
             "Backup and restore",
             "ready"
-            if deployment.get("latest_backup", {}).get("ok") and deployment.get("latest_restore", {}).get("ok")
+            if deployment.get("latest_backup", {}).get("ok")
+            and deployment.get("latest_restore", {}).get("ok")
             else "warning",
             100
-            if deployment.get("latest_backup", {}).get("ok") and deployment.get("latest_restore", {}).get("ok")
+            if deployment.get("latest_backup", {}).get("ok")
+            and deployment.get("latest_restore", {}).get("ok")
             else 50
             if deployment.get("latest_backup", {}).get("ok")
             else 0,
@@ -1403,9 +1773,13 @@ async def production_rehearsal_report(db: AsyncSession, user: User) -> dict:
     }
 
 
-async def assign_rehearsal_action(db: AsyncSession, user: User, action_key: str, data: dict) -> dict | None:
+async def assign_rehearsal_action(
+    db: AsyncSession, user: User, action_key: str, data: dict
+) -> dict | None:
     report = await production_rehearsal_report(db, user)
-    action = next((item for item in report["recommended_actions"] if item["key"] == action_key), None)
+    action = next(
+        (item for item in report["recommended_actions"] if item["key"] == action_key), None
+    )
     if not action:
         return None
     payload = {
@@ -1448,95 +1822,112 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
     )
 
     for action in rehearsal["recommended_actions"]:
-        items.append(_workplan_item(
-            key=f"rehearsal_{action['key']}",
-            source="rehearsal",
-            category="Production rehearsal",
-            label=action["label"],
-            detail=action["detail"],
-            severity=action["severity"],
-            route=action["route"],
-            owner_role="operations",
-            recommended_action="Assign an owner, clear the blocker, and save rehearsal evidence.",
-            assignment=action.get("assignment"),
-        ))
+        items.append(
+            _workplan_item(
+                key=f"rehearsal_{action['key']}",
+                source="rehearsal",
+                category="Production rehearsal",
+                label=action["label"],
+                detail=action["detail"],
+                severity=action["severity"],
+                route=action["route"],
+                owner_role="operations",
+                recommended_action="Assign an owner, clear the blocker, and save rehearsal evidence.",
+                assignment=action.get("assignment"),
+            )
+        )
 
     for incident in incidents["data"]:
-        items.append(_workplan_item(
-            key=f"incident_{incident['key']}",
-            source="incident",
-            category=incident["source"],
-            label=incident["title"],
-            detail=incident["detail"],
-            severity="blocking" if incident["severity"] == "critical" else "warning",
-            route=incident["route"],
-            owner_role=incident["owner_role"],
-            recommended_action=incident["recommended_action"],
-        ))
+        items.append(
+            _workplan_item(
+                key=f"incident_{incident['key']}",
+                source="incident",
+                category=incident["source"],
+                label=incident["title"],
+                detail=incident["detail"],
+                severity="blocking" if incident["severity"] == "critical" else "warning",
+                route=incident["route"],
+                owner_role=incident["owner_role"],
+                recommended_action=incident["recommended_action"],
+            )
+        )
 
     for requirement in launch.get("requirements", []):
         if requirement.get("ready"):
             continue
-        items.append(_workplan_item(
-            key=f"launch_{requirement['key']}",
-            source="launch_requirement",
-            category=requirement["category"],
-            label=requirement["label"],
-            detail=requirement["detail"],
-            severity="blocking" if requirement["severity"] == "critical" else "warning",
-            route="/setup",
-            owner_role="operations",
-            recommended_action=requirement["action"],
-        ))
+        items.append(
+            _workplan_item(
+                key=f"launch_{requirement['key']}",
+                source="launch_requirement",
+                category=requirement["category"],
+                label=requirement["label"],
+                detail=requirement["detail"],
+                severity="blocking" if requirement["severity"] == "critical" else "warning",
+                route="/setup",
+                owner_role="operations",
+                recommended_action=requirement["action"],
+            )
+        )
 
     for integration in preflight.get("data", []):
         if integration["status"] == "ready":
             continue
         blockers = integration.get("blockers") or []
         missing_steps = [
-            step["label"]
-            for step in integration.get("steps", [])
-            if step["status"] != "ready"
+            step["label"] for step in integration.get("steps", []) if step["status"] != "ready"
         ]
-        detail = "; ".join(blockers or missing_steps or [f"{integration['label']} needs credential preflight review."])
-        items.append(_workplan_item(
-            key=f"credential_{integration['key']}",
-            source="credential_preflight",
-            category="Integrations",
-            label=f"{integration['label']} preflight",
-            detail=detail,
-            severity="blocking" if integration["status"] == "blocked" else "warning",
-            route="/integrations",
-            owner_role="operations",
-            recommended_action="Complete missing credential fields, connection test, and sandbox evidence.",
-            assignment=credential_assignment,
-        ))
+        detail = "; ".join(
+            blockers
+            or missing_steps
+            or [f"{integration['label']} needs credential preflight review."]
+        )
+        items.append(
+            _workplan_item(
+                key=f"credential_{integration['key']}",
+                source="credential_preflight",
+                category="Integrations",
+                label=f"{integration['label']} preflight",
+                detail=detail,
+                severity="blocking" if integration["status"] == "blocked" else "warning",
+                route="/integrations",
+                owner_role="operations",
+                recommended_action="Complete missing credential fields, connection test, and sandbox evidence.",
+                assignment=credential_assignment,
+            )
+        )
 
-    items.extend(await _vendor_handoff_archive_workplan_items(db, user, preflight, credential_assignment))
+    items.extend(
+        await _vendor_handoff_archive_workplan_items(db, user, preflight, credential_assignment)
+    )
 
     for lane in cutover_packet["items"]:
         if lane["cutover_status"] == "ready":
             continue
-        items.append(_workplan_item(
-            key=f"cutover_{lane['integration']}",
-            source="integration_cutover",
-            category="Integrations",
-            label=f"{lane['label']} cutover",
-            detail="; ".join(lane["blockers"] or lane["next_actions"] or [f"{lane['label']} cutover needs go/no-go review."]),
-            severity="blocking" if lane["cutover_status"] == "blocked" else "warning",
-            route="/integrations",
-            owner_role="operations",
-            recommended_action="Assign an integration owner and clear adapter, credential, handoff, risk, and cutover evidence gaps.",
-            assignment=lane.get("assignment"),
-        ))
+        items.append(
+            _workplan_item(
+                key=f"cutover_{lane['integration']}",
+                source="integration_cutover",
+                category="Integrations",
+                label=f"{lane['label']} cutover",
+                detail="; ".join(
+                    lane["blockers"]
+                    or lane["next_actions"]
+                    or [f"{lane['label']} cutover needs go/no-go review."]
+                ),
+                severity="blocking" if lane["cutover_status"] == "blocked" else "warning",
+                route="/integrations",
+                owner_role="operations",
+                recommended_action="Assign an integration owner and clear adapter, credential, handoff, risk, and cutover evidence gaps.",
+                assignment=lane.get("assignment"),
+            )
+        )
 
     deduped = _dedupe_workplan_items(items)
     blocking = sum(1 for item in deduped if item["severity"] == "blocking")
     warnings = sum(1 for item in deduped if item["severity"] == "warning")
     assigned = sum(1 for item in deduped if item.get("assignment"))
     unassigned_blocking = sum(
-        1 for item in deduped
-        if item["severity"] == "blocking" and not item.get("assignment")
+        1 for item in deduped if item["severity"] == "blocking" and not item.get("assignment")
     )
     return {
         "status": "clear" if not deduped else "attention",
@@ -1554,7 +1945,10 @@ async def launch_workplan(db: AsyncSession, user: User) -> dict:
 async def credential_dry_run_binder(db: AsyncSession, user: User) -> dict:
     preflight = await integration_config_service.credential_preflight(db, user)
     archives = await _latest_vendor_handoff_archives(db, user)
-    items = [_credential_binder_item(item, archives.get(item["key"])) for item in preflight.get("data", [])]
+    items = [
+        _credential_binder_item(item, archives.get(item["key"]))
+        for item in preflight.get("data", [])
+    ]
     blocking_count = sum(1 for item in items if item["binder_status"] == "blocking")
     warning_count = sum(1 for item in items if item["binder_status"] == "warning")
     ready_count = sum(1 for item in items if item["binder_status"] == "ready")
@@ -1562,10 +1956,15 @@ async def credential_dry_run_binder(db: AsyncSession, user: User) -> dict:
     vendor_reference_ready_count = sum(
         1
         for item in items
-        if item["sandbox_reference_total"] > 0 and item["sandbox_reference_count"] == item["sandbox_reference_total"]
+        if item["sandbox_reference_total"] > 0
+        and item["sandbox_reference_count"] == item["sandbox_reference_total"]
     )
     return {
-        "status": "ready" if blocking_count == 0 and warning_count == 0 else "blocked" if blocking_count else "attention",
+        "status": "ready"
+        if blocking_count == 0 and warning_count == 0
+        else "blocked"
+        if blocking_count
+        else "attention",
         "generated_at": datetime.now(UTC),
         "export_filename": "concierge-os-credential-dry-run-binder.csv",
         "ready_count": ready_count,
@@ -1602,15 +2001,26 @@ async def vendor_credential_request_packet(db: AsyncSession, user: User) -> dict
         1
         for item in items
         if item["vendor_profile"].get("missing_fields")
-        and any(field in item["vendor_profile"]["missing_fields"] for field in ["owner_name", "owner_email", "support_contact"])
+        and any(
+            field in item["vendor_profile"]["missing_fields"]
+            for field in ["owner_name", "owner_email", "support_contact"]
+        )
     )
     missing_contract_count = sum(
         1
         for item in items
         if "contract_reference_url" in (item["vendor_profile"].get("missing_fields") or [])
     )
-    archive_missing_count = sum(1 for item in items if item["handoff_archive"]["status"] == "missing")
-    status = "ready" if blocked_count == 0 and attention_count == 0 else "blocked" if blocked_count else "attention"
+    archive_missing_count = sum(
+        1 for item in items if item["handoff_archive"]["status"] == "missing"
+    )
+    status = (
+        "ready"
+        if blocked_count == 0 and attention_count == 0
+        else "blocked"
+        if blocked_count
+        else "attention"
+    )
     return {
         "status": status,
         "generated_at": datetime.now(UTC),
@@ -1643,7 +2053,13 @@ async def adapter_implementation_packet(db: AsyncSession, user: User) -> dict:
     sandbox_only_count = sum(1 for item in items if item["implementation_status"] == "sandbox_only")
     critical_count = sum(1 for item in items if item["priority"] == "critical")
     high_count = sum(1 for item in items if item["priority"] == "high")
-    status = "ready" if placeholder_count == 0 and sandbox_only_count == 0 else "blocked" if critical_count else "attention"
+    status = (
+        "ready"
+        if placeholder_count == 0 and sandbox_only_count == 0
+        else "blocked"
+        if critical_count
+        else "attention"
+    )
     return {
         "status": status,
         "generated_at": datetime.now(UTC),
@@ -1696,7 +2112,13 @@ async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> 
     go_count = sum(1 for item in items if item["go_no_go"] == "go")
     hold_count = sum(1 for item in items if item["go_no_go"] == "hold")
     no_go_count = sum(1 for item in items if item["go_no_go"] == "no_go")
-    status = "ready" if blocked_count == 0 and attention_count == 0 else "blocked" if blocked_count else "attention"
+    status = (
+        "ready"
+        if blocked_count == 0 and attention_count == 0
+        else "blocked"
+        if blocked_count
+        else "attention"
+    )
     return {
         "status": status,
         "generated_at": datetime.now(UTC),
@@ -1721,7 +2143,9 @@ async def integration_cutover_readiness_packet(db: AsyncSession, user: User) -> 
     }
 
 
-async def assign_integration_cutover_lane(db: AsyncSession, user: User, integration: str, data: dict) -> dict | None:
+async def assign_integration_cutover_lane(
+    db: AsyncSession, user: User, integration: str, data: dict
+) -> dict | None:
     packet = await integration_cutover_readiness_packet(db, user)
     lane = next((item for item in packet["items"] if item["integration"] == integration), None)
     if not lane:
@@ -1729,7 +2153,11 @@ async def assign_integration_cutover_lane(db: AsyncSession, user: User, integrat
     payload = {
         "action_key": integration,
         "label": lane["label"],
-        "severity": "blocking" if lane["cutover_status"] == "blocked" else "warning" if lane["cutover_status"] == "attention" else "normal",
+        "severity": "blocking"
+        if lane["cutover_status"] == "blocked"
+        else "warning"
+        if lane["cutover_status"] == "attention"
+        else "normal",
         "route": lane["route"],
         "owner_id": data.get("owner_id"),
         "owner_name": data["owner_name"],
@@ -1772,22 +2200,24 @@ async def _vendor_handoff_archive_workplan_items(
         if archive and archive.get("archive_reference_url"):
             continue
         has_archive = bool(archive)
-        items.append(_workplan_item(
-            key=f"handoff_archive_{integration['key']}",
-            source="vendor_handoff_archive",
-            category="Integrations",
-            label=f"{integration['label']} handoff archive",
-            detail=(
-                f"{integration['label']} handoff packet is archived but needs a launch evidence reference."
-                if has_archive
-                else f"{integration['label']} is production-vendor ready, but its vendor handoff packet has not been archived for launch review."
-            ),
-            severity="warning" if has_archive else "blocking",
-            route="/integrations",
-            owner_role="operations",
-            recommended_action="Export and archive the vendor handoff packet with a launch evidence reference before live-use rehearsal.",
-            assignment=assignment,
-        ))
+        items.append(
+            _workplan_item(
+                key=f"handoff_archive_{integration['key']}",
+                source="vendor_handoff_archive",
+                category="Integrations",
+                label=f"{integration['label']} handoff archive",
+                detail=(
+                    f"{integration['label']} handoff packet is archived but needs a launch evidence reference."
+                    if has_archive
+                    else f"{integration['label']} is production-vendor ready, but its vendor handoff packet has not been archived for launch review."
+                ),
+                severity="warning" if has_archive else "blocking",
+                route="/integrations",
+                owner_role="operations",
+                recommended_action="Export and archive the vendor handoff packet with a launch evidence reference before live-use rehearsal.",
+                assignment=assignment,
+            )
+        )
     return items
 
 
@@ -1813,7 +2243,9 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     latest_readiness = readiness_snapshots[0] if readiness_snapshots else None
     latest_rehearsal = rehearsal_snapshots[0] if rehearsal_snapshots else None
     latest_workplan = workplan_snapshots[0] if workplan_snapshots else None
-    latest_credential_binder = credential_binder_snapshots[0] if credential_binder_snapshots else None
+    latest_credential_binder = (
+        credential_binder_snapshots[0] if credential_binder_snapshots else None
+    )
     latest_dry_run = dry_run_sessions[0] if dry_run_sessions else None
     latest_browser_qa = browser_qa_sessions[0] if browser_qa_sessions else None
     latest_training = staff_training_sessions[0] if staff_training_sessions else None
@@ -1823,13 +2255,11 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     backup_ok = bool(deployment.get("latest_backup", {}).get("ok"))
     restore_ok = bool(deployment.get("latest_restore", {}).get("ok"))
 
-    workplan_unassigned_blocking = latest_workplan["unassigned_blocking_count"] if latest_workplan else 0
+    workplan_unassigned_blocking = (
+        latest_workplan["unassigned_blocking_count"] if latest_workplan else 0
+    )
     workplan_snapshot_status = (
-        "blocking"
-        if workplan_unassigned_blocking
-        else "ready"
-        if latest_workplan
-        else "missing"
+        "blocking" if workplan_unassigned_blocking else "ready" if latest_workplan else "missing"
     )
     workplan_snapshot_detail = (
         f"{latest_workplan['blocking_count']} blocking and {latest_workplan['unassigned_count']} unassigned item(s) captured; "
@@ -1841,7 +2271,8 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
     )
     cutover_status = (
         "blocking"
-        if latest_cutover and (
+        if latest_cutover
+        and (
             latest_cutover["blocked_count"] > 0
             or latest_cutover["rollback_count"] > 0
             or latest_cutover["rollback_status"] == "rollback_required"
@@ -1923,7 +2354,10 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "role_dry_run_session",
             "Role dry-run session",
             "ready"
-            if latest_dry_run and latest_dry_run["status"] == "completed" and latest_dry_run["pending_count"] == 0 and latest_dry_run["blocked_count"] == 0
+            if latest_dry_run
+            and latest_dry_run["status"] == "completed"
+            and latest_dry_run["pending_count"] == 0
+            and latest_dry_run["blocked_count"] == 0
             else "blocking"
             if latest_dry_run and latest_dry_run["blocked_count"] > 0
             else "warning"
@@ -1939,7 +2373,10 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "browser_qa_session",
             "Browser QA session",
             "ready"
-            if latest_browser_qa and latest_browser_qa["status"] == "completed" and latest_browser_qa["pending_count"] == 0 and latest_browser_qa["failed_count"] == 0
+            if latest_browser_qa
+            and latest_browser_qa["status"] == "completed"
+            and latest_browser_qa["pending_count"] == 0
+            and latest_browser_qa["failed_count"] == 0
             else "blocking"
             if latest_browser_qa and latest_browser_qa["failed_count"] > 0
             else "warning"
@@ -1955,7 +2392,9 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "staff_training_session",
             "Staff training session",
             "ready"
-            if latest_training and latest_training["status"] == "completed" and latest_training["pending_count"] == 0
+            if latest_training
+            and latest_training["status"] == "completed"
+            and latest_training["pending_count"] == 0
             else "warning"
             if latest_training
             else "missing",
@@ -1969,7 +2408,10 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "policy_approval_session",
             "Policy approval session",
             "ready"
-            if latest_policy_approval and latest_policy_approval["status"] == "completed" and latest_policy_approval["pending_count"] == 0 and latest_policy_approval["needs_changes_count"] == 0
+            if latest_policy_approval
+            and latest_policy_approval["status"] == "completed"
+            and latest_policy_approval["pending_count"] == 0
+            and latest_policy_approval["needs_changes_count"] == 0
             else "warning"
             if latest_policy_approval
             else "missing",
@@ -1994,13 +2436,17 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             "ready" if backup_ok and restore_ok else "warning" if backup_ok else "blocking",
             _backup_restore_detail(deployment),
             "/operations",
-            deployment.get("latest_restore", {}).get("last_success_at") or deployment.get("latest_backup", {}).get("last_success_at"),
+            deployment.get("latest_restore", {}).get("last_success_at")
+            or deployment.get("latest_backup", {}).get("last_success_at"),
         ),
         _packet_evidence(
             "restore_drill_session",
             "Restore drill session",
             "ready"
-            if latest_restore_drill and latest_restore_drill["status"] == "completed" and latest_restore_drill["pending_count"] == 0 and latest_restore_drill["blocked_count"] == 0
+            if latest_restore_drill
+            and latest_restore_drill["status"] == "completed"
+            and latest_restore_drill["pending_count"] == 0
+            and latest_restore_drill["blocked_count"] == 0
             else "warning"
             if latest_restore_drill
             else "missing",
@@ -2019,11 +2465,24 @@ async def go_live_packet(db: AsyncSession, user: User) -> dict:
             latest_cutover["updated_at"] if latest_cutover else None,
         ),
     ]
-    blocking = sum(1 for item in evidence if item["status"] == "blocking") + workplan["blocking_count"] + launch["critical_blockers"]
-    warnings = sum(1 for item in evidence if item["status"] == "warning") + workplan["warning_count"] + launch["warnings"]
+    blocking = (
+        sum(1 for item in evidence if item["status"] == "blocking")
+        + workplan["blocking_count"]
+        + launch["critical_blockers"]
+    )
+    warnings = (
+        sum(1 for item in evidence if item["status"] == "warning")
+        + workplan["warning_count"]
+        + launch["warnings"]
+    )
     ready_count = sum(1 for item in evidence if item["status"] == "ready")
     all_evidence_ready = ready_count == len(evidence)
-    go_live_ready = blocking == 0 and warnings == 0 and all_evidence_ready and readiness["operational_status"] == "ok"
+    go_live_ready = (
+        blocking == 0
+        and warnings == 0
+        and all_evidence_ready
+        and readiness["operational_status"] == "ok"
+    )
     return {
         "status": "ready" if go_live_ready else "attention",
         "go_live_ready": go_live_ready,
@@ -2053,7 +2512,11 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
         _live_gate(
             "go_live_packet",
             "Go-live packet",
-            "ready" if packet["go_live_ready"] else "blocking" if packet["blocking_count"] else "warning",
+            "ready"
+            if packet["go_live_ready"]
+            else "blocking"
+            if packet["blocking_count"]
+            else "warning",
             f"{packet['blocking_count']} blocker(s), {packet['warning_count']} warning(s), {packet['evidence_ready_count']} of {packet['evidence_total']} evidence item(s) ready.",
             "/operations",
             None,
@@ -2061,7 +2524,11 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
         _live_gate(
             "production_rehearsal",
             "Production rehearsal",
-            "ready" if rehearsal["rehearsal_ready"] else "blocking" if rehearsal["blocking_count"] else "warning",
+            "ready"
+            if rehearsal["rehearsal_ready"]
+            else "blocking"
+            if rehearsal["blocking_count"]
+            else "warning",
             f"{rehearsal['blocking_count']} blocker(s), {rehearsal['warning_count']} warning(s).",
             "/operations",
             None,
@@ -2069,7 +2536,11 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
         _live_gate(
             "launch_workplan",
             "Launch workplan",
-            "ready" if workplan["total"] == 0 else "blocking" if workplan["blocking_count"] else "warning",
+            "ready"
+            if workplan["total"] == 0
+            else "blocking"
+            if workplan["blocking_count"]
+            else "warning",
             f"{workplan['blocking_count']} blocking, {workplan['warning_count']} warning, {workplan['unassigned_count']} unassigned item(s).",
             "/operations",
             None,
@@ -2082,11 +2553,23 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
             "/integrations",
             None,
         ),
-        _live_gate_from_evidence("vendor_handoff_archives", "Vendor handoff archives", evidence_by_key.get("vendor_handoff_archives")),
-        _live_gate_from_evidence("browser_qa", "Browser QA", evidence_by_key.get("browser_qa_session")),
-        _live_gate_from_evidence("staff_training", "Staff training", evidence_by_key.get("staff_training_session")),
-        _live_gate_from_evidence("policy_approval", "Policy approval", evidence_by_key.get("policy_approval_session")),
-        _live_gate_from_evidence("role_dry_run", "Role dry-run", evidence_by_key.get("role_dry_run_session")),
+        _live_gate_from_evidence(
+            "vendor_handoff_archives",
+            "Vendor handoff archives",
+            evidence_by_key.get("vendor_handoff_archives"),
+        ),
+        _live_gate_from_evidence(
+            "browser_qa", "Browser QA", evidence_by_key.get("browser_qa_session")
+        ),
+        _live_gate_from_evidence(
+            "staff_training", "Staff training", evidence_by_key.get("staff_training_session")
+        ),
+        _live_gate_from_evidence(
+            "policy_approval", "Policy approval", evidence_by_key.get("policy_approval_session")
+        ),
+        _live_gate_from_evidence(
+            "role_dry_run", "Role dry-run", evidence_by_key.get("role_dry_run_session")
+        ),
     ]
     blocking_count = sum(1 for gate in gates if gate["status"] == "blocking")
     warning_count = sum(1 for gate in gates if gate["status"] in {"warning", "missing"})
@@ -2094,7 +2577,11 @@ async def live_use_rehearsal(db: AsyncSession, user: User) -> dict:
     score = round((ready_count / len(gates)) * 100) if gates else 0
     next_actions = _live_use_next_actions(gates, workplan["items"], preflight.get("data", []))
     return {
-        "status": "ready" if blocking_count == 0 and warning_count == 0 else "blocked" if blocking_count else "attention",
+        "status": "ready"
+        if blocking_count == 0 and warning_count == 0
+        else "blocked"
+        if blocking_count
+        else "attention",
         "launch_ready": blocking_count == 0 and warning_count == 0 and packet["go_live_ready"],
         "score": score,
         "generated_at": datetime.now(UTC),
@@ -2127,10 +2614,34 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
             "Front desk",
             "Own arrivals, checkout handoff, scheduling, portal intake, and patient communication routing.",
             [
-                _checklist_item("today_queue", "Review today's queue", "Confirm scheduled, checked-in, in-progress, and blocked patients from Command Center.", "/", "ready"),
-                _checklist_item("checkout_handoff", "Complete checkout handoff", "Open a patient chart and complete checkout tasks before the patient leaves.", "/patients", "ready"),
-                _checklist_item("schedule_followup", "Schedule follow-up", "Create or adjust a follow-up appointment after checkout.", "/scheduling", "ready"),
-                _checklist_item("portal_intake", "Process portal intake", "Apply intake updates, convert document uploads, or reject invalid submissions.", "/portal-intake", "ready"),
+                _checklist_item(
+                    "today_queue",
+                    "Review today's queue",
+                    "Confirm scheduled, checked-in, in-progress, and blocked patients from Command Center.",
+                    "/",
+                    "ready",
+                ),
+                _checklist_item(
+                    "checkout_handoff",
+                    "Complete checkout handoff",
+                    "Open a patient chart and complete checkout tasks before the patient leaves.",
+                    "/patients",
+                    "ready",
+                ),
+                _checklist_item(
+                    "schedule_followup",
+                    "Schedule follow-up",
+                    "Create or adjust a follow-up appointment after checkout.",
+                    "/scheduling",
+                    "ready",
+                ),
+                _checklist_item(
+                    "portal_intake",
+                    "Process portal intake",
+                    "Apply intake updates, convert document uploads, or reject invalid submissions.",
+                    "/portal-intake",
+                    "ready",
+                ),
             ],
         ),
         _role_checklist(
@@ -2138,10 +2649,34 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
             "MA / nurse",
             "Reconcile clinical intake, outside documents, medication review, labs, and care-plan blockers.",
             [
-                _checklist_item("outside_documents", "Review outside documents", "File, reconcile, or escalate outside records from the patient chart.", "/patients", "attention" if closeout["documents"] else "ready"),
-                _checklist_item("med_reconciliation", "Reconcile medications", "Confirm review or held medication items during rooming/check-out.", "/patients", "ready"),
-                _checklist_item("lab_review", "Review labs", "Confirm new or needs-review lab results and route blockers to provider.", "/patients", "ready"),
-                _checklist_item("care_plan", "Work care plan", "Update nursing-owned care-plan items and escalate blocked items.", "/patients", "ready"),
+                _checklist_item(
+                    "outside_documents",
+                    "Review outside documents",
+                    "File, reconcile, or escalate outside records from the patient chart.",
+                    "/patients",
+                    "attention" if closeout["documents"] else "ready",
+                ),
+                _checklist_item(
+                    "med_reconciliation",
+                    "Reconcile medications",
+                    "Confirm review or held medication items during rooming/check-out.",
+                    "/patients",
+                    "ready",
+                ),
+                _checklist_item(
+                    "lab_review",
+                    "Review labs",
+                    "Confirm new or needs-review lab results and route blockers to provider.",
+                    "/patients",
+                    "ready",
+                ),
+                _checklist_item(
+                    "care_plan",
+                    "Work care plan",
+                    "Update nursing-owned care-plan items and escalate blocked items.",
+                    "/patients",
+                    "ready",
+                ),
             ],
         ),
         _role_checklist(
@@ -2149,10 +2684,34 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
             "Provider",
             "Resolve clinical flags, documents, labs, medications, encounters, and provider-owned checkout work.",
             [
-                _checklist_item("clinical_flags", "Review chart blockers", "Open a patient chart and resolve clinical flags before checkout.", "/patients", "ready"),
-                _checklist_item("sign_encounter", "Sign encounter", "Complete draft or provider-review encounters for downstream billing.", "/patients", "attention" if closeout["unsigned"] else "ready"),
-                _checklist_item("orders_tasks", "Create follow-up tasks", "Create clinical follow-up tasks for calls, orders, and outside records.", "/tasks", "ready"),
-                _checklist_item("assistant_review", "Review assistant actions", "Confirm or reject staged assistant actions before they affect workflows.", "/assistant-review", "ready"),
+                _checklist_item(
+                    "clinical_flags",
+                    "Review chart blockers",
+                    "Open a patient chart and resolve clinical flags before checkout.",
+                    "/patients",
+                    "ready",
+                ),
+                _checklist_item(
+                    "sign_encounter",
+                    "Sign encounter",
+                    "Complete draft or provider-review encounters for downstream billing.",
+                    "/patients",
+                    "attention" if closeout["unsigned"] else "ready",
+                ),
+                _checklist_item(
+                    "orders_tasks",
+                    "Create follow-up tasks",
+                    "Create clinical follow-up tasks for calls, orders, and outside records.",
+                    "/tasks",
+                    "ready",
+                ),
+                _checklist_item(
+                    "assistant_review",
+                    "Review assistant actions",
+                    "Confirm or reject staged assistant actions before they affect workflows.",
+                    "/assistant-review",
+                    "ready",
+                ),
             ],
         ),
         _role_checklist(
@@ -2160,10 +2719,34 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
             "Billing",
             "Run charge capture, claim readiness, eligibility, denial rework, and remittance review.",
             [
-                _checklist_item("charge_review", "Review charges", "Convert signed encounters into billing cases and clear coding gaps.", "/billing", "ready"),
-                _checklist_item("claim_readiness", "Submit ready claim", "Run claim readiness and submit only cases with eligibility and coding complete.", "/billing", "ready"),
-                _checklist_item("denial_rework", "Rework denial", "Move a denied case through rework and resubmission.", "/billing", "ready"),
-                _checklist_item("remittance", "Record payment", "Record a payment or remittance note and confirm timeline/audit visibility.", "/billing", "ready"),
+                _checklist_item(
+                    "charge_review",
+                    "Review charges",
+                    "Convert signed encounters into billing cases and clear coding gaps.",
+                    "/billing",
+                    "ready",
+                ),
+                _checklist_item(
+                    "claim_readiness",
+                    "Submit ready claim",
+                    "Run claim readiness and submit only cases with eligibility and coding complete.",
+                    "/billing",
+                    "ready",
+                ),
+                _checklist_item(
+                    "denial_rework",
+                    "Rework denial",
+                    "Move a denied case through rework and resubmission.",
+                    "/billing",
+                    "ready",
+                ),
+                _checklist_item(
+                    "remittance",
+                    "Record payment",
+                    "Record a payment or remittance note and confirm timeline/audit visibility.",
+                    "/billing",
+                    "ready",
+                ),
             ],
         ),
         _role_checklist(
@@ -2171,10 +2754,34 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
             "Manager",
             "Own readiness evidence, launch blockers, integrations, access review, audit export, and go-live sign-off.",
             [
-                _checklist_item("go_live_packet", "Review go-live packet", "Review evidence, blockers, and latest manager attestation.", "/operations", "attention" if workplan["blocking_count"] else "ready"),
-                _checklist_item("credential_preflight", "Review credential preflight", "Confirm each integration has credentials, connection tests, and sandbox evidence.", "/integrations", "attention" if preflight["blocking_count"] else "ready"),
-                _checklist_item("access_review", "Review staff access", "Review role assignments, MFA gaps, stale access reviews, and inactive accounts.", "/staff", "ready"),
-                _checklist_item("audit_export", "Export audit evidence", "Export audit events for sensitive workflow activity and launch packet support.", "/operations", "ready"),
+                _checklist_item(
+                    "go_live_packet",
+                    "Review go-live packet",
+                    "Review evidence, blockers, and latest manager attestation.",
+                    "/operations",
+                    "attention" if workplan["blocking_count"] else "ready",
+                ),
+                _checklist_item(
+                    "credential_preflight",
+                    "Review credential preflight",
+                    "Confirm each integration has credentials, connection tests, and sandbox evidence.",
+                    "/integrations",
+                    "attention" if preflight["blocking_count"] else "ready",
+                ),
+                _checklist_item(
+                    "access_review",
+                    "Review staff access",
+                    "Review role assignments, MFA gaps, stale access reviews, and inactive accounts.",
+                    "/staff",
+                    "ready",
+                ),
+                _checklist_item(
+                    "audit_export",
+                    "Export audit evidence",
+                    "Export audit events for sensitive workflow activity and launch packet support.",
+                    "/operations",
+                    "ready",
+                ),
             ],
         ),
     ]
@@ -2190,33 +2797,35 @@ async def role_dry_run_checklists(db: AsyncSession, user: User) -> dict:
 async def start_role_dry_run_session(db: AsyncSession, user: User, data: dict) -> dict:
     checklist = await role_dry_run_checklists(db, user)
     session_id = str(uuid4())
-    payload = _recalculate_dry_run_totals({
-        "session_id": session_id,
-        "session_name": data.get("session_name") or "Clinic dry run",
-        "status": "in_progress",
-        "note": data.get("note"),
-        "started_by": user.display_name,
-        "completed_by": None,
-        "started_at": datetime.now(UTC).isoformat(),
-        "completed_at": None,
-        "checklist_generated_at": checklist["generated_at"].isoformat()
-        if hasattr(checklist["generated_at"], "isoformat")
-        else checklist["generated_at"],
-        "roles": [
-            {
-                **role,
-                "items": [
-                    {
-                        **item,
-                        "dry_run_status": "pending",
-                        "note": None,
-                    }
-                    for item in role["items"]
-                ],
-            }
-            for role in checklist["roles"]
-        ],
-    })
+    payload = _recalculate_dry_run_totals(
+        {
+            "session_id": session_id,
+            "session_name": data.get("session_name") or "Clinic dry run",
+            "status": "in_progress",
+            "note": data.get("note"),
+            "started_by": user.display_name,
+            "completed_by": None,
+            "started_at": datetime.now(UTC).isoformat(),
+            "completed_at": None,
+            "checklist_generated_at": checklist["generated_at"].isoformat()
+            if hasattr(checklist["generated_at"], "isoformat")
+            else checklist["generated_at"],
+            "roles": [
+                {
+                    **role,
+                    "items": [
+                        {
+                            **item,
+                            "dry_run_status": "pending",
+                            "note": None,
+                        }
+                        for item in role["items"]
+                    ],
+                }
+                for role in checklist["roles"]
+            ],
+        }
+    )
     event = await log_event(
         db,
         ROLE_DRY_RUN_SESSION_EVENT_TYPE,
@@ -2242,7 +2851,9 @@ async def list_role_dry_run_sessions(db: AsyncSession, user: User) -> tuple[list
     return list(sessions.values())[:25], len(sessions)
 
 
-async def update_role_dry_run_session(db: AsyncSession, user: User, session_id: str, data: dict) -> dict | None:
+async def update_role_dry_run_session(
+    db: AsyncSession, user: User, session_id: str, data: dict
+) -> dict | None:
     latest = await _latest_dry_run_session_event(db, user, session_id)
     if not latest:
         return None
@@ -2403,60 +3014,76 @@ async def list_rehearsal_snapshots(db: AsyncSession, user: User) -> tuple[list[d
 
 
 def rehearsal_report_csv(report: dict) -> str:
-    rows = ["section,key,label,status,score,detail,route,severity,owner,assignment_status,due_date,note"]
+    rows = [
+        "section,key,label,status,score,detail,route,severity,owner,assignment_status,due_date,note"
+    ]
     for gate in report["gates"]:
-        rows.append(_csv_row([
-            "gate",
-            gate["key"],
-            gate["label"],
-            gate["status"],
-            str(gate["score"]),
-            gate["detail"],
-            gate["route"],
-            "",
-            "",
-            "",
-            "",
-            "",
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    "gate",
+                    gate["key"],
+                    gate["label"],
+                    gate["status"],
+                    str(gate["score"]),
+                    gate["detail"],
+                    gate["route"],
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                ]
+            )
+        )
     for action in report["recommended_actions"]:
         assignment = action.get("assignment") or {}
-        rows.append(_csv_row([
-            "action",
-            action["key"],
-            action["label"],
-            "",
-            "",
-            action["detail"],
-            action["route"],
-            action["severity"],
-            assignment.get("owner_name", ""),
-            assignment.get("status", ""),
-            assignment.get("due_date", "") or "",
-            assignment.get("note", "") or "",
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    "action",
+                    action["key"],
+                    action["label"],
+                    "",
+                    "",
+                    action["detail"],
+                    action["route"],
+                    action["severity"],
+                    assignment.get("owner_name", ""),
+                    assignment.get("status", ""),
+                    assignment.get("due_date", "") or "",
+                    assignment.get("note", "") or "",
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
 def launch_workplan_csv(workplan: dict) -> str:
-    rows = ["key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note"]
+    rows = [
+        "key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note"
+    ]
     for item in workplan["items"]:
         assignment = item.get("assignment") or {}
-        rows.append(_csv_row([
-            item["key"],
-            item["source"],
-            item["category"],
-            item["label"],
-            item["severity"],
-            item["detail"],
-            item["route"],
-            item["owner_role"],
-            item["recommended_action"],
-            assignment.get("owner_name", ""),
-            assignment.get("status", ""),
-            assignment.get("due_date", "") or "",
-            assignment.get("note", "") or "",
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    item["key"],
+                    item["source"],
+                    item["category"],
+                    item["label"],
+                    item["severity"],
+                    item["detail"],
+                    item["route"],
+                    item["owner_role"],
+                    item["recommended_action"],
+                    assignment.get("owner_name", ""),
+                    assignment.get("status", ""),
+                    assignment.get("due_date", "") or "",
+                    assignment.get("note", "") or "",
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
@@ -2467,23 +3094,27 @@ def credential_dry_run_binder_csv(binder: dict) -> str:
     for item in binder["items"]:
         profile = item["vendor_profile"]
         archive = item["handoff_archive"]
-        rows.append(_csv_row([
-            item["integration"],
-            item["label"],
-            item["binder_status"],
-            item["status"],
-            item["readiness_mode"],
-            str(item["production_ready"]).lower(),
-            profile.get("vendor_name", ""),
-            profile.get("owner_name", ""),
-            profile.get("owner_email", ""),
-            archive["status"],
-            archive.get("archive_reference_url") or "",
-            str(item["sandbox_reference_count"]),
-            str(item["sandbox_reference_total"]),
-            "; ".join(item["blockers"]),
-            item["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    item["integration"],
+                    item["label"],
+                    item["binder_status"],
+                    item["status"],
+                    item["readiness_mode"],
+                    str(item["production_ready"]).lower(),
+                    profile.get("vendor_name", ""),
+                    profile.get("owner_name", ""),
+                    profile.get("owner_email", ""),
+                    archive["status"],
+                    archive.get("archive_reference_url") or "",
+                    str(item["sandbox_reference_count"]),
+                    str(item["sandbox_reference_total"]),
+                    "; ".join(item["blockers"]),
+                    item["route"],
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
@@ -2494,23 +3125,27 @@ def vendor_credential_request_packet_csv(packet: dict) -> str:
     for item in packet["items"]:
         profile = item["vendor_profile"]
         archive = item["handoff_archive"]
-        rows.append(_csv_row([
-            item["integration"],
-            item["label"],
-            item["request_status"],
-            profile.get("vendor_name", ""),
-            profile.get("environment", ""),
-            profile.get("owner_email", ""),
-            profile.get("support_contact", ""),
-            "; ".join(item["required_fields"]),
-            "; ".join(item["missing_fields"]),
-            archive["status"],
-            archive.get("archive_reference_url") or "",
-            str(item["sandbox_reference_count"]),
-            str(item["sandbox_reference_total"]),
-            "; ".join(item["blockers"]),
-            item["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    item["integration"],
+                    item["label"],
+                    item["request_status"],
+                    profile.get("vendor_name", ""),
+                    profile.get("environment", ""),
+                    profile.get("owner_email", ""),
+                    profile.get("support_contact", ""),
+                    "; ".join(item["required_fields"]),
+                    "; ".join(item["missing_fields"]),
+                    archive["status"],
+                    archive.get("archive_reference_url") or "",
+                    str(item["sandbox_reference_count"]),
+                    str(item["sandbox_reference_total"]),
+                    "; ".join(item["blockers"]),
+                    item["route"],
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
@@ -2519,22 +3154,26 @@ def adapter_implementation_packet_csv(packet: dict) -> str:
         "integration,label,implementation_status,priority,readiness_mode,configured,adapter_method_ready_count,adapter_method_total,required_credentials,missing_credentials,workflows,sandbox_tests,blockers,route"
     ]
     for item in packet["items"]:
-        rows.append(_csv_row([
-            item["integration"],
-            item["label"],
-            item["implementation_status"],
-            item["priority"],
-            item["readiness_mode"],
-            str(item["configured"]).lower(),
-            str(item["adapter_method_ready_count"]),
-            str(item["adapter_method_total"]),
-            "; ".join(item["required_credentials"]),
-            "; ".join(item["missing_credentials"]),
-            "; ".join(item["workflows"]),
-            "; ".join(item["sandbox_tests"]),
-            "; ".join(item["blockers"]),
-            item["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    item["integration"],
+                    item["label"],
+                    item["implementation_status"],
+                    item["priority"],
+                    item["readiness_mode"],
+                    str(item["configured"]).lower(),
+                    str(item["adapter_method_ready_count"]),
+                    str(item["adapter_method_total"]),
+                    "; ".join(item["required_credentials"]),
+                    "; ".join(item["missing_credentials"]),
+                    "; ".join(item["workflows"]),
+                    "; ".join(item["sandbox_tests"]),
+                    "; ".join(item["blockers"]),
+                    item["route"],
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
@@ -2543,53 +3182,69 @@ def integration_cutover_readiness_packet_csv(packet: dict) -> str:
         "integration,label,cutover_status,go_no_go,readiness_mode,adapter_status,credential_request_status,handoff_archive_status,cutover_evidence_complete,blocking_risks,blockers,next_actions,route"
     ]
     for item in packet["items"]:
-        rows.append(_csv_row([
-            item["integration"],
-            item["label"],
-            item["cutover_status"],
-            item["go_no_go"],
-            item["readiness_mode"],
-            item["adapter"]["implementation_status"],
-            item["credential_request"]["request_status"],
-            item["handoff_archive"]["status"],
-            str(bool(item["cutover_evidence"].get("evidence_complete"))).lower(),
-            str(item["risk_register"].get("blocking_count", 0)),
-            "; ".join(item["blockers"]),
-            "; ".join(item["next_actions"]),
-            item["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    item["integration"],
+                    item["label"],
+                    item["cutover_status"],
+                    item["go_no_go"],
+                    item["readiness_mode"],
+                    item["adapter"]["implementation_status"],
+                    item["credential_request"]["request_status"],
+                    item["handoff_archive"]["status"],
+                    str(bool(item["cutover_evidence"].get("evidence_complete"))).lower(),
+                    str(item["risk_register"].get("blocking_count", 0)),
+                    "; ".join(item["blockers"]),
+                    "; ".join(item["next_actions"]),
+                    item["route"],
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
 def live_use_rehearsal_csv(dashboard: dict) -> str:
     rows = ["section,key,label,status,detail,route"]
     for gate in dashboard["gates"]:
-        rows.append(_csv_row([
-            "gate",
-            gate["key"],
-            gate["label"],
-            gate["status"],
-            gate["detail"],
-            gate["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    "gate",
+                    gate["key"],
+                    gate["label"],
+                    gate["status"],
+                    gate["detail"],
+                    gate["route"],
+                ]
+            )
+        )
     for evidence in dashboard["evidence"]:
-        rows.append(_csv_row([
-            "evidence",
-            evidence["key"],
-            evidence["label"],
-            evidence["status"],
-            evidence["detail"],
-            evidence["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    "evidence",
+                    evidence["key"],
+                    evidence["label"],
+                    evidence["status"],
+                    evidence["detail"],
+                    evidence["route"],
+                ]
+            )
+        )
     for action in dashboard["next_actions"]:
-        rows.append(_csv_row([
-            "action",
-            action["key"],
-            action["label"],
-            action["severity"],
-            action["detail"],
-            action["route"],
-        ]))
+        rows.append(
+            _csv_row(
+                [
+                    "action",
+                    action["key"],
+                    action["label"],
+                    action["severity"],
+                    action["detail"],
+                    action["route"],
+                ]
+            )
+        )
     return "\n".join(rows) + "\n"
 
 
@@ -2597,33 +3252,45 @@ def cutover_runbook_csv(session: dict) -> str:
     rows = ["phase,key,label,status,owner,note,rollback_trigger"]
     for phase in session["phases"]:
         for step in phase["steps"]:
-            rows.append(_csv_row([
-                phase["key"],
-                step["key"],
-                step["label"],
-                step["step_status"],
-                step.get("owner_name") or "",
-                step.get("note") or "",
-                step.get("rollback_trigger") or "",
-            ]))
-    rows.append(_csv_row([
-        "rollback_decision",
-        "rollback_status",
-        "Rollback status",
-        session["rollback_status"],
-        session.get("cutover_owner") or "",
-        session.get("rollback_decision") or "",
-        "",
-    ]))
+            rows.append(
+                _csv_row(
+                    [
+                        phase["key"],
+                        step["key"],
+                        step["label"],
+                        step["step_status"],
+                        step.get("owner_name") or "",
+                        step.get("note") or "",
+                        step.get("rollback_trigger") or "",
+                    ]
+                )
+            )
+    rows.append(
+        _csv_row(
+            [
+                "rollback_decision",
+                "rollback_status",
+                "Rollback status",
+                session["rollback_status"],
+                session.get("cutover_owner") or "",
+                session.get("rollback_decision") or "",
+                "",
+            ]
+        )
+    )
     return "\n".join(rows) + "\n"
 
 
 async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
-    query = select(AuditLog).where(
-        AuditLog.organization_id == user.organization_id,
-        AuditLog.event_type == REHEARSAL_ASSIGNMENT_EVENT_TYPE,
-        AuditLog.entity_type == "operations",
-    ).order_by(AuditLog.created_at.desc())
+    query = (
+        select(AuditLog)
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == REHEARSAL_ASSIGNMENT_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
     result = await db.execute(query)
     assignments: dict[str, dict] = {}
     for event in result.scalars().all():
@@ -2635,11 +3302,15 @@ async def _rehearsal_assignments_by_key(db: AsyncSession, user: User) -> dict[st
 async def _integration_cutover_assignments_by_key(db: AsyncSession, user: User) -> dict[str, dict]:
     if db is None:
         return {}
-    query = select(AuditLog).where(
-        AuditLog.organization_id == user.organization_id,
-        AuditLog.event_type == INTEGRATION_CUTOVER_ASSIGNMENT_EVENT_TYPE,
-        AuditLog.entity_type == "operations",
-    ).order_by(AuditLog.created_at.desc())
+    query = (
+        select(AuditLog)
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == INTEGRATION_CUTOVER_ASSIGNMENT_EVENT_TYPE,
+            AuditLog.entity_type == "operations",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
     result = await db.execute(query)
     assignments: dict[str, dict] = {}
     for event in result.scalars().all():
@@ -2652,13 +3323,26 @@ async def _rehearsal_closeout_status(db: AsyncSession, user: User) -> dict:
     org = user.organization_id
 
     async def count(model, *clauses) -> int:
-        result = await db.execute(select(func.count(model.id)).where(model.organization_id == org, *clauses))
+        result = await db.execute(
+            select(func.count(model.id)).where(model.organization_id == org, *clauses)
+        )
         return result.scalar() or 0
 
-    urgent_tasks = await count(Task, Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]), Task.priority == TaskPriority.urgent)
-    documents = await count(PatientDocument, PatientDocument.status == PatientDocumentStatus.needs_review)
-    unsigned = await count(PatientEncounter, PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]))
-    failed_integrations = await count(IntegrationEvent, IntegrationEvent.status == IntegrationEventStatus.failed)
+    urgent_tasks = await count(
+        Task,
+        Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
+        Task.priority == TaskPriority.urgent,
+    )
+    documents = await count(
+        PatientDocument, PatientDocument.status == PatientDocumentStatus.needs_review
+    )
+    unsigned = await count(
+        PatientEncounter,
+        PatientEncounter.status.in_([EncounterStatus.draft, EncounterStatus.provider_review]),
+    )
+    failed_integrations = await count(
+        IntegrationEvent, IntegrationEvent.status == IntegrationEventStatus.failed
+    )
     blockers = urgent_tasks + documents + unsigned + failed_integrations
     return {
         "status": "clear" if blockers == 0 else "attention",
@@ -2713,7 +3397,9 @@ def _live_gate_from_evidence(key: str, label: str, evidence: dict | None) -> dic
     )
 
 
-def _live_use_next_actions(gates: list[dict], workplan_items: list[dict], preflight_items: list[dict]) -> list[dict]:
+def _live_use_next_actions(
+    gates: list[dict], workplan_items: list[dict], preflight_items: list[dict]
+) -> list[dict]:
     actions = [
         {
             "key": f"gate_{gate['key']}",
@@ -2739,7 +3425,9 @@ def _live_use_next_actions(gates: list[dict], workplan_items: list[dict], prefli
         {
             "key": f"credential_{item['key']}",
             "label": f"{item['label']} credential preflight",
-            "detail": "; ".join(item.get("blockers") or ["Complete credential, connection, and sandbox evidence."]),
+            "detail": "; ".join(
+                item.get("blockers") or ["Complete credential, connection, and sandbox evidence."]
+            ),
             "route": "/integrations",
             "severity": "blocking" if item.get("status") in {"missing", "blocked"} else "warning",
         }
@@ -2778,7 +3466,9 @@ def _document_storage_config_gap_count() -> int:
 
 def _document_storage_signing_gap_count() -> int:
     probe_patient_id = "readiness-probe"
-    probe_url = f"s3://{settings.minio_bucket}/patients/{probe_patient_id}/documents/probe-document.pdf"
+    probe_url = (
+        f"s3://{settings.minio_bucket}/patients/{probe_patient_id}/documents/probe-document.pdf"
+    )
     checks = [
         bool(patient_document_service._presigned_put_url(probe_url, probe_patient_id)),
         bool(patient_document_service._presigned_get_url(probe_url, probe_patient_id)),
@@ -2854,7 +3544,11 @@ def _document_storage_alert_detail(readiness: dict) -> str:
 
 
 def _role_access_severity(matrix: dict) -> str:
-    return "critical" if any(item["severity"] == "critical" for item in matrix["warnings"]) else "warning"
+    return (
+        "critical"
+        if any(item["severity"] == "critical" for item in matrix["warnings"])
+        else "warning"
+    )
 
 
 def _role_access_detail(matrix: dict) -> str:
@@ -2873,7 +3567,13 @@ def _role_access_health(matrix: dict) -> dict:
     privileged_gaps = matrix["summary"]["privileged_users_without_mfa"]
     coverage_gaps = matrix["summary"]["roles_without_active_users"]
     status = "critical" if privileged_gaps else "warning" if warnings else "healthy"
-    score = max(0, 100 - privileged_gaps * 25 - coverage_gaps * 15 - max(0, warnings - privileged_gaps - coverage_gaps) * 10)
+    score = max(
+        0,
+        100
+        - privileged_gaps * 25
+        - coverage_gaps * 15
+        - max(0, warnings - privileged_gaps - coverage_gaps) * 10,
+    )
     return _operator_check(
         "role_access_matrix",
         "Role access matrix",
@@ -2908,7 +3608,9 @@ def _timeline_item_from_audit(event: AuditLog) -> dict:
         else "compliance"
         if event.event_type == "audit.exported"
         else "document",
-        "title": title_map.get(event.event_type, event.event_type.replace("_", " ").replace(".", " ").title()),
+        "title": title_map.get(
+            event.event_type, event.event_type.replace("_", " ").replace(".", " ").title()
+        ),
         "detail": _audit_timeline_detail(event),
         "source": "audit",
         "route": "/staff" if event.event_type.startswith(("auth.", "user.")) else "/operations",
@@ -2976,11 +3678,7 @@ def _audit_export_event_detail(event: AuditLog) -> str:
 
 
 def _audit_export_filter_summary(filters: dict) -> str:
-    applied = [
-        f"{key}={value}"
-        for key, value in filters.items()
-        if value not in {None, ""}
-    ]
+    applied = [f"{key}={value}" for key, value in filters.items() if value not in {None, ""}]
     return f" for {', '.join(applied)}" if applied else ""
 
 
@@ -2996,33 +3694,37 @@ def _restore_drill_item(key: str, label: str, detail: str, docs: list[str]) -> d
 
 
 def restore_drill_session_csv(session: dict) -> str:
-    rows = [[
-        "session_id",
-        "session_name",
-        "owner_name",
-        "status",
-        "backup_reference",
-        "rto_minutes",
-        "rpo_minutes",
-        "item_key",
-        "item_label",
-        "drill_status",
-        "note",
-    ]]
+    rows = [
+        [
+            "session_id",
+            "session_name",
+            "owner_name",
+            "status",
+            "backup_reference",
+            "rto_minutes",
+            "rpo_minutes",
+            "item_key",
+            "item_label",
+            "drill_status",
+            "note",
+        ]
+    ]
     for item in session.get("items", []):
-        rows.append([
-            session["session_id"],
-            session["session_name"],
-            session.get("owner_name") or "",
-            session["status"],
-            session.get("backup_reference") or "",
-            "" if session.get("rto_minutes") is None else str(session.get("rto_minutes")),
-            "" if session.get("rpo_minutes") is None else str(session.get("rpo_minutes")),
-            item["key"],
-            item["label"],
-            item["drill_status"],
-            item.get("note") or "",
-        ])
+        rows.append(
+            [
+                session["session_id"],
+                session["session_name"],
+                session.get("owner_name") or "",
+                session["status"],
+                session.get("backup_reference") or "",
+                "" if session.get("rto_minutes") is None else str(session.get("rto_minutes")),
+                "" if session.get("rpo_minutes") is None else str(session.get("rpo_minutes")),
+                item["key"],
+                item["label"],
+                item["drill_status"],
+                item.get("note") or "",
+            ]
+        )
     return "\n".join(_csv_row([str(value) for value in row]) for row in rows) + "\n"
 
 
@@ -3053,7 +3755,9 @@ def _workplan_item(
     }
 
 
-def _packet_evidence(key: str, label: str, status: str, detail: str, route: str, captured_at) -> dict:
+def _packet_evidence(
+    key: str, label: str, status: str, detail: str, route: str, captured_at
+) -> dict:
     return {
         "key": key,
         "label": label,
@@ -3066,21 +3770,22 @@ def _packet_evidence(key: str, label: str, status: str, detail: str, route: str,
 
 def _credential_binder_item(item: dict, archive: dict | None) -> dict:
     missing_steps = [
-        step["label"]
-        for step in item.get("steps", [])
-        if step.get("status") != "ready"
+        step["label"] for step in item.get("steps", []) if step.get("status") != "ready"
     ]
     blockers = list(item.get("blockers") or [])
     sandbox_reference_count = sum(
         1
         for evidence in item.get("sandbox_evidence", [])
-        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+        if evidence.get("status") == "passed"
+        and _is_vendor_reference_url(evidence.get("reference_url"))
     )
     sandbox_reference_total = len(item.get("sandbox_tests", []))
     handoff_archive = _credential_binder_archive(item, archive)
-    if item.get("status") in {"missing", "blocked"}:
-        binder_status = "blocking"
-    elif handoff_archive["status"] == "missing" and item.get("production_ready"):
+    if (
+        item.get("status") in {"missing", "blocked"}
+        or handoff_archive["status"] == "missing"
+        and item.get("production_ready")
+    ):
         binder_status = "blocking"
     elif (
         item.get("readiness_mode") == "production_vendor"
@@ -3088,8 +3793,14 @@ def _credential_binder_item(item: dict, archive: dict | None) -> dict:
         and sandbox_reference_count < sandbox_reference_total
     ):
         binder_status = "blocking"
-        blockers.append("Vendor sandbox reference URLs are required for every passed workflow before launch review.")
-    elif item.get("status") == "staged" or handoff_archive["status"] in {"missing", "warning"} or missing_steps:
+        blockers.append(
+            "Vendor sandbox reference URLs are required for every passed workflow before launch review."
+        )
+    elif (
+        item.get("status") == "staged"
+        or handoff_archive["status"] in {"missing", "warning"}
+        or missing_steps
+    ):
         binder_status = "warning"
     else:
         binder_status = "ready"
@@ -3111,7 +3822,9 @@ def _credential_binder_item(item: dict, archive: dict | None) -> dict:
         "handoff_archive": handoff_archive,
         "sandbox_reference_count": sandbox_reference_count,
         "sandbox_reference_total": sandbox_reference_total,
-        "sandbox_evidence_count": sum(1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed"),
+        "sandbox_evidence_count": sum(
+            1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed"
+        ),
         "missing_steps": missing_steps,
         "blockers": blockers,
         "route": "/integrations",
@@ -3128,22 +3841,30 @@ def _vendor_credential_request_item(item: dict, archive: dict | None) -> dict:
     sandbox_reference_count = sum(
         1
         for evidence in item.get("sandbox_evidence", [])
-        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+        if evidence.get("status") == "passed"
+        and _is_vendor_reference_url(evidence.get("reference_url"))
     )
     sandbox_reference_total = len(item.get("sandbox_tests", []))
     blockers = list(item.get("blockers") or [])
 
-    has_owner_contact = bool(vendor_profile.get("owner_email") or vendor_profile.get("support_contact"))
+    has_owner_contact = bool(
+        vendor_profile.get("owner_email") or vendor_profile.get("support_contact")
+    )
     has_contract = bool(vendor_profile.get("contract_reference_url"))
     if not has_owner_contact:
         request_status = "blocked"
-        blockers.append("Vendor owner email or support contact is required before a credential request can be sent.")
+        blockers.append(
+            "Vendor owner email or support contact is required before a credential request can be sent."
+        )
     elif missing_fields or archive_state["status"] == "missing" or not has_contract:
         request_status = "attention"
     else:
         request_status = "ready"
 
-    if "contract_reference_url" in missing_profile_fields and "Vendor contract/reference link is missing." not in blockers:
+    if (
+        "contract_reference_url" in missing_profile_fields
+        and "Vendor contract/reference link is missing." not in blockers
+    ):
         blockers.append("Vendor contract/reference link is missing.")
     if archive_state["status"] == "missing":
         blockers.append("Archive the vendor handoff packet before final launch review.")
@@ -3195,24 +3916,36 @@ def _vendor_credential_request_checklist(
     sandbox_reference_count: int,
     sandbox_reference_total: int,
 ) -> list[str]:
-    credential_label = ", ".join(missing_fields or required_fields) if required_fields else "vendor credential fields"
+    credential_label = (
+        ", ".join(missing_fields or required_fields)
+        if required_fields
+        else "vendor credential fields"
+    )
     checklist = [
         "Confirm vendor owner, owner email, support contact, and escalation notes.",
         f"Request credential values or setup confirmation for: {credential_label}.",
         "Attach the credential dry-run binder export for this integration.",
     ]
     if archive.get("archive_reference_url"):
-        checklist.append(f"Attach archived vendor handoff packet evidence: {archive['archive_reference_url']}.")
+        checklist.append(
+            f"Attach archived vendor handoff packet evidence: {archive['archive_reference_url']}."
+        )
     else:
         checklist.append("Export and archive the vendor handoff packet before final launch review.")
     if sandbox_reference_total:
         missing_reference_count = max(sandbox_reference_total - sandbox_reference_count, 0)
         if missing_reference_count:
-            checklist.append(f"Request vendor sandbox reference URLs for {missing_reference_count} workflow(s).")
+            checklist.append(
+                f"Request vendor sandbox reference URLs for {missing_reference_count} workflow(s)."
+            )
         else:
-            checklist.append("Confirm vendor sandbox reference URLs remain valid for all workflows.")
+            checklist.append(
+                "Confirm vendor sandbox reference URLs remain valid for all workflows."
+            )
     if item.get("readiness_mode") == "local_sandbox":
-        checklist.append("Replace local sandbox rehearsal evidence with production vendor evidence before live use.")
+        checklist.append(
+            "Replace local sandbox rehearsal evidence with production vendor evidence before live use."
+        )
     return checklist
 
 
@@ -3225,7 +3958,11 @@ def _vendor_credential_request_body(
     sandbox_reference_count: int,
     sandbox_reference_total: int,
 ) -> str:
-    credential_fields = ", ".join(missing_fields or required_fields) if required_fields else "the required production credential fields"
+    credential_fields = (
+        ", ".join(missing_fields or required_fields)
+        if required_fields
+        else "the required production credential fields"
+    )
     vendor_name = vendor_profile.get("vendor_name") or item["label"]
     owner_name = vendor_profile.get("owner_name") or "Vendor team"
     environment = vendor_profile.get("environment") or "production"
@@ -3239,16 +3976,18 @@ def _vendor_credential_request_body(
         if sandbox_reference_total
         else "Vendor sandbox references captured: no sandbox workflows are configured"
     )
-    return "\n".join([
-        f"Hello {owner_name},",
-        "",
-        f"We are preparing Concierge OS {item['label']} connectivity for the {environment} environment with {vendor_name}.",
-        f"Please provide or confirm: {credential_fields}.",
-        sandbox_line,
-        archive_line,
-        "",
-        "Please also confirm any IP allowlists, callback URLs, sandbox test references, and production cutover requirements for this integration.",
-    ])
+    return "\n".join(
+        [
+            f"Hello {owner_name},",
+            "",
+            f"We are preparing Concierge OS {item['label']} connectivity for the {environment} environment with {vendor_name}.",
+            f"Please provide or confirm: {credential_fields}.",
+            sandbox_line,
+            archive_line,
+            "",
+            "Please also confirm any IP allowlists, callback URLs, sandbox test references, and production cutover requirements for this integration.",
+        ]
+    )
 
 
 def _adapter_implementation_item(item: dict) -> dict:
@@ -3262,13 +4001,20 @@ def _adapter_implementation_item(item: dict) -> dict:
         implementation_status = "placeholder"
 
     priority = _adapter_priority(item, implementation_status)
-    required_credentials = sorted(set((item.get("configured_fields") or []) + (item.get("missing_fields") or [])))
+    required_credentials = sorted(
+        set((item.get("configured_fields") or []) + (item.get("missing_fields") or []))
+    )
     phases = _adapter_implementation_phases(item, implementation_status)
     blockers = list(item.get("blockers") or [])
     if implementation_status == "placeholder":
-        blockers.append(item.get("adapter_detail") or f"Implement the {item['label']} production adapter before live use.")
+        blockers.append(
+            item.get("adapter_detail")
+            or f"Implement the {item['label']} production adapter before live use."
+        )
     elif implementation_status == "sandbox_only":
-        blockers.append("Local sandbox adapter is rehearsal-only and must be replaced with production vendor adapter evidence before live use.")
+        blockers.append(
+            "Local sandbox adapter is rehearsal-only and must be replaced with production vendor adapter evidence before live use."
+        )
     if item.get("missing_fields"):
         blockers.append(f"Credential values still missing: {', '.join(item['missing_fields'])}.")
 
@@ -3281,7 +4027,9 @@ def _adapter_implementation_item(item: dict) -> dict:
         "configured": bool(item.get("configured")),
         "adapter_implemented": adapter_implemented,
         "adapter_method_ready_count": int(item.get("adapter_method_ready_count") or 0),
-        "adapter_method_total": int(item.get("adapter_method_total") or len(item.get("adapter_methods", []))),
+        "adapter_method_total": int(
+            item.get("adapter_method_total") or len(item.get("adapter_methods", []))
+        ),
         "adapter_methods": item.get("adapter_methods", []),
         "required_credentials": required_credentials,
         "missing_credentials": list(item.get("missing_fields") or []),
@@ -3306,13 +4054,19 @@ def _adapter_priority(item: dict, implementation_status: str) -> str:
 
 def _adapter_implementation_phases(item: dict, implementation_status: str) -> list[dict]:
     missing_credentials = item.get("missing_fields") or []
-    adapter_ready = item.get("adapter_method_ready_count", 0) == item.get("adapter_method_total", 0) and item.get("adapter_method_total", 0) > 0
+    adapter_ready = (
+        item.get("adapter_method_ready_count", 0) == item.get("adapter_method_total", 0)
+        and item.get("adapter_method_total", 0) > 0
+    )
     sandbox_count = len(item.get("sandbox_tests", []))
-    sandbox_passed = sum(1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed")
+    sandbox_passed = sum(
+        1 for evidence in item.get("sandbox_evidence", []) if evidence.get("status") == "passed"
+    )
     vendor_reference_count = sum(
         1
         for evidence in item.get("sandbox_evidence", [])
-        if evidence.get("status") == "passed" and _is_vendor_reference_url(evidence.get("reference_url"))
+        if evidence.get("status") == "passed"
+        and _is_vendor_reference_url(evidence.get("reference_url"))
     )
     return [
         {
@@ -3346,7 +4100,11 @@ def _adapter_implementation_phases(item: dict, implementation_status: str) -> li
         {
             "key": "production_vendor_evidence",
             "label": "Production vendor evidence",
-            "status": "ready" if item.get("production_ready") else "blocked" if implementation_status != "implemented" else "attention",
+            "status": "ready"
+            if item.get("production_ready")
+            else "blocked"
+            if implementation_status != "implemented"
+            else "attention",
             "detail": (
                 "Production-vendor readiness is recorded."
                 if item.get("production_ready")
@@ -3356,7 +4114,9 @@ def _adapter_implementation_phases(item: dict, implementation_status: str) -> li
     ]
 
 
-def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: dict, assignment: dict | None = None) -> dict:
+def _integration_cutover_readiness_item(
+    item: dict, adapter: dict, credential: dict, assignment: dict | None = None
+) -> dict:
     cutover_evidence = item.get("cutover_evidence") or {}
     risk_register = item.get("risk_register") or {}
     gates = [
@@ -3373,7 +4133,11 @@ def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: d
         _integration_cutover_gate(
             "credential_request",
             "Credential request",
-            "ready" if credential["request_status"] == "ready" else "blocked" if credential["request_status"] == "blocked" else "attention",
+            "ready"
+            if credential["request_status"] == "ready"
+            else "blocked"
+            if credential["request_status"] == "blocked"
+            else "attention",
             (
                 "Vendor credential request is ready to send."
                 if credential["request_status"] == "ready"
@@ -3383,7 +4147,11 @@ def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: d
         _integration_cutover_gate(
             "handoff_archive",
             "Vendor handoff archive",
-            "ready" if credential["handoff_archive"]["status"] == "ready" else "blocked" if credential["handoff_archive"]["status"] == "missing" else "attention",
+            "ready"
+            if credential["handoff_archive"]["status"] == "ready"
+            else "blocked"
+            if credential["handoff_archive"]["status"] == "missing"
+            else "attention",
             credential["handoff_archive"]["detail"],
         ),
         _integration_cutover_gate(
@@ -3399,7 +4167,10 @@ def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: d
         _integration_cutover_gate(
             "sandbox_references",
             "Vendor sandbox references",
-            "ready" if credential["sandbox_reference_total"] and credential["sandbox_reference_count"] == credential["sandbox_reference_total"] else "attention",
+            "ready"
+            if credential["sandbox_reference_total"]
+            and credential["sandbox_reference_count"] == credential["sandbox_reference_total"]
+            else "attention",
             f"{credential['sandbox_reference_count']} of {credential['sandbox_reference_total']} sandbox workflow(s) have vendor reference URLs.",
         ),
         _integration_cutover_gate(
@@ -3417,7 +4188,9 @@ def _integration_cutover_readiness_item(item: dict, adapter: dict, credential: d
     blockers.extend(adapter.get("blockers") or [])
     blockers.extend(credential.get("blockers") or [])
     blockers = _dedupe_strings(blockers)
-    next_actions = _integration_cutover_next_actions(gates, adapter, credential, cutover_evidence, risk_register)
+    next_actions = _integration_cutover_next_actions(
+        gates, adapter, credential, cutover_evidence, risk_register
+    )
     if any(gate["status"] == "blocked" for gate in gates):
         cutover_status = "blocked"
         go_no_go = "no_go"
@@ -3467,17 +4240,29 @@ def _integration_cutover_next_actions(
     if adapter["implementation_status"] != "implemented":
         actions.append("Assign production adapter implementation and contract-method verification.")
     if credential["request_status"] != "ready":
-        actions.append("Complete vendor credential request owner/contact, missing values, and archive context.")
+        actions.append(
+            "Complete vendor credential request owner/contact, missing values, and archive context."
+        )
     if credential["handoff_archive"]["status"] != "ready":
-        actions.append("Export and archive the vendor handoff packet with launch evidence reference.")
+        actions.append(
+            "Export and archive the vendor handoff packet with launch evidence reference."
+        )
     if not cutover_evidence.get("evidence_complete"):
-        actions.append("Complete cutover rehearsal date, last vendor test, rollback owner, go/no-go notes, and approval.")
-    if credential["sandbox_reference_total"] and credential["sandbox_reference_count"] < credential["sandbox_reference_total"]:
+        actions.append(
+            "Complete cutover rehearsal date, last vendor test, rollback owner, go/no-go notes, and approval."
+        )
+    if (
+        credential["sandbox_reference_total"]
+        and credential["sandbox_reference_count"] < credential["sandbox_reference_total"]
+    ):
         actions.append("Collect vendor sandbox reference URLs for every workflow.")
     if risk_register.get("blocking_count", 0):
         actions.append("Mitigate or explicitly accept blocking vendor risks before cutover.")
     for gate in gates:
-        if gate["status"] == "attention" and gate["key"] not in {"cutover_evidence", "sandbox_references"}:
+        if gate["status"] == "attention" and gate["key"] not in {
+            "cutover_evidence",
+            "sandbox_references",
+        }:
             actions.append(f"Review {gate['label'].lower()} before cutover.")
     return _dedupe_strings(actions)
 
@@ -3519,7 +4304,9 @@ def _is_vendor_reference_url(reference_url: str | None) -> bool:
     return bool(reference_url and not reference_url.strip().lower().startswith("sandbox://"))
 
 
-async def _vendor_handoff_archive_packet_evidence(db: AsyncSession | None, user: User, preflight: dict) -> dict:
+async def _vendor_handoff_archive_packet_evidence(
+    db: AsyncSession | None, user: User, preflight: dict
+) -> dict:
     required = [
         item
         for item in preflight.get("data", [])
@@ -3580,11 +4367,15 @@ async def _vendor_handoff_archive_packet_evidence(db: AsyncSession | None, user:
 async def _latest_vendor_handoff_archives(db: AsyncSession | None, user: User) -> dict[str, dict]:
     if db is None:
         return {}
-    query = select(AuditLog).where(
-        AuditLog.organization_id == user.organization_id,
-        AuditLog.event_type == integration_config_service.HANDOFF_PACKET_ARCHIVE_EVENT,
-        AuditLog.entity_type == "integration_config",
-    ).order_by(AuditLog.created_at.desc())
+    query = (
+        select(AuditLog)
+        .where(
+            AuditLog.organization_id == user.organization_id,
+            AuditLog.event_type == integration_config_service.HANDOFF_PACKET_ARCHIVE_EVENT,
+            AuditLog.entity_type == "integration_config",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
     result = await db.execute(query)
     archives: dict[str, dict] = {}
     for event in result.scalars().all():
@@ -3671,7 +4462,9 @@ def _training_role(key: str, label: str, summary: str, items: list[dict]) -> dic
     }
 
 
-def _policy_item(key: str, label: str, detail: str, route: str, category: str, docs: list[str]) -> dict:
+def _policy_item(
+    key: str, label: str, detail: str, route: str, category: str, docs: list[str]
+) -> dict:
     return {
         "key": key,
         "label": label,
@@ -3714,7 +4507,11 @@ def _cors_origins_are_production_safe() -> bool:
     if not origins:
         return False
     for origin in origins:
-        if origin == "*" or origin.startswith("http://localhost") or origin.startswith("http://127.0.0.1"):
+        if (
+            origin == "*"
+            or origin.startswith("http://localhost")
+            or origin.startswith("http://127.0.0.1")
+        ):
             return False
         if not origin.startswith("https://"):
             return False
@@ -3810,10 +4607,13 @@ async def _integration_failure_health(db: AsyncSession, user: User) -> dict:
     latest_error = None
     if failed_count:
         latest = await db.execute(
-            select(IntegrationEvent).where(
+            select(IntegrationEvent)
+            .where(
                 IntegrationEvent.organization_id == user.organization_id,
                 IntegrationEvent.status == IntegrationEventStatus.failed,
-            ).order_by(IntegrationEvent.updated_at.desc()).limit(1)
+            )
+            .order_by(IntegrationEvent.updated_at.desc())
+            .limit(1)
         )
         latest_event = latest.scalar_one_or_none()
         latest_error = latest_event.error if latest_event else None
@@ -3869,14 +4669,19 @@ def _role_checklist(key: str, label: str, summary: str, items: list[dict]) -> di
     }
 
 
-async def _latest_browser_qa_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_browser_qa_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == BROWSER_QA_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -3924,14 +4729,19 @@ def _browser_qa_session_from_audit(event: AuditLog) -> dict:
     }
 
 
-async def _latest_staff_training_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_staff_training_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == STAFF_TRAINING_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -3980,14 +4790,19 @@ def _staff_training_session_from_audit(event: AuditLog) -> dict:
     }
 
 
-async def _latest_restore_drill_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_restore_drill_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == RESTORE_DRILL_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -4038,14 +4853,19 @@ def _restore_drill_session_from_audit(event: AuditLog) -> dict:
     }
 
 
-async def _latest_policy_approval_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_policy_approval_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == POLICY_APPROVAL_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -4093,14 +4913,19 @@ def _policy_approval_session_from_audit(event: AuditLog) -> dict:
     }
 
 
-async def _latest_cutover_runbook_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_cutover_runbook_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == CUTOVER_RUNBOOK_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -4157,14 +4982,19 @@ def _cutover_runbook_session_from_audit(event: AuditLog) -> dict:
     }
 
 
-async def _latest_dry_run_session_event(db: AsyncSession, user: User, session_id: str) -> AuditLog | None:
+async def _latest_dry_run_session_event(
+    db: AsyncSession, user: User, session_id: str
+) -> AuditLog | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == ROLE_DRY_RUN_SESSION_EVENT_TYPE,
             AuditLog.entity_type == "operations",
             AuditLog.entity_id == session_id,
-        ).order_by(AuditLog.created_at.desc()).limit(1)
+        )
+        .order_by(AuditLog.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -4237,21 +5067,27 @@ def _dedupe_workplan_items(items: list[dict]) -> list[dict]:
 def _serialize_rehearsal_report(report: dict) -> dict:
     return {
         **report,
-        "generated_at": report["generated_at"].isoformat() if hasattr(report["generated_at"], "isoformat") else report["generated_at"],
+        "generated_at": report["generated_at"].isoformat()
+        if hasattr(report["generated_at"], "isoformat")
+        else report["generated_at"],
     }
 
 
 def _serialize_launch_workplan(workplan: dict) -> dict:
     return {
         **workplan,
-        "generated_at": workplan["generated_at"].isoformat() if hasattr(workplan["generated_at"], "isoformat") else workplan["generated_at"],
+        "generated_at": workplan["generated_at"].isoformat()
+        if hasattr(workplan["generated_at"], "isoformat")
+        else workplan["generated_at"],
     }
 
 
 def _serialize_credential_binder(binder: dict) -> dict:
     return {
         **binder,
-        "generated_at": binder["generated_at"].isoformat() if hasattr(binder["generated_at"], "isoformat") else binder["generated_at"],
+        "generated_at": binder["generated_at"].isoformat()
+        if hasattr(binder["generated_at"], "isoformat")
+        else binder["generated_at"],
     }
 
 
@@ -4347,33 +5183,37 @@ def _readiness_incidents(readiness: dict) -> list[dict]:
     incidents = []
     for key, check in readiness.get("checks", {}).items():
         if not check.get("ok"):
-            incidents.append(_incident(
-                key=f"core_{key}",
-                title=f"{key.replace('_', ' ').title()} degraded",
-                severity="critical",
-                source="readiness",
-                status="open",
-                owner_role="operations",
-                count=1,
-                detail=_check_detail(check),
-                recommended_action="Restore core infrastructure before clinical use.",
-                route="/operations",
-            ))
+            incidents.append(
+                _incident(
+                    key=f"core_{key}",
+                    title=f"{key.replace('_', ' ').title()} degraded",
+                    severity="critical",
+                    source="readiness",
+                    status="open",
+                    owner_role="operations",
+                    count=1,
+                    detail=_check_detail(check),
+                    recommended_action="Restore core infrastructure before clinical use.",
+                    route="/operations",
+                )
+            )
     for key, check in readiness.get("integrations", {}).items():
         if check.get("ok"):
             continue
-        incidents.append(_incident(
-            key=f"integration_{key}",
-            title=f"{key.replace('_', ' ').title()} not live",
-            severity="critical" if check.get("configured") else "warning",
-            source="readiness",
-            status="setup_required" if not check.get("configured") else "open",
-            owner_role="operations",
-            count=1,
-            detail=_check_detail(check),
-            recommended_action="Connect credentials, test the adapter, and rerun readiness.",
-            route="/integrations",
-        ))
+        incidents.append(
+            _incident(
+                key=f"integration_{key}",
+                title=f"{key.replace('_', ' ').title()} not live",
+                severity="critical" if check.get("configured") else "warning",
+                source="readiness",
+                status="setup_required" if not check.get("configured") else "open",
+                owner_role="operations",
+                count=1,
+                detail=_check_detail(check),
+                recommended_action="Connect credentials, test the adapter, and rerun readiness.",
+                route="/integrations",
+            )
+        )
     return incidents
 
 
@@ -4382,18 +5222,20 @@ def _launch_incidents(launch: dict) -> list[dict]:
     for requirement in launch.get("requirements", []):
         if requirement.get("ready"):
             continue
-        incidents.append(_incident(
-            key=f"launch_{requirement['key']}",
-            title=requirement["label"],
-            severity=requirement["severity"],
-            source="launch_readiness",
-            status="open",
-            owner_role="operations",
-            count=1,
-            detail=requirement["detail"],
-            recommended_action=requirement["action"],
-            route="/setup",
-        ))
+        incidents.append(
+            _incident(
+                key=f"launch_{requirement['key']}",
+                title=requirement["label"],
+                severity=requirement["severity"],
+                source="launch_readiness",
+                status="open",
+                owner_role="operations",
+                count=1,
+                detail=requirement["detail"],
+                recommended_action=requirement["action"],
+                route="/setup",
+            )
+        )
     return incidents
 
 
@@ -4403,10 +5245,12 @@ async def _integration_event_incidents(db: AsyncSession, user: User) -> list[dic
             IntegrationEvent.integration,
             func.count(IntegrationEvent.id),
             func.max(IntegrationEvent.error),
-        ).where(
+        )
+        .where(
             IntegrationEvent.organization_id == user.organization_id,
             IntegrationEvent.status == IntegrationEventStatus.failed,
-        ).group_by(IntegrationEvent.integration)
+        )
+        .group_by(IntegrationEvent.integration)
     )
     return [
         _incident(
@@ -4483,24 +5327,81 @@ SCOPE_ACCEPTANCE_PACKET_EVENT_TYPE = "operations.scope_acceptance_packet"
 
 def _drchrono_parity_matrix() -> list[dict]:
     return [
-        {"feature": "Patient chart", "drchrono": True, "concierge_os": True, "gaps": "", "owner": None},
-        {"feature": "Scheduling", "drchrono": True, "concierge_os": True, "gaps": "", "owner": None},
+        {
+            "feature": "Patient chart",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "",
+            "owner": None,
+        },
+        {
+            "feature": "Scheduling",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "",
+            "owner": None,
+        },
         {"feature": "Documents", "drchrono": True, "concierge_os": True, "gaps": "", "owner": None},
         {"feature": "Messages", "drchrono": True, "concierge_os": True, "gaps": "", "owner": None},
-        {"feature": "Fax", "drchrono": True, "concierge_os": True, "gaps": "External vendor required", "owner": "operations"},
-        {"feature": "Billing", "drchrono": True, "concierge_os": True, "gaps": "Clearinghouse integration required", "owner": "operations"},
-        {"feature": "Labs", "drchrono": True, "concierge_os": True, "gaps": "Labs/HIE integration required", "owner": "operations"},
-        {"feature": "Prescriptions", "drchrono": True, "concierge_os": True, "gaps": "eRx integration required", "owner": "operations"},
+        {
+            "feature": "Fax",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "External vendor required",
+            "owner": "operations",
+        },
+        {
+            "feature": "Billing",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "Clearinghouse integration required",
+            "owner": "operations",
+        },
+        {
+            "feature": "Labs",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "Labs/HIE integration required",
+            "owner": "operations",
+        },
+        {
+            "feature": "Prescriptions",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "eRx integration required",
+            "owner": "operations",
+        },
         {"feature": "Reporting", "drchrono": True, "concierge_os": True, "gaps": "", "owner": None},
-        {"feature": "Staff administration", "drchrono": True, "concierge_os": True, "gaps": "Identity/MFA integration required", "owner": "operations"},
+        {
+            "feature": "Staff administration",
+            "drchrono": True,
+            "concierge_os": True,
+            "gaps": "Identity/MFA integration required",
+            "owner": "operations",
+        },
     ]
 
 
 def _outage_reduction_targets() -> list[dict]:
     return [
-        {"target": "Planned downtime", "goal": "\u003c 15 minutes per month", "fallback": "DrChrono read-only mode", "owner": "operations"},
-        {"target": "Unplanned downtime", "goal": "\u003c 5 minutes RTO", "fallback": "DrChrono read-only mode", "owner": "operations"},
-        {"target": "Data loss", "goal": "Zero", "fallback": "Daily backups + 4-hour RPO", "owner": "operations"},
+        {
+            "target": "Planned downtime",
+            "goal": "\u003c 15 minutes per month",
+            "fallback": "DrChrono read-only mode",
+            "owner": "operations",
+        },
+        {
+            "target": "Unplanned downtime",
+            "goal": "\u003c 5 minutes RTO",
+            "fallback": "DrChrono read-only mode",
+            "owner": "operations",
+        },
+        {
+            "target": "Data loss",
+            "goal": "Zero",
+            "fallback": "Daily backups + 4-hour RPO",
+            "owner": "operations",
+        },
     ]
 
 
@@ -4550,7 +5451,9 @@ async def scope_acceptance_packet_csv(packet: dict) -> str:
     rows.append("Parity Matrix")
     rows.append("Feature,DrChrono,Concierge OS,Gaps,Owner")
     for item in packet["parity_matrix"]:
-        rows.append(f"{item['feature']},{item['drchrono']},{item['concierge_os']},{neutralize_csv_formula(item['gaps'])},{item['owner'] or ''}")
+        rows.append(
+            f"{item['feature']},{item['drchrono']},{item['concierge_os']},{neutralize_csv_formula(item['gaps'])},{item['owner'] or ''}"
+        )
     rows.append("")
     rows.append("Outage Reduction Targets")
     rows.append("Target,Goal,Fallback,Owner")
@@ -4673,14 +5576,20 @@ async def create_drchrono_import_batch(db: AsyncSession, user: User, data: dict)
 
 async def list_drchrono_import_batches(db: AsyncSession, user: User) -> list[dict]:
     rows = (
-        await db.execute(
-            select(AuditLog).where(
-                AuditLog.organization_id == user.organization_id,
-                AuditLog.event_type == DRCHRONO_MIGRATION_PACKET_EVENT_TYPE,
-                AuditLog.entity_type == "operations",
-            ).order_by(AuditLog.created_at.desc())
+        (
+            await db.execute(
+                select(AuditLog)
+                .where(
+                    AuditLog.organization_id == user.organization_id,
+                    AuditLog.event_type == DRCHRONO_MIGRATION_PACKET_EVENT_TYPE,
+                    AuditLog.entity_type == "operations",
+                )
+                .order_by(AuditLog.created_at.desc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     batches = []
     for event in rows:
         payload = event.payload or {}

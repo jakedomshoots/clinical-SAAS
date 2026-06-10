@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -88,11 +88,15 @@ async def assess_hereditary_risk(
     # Check for BRCA-related cancers
     brca_cancers = {"breast cancer", "ovarian cancer", "pancreatic cancer", "prostate cancer"}
     brca_relatives = [
-        c for c in conditions
+        c
+        for c in conditions
         if c.condition_name.lower() in brca_cancers
-        and c.relative_relationship.value in ("mother", "sister", "daughter", "maternal_grandmother", "paternal_grandmother")
+        and c.relative_relationship.value
+        in ("mother", "sister", "daughter", "maternal_grandmother", "paternal_grandmother")
     ]
-    if len(brca_relatives) >= 2 or any(c.age_at_diagnosis and c.age_at_diagnosis < 50 for c in brca_relatives):
+    if len(brca_relatives) >= 2 or any(
+        c.age_at_diagnosis and c.age_at_diagnosis < 50 for c in brca_relatives
+    ):
         risk_factors.append("BRCA1/BRCA2 hereditary breast/ovarian cancer syndrome")
         recommendations.append("Refer for genetic counseling and BRCA testing")
 
@@ -104,9 +108,16 @@ async def assess_hereditary_risk(
         recommendations.append("Refer for genetic counseling and Lynch panel testing")
 
     # Check for familial adenomatous polyposis
-    if any(c.condition_name.lower() == "colorectal cancer" and c.age_at_diagnosis and c.age_at_diagnosis < 50 for c in conditions):
+    if any(
+        c.condition_name.lower() == "colorectal cancer"
+        and c.age_at_diagnosis
+        and c.age_at_diagnosis < 50
+        for c in conditions
+    ):
         risk_factors.append("Early-onset colorectal cancer in family")
-        recommendations.append("Consider early colonoscopy screening (age 40 or 10 years before earliest case)")
+        recommendations.append(
+            "Consider early colonoscopy screening (age 40 or 10 years before earliest case)"
+        )
 
     return {
         "patient_id": patient_id,
@@ -114,8 +125,5 @@ async def assess_hereditary_risk(
         "hereditary_risk_factors": risk_factors,
         "risk_level": "high" if risk_factors else "average",
         "recommendations": recommendations,
-        "referrals": [
-            {"type": "genetic_counseling", "reason": r}
-            for r in risk_factors
-        ],
+        "referrals": [{"type": "genetic_counseling", "reason": r} for r in risk_factors],
     }

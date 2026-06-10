@@ -29,18 +29,56 @@ MANIFEST = {
         {"src": "/icon-152x152.png", "sizes": "152x152", "type": "image/png"},
         {"src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png"},
         {"src": "/icon-384x384.png", "sizes": "384x384", "type": "image/png"},
-        {"src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+        {
+            "src": "/icon-512x512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable",
+        },
     ],
     "categories": ["medical", "productivity", "business"],
     "screenshots": [
-        {"src": "/screenshot-1.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide"},
-        {"src": "/screenshot-2.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide"},
-        {"src": "/screenshot-mobile.png", "sizes": "750x1334", "type": "image/png", "form_factor": "narrow"},
+        {
+            "src": "/screenshot-1.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+        },
+        {
+            "src": "/screenshot-2.png",
+            "sizes": "1280x720",
+            "type": "image/png",
+            "form_factor": "wide",
+        },
+        {
+            "src": "/screenshot-mobile.png",
+            "sizes": "750x1334",
+            "type": "image/png",
+            "form_factor": "narrow",
+        },
     ],
     "shortcuts": [
-        {"name": "Schedule", "short_name": "Schedule", "description": "View today's schedule", "url": "/scheduling", "icons": [{"src": "/icon-schedule.png", "sizes": "96x96"}]},
-        {"name": "Patients", "short_name": "Patients", "description": "Search patients", "url": "/patients", "icons": [{"src": "/icon-patients.png", "sizes": "96x96"}]},
-        {"name": "Tasks", "short_name": "Tasks", "description": "View tasks", "url": "/tasks", "icons": [{"src": "/icon-tasks.png", "sizes": "96x96"}]},
+        {
+            "name": "Schedule",
+            "short_name": "Schedule",
+            "description": "View today's schedule",
+            "url": "/scheduling",
+            "icons": [{"src": "/icon-schedule.png", "sizes": "96x96"}],
+        },
+        {
+            "name": "Patients",
+            "short_name": "Patients",
+            "description": "Search patients",
+            "url": "/patients",
+            "icons": [{"src": "/icon-patients.png", "sizes": "96x96"}],
+        },
+        {
+            "name": "Tasks",
+            "short_name": "Tasks",
+            "description": "View tasks",
+            "url": "/tasks",
+            "icons": [{"src": "/icon-tasks.png", "sizes": "96x96"}],
+        },
     ],
     "related_applications": [],
     "prefer_related_applications": False,
@@ -84,7 +122,7 @@ self.addEventListener('activate', (event) => {
 // Fetch: network first, fallback to cache
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {

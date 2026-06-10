@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import Base, engine
 from app.deps import require_roles
+from app.integrations.fhir import router as fhir_router
+from app.integrations.pwa import router as pwa_router
 from app.minio_client import ensure_bucket
 from app.models.user import User, UserRole
 from app.redis_client import redis
@@ -50,6 +52,7 @@ from app.routers import (
 from app.routers import (
     settings as settings_router,
 )
+from app.routers.patient_portal_complete import router as portal_complete_router
 from app.services.readiness_service import check_readiness
 
 
@@ -138,16 +141,10 @@ app.include_router(mips.router)
 app.include_router(amendments.router)
 
 # FHIR API (ONC certification)
-from app.integrations.fhir import router as fhir_router
-
 app.include_router(fhir_router)
 
 # PWA endpoints
-from app.integrations.pwa import router as pwa_router
-
 app.include_router(pwa_router)
 
 # Patient portal complete
-from app.routers.patient_portal_complete import router as portal_complete_router
-
 app.include_router(portal_complete_router)

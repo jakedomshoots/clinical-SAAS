@@ -49,9 +49,7 @@ async def list_events(
     entity_type: str | None = None,
     entity_id: str | None = None,
 ) -> tuple[list[IntegrationEvent], int]:
-    query = select(IntegrationEvent).where(
-        IntegrationEvent.organization_id == user.organization_id
-    )
+    query = select(IntegrationEvent).where(IntegrationEvent.organization_id == user.organization_id)
     count_query = select(func.count(IntegrationEvent.id)).where(
         IntegrationEvent.organization_id == user.organization_id
     )

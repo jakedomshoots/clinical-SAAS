@@ -1,5 +1,6 @@
-import pytest
 from datetime import UTC, datetime, timedelta
+
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,7 +107,9 @@ async def test_admin_can_issue_temporary_password_reset_and_recovery_summary(
     old_staff_headers = headers_for(staff)
     expired = await make_user(db, UserRole.ma, "ma-expired-reset@clinic.example.com")
     expired.password_must_change = True
-    expired.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+    expired.temporary_password_expires_at = datetime.now(UTC).replace(tzinfo=None) - timedelta(
+        hours=1
+    )
     await db.commit()
 
     reset = await client.post(f"/api/users/{staff.id}/password-reset", headers=auth_headers)
@@ -283,7 +286,9 @@ async def test_provider_cannot_open_access_review(
     client: AsyncClient,
     db: AsyncSession,
 ):
-    provider = await make_user(db, UserRole.provider, "provider-review-forbidden@clinic.example.com")
+    provider = await make_user(
+        db, UserRole.provider, "provider-review-forbidden@clinic.example.com"
+    )
 
     res = await client.get("/api/users/access-review", headers=headers_for(provider))
 

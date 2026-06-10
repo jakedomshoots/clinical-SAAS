@@ -23,8 +23,16 @@ async def get_or_create_settings(db: AsyncSession, user: User) -> ClinicSettings
 async def update_settings(db: AsyncSession, user: User, data: dict) -> ClinicSettings:
     settings = await get_or_create_settings(db, user)
     if "reminder_offsets_minutes" in data and data["reminder_offsets_minutes"] is not None:
-        settings.reminder_offsets_minutes = sorted({int(value) for value in data["reminder_offsets_minutes"]}, reverse=True)
-    for field in ("reminder_sms_template", "reminder_email_template", "sender_identity", "audit_retention_days", "phi_reauth_minutes"):
+        settings.reminder_offsets_minutes = sorted(
+            {int(value) for value in data["reminder_offsets_minutes"]}, reverse=True
+        )
+    for field in (
+        "reminder_sms_template",
+        "reminder_email_template",
+        "sender_identity",
+        "audit_retention_days",
+        "phi_reauth_minutes",
+    ):
         if field in data and data[field] is not None:
             setattr(settings, field, data[field])
     await db.commit()

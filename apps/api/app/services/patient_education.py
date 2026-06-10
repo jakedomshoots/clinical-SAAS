@@ -168,7 +168,9 @@ class PatientEducationService:
 
         return {
             "patient_id": patient.get("id"),
-            "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+            "generated_at": __import__("datetime")
+            .datetime.now(__import__("datetime").timezone.utc)
+            .isoformat(),
             "total_resources": len(resources),
             "resources": resources,
         }

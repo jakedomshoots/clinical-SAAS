@@ -8,12 +8,12 @@ from app.database import get_db
 from app.deps import require_roles
 from app.models.user import User, UserRole
 from app.schemas.operations import (
+    AdapterImplementationPacketOut,
     BrowserQaChecklistOut,
     BrowserQaSessionListOut,
     BrowserQaSessionOut,
     BrowserQaSessionStart,
     BrowserQaSessionUpdate,
-    AdapterImplementationPacketOut,
     CredentialBinderSnapshotListOut,
     CredentialBinderSnapshotOut,
     CredentialDryRunBinderOut,
@@ -29,28 +29,28 @@ from app.schemas.operations import (
     DrChronoMigrationDryRunOut,
     DrChronoMigrationDryRunStart,
     DrChronoMigrationPacketOut,
-    GoLivePacketOut,
     GoLiveAttestationCreate,
     GoLiveAttestationListOut,
     GoLiveAttestationOut,
+    GoLivePacketOut,
     IntegrationCutoverReadinessPacketOut,
+    LaunchWorkplanOut,
+    LaunchWorkplanSnapshotListOut,
+    LaunchWorkplanSnapshotOut,
+    LiveUseRehearsalOut,
     OperationsAlertRuleListOut,
     OperationsAlertRuleOut,
-    OperationsIncidentTimelineOut,
-    LiveUseRehearsalOut,
-    OperatorHealthOut,
     OperationsIncidentListOut,
     OperationsIncidentOut,
+    OperationsIncidentTimelineOut,
     OperationsTimelineItemOut,
+    OperatorHealthOut,
     PolicyApprovalChecklistOut,
     PolicyApprovalSessionListOut,
     PolicyApprovalSessionOut,
     PolicyApprovalSessionStart,
     PolicyApprovalSessionUpdate,
     ProductionConfigAuditOut,
-    LaunchWorkplanOut,
-    LaunchWorkplanSnapshotListOut,
-    LaunchWorkplanSnapshotOut,
     ProductionRehearsalReportOut,
     ProductionRehearsalSnapshotListOut,
     ProductionRehearsalSnapshotOut,
@@ -98,9 +98,7 @@ async def list_operations_incidents(db: DbDep, current_user: OpsUserDep):
 
 @router.get("/operator-health", response_model=OperatorHealthOut)
 async def get_operator_health(db: DbDep, current_user: OpsUserDep):
-    return OperatorHealthOut(
-        **await operations_service.operator_health(db, current_user)
-    )
+    return OperatorHealthOut(**await operations_service.operator_health(db, current_user))
 
 
 @router.get("/incident-timeline", response_model=OperationsIncidentTimelineOut)
@@ -137,16 +135,12 @@ async def get_document_storage_readiness(db: DbDep, current_user: OpsUserDep):
 
 @router.get("/production-config-audit", response_model=ProductionConfigAuditOut)
 async def get_production_config_audit(current_user: OpsUserDep):
-    return ProductionConfigAuditOut(
-        **operations_service.production_config_audit()
-    )
+    return ProductionConfigAuditOut(**operations_service.production_config_audit())
 
 
 @router.get("/browser-qa-checklist", response_model=BrowserQaChecklistOut)
 async def get_browser_qa_checklist(current_user: OpsUserDep):
-    return BrowserQaChecklistOut(
-        **operations_service.browser_qa_checklist()
-    )
+    return BrowserQaChecklistOut(**operations_service.browser_qa_checklist())
 
 
 @router.post(
@@ -154,7 +148,9 @@ async def get_browser_qa_checklist(current_user: OpsUserDep):
     response_model=BrowserQaSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_browser_qa_session(data: BrowserQaSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_browser_qa_session(
+    data: BrowserQaSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return BrowserQaSessionOut(
         **await operations_service.start_browser_qa_session(db, current_user, data.model_dump())
     )
@@ -183,15 +179,15 @@ async def update_browser_qa_session(
         data.model_dump(),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Browser QA session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Browser QA session not found"
+        )
     return BrowserQaSessionOut(**session)
 
 
 @router.get("/staff-training-checklist", response_model=StaffTrainingChecklistOut)
 async def get_staff_training_checklist(current_user: OpsUserDep):
-    return StaffTrainingChecklistOut(
-        **operations_service.staff_training_checklist()
-    )
+    return StaffTrainingChecklistOut(**operations_service.staff_training_checklist())
 
 
 @router.post(
@@ -199,7 +195,9 @@ async def get_staff_training_checklist(current_user: OpsUserDep):
     response_model=StaffTrainingSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_staff_training_session(data: StaffTrainingSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_staff_training_session(
+    data: StaffTrainingSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return StaffTrainingSessionOut(
         **await operations_service.start_staff_training_session(db, current_user, data.model_dump())
     )
@@ -228,15 +226,15 @@ async def update_staff_training_session(
         data.model_dump(),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Staff training session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Staff training session not found"
+        )
     return StaffTrainingSessionOut(**session)
 
 
 @router.get("/policy-approval-checklist", response_model=PolicyApprovalChecklistOut)
 async def get_policy_approval_checklist(current_user: OpsUserDep):
-    return PolicyApprovalChecklistOut(
-        **operations_service.policy_approval_checklist()
-    )
+    return PolicyApprovalChecklistOut(**operations_service.policy_approval_checklist())
 
 
 @router.post(
@@ -244,9 +242,13 @@ async def get_policy_approval_checklist(current_user: OpsUserDep):
     response_model=PolicyApprovalSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_policy_approval_session(data: PolicyApprovalSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_policy_approval_session(
+    data: PolicyApprovalSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return PolicyApprovalSessionOut(
-        **await operations_service.start_policy_approval_session(db, current_user, data.model_dump())
+        **await operations_service.start_policy_approval_session(
+            db, current_user, data.model_dump()
+        )
     )
 
 
@@ -273,15 +275,15 @@ async def update_policy_approval_session(
         data.model_dump(),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Policy approval session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Policy approval session not found"
+        )
     return PolicyApprovalSessionOut(**session)
 
 
 @router.get("/cutover-runbook", response_model=CutoverRunbookOut)
 async def get_cutover_runbook(current_user: OpsUserDep):
-    return CutoverRunbookOut(
-        **operations_service.cutover_runbook()
-    )
+    return CutoverRunbookOut(**operations_service.cutover_runbook())
 
 
 @router.post(
@@ -289,9 +291,13 @@ async def get_cutover_runbook(current_user: OpsUserDep):
     response_model=CutoverRunbookSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_cutover_runbook_session(data: CutoverRunbookSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_cutover_runbook_session(
+    data: CutoverRunbookSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return CutoverRunbookSessionOut(
-        **await operations_service.start_cutover_runbook_session(db, current_user, data.model_dump())
+        **await operations_service.start_cutover_runbook_session(
+            db, current_user, data.model_dump()
+        )
     )
 
 
@@ -318,7 +324,9 @@ async def update_cutover_runbook_session(
         data.model_dump(),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found"
+        )
     return CutoverRunbookSessionOut(**session)
 
 
@@ -326,7 +334,9 @@ async def update_cutover_runbook_session(
 async def export_cutover_runbook_session(session_id: str, db: DbDep, current_user: OpsUserDep):
     session = await operations_service.get_cutover_runbook_session(db, current_user, session_id)
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Cutover runbook session not found"
+        )
     return Response(
         content=operations_service.cutover_runbook_csv(session),
         media_type="text/csv",
@@ -336,9 +346,7 @@ async def export_cutover_runbook_session(session_id: str, db: DbDep, current_use
 
 @router.get("/launch-workplan", response_model=LaunchWorkplanOut)
 async def get_launch_workplan(db: DbDep, current_user: OpsUserDep):
-    return LaunchWorkplanOut(
-        **await operations_service.launch_workplan(db, current_user)
-    )
+    return LaunchWorkplanOut(**await operations_service.launch_workplan(db, current_user))
 
 
 @router.get("/credential-dry-run-binder", response_model=CredentialDryRunBinderOut)
@@ -392,7 +400,9 @@ async def export_adapter_implementation_packet(db: DbDep, current_user: OpsUserD
     )
 
 
-@router.get("/integration-cutover-readiness-packet", response_model=IntegrationCutoverReadinessPacketOut)
+@router.get(
+    "/integration-cutover-readiness-packet", response_model=IntegrationCutoverReadinessPacketOut
+)
 async def get_integration_cutover_readiness_packet(db: DbDep, current_user: OpsUserDep):
     return IntegrationCutoverReadinessPacketOut(
         **await operations_service.integration_cutover_readiness_packet(db, current_user)
@@ -427,7 +437,9 @@ async def assign_integration_cutover_lane(
         data.model_dump(),
     )
     if not assignment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Integration cutover lane not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Integration cutover lane not found"
+        )
     return RehearsalActionAssignmentOut(**assignment)
 
 
@@ -453,16 +465,12 @@ async def list_credential_dry_run_binder_snapshots(db: DbDep, current_user: OpsU
 
 @router.get("/go-live-packet", response_model=GoLivePacketOut)
 async def get_go_live_packet(db: DbDep, current_user: OpsUserDep):
-    return GoLivePacketOut(
-        **await operations_service.go_live_packet(db, current_user)
-    )
+    return GoLivePacketOut(**await operations_service.go_live_packet(db, current_user))
 
 
 @router.get("/live-use-rehearsal", response_model=LiveUseRehearsalOut)
 async def get_live_use_rehearsal(db: DbDep, current_user: OpsUserDep):
-    return LiveUseRehearsalOut(
-        **await operations_service.live_use_rehearsal(db, current_user)
-    )
+    return LiveUseRehearsalOut(**await operations_service.live_use_rehearsal(db, current_user))
 
 
 @router.get("/live-use-rehearsal/export")
@@ -471,7 +479,9 @@ async def export_live_use_rehearsal(db: DbDep, current_user: OpsUserDep):
     return Response(
         content=operations_service.live_use_rehearsal_csv(dashboard),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="concierge-os-live-use-rehearsal.csv"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="concierge-os-live-use-rehearsal.csv"'
+        },
     )
 
 
@@ -487,7 +497,9 @@ async def get_role_dry_run_checklists(db: DbDep, current_user: OpsUserDep):
     response_model=RoleDryRunSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_role_dry_run_session(data: RoleDryRunSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_role_dry_run_session(
+    data: RoleDryRunSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return RoleDryRunSessionOut(
         **await operations_service.start_role_dry_run_session(db, current_user, data.model_dump())
     )
@@ -516,7 +528,9 @@ async def update_role_dry_run_session(
         data.model_dump(),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Role dry-run session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Role dry-run session not found"
+        )
     return RoleDryRunSessionOut(**session)
 
 
@@ -525,14 +539,16 @@ async def update_role_dry_run_session(
     response_model=GoLiveAttestationOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def create_go_live_attestation(data: GoLiveAttestationCreate, db: DbDep, current_user: OpsUserDep):
+async def create_go_live_attestation(
+    data: GoLiveAttestationCreate, db: DbDep, current_user: OpsUserDep
+):
     try:
-        attestation = await operations_service.attest_go_live_packet(db, current_user, data.model_dump())
+        attestation = await operations_service.attest_go_live_packet(
+            db, current_user, data.model_dump()
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    return GoLiveAttestationOut(
-        **attestation
-    )
+    return GoLiveAttestationOut(**attestation)
 
 
 @router.get("/go-live-packet/attestations", response_model=GoLiveAttestationListOut)
@@ -610,7 +626,9 @@ async def export_production_rehearsal_report(db: DbDep, current_user: OpsUserDep
     return Response(
         content=operations_service.rehearsal_report_csv(report),
         media_type="text/csv",
-        headers={"Content-Disposition": 'attachment; filename="concierge-os-production-rehearsal.csv"'},
+        headers={
+            "Content-Disposition": 'attachment; filename="concierge-os-production-rehearsal.csv"'
+        },
     )
 
 
@@ -632,7 +650,9 @@ async def assign_production_rehearsal_action(
         data.model_dump(),
     )
     if not assignment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Rehearsal action is not currently open")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Rehearsal action is not currently open"
+        )
     return RehearsalActionAssignmentOut(**assignment)
 
 
@@ -666,7 +686,9 @@ async def get_restore_drill_checklist(current_user: OpsUserDep):
     response_model=RestoreDrillSessionOut,
     status_code=status.HTTP_201_CREATED,
 )
-async def start_restore_drill_session(data: RestoreDrillSessionStart, db: DbDep, current_user: OpsUserDep):
+async def start_restore_drill_session(
+    data: RestoreDrillSessionStart, db: DbDep, current_user: OpsUserDep
+):
     return RestoreDrillSessionOut(
         **await operations_service.start_restore_drill_session(db, current_user, data.model_dump())
     )
@@ -675,7 +697,9 @@ async def start_restore_drill_session(data: RestoreDrillSessionStart, db: DbDep,
 @router.get("/restore-drill-sessions", response_model=RestoreDrillSessionListOut)
 async def list_restore_drill_sessions(db: DbDep, current_user: OpsUserDep):
     rows, total = await operations_service.list_restore_drill_sessions(db, current_user)
-    return RestoreDrillSessionListOut(data=[RestoreDrillSessionOut(**item) for item in rows], total=total)
+    return RestoreDrillSessionListOut(
+        data=[RestoreDrillSessionOut(**item) for item in rows], total=total
+    )
 
 
 @router.patch("/restore-drill-sessions/{session_id}", response_model=RestoreDrillSessionOut)
@@ -692,7 +716,9 @@ async def update_restore_drill_session(
         data.model_dump(exclude_none=True),
     )
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found"
+        )
     return RestoreDrillSessionOut(**session)
 
 
@@ -700,7 +726,9 @@ async def update_restore_drill_session(
 async def export_restore_drill_session(session_id: str, db: DbDep, current_user: OpsUserDep):
     session = await operations_service.get_restore_drill_session(db, current_user, session_id)
     if not session:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Restore drill session not found"
+        )
     return Response(
         content=operations_service.restore_drill_session_csv(session),
         media_type="text/csv",
@@ -733,14 +761,22 @@ async def get_drchrono_migration_packet(db: DbDep, current_user: OpsUserDep):
 
 
 @router.post("/drchrono-migration-packet/dry-run", response_model=DrChronoMigrationDryRunOut)
-async def run_drchrono_migration_dry_run(data: DrChronoMigrationDryRunStart, db: DbDep, current_user: OpsUserDep):
+async def run_drchrono_migration_dry_run(
+    data: DrChronoMigrationDryRunStart, db: DbDep, current_user: OpsUserDep
+):
     return DrChronoMigrationDryRunOut(
         **await operations_service.drchrono_migration_dry_run(db, current_user, data.model_dump())
     )
 
 
-@router.post("/drchrono-migration-packet/import-batches", response_model=DrChronoImportBatchOut, status_code=status.HTTP_201_CREATED)
-async def create_drchrono_import_batch(data: DrChronoImportBatchCreate, db: DbDep, current_user: OpsUserDep):
+@router.post(
+    "/drchrono-migration-packet/import-batches",
+    response_model=DrChronoImportBatchOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_drchrono_import_batch(
+    data: DrChronoImportBatchCreate, db: DbDep, current_user: OpsUserDep
+):
     return DrChronoImportBatchOut(
         **await operations_service.create_drchrono_import_batch(db, current_user, data.model_dump())
     )

@@ -9,7 +9,7 @@ Registry options: Mingle Analytics, Clinigence, CECity, IRIS Registry
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -19,10 +19,10 @@ from app.config import settings
 
 
 class MIPSPerformanceCategory(str, Enum):
-    quality = "quality"           # 30% of score
+    quality = "quality"  # 30% of score
     pi = "promoting_interoperability"  # 25% of score
     improvement_activities = "improvement_activities"  # 15% of score
-    cost = "cost"                 # 30% of score (calculated by CMS)
+    cost = "cost"  # 30% of score (calculated by CMS)
 
 
 class MIPSRegistry(str, Enum):
@@ -51,16 +51,16 @@ class MIPSSubmissionService:
     # CMS benchmark deciles (simplified — real data from CMS annual benchmarks)
     # Decile 1 = lowest performance, Decile 10 = highest
     BENCHMARKS: dict[str, list[float]] = {
-        "cms122": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],   # HbA1c poor control (lower is better)
-        "cms165": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],   # BP control (higher is better)
-        "cms125": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],   # Mammogram (higher is better)
-        "cms130": [0, 15, 30, 45, 55, 65, 72, 78, 84, 90],   # Colorectal screening (higher)
-        "cms138": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],   # Tobacco screening (higher)
-        "cms147": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],   # Flu vaccine (higher)
-        "cms127": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],   # Pneumococcal (higher)
-        "cms117": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],   # Childhood immunizations (higher)
-        "cms131": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],   # Diabetic eye exam (higher)
-        "cms134": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],   # Diabetic nephropathy (higher)
+        "cms122": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],  # HbA1c poor control (lower is better)
+        "cms165": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],  # BP control (higher is better)
+        "cms125": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],  # Mammogram (higher is better)
+        "cms130": [0, 15, 30, 45, 55, 65, 72, 78, 84, 90],  # Colorectal screening (higher)
+        "cms138": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],  # Tobacco screening (higher)
+        "cms147": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],  # Flu vaccine (higher)
+        "cms127": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],  # Pneumococcal (higher)
+        "cms117": [0, 30, 50, 60, 70, 75, 80, 85, 90, 95],  # Childhood immunizations (higher)
+        "cms131": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],  # Diabetic eye exam (higher)
+        "cms134": [0, 20, 40, 50, 60, 70, 75, 80, 85, 90],  # Diabetic nephropathy (higher)
     }
 
     def __init__(self) -> None:
@@ -96,10 +96,7 @@ class MIPSSubmissionService:
         # Decile 1-3 = 3 points (floor)
         # Decile 4-9 = 4-9 points
         # Decile 10 = 10 points
-        if decile <= 3:
-            points = 3.0
-        else:
-            points = float(decile)
+        points = 3.0 if decile <= 3 else float(decile)
 
         return points, 10.0, decile
 
@@ -121,7 +118,11 @@ class MIPSSubmissionService:
         # Quality score: average of measure points, max 60 points
         total_quality_points = sum(m.points_earned for m in measure_results)
         total_quality_available = sum(m.points_available for m in measure_results)
-        quality_score = (total_quality_points / total_quality_available * 60) if total_quality_available > 0 else 0
+        quality_score = (
+            (total_quality_points / total_quality_available * 60)
+            if total_quality_available > 0
+            else 0
+        )
         quality_score = min(quality_score, 60)
 
         # Normalize each category to 0-100
@@ -132,10 +133,10 @@ class MIPSSubmissionService:
 
         # Weighted composite
         composite = (
-            quality_normalized * 0.30 +
-            pi_normalized * 0.25 +
-            ia_normalized * 0.15 +
-            cost_normalized * 0.30
+            quality_normalized * 0.30
+            + pi_normalized * 0.25
+            + ia_normalized * 0.15
+            + cost_normalized * 0.30
         )
 
         # Payment adjustment (2026 scale)
@@ -158,7 +159,11 @@ class MIPSSubmissionService:
             "ia_score": round(ia_normalized, 1),
             "cost_score": round(cost_normalized, 1),
             "payment_adjustment_percent": round(adjustment, 1),
-            "estimated_impact": "bonus" if adjustment > 0 else "penalty" if adjustment < 0 else "neutral",
+            "estimated_impact": "bonus"
+            if adjustment > 0
+            else "penalty"
+            if adjustment < 0
+            else "neutral",
             "measure_results": [
                 {
                     "measure_id": m.measure_id,

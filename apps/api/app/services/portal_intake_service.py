@@ -6,22 +6,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.patient import Patient
 from app.models.portal_intake import PortalIntakeStatus, PortalIntakeSubmission
 from app.models.user import User
-from app.services.audit_service import log_event
 from app.services import patient_document_service, patient_service, schedule_service
+from app.services.audit_service import log_event
 
 
-async def list_submissions(db: AsyncSession, user: User) -> tuple[list[PortalIntakeSubmission], int]:
-    query = select(PortalIntakeSubmission).where(PortalIntakeSubmission.organization_id == user.organization_id)
-    countq = select(func.count(PortalIntakeSubmission.id)).where(PortalIntakeSubmission.organization_id == user.organization_id)
+async def list_submissions(
+    db: AsyncSession, user: User
+) -> tuple[list[PortalIntakeSubmission], int]:
+    query = select(PortalIntakeSubmission).where(
+        PortalIntakeSubmission.organization_id == user.organization_id
+    )
+    countq = select(func.count(PortalIntakeSubmission.id)).where(
+        PortalIntakeSubmission.organization_id == user.organization_id
+    )
     total = (await db.execute(countq)).scalar() or 0
     result = await db.execute(query.order_by(PortalIntakeSubmission.created_at.desc()).limit(100))
     return list(result.scalars().all()), total
 
 
-async def create_submission(db: AsyncSession, user: User, data: dict) -> PortalIntakeSubmission | None:
+async def create_submission(
+    db: AsyncSession, user: User, data: dict
+) -> PortalIntakeSubmission | None:
     patient_id = data.get("patient_id")
     if patient_id:
-        exists = (await db.execute(select(Patient.id).where(Patient.id == patient_id, Patient.organization_id == user.organization_id))).scalar_one_or_none()
+        exists = (
+            await db.execute(
+                select(Patient.id).where(
+                    Patient.id == patient_id, Patient.organization_id == user.organization_id
+                )
+            )
+        ).scalar_one_or_none()
         if not exists:
             return None
     submission = PortalIntakeSubmission(organization_id=user.organization_id, **data)
@@ -40,8 +54,17 @@ async def create_submission(db: AsyncSession, user: User, data: dict) -> PortalI
     return submission
 
 
-async def update_submission(db: AsyncSession, user: User, submission_id: str, data: dict) -> PortalIntakeSubmission | None:
-    submission = (await db.execute(select(PortalIntakeSubmission).where(PortalIntakeSubmission.id == submission_id, PortalIntakeSubmission.organization_id == user.organization_id))).scalar_one_or_none()
+async def update_submission(
+    db: AsyncSession, user: User, submission_id: str, data: dict
+) -> PortalIntakeSubmission | None:
+    submission = (
+        await db.execute(
+            select(PortalIntakeSubmission).where(
+                PortalIntakeSubmission.id == submission_id,
+                PortalIntakeSubmission.organization_id == user.organization_id,
+            )
+        )
+    ).scalar_one_or_none()
     if not submission:
         return None
     for field, value in data.items():
@@ -61,19 +84,31 @@ async def update_submission(db: AsyncSession, user: User, submission_id: str, da
     return submission
 
 
-async def apply_to_patient(db: AsyncSession, user: User, submission_id: str) -> PortalIntakeSubmission | None:
+async def apply_to_patient(
+    db: AsyncSession, user: User, submission_id: str
+) -> PortalIntakeSubmission | None:
     submission = await _get_submission(db, user, submission_id)
     if not submission or not submission.patient_id:
         return submission
     payload = submission.submitted_payload or {}
     update = {
         key: payload[key]
-        for key in ("phone", "email", "address", "emergency_contact", "insurance", "allergies", "problem_list")
+        for key in (
+            "phone",
+            "email",
+            "address",
+            "emergency_contact",
+            "insurance",
+            "allergies",
+            "problem_list",
+        )
         if key in payload
     }
     if update:
         await patient_service.update_patient(db, user, submission.patient_id, update)
-    return await update_submission(db, user, submission_id, {"status": PortalIntakeStatus.applied.value})
+    return await update_submission(
+        db, user, submission_id, {"status": PortalIntakeStatus.applied.value}
+    )
 
 
 async def convert_to_appointment(db: AsyncSession, user: User, submission_id: str) -> dict | None:
@@ -87,14 +122,18 @@ async def convert_to_appointment(db: AsyncSession, user: User, submission_id: st
         start_time = datetime.fromisoformat(start_time)
     if isinstance(end_time, str):
         end_time = datetime.fromisoformat(end_time)
-    appointment = await schedule_service.create_appointment(db, user, {
-        "patient_id": submission.patient_id,
-        "provider_id": payload["provider_id"],
-        "start_time": start_time,
-        "end_time": end_time,
-        "type": payload.get("type", "Portal request"),
-        "notes": payload.get("notes"),
-    })
+    appointment = await schedule_service.create_appointment(
+        db,
+        user,
+        {
+            "patient_id": submission.patient_id,
+            "provider_id": payload["provider_id"],
+            "start_time": start_time,
+            "end_time": end_time,
+            "type": payload.get("type", "Portal request"),
+            "notes": payload.get("notes"),
+        },
+    )
     await update_submission(db, user, submission_id, {"status": PortalIntakeStatus.applied.value})
     return appointment
 
@@ -104,24 +143,33 @@ async def convert_to_document(db: AsyncSession, user: User, submission_id: str) 
     if not submission or not submission.patient_id:
         return None
     payload = submission.submitted_payload or {}
-    document = await patient_document_service.create_patient_document(db, user, submission.patient_id, {
-        "title": payload.get("title", "Portal uploaded document"),
-        "source": "Patient portal",
-        "document_type": payload.get("document_type", "Patient upload"),
-        "status": "needs_review",
-        "matched_by": "portal intake",
-        "pages": payload.get("pages", 1),
-        "file_url": payload.get("file_url"),
-        "summary": payload.get("summary", "Patient submitted document from portal intake."),
-    })
+    document = await patient_document_service.create_patient_document(
+        db,
+        user,
+        submission.patient_id,
+        {
+            "title": payload.get("title", "Portal uploaded document"),
+            "source": "Patient portal",
+            "document_type": payload.get("document_type", "Patient upload"),
+            "status": "needs_review",
+            "matched_by": "portal intake",
+            "pages": payload.get("pages", 1),
+            "file_url": payload.get("file_url"),
+            "summary": payload.get("summary", "Patient submitted document from portal intake."),
+        },
+    )
     await update_submission(db, user, submission_id, {"status": PortalIntakeStatus.applied.value})
     return document
 
 
-async def _get_submission(db: AsyncSession, user: User, submission_id: str) -> PortalIntakeSubmission | None:
-    return (await db.execute(
-        select(PortalIntakeSubmission).where(
-            PortalIntakeSubmission.id == submission_id,
-            PortalIntakeSubmission.organization_id == user.organization_id,
+async def _get_submission(
+    db: AsyncSession, user: User, submission_id: str
+) -> PortalIntakeSubmission | None:
+    return (
+        await db.execute(
+            select(PortalIntakeSubmission).where(
+                PortalIntakeSubmission.id == submission_id,
+                PortalIntakeSubmission.organization_id == user.organization_id,
+            )
         )
-    )).scalar_one_or_none()
+    ).scalar_one_or_none()

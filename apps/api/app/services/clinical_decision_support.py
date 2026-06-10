@@ -7,7 +7,7 @@ based on clinical guidelines (USPSTF, CDC, AHA, etc.).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -257,7 +257,9 @@ class CDSEngine:
             return False
         last_colonoscopy = self._last_procedure_date(history, "colonoscopy")
         last_fit = self._last_procedure_date(history, "fit")
-        colonoscopy_due = last_colonoscopy is None or (datetime.now(UTC) - last_colonoscopy).days > 3650
+        colonoscopy_due = (
+            last_colonoscopy is None or (datetime.now(UTC) - last_colonoscopy).days > 3650
+        )
         fit_due = last_fit is None or (datetime.now(UTC) - last_fit).days > 365
         return colonoscopy_due and fit_due
 
@@ -289,10 +291,10 @@ class CDSEngine:
         ldl = patient.get("labs", {}).get("ldl")
         if ldl and ldl > 190:
             return True
-        has_diabetes = any("diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
-        if has_diabetes:
-            return True
-        return False  # Would need ASCVD risk calc
+        has_diabetes = any(
+            "diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", [])
+        )
+        return has_diabetes  # Would need ASCVD risk calc
 
     def _check_flu_vaccine(self, patient: dict, history: list) -> bool:
         age = self._calculate_age(patient.get("dob"))
@@ -327,7 +329,9 @@ class CDSEngine:
         return last_screening is None or (datetime.now(UTC) - last_screening).days > 1095
 
     def _check_diabetic_eye_exam(self, patient: dict, history: list) -> bool:
-        has_diabetes = any("diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
+        has_diabetes = any(
+            "diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", [])
+        )
         if not has_diabetes:
             return False
         last_eye_exam = self._last_procedure_date(history, "diabetic_eye_exam")
@@ -398,17 +402,19 @@ class CDSEngine:
         for rule in self.rules:
             try:
                 if rule.check_fn(patient, history):
-                    alerts.append({
-                        "rule_id": rule.id,
-                        "name": rule.name,
-                        "description": rule.description,
-                        "severity": rule.severity.value,
-                        "action_type": rule.action_type.value,
-                        "message": rule.message,
-                        "suggested_action": rule.suggested_action,
-                        "reference_url": rule.reference_url,
-                        "reference_guideline": rule.reference_guideline,
-                    })
+                    alerts.append(
+                        {
+                            "rule_id": rule.id,
+                            "name": rule.name,
+                            "description": rule.description,
+                            "severity": rule.severity.value,
+                            "action_type": rule.action_type.value,
+                            "message": rule.message,
+                            "suggested_action": rule.suggested_action,
+                            "reference_url": rule.reference_url,
+                            "reference_guideline": rule.reference_guideline,
+                        }
+                    )
             except Exception:
                 continue
         return alerts

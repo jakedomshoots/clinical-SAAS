@@ -3,8 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User, UserRole
-from app.services.auth_service import create_access_token, hash_password
 from app.services.audit_service import log_event
+from app.services.auth_service import create_access_token, hash_password
 from tests.conftest import headers_for, make_user
 
 
@@ -54,7 +54,7 @@ async def test_audit_export_neutralizes_formula_values(
 ):
     await log_event(
         db,
-        "=HYPERLINK(\"https://example.test\")",
+        '=HYPERLINK("https://example.test")',
         "task",
         "+formula-event",
         payload={"patient_id": "+patient"},
@@ -64,7 +64,7 @@ async def test_audit_export_neutralizes_formula_values(
     res = await client.get("/api/audit/export", headers=auth_headers)
 
     assert res.status_code == 200
-    assert "\"'=HYPERLINK(\"\"https://example.test\"\")\"" in res.text
+    assert '"\'=HYPERLINK(""https://example.test"")"' in res.text
     assert "'+formula-event" in res.text
 
 
@@ -233,10 +233,20 @@ async def test_audit_review_summary_groups_sensitive_events_by_category(
         "doc-1",
         payload={"patient_id": "patient-1", "presigned": False},
     )
-    await log_event(db, "assistant.task_created", "task", "task-1", payload={"patient_id": "patient-1"})
+    await log_event(
+        db, "assistant.task_created", "task", "task-1", payload={"patient_id": "patient-1"}
+    )
     await log_event(db, "user.updated", "user", "user-1", payload={"role": "manager"})
-    await log_event(db, "patient_outreach.staged", "task", "task-2", payload={"patient_id": "patient-1"})
-    await log_event(db, "integration_event.retry", "integration_event", "event-1", payload={"integration": "ehr"})
+    await log_event(
+        db, "patient_outreach.staged", "task", "task-2", payload={"patient_id": "patient-1"}
+    )
+    await log_event(
+        db,
+        "integration_event.retry",
+        "integration_event",
+        "event-1",
+        payload={"integration": "ehr"},
+    )
     await log_event(db, "task.created", "task", "task-3", payload={})
 
     other_user = await make_user(
@@ -267,7 +277,9 @@ async def test_audit_review_summary_groups_sensitive_events_by_category(
     assert categories["patient_outreach"]["count"] == 1
     assert categories["integration_operations"]["count"] == 1
     assert all(item["route"] for item in data["recommended_actions"])
-    document_action = next(item for item in data["recommended_actions"] if item["key"] == "document_access")
+    document_action = next(
+        item for item in data["recommended_actions"] if item["key"] == "document_access"
+    )
     assert document_action["route"].startswith("/audit")
 
 
@@ -294,8 +306,12 @@ async def test_patient_chart_reads_feed_access_history_and_review_summary(
     care_plan = await client.get(f"/api/patients/{patient_id}/care-plan", headers=auth_headers)
     labs = await client.get(f"/api/patients/{patient_id}/labs", headers=auth_headers)
     encounters = await client.get(f"/api/patients/{patient_id}/encounters", headers=auth_headers)
-    checkout = await client.get(f"/api/patients/{patient_id}/checkout-handoff", headers=auth_headers)
-    history = await client.get(f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers)
+    checkout = await client.get(
+        f"/api/patients/{patient_id}/checkout-handoff", headers=auth_headers
+    )
+    history = await client.get(
+        f"/api/audit/patients/{patient_id}/access-history", headers=auth_headers
+    )
     review = await client.get("/api/audit/review-summary", headers=auth_headers)
 
     assert profile.status_code == 200

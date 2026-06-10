@@ -6,10 +6,10 @@ of all amendments, corrections, and addenda.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -29,18 +29,18 @@ async def request_amendment(
 
     Patients can request corrections to their records per HIPAA right of amendment.
     """
-    amendment_id = f"AMD-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    amendment_id = f"AMD-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
     return {
         "id": amendment_id,
         "patient_id": data["patient_id"],
         "requested_by": current_user.id,
-        "requested_at": datetime.now(timezone.utc).isoformat(),
+        "requested_at": datetime.now(UTC).isoformat(),
         "record_type": data["record_type"],  # diagnosis, medication, allergy, note, etc.
         "record_id": data["record_id"],
         "requested_change": data["requested_change"],
         "reason": data["reason"],
         "status": "pending_review",
-        "review_deadline": (datetime.now(timezone.utc).replace(day=datetime.now(timezone.utc).day + 60)).isoformat(),
+        "review_deadline": (datetime.now(UTC).replace(day=datetime.now(UTC).day + 60)).isoformat(),
         "next_steps": [
             "Provider reviews request within 60 days",
             "If accepted, correction is made and patient notified",
@@ -61,7 +61,7 @@ async def approve_amendment(
         "id": amendment_id,
         "status": "approved",
         "approved_by": current_user.id,
-        "approved_at": datetime.now(timezone.utc).isoformat(),
+        "approved_at": datetime.now(UTC).isoformat(),
         "correction_made": data.get("correction_made", ""),
         "original_text_preserved": True,
         "addendum_added": True,
@@ -81,7 +81,7 @@ async def deny_amendment(
         "id": amendment_id,
         "status": "denied",
         "denied_by": current_user.id,
-        "denied_at": datetime.now(timezone.utc).isoformat(),
+        "denied_at": datetime.now(UTC).isoformat(),
         "denial_reason": data["denial_reason"],
         "patient_rights_explanation": data.get("patient_rights_explanation", ""),
         "appeal_process_explained": True,

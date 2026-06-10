@@ -7,7 +7,7 @@ and generates compliance evidence.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -197,7 +197,6 @@ class TrainingService:
                     "Handle waitlist",
                 ],
             ),
-
             # MA/Nurse
             TrainingItem(
                 id="ma-001",
@@ -246,7 +245,6 @@ class TrainingService:
                     "Notify provider of critical values",
                 ],
             ),
-
             # Provider
             TrainingItem(
                 id="prov-001",
@@ -295,7 +293,6 @@ class TrainingService:
                     "Review consultation notes",
                 ],
             ),
-
             # Billing
             TrainingItem(
                 id="bill-001",
@@ -344,7 +341,6 @@ class TrainingService:
                     "Update billing records",
                 ],
             ),
-
             # Manager
             TrainingItem(
                 id="mgr-001",
@@ -376,7 +372,6 @@ class TrainingService:
                     "Export audit evidence",
                 ],
             ),
-
             # All roles - Compliance
             TrainingItem(
                 id="comp-001",
@@ -467,7 +462,7 @@ class TrainingService:
             role=role,
             module=module,
             status=CompetencyLevel.IN_PROGRESS,
-            started_at=datetime.now(timezone.utc).isoformat(),
+            started_at=datetime.now(UTC).isoformat(),
         )
 
         self._records[record_id] = record
@@ -488,7 +483,7 @@ class TrainingService:
             return None
 
         record.status = CompetencyLevel.DEMONSTRATED
-        record.completed_at = datetime.now(timezone.utc).isoformat()
+        record.completed_at = datetime.now(UTC).isoformat()
         record.score = score
         record.notes = notes
 
@@ -511,7 +506,7 @@ class TrainingService:
 
         record.status = level
         record.validated_by = validated_by
-        record.validation_date = datetime.now(timezone.utc).isoformat()
+        record.validation_date = datetime.now(UTC).isoformat()
 
         if evidence:
             record.evidence.extend(evidence)
@@ -520,26 +515,20 @@ class TrainingService:
 
     def get_staff_record(self, user_id: str) -> dict[str, Any]:
         """Get complete training record for a staff member."""
-        records = [
-            r.to_dict()
-            for r in self._records.values()
-            if r.user_id == user_id
-        ]
+        records = [r.to_dict() for r in self._records.values() if r.user_id == user_id]
 
         # Calculate completion stats
-        total_required = len([
-            i for i in self._training_items.values()
-            if i.required
-        ])
-        completed = len([
-            r for r in records
-            if r["status"] in ["demonstrated", "proficient", "expert"]
-        ])
+        total_required = len([i for i in self._training_items.values() if i.required])
+        completed = len(
+            [r for r in records if r["status"] in ["demonstrated", "proficient", "expert"]]
+        )
 
         return {
             "user_id": user_id,
             "records": records,
-            "completion_percentage": (completed / total_required * 100) if total_required > 0 else 0,
+            "completion_percentage": (completed / total_required * 100)
+            if total_required > 0
+            else 0,
             "completed_modules": completed,
             "total_required": total_required,
             "is_compliant": completed >= total_required,
@@ -588,7 +577,7 @@ class TrainingService:
         compliant_staff = len([s for s in staff_reports if s["is_compliant"]])
 
         return {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "total_staff": total_staff,
             "compliant_staff": compliant_staff,
             "compliance_rate": (compliant_staff / total_staff * 100) if total_staff > 0 else 0,
@@ -601,11 +590,8 @@ class TrainingService:
 
         return {
             "user_id": user_id,
-            "export_date": datetime.now(timezone.utc).isoformat(),
+            "export_date": datetime.now(UTC).isoformat(),
             "training_records": record["records"],
             "completion_status": "complete" if record["is_compliant"] else "incomplete",
-            "evidence_files": [
-                e for r in record["records"]
-                for e in r.get("evidence", [])
-            ],
+            "evidence_files": [e for r in record["records"] for e in r.get("evidence", [])],
         }

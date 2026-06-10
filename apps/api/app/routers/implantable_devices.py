@@ -24,11 +24,7 @@ async def list_patient_devices(
     _current_user: CurrentUserDep,
 ) -> list[dict]:
     """List implantable devices for a patient."""
-    devices = (
-        db.query(ImplantableDevice)
-        .filter(ImplantableDevice.patient_id == patient_id)
-        .all()
-    )
+    devices = db.query(ImplantableDevice).filter(ImplantableDevice.patient_id == patient_id).all()
     return [
         {
             "id": d.id,
@@ -91,9 +87,9 @@ async def check_device_safety(
     return {
         "udi": udi,
         "safety_status": "no_alerts",
-        "last_checked": __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        ).isoformat(),
+        "last_checked": __import__("datetime")
+        .datetime.now(__import__("datetime").timezone.utc)
+        .isoformat(),
         "fda_recalls": [],
         "mdr_reports": 0,
         "recommendation": "No action required",

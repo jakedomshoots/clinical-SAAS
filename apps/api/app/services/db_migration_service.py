@@ -8,15 +8,15 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 
 class MigrationRisk(str, Enum):
-    LOW = "low"           # Additive changes only
-    MEDIUM = "medium"     # Index changes, constraints
-    HIGH = "high"         # Column modifications, renames
+    LOW = "low"  # Additive changes only
+    MEDIUM = "medium"  # Index changes, constraints
+    HIGH = "high"  # Column modifications, renames
     CRITICAL = "critical"  # Table drops, data migrations
 
 
@@ -53,7 +53,7 @@ class MigrationPlan:
     requires_downtime: bool = False
     checks: list[MigrationCheck] = field(default_factory=list)
     status: MigrationStatus = MigrationStatus.PENDING
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     applied_at: str | None = None
     applied_by: str | None = None
 
@@ -99,16 +99,14 @@ class DatabaseMigrationService:
     ) -> MigrationPlan:
         """Create a new migration plan."""
         migration_id = hashlib.sha256(
-            f"{description}:{datetime.now(timezone.utc).isoformat()}".encode()
+            f"{description}:{datetime.now(UTC).isoformat()}".encode()
         ).hexdigest()[:16]
 
         # Assess risk level
         risk_level = self._assess_risk(sql_statements)
 
         # Estimate duration (rough heuristic)
-        estimated_duration = self._estimate_duration(
-            sql_statements, affected_tables
-        )
+        estimated_duration = self._estimate_duration(sql_statements, affected_tables)
 
         plan = MigrationPlan(
             migration_id=migration_id,
@@ -134,71 +132,70 @@ class DatabaseMigrationService:
 
         # Check 1: Migration not already applied
         if migration_id in self._applied_migrations:
-            checks.append(MigrationCheck(
-                "not_applied", False,
-                "Migration has already been applied", "error"
-            ))
+            checks.append(
+                MigrationCheck("not_applied", False, "Migration has already been applied", "error")
+            )
         else:
-            checks.append(MigrationCheck(
-                "not_applied", True,
-                "Migration has not been applied", "info"
-            ))
+            checks.append(
+                MigrationCheck("not_applied", True, "Migration has not been applied", "info")
+            )
 
         # Check 2: Rollback statements present
         if not plan.rollback_statements:
-            checks.append(MigrationCheck(
-                "rollback_present", False,
-                "No rollback statements provided", "warning"
-            ))
+            checks.append(
+                MigrationCheck(
+                    "rollback_present", False, "No rollback statements provided", "warning"
+                )
+            )
         else:
-            checks.append(MigrationCheck(
-                "rollback_present", True,
-                "Rollback statements provided", "info"
-            ))
+            checks.append(
+                MigrationCheck("rollback_present", True, "Rollback statements provided", "info")
+            )
 
         # Check 3: SQL syntax validation (basic)
         syntax_valid = self._validate_sql_syntax(plan.sql_statements)
-        checks.append(MigrationCheck(
-            "sql_syntax", syntax_valid,
-            "SQL syntax appears valid" if syntax_valid else "SQL syntax issues detected",
-            "error" if not syntax_valid else "info"
-        ))
+        checks.append(
+            MigrationCheck(
+                "sql_syntax",
+                syntax_valid,
+                "SQL syntax appears valid" if syntax_valid else "SQL syntax issues detected",
+                "error" if not syntax_valid else "info",
+            )
+        )
 
         # Check 4: Risk level assessment
         if plan.risk_level == MigrationRisk.CRITICAL:
-            checks.append(MigrationCheck(
-                "risk_level", False,
-                "CRITICAL risk migration requires manual review", "warning"
-            ))
+            checks.append(
+                MigrationCheck(
+                    "risk_level", False, "CRITICAL risk migration requires manual review", "warning"
+                )
+            )
         else:
-            checks.append(MigrationCheck(
-                "risk_level", True,
-                f"Risk level: {plan.risk_level.value}", "info"
-            ))
+            checks.append(
+                MigrationCheck("risk_level", True, f"Risk level: {plan.risk_level.value}", "info")
+            )
 
         # Check 5: Downtime requirement
         if plan.requires_downtime:
-            checks.append(MigrationCheck(
-                "downtime", False,
-                "Migration requires scheduled downtime", "warning"
-            ))
+            checks.append(
+                MigrationCheck(
+                    "downtime", False, "Migration requires scheduled downtime", "warning"
+                )
+            )
         else:
-            checks.append(MigrationCheck(
-                "downtime", True,
-                "No downtime required", "info"
-            ))
+            checks.append(MigrationCheck("downtime", True, "No downtime required", "info"))
 
         # Check 6: Backup recommendation
         if plan.risk_level in (MigrationRisk.HIGH, MigrationRisk.CRITICAL):
-            checks.append(MigrationCheck(
-                "backup", False,
-                "Backup strongly recommended before applying", "warning"
-            ))
+            checks.append(
+                MigrationCheck(
+                    "backup", False, "Backup strongly recommended before applying", "warning"
+                )
+            )
         else:
-            checks.append(MigrationCheck(
-                "backup", True,
-                "Backup recommended but not critical", "info"
-            ))
+            checks.append(
+                MigrationCheck("backup", True, "Backup recommended but not critical", "info")
+            )
 
         plan.checks = checks
         plan.status = MigrationStatus.VALIDATED
@@ -220,10 +217,7 @@ class DatabaseMigrationService:
                 "migration_id": migration_id,
                 "status": "blocked",
                 "reason": "Validation failed",
-                "failed_checks": [
-                    {"name": c.name, "message": c.message}
-                    for c in failed_checks
-                ],
+                "failed_checks": [{"name": c.name, "message": c.message} for c in failed_checks],
             }
 
         # Simulate execution
@@ -261,8 +255,7 @@ class DatabaseMigrationService:
                     "status": "blocked",
                     "reason": "Validation failed. Use force=True to override.",
                     "failed_checks": [
-                        {"name": c.name, "message": c.message}
-                        for c in failed_checks
+                        {"name": c.name, "message": c.message} for c in failed_checks
                     ],
                 }
 
@@ -277,7 +270,7 @@ class DatabaseMigrationService:
         # Apply migration
         try:
             plan.status = MigrationStatus.APPLIED
-            plan.applied_at = datetime.now(timezone.utc).isoformat()
+            plan.applied_at = datetime.now(UTC).isoformat()
             plan.applied_by = applied_by
             self._applied_migrations.add(migration_id)
 
@@ -384,9 +377,17 @@ class DatabaseMigrationService:
     def _validate_sql_syntax(self, sql_statements: list[str]) -> bool:
         """Basic SQL syntax validation."""
         valid_starts = (
-            "create", "alter", "drop", "insert",
-            "update", "delete", "select", "index",
-            "grant", "revoke", "comment",
+            "create",
+            "alter",
+            "drop",
+            "insert",
+            "update",
+            "delete",
+            "select",
+            "index",
+            "grant",
+            "revoke",
+            "comment",
         )
 
         for sql in sql_statements:

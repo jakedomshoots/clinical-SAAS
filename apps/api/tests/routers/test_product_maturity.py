@@ -6,15 +6,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.audit import AuditLog
 from app.models.integration_event import IntegrationEvent, IntegrationEventStatus
 from app.models.user import User, UserRole
-from app.services.auth_service import hash_password
 from app.services import operations_service
+from app.services.auth_service import hash_password
 from tests.conftest import headers_for, make_user
 
 
 async def create_patient(client, auth_headers) -> str:
     res = await client.post(
         "/api/patients",
-        json={"first_name": "Maturity", "last_name": "Patient", "dob": date(1980, 1, 1).isoformat(), "gender": "Unknown", "insurance": {"provider": "Aetna", "plan": "PPO", "member_id": "A-1"}},
+        json={
+            "first_name": "Maturity",
+            "last_name": "Patient",
+            "dob": date(1980, 1, 1).isoformat(),
+            "gender": "Unknown",
+            "insurance": {"provider": "Aetna", "plan": "PPO", "member_id": "A-1"},
+        },
         headers=auth_headers,
     )
     return res.json()["id"]
@@ -26,7 +32,10 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
 
     intake = await client.post(
         "/api/portal-intake",
-        json={"patient_id": patient_id, "submitted_payload": {"phone": "555-0101", "reason": "new forms"}},
+        json={
+            "patient_id": patient_id,
+            "submitted_payload": {"phone": "555-0101", "reason": "new forms"},
+        },
         headers=auth_headers,
     )
     billing = await client.post(
@@ -50,33 +59,60 @@ async def test_portal_intake_and_billing_cases_feed_analytics(client, auth_heade
     assert transitioned.status_code == 200
     assert transitioned.json()["status"] == "denied"
 
-    reworked_initial = await client.post(f"/api/billing/cases/{billing.json()['id']}/rework", json={"notes": "Corrected modifier before initial submission."}, headers=auth_headers)
+    reworked_initial = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/rework",
+        json={"notes": "Corrected modifier before initial submission."},
+        headers=auth_headers,
+    )
     eligibility = await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
-    submitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    submitted = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers
+    )
     assert reworked_initial.status_code == 200
     assert submitted.status_code == 200
     assert submitted.json()["status"] == "submitted"
     assert submitted.json()["claim_control_number"]
 
-    denied = await client.post(f"/api/billing/cases/{billing.json()['id']}/deny", json={"notes": "Payer requested documentation"}, headers=auth_headers)
+    denied = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/deny",
+        json={"notes": "Payer requested documentation"},
+        headers=auth_headers,
+    )
     assert denied.status_code == 200
     assert denied.json()["status"] == "denied"
 
-    reworked = await client.post(f"/api/billing/cases/{billing.json()['id']}/rework", json={"notes": "Corrected modifier and documentation."}, headers=auth_headers)
-    resubmitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
-    paid = await client.post(f"/api/billing/cases/{billing.json()['id']}/payment", json={"paid_amount": 92.50, "allowed_amount": 120.0}, headers=auth_headers)
+    reworked = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/rework",
+        json={"notes": "Corrected modifier and documentation."},
+        headers=auth_headers,
+    )
+    resubmitted = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers
+    )
+    paid = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/payment",
+        json={"paid_amount": 92.50, "allowed_amount": 120.0},
+        headers=auth_headers,
+    )
     assert reworked.status_code == 200
     assert resubmitted.status_code == 200
     assert paid.status_code == 200
     assert paid.json()["status"] == "paid"
     assert paid.json()["remittance_status"] == "received"
 
-    case_timeline = await client.get(f"/api/billing/cases/{billing.json()['id']}/timeline", headers=auth_headers)
+    case_timeline = await client.get(
+        f"/api/billing/cases/{billing.json()['id']}/timeline", headers=auth_headers
+    )
     assert case_timeline.status_code == 200
     assert case_timeline.json()["total"] >= 3
-    assert any(event["source"] == "integration" and event["status"] == "pending" for event in case_timeline.json()["data"])
+    assert any(
+        event["source"] == "integration" and event["status"] == "pending"
+        for event in case_timeline.json()["data"]
+    )
 
-    history = await client.get(f"/api/billing/eligibility/{patient_id}/history", headers=auth_headers)
+    history = await client.get(
+        f"/api/billing/eligibility/{patient_id}/history", headers=auth_headers
+    )
     assert eligibility.status_code == 200
     assert history.status_code == 200
     assert history.json()["data"][0]["event_type"] == "billing.eligibility_checked"
@@ -97,17 +133,25 @@ async def test_portal_intake_conversions(client, auth_headers, admin_user):
         },
         headers=auth_headers,
     )
-    applied = await client.post(f"/api/portal-intake/{intake.json()['id']}/apply-to-patient", headers=auth_headers)
+    applied = await client.post(
+        f"/api/portal-intake/{intake.json()['id']}/apply-to-patient", headers=auth_headers
+    )
     patient = await client.get(f"/api/patients/{patient_id}", headers=auth_headers)
     assert applied.status_code == 200
     assert patient.json()["phone"] == "555-2020"
 
     document_intake = await client.post(
         "/api/portal-intake",
-        json={"patient_id": patient_id, "request_type": "document_upload", "submitted_payload": {"title": "Insurance card", "document_type": "Insurance"}},
+        json={
+            "patient_id": patient_id,
+            "request_type": "document_upload",
+            "submitted_payload": {"title": "Insurance card", "document_type": "Insurance"},
+        },
         headers=auth_headers,
     )
-    document = await client.post(f"/api/portal-intake/{document_intake.json()['id']}/convert-document", headers=auth_headers)
+    document = await client.post(
+        f"/api/portal-intake/{document_intake.json()['id']}/convert-document", headers=auth_headers
+    )
     assert document.status_code == 200
     assert document.json()["title"] == "Insurance card"
 
@@ -143,13 +187,17 @@ async def test_portal_intake_conversions(client, auth_headers, admin_user):
         },
         headers=auth_headers,
     )
-    appointment = await client.post(f"/api/portal-intake/{appt_intake.json()['id']}/convert-appointment", headers=auth_headers)
+    appointment = await client.post(
+        f"/api/portal-intake/{appt_intake.json()['id']}/convert-appointment", headers=auth_headers
+    )
     assert appointment.status_code == 200
     assert appointment.json()["patient_id"] == patient_id
 
 
 @pytest.mark.asyncio
-async def test_charge_review_queue_clears_after_billing_case_creation(client, auth_headers, admin_user):
+async def test_charge_review_queue_clears_after_billing_case_creation(
+    client, auth_headers, admin_user
+):
     patient_id = await create_patient(client, auth_headers)
     start_time = datetime(2026, 6, 8, 10, 0)
     appointment = await client.post(
@@ -183,7 +231,9 @@ async def test_charge_review_queue_clears_after_billing_case_creation(client, au
     assert review.json()["total"] == 1
     assert review.json()["data"][0]["encounter_id"] == encounter.json()["id"]
 
-    billing = await client.post(f"/api/billing/cases/from-encounter/{encounter.json()['id']}", headers=auth_headers)
+    billing = await client.post(
+        f"/api/billing/cases/from-encounter/{encounter.json()['id']}", headers=auth_headers
+    )
     assert billing.status_code == 201
     assert billing.json()["appointment_id"] == appointment.json()["id"]
 
@@ -200,8 +250,12 @@ async def test_billing_claim_readiness_and_work_queue(client, auth_headers):
         headers=auth_headers,
     )
 
-    blocked = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
-    readiness = await client.get(f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers)
+    blocked = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers
+    )
+    readiness = await client.get(
+        f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers
+    )
     queue = await client.get("/api/billing/work-queue", headers=auth_headers)
 
     assert blocked.status_code == 400
@@ -217,8 +271,12 @@ async def test_billing_claim_readiness_and_work_queue(client, auth_headers):
         headers=auth_headers,
     )
     await client.post(f"/api/billing/eligibility/{patient_id}", headers=auth_headers)
-    ready = await client.get(f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers)
-    submitted = await client.post(f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers)
+    ready = await client.get(
+        f"/api/billing/cases/{billing.json()['id']}/readiness", headers=auth_headers
+    )
+    submitted = await client.post(
+        f"/api/billing/cases/{billing.json()['id']}/submit", headers=auth_headers
+    )
     queue_after = await client.get("/api/billing/work-queue", headers=auth_headers)
 
     assert ready.json()["ready"] is True
@@ -496,7 +554,9 @@ async def test_operations_timeline_and_alert_rules_roll_up_observability_signals
         "backup_restore_gap",
         "document_access_review",
     } <= rule_keys
-    failed_integrations = next(item for item in rules_data["data"] if item["key"] == "failed_integrations")
+    failed_integrations = next(
+        item for item in rules_data["data"] if item["key"] == "failed_integrations"
+    )
     assert failed_integrations["status"] == "triggered"
     assert "Webhook signature mismatch" in failed_integrations["detail"]
 
@@ -541,7 +601,9 @@ async def test_document_storage_readiness_surfaces_handoff_and_storage_gaps(
                 "patient_id": patient_id,
                 "storage_status": "signed_handoff",
                 "presigned": False,
-                "expires_at": (datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5)).isoformat(),
+                "expires_at": (
+                    datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=5)
+                ).isoformat(),
             },
         )
     )
@@ -580,7 +642,9 @@ async def test_document_storage_readiness_surfaces_handoff_and_storage_gaps(
         "unsigned_handoffs",
         "expired_handoffs",
     } <= check_keys
-    assert any(item["document_id"] == file_document.json()["id"] for item in data["recent_handoffs"])
+    assert any(
+        item["document_id"] == file_document.json()["id"] for item in data["recent_handoffs"]
+    )
 
     rules = alert_rules.json()["data"]
     storage_rule = next(item for item in rules if item["key"] == "document_storage_readiness")
@@ -614,8 +678,12 @@ async def test_production_rehearsal_report_contract(client, auth_headers):
 
 @pytest.mark.asyncio
 async def test_production_rehearsal_snapshot_and_export(client, auth_headers):
-    snapshot = await client.post("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
-    snapshots = await client.get("/api/operations/production-rehearsal/snapshots", headers=auth_headers)
+    snapshot = await client.post(
+        "/api/operations/production-rehearsal/snapshots", headers=auth_headers
+    )
+    snapshots = await client.get(
+        "/api/operations/production-rehearsal/snapshots", headers=auth_headers
+    )
     exported = await client.get("/api/operations/production-rehearsal/export", headers=auth_headers)
 
     assert snapshot.status_code == 201
@@ -660,7 +728,9 @@ async def test_production_rehearsal_action_assignment(client, auth_headers):
     assert assignment["owner_name"] == "Operations Lead"
     assert assignment["status"] == "in_progress"
 
-    refreshed_action = next(item for item in refreshed.json()["recommended_actions"] if item["key"] == action["key"])
+    refreshed_action = next(
+        item for item in refreshed.json()["recommended_actions"] if item["key"] == action["key"]
+    )
     assert refreshed_action["assignment"]["owner_name"] == "Operations Lead"
     assert refreshed_action["assignment"]["due_date"] == "2026-06-12"
 
@@ -686,7 +756,9 @@ async def test_launch_workplan_aggregates_operational_blockers(client, auth_head
     assert before_data["status"] in {"clear", "attention"}
     assert before_data["total"] >= before_data["blocking_count"]
     assert any(item["route"] for item in before_data["items"])
-    assert {"rehearsal", "launch_requirement", "credential_preflight"} & {item["source"] for item in before_data["items"]}
+    assert {"rehearsal", "launch_requirement", "credential_preflight"} & {
+        item["source"] for item in before_data["items"]
+    }
 
     assert after.status_code == 200
     assert after.json()["assigned_count"] >= 1
@@ -705,8 +777,7 @@ async def test_credential_preflight_assignment_owns_workplan_blockers(client, au
 
     assert workplan.status_code == 200
     credential_items = [
-        item for item in workplan.json()["items"]
-        if item["source"] == "credential_preflight"
+        item for item in workplan.json()["items"] if item["source"] == "credential_preflight"
     ]
     assert credential_items
     assert all(item["assignment"] for item in credential_items)
@@ -742,15 +813,28 @@ async def test_launch_workplan_tracks_missing_vendor_handoff_archives(monkeypatc
     async def fake_handoff_archives(db, user):
         return {}
 
-    monkeypatch.setattr(operations_service, "production_rehearsal_report", fake_production_rehearsal_report)
+    monkeypatch.setattr(
+        operations_service, "production_rehearsal_report", fake_production_rehearsal_report
+    )
     monkeypatch.setattr(operations_service, "incident_register", fake_incident_register)
     monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
-    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
-    monkeypatch.setattr(operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives)
+    monkeypatch.setattr(
+        operations_service.integration_config_service,
+        "credential_preflight",
+        fake_credential_preflight,
+    )
+    monkeypatch.setattr(
+        operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives
+    )
 
-    workplan = await operations_service.launch_workplan(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+    workplan = await operations_service.launch_workplan(
+        None,
+        User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"),
+    )
 
-    archive_items = [item for item in workplan["items"] if item["source"] == "vendor_handoff_archive"]
+    archive_items = [
+        item for item in workplan["items"] if item["source"] == "vendor_handoff_archive"
+    ]
     assert len(archive_items) == 1
     assert archive_items[0]["key"] == "handoff_archive_fax"
     assert archive_items[0]["severity"] == "blocking"
@@ -760,7 +844,9 @@ async def test_launch_workplan_tracks_missing_vendor_handoff_archives(monkeypatc
 @pytest.mark.asyncio
 async def test_credential_dry_run_binder_rolls_up_vendor_launch_materials(client, auth_headers):
     binder = await client.get("/api/operations/credential-dry-run-binder", headers=auth_headers)
-    exported = await client.get("/api/operations/credential-dry-run-binder/export", headers=auth_headers)
+    exported = await client.get(
+        "/api/operations/credential-dry-run-binder/export", headers=auth_headers
+    )
 
     assert binder.status_code == 200
     data = binder.json()
@@ -791,15 +877,22 @@ async def test_credential_dry_run_binder_rolls_up_vendor_launch_materials(client
 
 @pytest.mark.asyncio
 async def test_vendor_credential_request_packet_prepares_vendor_outreach(client, auth_headers):
-    packet = await client.get("/api/operations/vendor-credential-request-packet", headers=auth_headers)
-    exported = await client.get("/api/operations/vendor-credential-request-packet/export", headers=auth_headers)
+    packet = await client.get(
+        "/api/operations/vendor-credential-request-packet", headers=auth_headers
+    )
+    exported = await client.get(
+        "/api/operations/vendor-credential-request-packet/export", headers=auth_headers
+    )
 
     assert packet.status_code == 200
     data = packet.json()
     assert data["total"] >= 6
     assert data["export_filename"] == "concierge-os-vendor-credential-request-packet.csv"
     assert data["summary"]["total"] == data["total"]
-    assert data["ready_to_request_count"] + data["attention_count"] + data["blocked_count"] == data["total"]
+    assert (
+        data["ready_to_request_count"] + data["attention_count"] + data["blocked_count"]
+        == data["total"]
+    )
     assert data["generated_at"]
 
     fax = next(item for item in data["items"] if item["integration"] == "fax")
@@ -818,7 +911,10 @@ async def test_vendor_credential_request_packet_prepares_vendor_outreach(client,
 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
-    assert "concierge-os-vendor-credential-request-packet.csv" in exported.headers["content-disposition"]
+    assert (
+        "concierge-os-vendor-credential-request-packet.csv"
+        in exported.headers["content-disposition"]
+    )
     assert "integration,label,request_status,vendor_name" in exported.text
     assert "fax,Fax provider" in exported.text
 
@@ -826,7 +922,9 @@ async def test_vendor_credential_request_packet_prepares_vendor_outreach(client,
 @pytest.mark.asyncio
 async def test_adapter_implementation_packet_maps_placeholder_work(client, auth_headers):
     packet = await client.get("/api/operations/adapter-implementation-packet", headers=auth_headers)
-    exported = await client.get("/api/operations/adapter-implementation-packet/export", headers=auth_headers)
+    exported = await client.get(
+        "/api/operations/adapter-implementation-packet/export", headers=auth_headers
+    )
 
     assert packet.status_code == 200
     data = packet.json()
@@ -852,15 +950,21 @@ async def test_adapter_implementation_packet_maps_placeholder_work(client, auth_
 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
-    assert "concierge-os-adapter-implementation-packet.csv" in exported.headers["content-disposition"]
+    assert (
+        "concierge-os-adapter-implementation-packet.csv" in exported.headers["content-disposition"]
+    )
     assert "integration,label,implementation_status,priority" in exported.text
     assert "fax,Fax provider" in exported.text
 
 
 @pytest.mark.asyncio
 async def test_integration_cutover_readiness_packet_combines_vendor_gates(client, auth_headers):
-    packet = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
-    exported = await client.get("/api/operations/integration-cutover-readiness-packet/export", headers=auth_headers)
+    packet = await client.get(
+        "/api/operations/integration-cutover-readiness-packet", headers=auth_headers
+    )
+    exported = await client.get(
+        "/api/operations/integration-cutover-readiness-packet/export", headers=auth_headers
+    )
 
     assert packet.status_code == 200
     data = packet.json()
@@ -887,14 +991,19 @@ async def test_integration_cutover_readiness_packet_combines_vendor_gates(client
 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
-    assert "concierge-os-integration-cutover-readiness-packet.csv" in exported.headers["content-disposition"]
+    assert (
+        "concierge-os-integration-cutover-readiness-packet.csv"
+        in exported.headers["content-disposition"]
+    )
     assert "integration,label,cutover_status,go_no_go" in exported.text
     assert "fax,Fax provider" in exported.text
 
 
 @pytest.mark.asyncio
 async def test_integration_cutover_assignment_feeds_packet_and_workplan(client, auth_headers):
-    before = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
+    before = await client.get(
+        "/api/operations/integration-cutover-readiness-packet", headers=auth_headers
+    )
     item = next(item for item in before.json()["items"] if item["cutover_status"] != "ready")
 
     assigned = await client.post(
@@ -907,7 +1016,9 @@ async def test_integration_cutover_assignment_feeds_packet_and_workplan(client, 
         },
         headers=auth_headers,
     )
-    refreshed = await client.get("/api/operations/integration-cutover-readiness-packet", headers=auth_headers)
+    refreshed = await client.get(
+        "/api/operations/integration-cutover-readiness-packet", headers=auth_headers
+    )
     workplan = await client.get("/api/operations/launch-workplan", headers=auth_headers)
     audit = await client.get(
         "/api/audit?page=1&page_size=5&event_type=operations.integration_cutover_assignment",
@@ -920,12 +1031,15 @@ async def test_integration_cutover_assignment_feeds_packet_and_workplan(client, 
     assert assignment["owner_name"] == "Vendor Lane Owner"
     assert assignment["status"] == "in_progress"
 
-    refreshed_item = next(row for row in refreshed.json()["items"] if row["integration"] == item["integration"])
+    refreshed_item = next(
+        row for row in refreshed.json()["items"] if row["integration"] == item["integration"]
+    )
     assert refreshed_item["assignment"]["owner_name"] == "Vendor Lane Owner"
     assert refreshed_item["assignment"]["due_date"] == "2026-06-20"
 
     cutover_items = [
-        row for row in workplan.json()["items"]
+        row
+        for row in workplan.json()["items"]
         if row["source"] == "integration_cutover" and row["key"] == f"cutover_{item['integration']}"
     ]
     assert cutover_items
@@ -937,8 +1051,12 @@ async def test_integration_cutover_assignment_feeds_packet_and_workplan(client, 
 
 @pytest.mark.asyncio
 async def test_credential_dry_run_binder_snapshot_is_audit_backed(client, auth_headers):
-    snapshot = await client.post("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
-    snapshots = await client.get("/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers)
+    snapshot = await client.post(
+        "/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers
+    )
+    snapshots = await client.get(
+        "/api/operations/credential-dry-run-binder/snapshots", headers=auth_headers
+    )
     audit = await client.get(
         "/api/audit?page=1&page_size=5&event_type=operations.credential_binder_snapshot",
         headers=auth_headers,
@@ -976,7 +1094,10 @@ async def test_launch_workplan_snapshot_and_export(client, auth_headers):
 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
-    assert "key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note" in exported.text
+    assert (
+        "key,source,category,label,severity,detail,route,owner_role,recommended_action,owner,assignment_status,due_date,note"
+        in exported.text
+    )
 
 
 @pytest.mark.asyncio
@@ -989,8 +1110,7 @@ async def test_go_live_packet_blocks_unassigned_launch_workplan_snapshot(client,
     assert snapshot.json()["unassigned_blocking_count"] > 0
     assert packet.status_code == 200
     workplan_evidence = next(
-        item for item in packet.json()["evidence"]
-        if item["key"] == "launch_workplan_snapshot"
+        item for item in packet.json()["evidence"] if item["key"] == "launch_workplan_snapshot"
     )
     assert workplan_evidence["status"] == "blocking"
     assert "unassigned blocking" in workplan_evidence["detail"]
@@ -1012,22 +1132,25 @@ async def test_go_live_packet_combines_launch_evidence(client, auth_headers):
     assert data["evidence_total"] >= 5
     assert data["evidence_ready_count"] >= 0
     evidence_keys = {item["key"] for item in data["evidence"]}
-    assert {"readiness_snapshot", "launch_workplan_snapshot", "production_rehearsal_snapshot", "credential_binder_snapshot", "credential_preflight", "backup_restore"} <= evidence_keys
+    assert {
+        "readiness_snapshot",
+        "launch_workplan_snapshot",
+        "production_rehearsal_snapshot",
+        "credential_binder_snapshot",
+        "credential_preflight",
+        "backup_restore",
+    } <= evidence_keys
     readiness_evidence = next(
-        item for item in data["evidence"]
-        if item["key"] == "readiness_snapshot"
+        item for item in data["evidence"] if item["key"] == "readiness_snapshot"
     )
     workplan_evidence = next(
-        item for item in data["evidence"]
-        if item["key"] == "launch_workplan_snapshot"
+        item for item in data["evidence"] if item["key"] == "launch_workplan_snapshot"
     )
     rehearsal_evidence = next(
-        item for item in data["evidence"]
-        if item["key"] == "production_rehearsal_snapshot"
+        item for item in data["evidence"] if item["key"] == "production_rehearsal_snapshot"
     )
     binder_evidence = next(
-        item for item in data["evidence"]
-        if item["key"] == "credential_binder_snapshot"
+        item for item in data["evidence"] if item["key"] == "credential_binder_snapshot"
     )
     assert readiness_evidence["status"] == "blocking"
     assert workplan_evidence["status"] == "blocking"
@@ -1064,71 +1187,157 @@ async def test_go_live_packet_requires_all_evidence_ready(monkeypatch):
         }
 
     async def fake_readiness_snapshots(db, user):
-        return ([
-            {
-                "id": "readiness-warning",
-                "created_at": datetime.now(UTC),
-                "operational_status": "ok",
-                "core_status": "ok",
-                "launch_score": 100,
-                "incident_count": 1,
-                "critical_count": 0,
-                "warning_count": 1,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "readiness-warning",
+                    "created_at": datetime.now(UTC),
+                    "operational_status": "ok",
+                    "core_status": "ok",
+                    "launch_score": 100,
+                    "incident_count": 1,
+                    "critical_count": 0,
+                    "warning_count": 1,
+                }
+            ],
+            1,
+        )
 
     async def fake_rehearsal_snapshots(db, user):
-        return ([
-            {
-                "id": "rehearsal-ready",
-                "created_at": datetime.now(UTC),
-                "rehearsal_ready": True,
-                "blocking_count": 0,
-                "warning_count": 0,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "rehearsal-ready",
+                    "created_at": datetime.now(UTC),
+                    "rehearsal_ready": True,
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_workplan_snapshots(db, user):
-        return ([
-            {
-                "id": "workplan-ready",
-                "created_at": datetime.now(UTC),
-                "blocking_count": 0,
-                "warning_count": 0,
-                "assigned_count": 0,
-                "unassigned_count": 0,
-                "unassigned_blocking_count": 0,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "workplan-ready",
+                    "created_at": datetime.now(UTC),
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                    "assigned_count": 0,
+                    "unassigned_count": 0,
+                    "unassigned_blocking_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_empty_list(db, user):
         return ([], 0)
 
     async def fake_role_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_browser_sessions(db, user):
-        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "passed_count": 1,
+                    "failed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_training_sessions(db, user):
-        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "signed_count": 1,
+                    "reviewed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_policy_sessions(db, user):
-        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "approved_count": 1,
+                    "needs_changes_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_restore_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "rto_minutes": 20,
+                    "rpo_minutes": 10,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_cutover_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "rollback_count": 0,
+                    "pending_count": 0,
+                    "rollback_status": "rollback_ready",
+                    "rollback_decision": "Approved rollback plan.",
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
     monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
-    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(
+        operations_service.integration_config_service,
+        "credential_preflight",
+        fake_credential_preflight,
+    )
     monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
     monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
     monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
-    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(
+        operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots
+    )
     monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
     monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
     monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
@@ -1137,7 +1346,10 @@ async def test_go_live_packet_requires_all_evidence_ready(monkeypatch):
     monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
     monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
 
-    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+    packet = await operations_service.go_live_packet(
+        None,
+        User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"),
+    )
 
     assert packet["blocking_count"] == 0
     assert packet["warning_count"] > 0
@@ -1146,7 +1358,9 @@ async def test_go_live_packet_requires_all_evidence_ready(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_go_live_packet_blocks_production_integrations_without_archived_handoff_packet(monkeypatch):
+async def test_go_live_packet_blocks_production_integrations_without_archived_handoff_packet(
+    monkeypatch,
+):
     async def fake_check_readiness():
         return {
             "environment": "test",
@@ -1186,71 +1400,157 @@ async def test_go_live_packet_blocks_production_integrations_without_archived_ha
         }
 
     async def fake_readiness_snapshots(db, user):
-        return ([
-            {
-                "id": "readiness-ready",
-                "created_at": datetime.now(UTC),
-                "operational_status": "ok",
-                "core_status": "ok",
-                "launch_score": 100,
-                "incident_count": 0,
-                "critical_count": 0,
-                "warning_count": 0,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "readiness-ready",
+                    "created_at": datetime.now(UTC),
+                    "operational_status": "ok",
+                    "core_status": "ok",
+                    "launch_score": 100,
+                    "incident_count": 0,
+                    "critical_count": 0,
+                    "warning_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_rehearsal_snapshots(db, user):
-        return ([
-            {
-                "id": "rehearsal-ready",
-                "created_at": datetime.now(UTC),
-                "rehearsal_ready": True,
-                "blocking_count": 0,
-                "warning_count": 0,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "rehearsal-ready",
+                    "created_at": datetime.now(UTC),
+                    "rehearsal_ready": True,
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_workplan_snapshots(db, user):
-        return ([
-            {
-                "id": "workplan-ready",
-                "created_at": datetime.now(UTC),
-                "blocking_count": 0,
-                "warning_count": 0,
-                "assigned_count": 0,
-                "unassigned_count": 0,
-                "unassigned_blocking_count": 0,
-            }
-        ], 1)
+        return (
+            [
+                {
+                    "id": "workplan-ready",
+                    "created_at": datetime.now(UTC),
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                    "assigned_count": 0,
+                    "unassigned_count": 0,
+                    "unassigned_blocking_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_empty_list(db, user):
         return ([], 0)
 
     async def fake_role_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_browser_sessions(db, user):
-        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "passed_count": 1,
+                    "failed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_training_sessions(db, user):
-        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "signed_count": 1,
+                    "reviewed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_policy_sessions(db, user):
-        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "approved_count": 1,
+                    "needs_changes_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_restore_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "rto_minutes": 20,
+                    "rpo_minutes": 10,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_cutover_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "rollback_count": 0,
+                    "pending_count": 0,
+                    "rollback_status": "rollback_ready",
+                    "rollback_decision": "Approved rollback plan.",
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
     monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
-    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(
+        operations_service.integration_config_service,
+        "credential_preflight",
+        fake_credential_preflight,
+    )
     monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
     monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
     monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
-    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(
+        operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots
+    )
     monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
     monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
     monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
@@ -1259,9 +1559,14 @@ async def test_go_live_packet_blocks_production_integrations_without_archived_ha
     monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
     monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
 
-    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+    packet = await operations_service.go_live_packet(
+        None,
+        User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"),
+    )
 
-    handoff_evidence = next(item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives")
+    handoff_evidence = next(
+        item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives"
+    )
     assert handoff_evidence["status"] == "blocking"
     assert "Fax provider" in handoff_evidence["detail"]
     assert packet["go_live_ready"] is False
@@ -1304,45 +1609,166 @@ async def test_go_live_packet_marks_archived_handoff_packets_ready(monkeypatch):
         return {"blocking_count": 0, "warning_count": 0, "items": []}
 
     async def fake_readiness_snapshots(db, user):
-        return ([{"id": "readiness-ready", "created_at": datetime.now(UTC), "operational_status": "ok", "core_status": "ok", "launch_score": 100, "incident_count": 0, "critical_count": 0, "warning_count": 0}], 1)
+        return (
+            [
+                {
+                    "id": "readiness-ready",
+                    "created_at": datetime.now(UTC),
+                    "operational_status": "ok",
+                    "core_status": "ok",
+                    "launch_score": 100,
+                    "incident_count": 0,
+                    "critical_count": 0,
+                    "warning_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_rehearsal_snapshots(db, user):
-        return ([{"id": "rehearsal-ready", "created_at": datetime.now(UTC), "rehearsal_ready": True, "blocking_count": 0, "warning_count": 0}], 1)
+        return (
+            [
+                {
+                    "id": "rehearsal-ready",
+                    "created_at": datetime.now(UTC),
+                    "rehearsal_ready": True,
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_workplan_snapshots(db, user):
-        return ([{"id": "workplan-ready", "created_at": datetime.now(UTC), "blocking_count": 0, "warning_count": 0, "assigned_count": 0, "unassigned_count": 0, "unassigned_blocking_count": 0}], 1)
+        return (
+            [
+                {
+                    "id": "workplan-ready",
+                    "created_at": datetime.now(UTC),
+                    "blocking_count": 0,
+                    "warning_count": 0,
+                    "assigned_count": 0,
+                    "unassigned_count": 0,
+                    "unassigned_blocking_count": 0,
+                }
+            ],
+            1,
+        )
 
     async def fake_empty_list(db, user):
         return ([], 0)
 
     async def fake_role_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_browser_sessions(db, user):
-        return ([{"status": "completed", "passed_count": 1, "failed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "passed_count": 1,
+                    "failed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_training_sessions(db, user):
-        return ([{"status": "completed", "signed_count": 1, "reviewed_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "signed_count": 1,
+                    "reviewed_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_policy_sessions(db, user):
-        return ([{"status": "completed", "approved_count": 1, "needs_changes_count": 0, "pending_count": 0, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "approved_count": 1,
+                    "needs_changes_count": 0,
+                    "pending_count": 0,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_restore_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "pending_count": 0, "rto_minutes": 20, "rpo_minutes": 10, "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "pending_count": 0,
+                    "rto_minutes": 20,
+                    "rpo_minutes": 10,
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_cutover_sessions(db, user):
-        return ([{"status": "completed", "complete_count": 1, "blocked_count": 0, "rollback_count": 0, "pending_count": 0, "rollback_status": "rollback_ready", "rollback_decision": "Approved rollback plan.", "updated_at": datetime.now(UTC)}], 1)
+        return (
+            [
+                {
+                    "status": "completed",
+                    "complete_count": 1,
+                    "blocked_count": 0,
+                    "rollback_count": 0,
+                    "pending_count": 0,
+                    "rollback_status": "rollback_ready",
+                    "rollback_decision": "Approved rollback plan.",
+                    "updated_at": datetime.now(UTC),
+                }
+            ],
+            1,
+        )
 
     async def fake_handoff_archives(db, user):
-        return {"fax": {"integration": "fax", "archive_reference_url": "s3://launch-evidence/fax.json", "archived_at": datetime.now(UTC)}}
+        return {
+            "fax": {
+                "integration": "fax",
+                "archive_reference_url": "s3://launch-evidence/fax.json",
+                "archived_at": datetime.now(UTC),
+            }
+        }
 
     monkeypatch.setattr(operations_service, "check_readiness", fake_check_readiness)
     monkeypatch.setattr(operations_service, "launch_readiness", fake_launch_readiness)
-    monkeypatch.setattr(operations_service.integration_config_service, "credential_preflight", fake_credential_preflight)
+    monkeypatch.setattr(
+        operations_service.integration_config_service,
+        "credential_preflight",
+        fake_credential_preflight,
+    )
     monkeypatch.setattr(operations_service, "launch_workplan", fake_launch_workplan)
     monkeypatch.setattr(operations_service, "list_readiness_snapshots", fake_readiness_snapshots)
     monkeypatch.setattr(operations_service, "list_rehearsal_snapshots", fake_rehearsal_snapshots)
-    monkeypatch.setattr(operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots)
+    monkeypatch.setattr(
+        operations_service, "list_launch_workplan_snapshots", fake_workplan_snapshots
+    )
     monkeypatch.setattr(operations_service, "list_go_live_attestations", fake_empty_list)
     monkeypatch.setattr(operations_service, "list_role_dry_run_sessions", fake_role_sessions)
     monkeypatch.setattr(operations_service, "list_browser_qa_sessions", fake_browser_sessions)
@@ -1350,11 +1776,18 @@ async def test_go_live_packet_marks_archived_handoff_packets_ready(monkeypatch):
     monkeypatch.setattr(operations_service, "list_policy_approval_sessions", fake_policy_sessions)
     monkeypatch.setattr(operations_service, "list_restore_drill_sessions", fake_restore_sessions)
     monkeypatch.setattr(operations_service, "list_cutover_runbook_sessions", fake_cutover_sessions)
-    monkeypatch.setattr(operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives)
+    monkeypatch.setattr(
+        operations_service, "_latest_vendor_handoff_archives", fake_handoff_archives
+    )
 
-    packet = await operations_service.go_live_packet(None, User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"))
+    packet = await operations_service.go_live_packet(
+        None,
+        User(id="user-1", email="ops@example.com", role=UserRole.admin, organization_id="default"),
+    )
 
-    handoff_evidence = next(item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives")
+    handoff_evidence = next(
+        item for item in packet["evidence"] if item["key"] == "vendor_handoff_archives"
+    )
     assert handoff_evidence["status"] == "ready"
     assert "1 production integration" in handoff_evidence["detail"]
 
@@ -1363,10 +1796,15 @@ async def test_go_live_packet_marks_archived_handoff_packets_ready(monkeypatch):
 async def test_go_live_packet_attestation_is_audit_backed(client, auth_headers):
     attestation = await client.post(
         "/api/operations/go-live-packet/attestations",
-        json={"decision": "needs_changes", "note": "Credential preflight and restore evidence still need work."},
+        json={
+            "decision": "needs_changes",
+            "note": "Credential preflight and restore evidence still need work.",
+        },
         headers=auth_headers,
     )
-    attestations = await client.get("/api/operations/go-live-packet/attestations", headers=auth_headers)
+    attestations = await client.get(
+        "/api/operations/go-live-packet/attestations", headers=auth_headers
+    )
     packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
     audit = await client.get(
         "/api/audit?page=1&page_size=5&event_type=operations.go_live_packet_attestation",
@@ -1481,7 +1919,10 @@ async def test_restore_drill_session_evidence_feeds_go_live_packet(client, auth_
 
     assert exported.status_code == 200
     assert exported.headers["content-type"].startswith("text/csv")
-    assert "session_id,session_name,owner_name,status,backup_reference,rto_minutes,rpo_minutes,item_key,item_label,drill_status,note" in exported.text
+    assert (
+        "session_id,session_name,owner_name,status,backup_reference,rto_minutes,rpo_minutes,item_key,item_label,drill_status,note"
+        in exported.text
+    )
 
     evidence = {item["key"]: item for item in packet.json()["evidence"]}
     assert "restore_drill_session" in evidence
@@ -1574,7 +2015,9 @@ async def test_role_dry_run_session_evidence_is_audit_backed(client, auth_header
 
 
 @pytest.mark.asyncio
-async def test_operator_health_rollup_surfaces_production_signals(client, auth_headers, db: AsyncSession):
+async def test_operator_health_rollup_surfaces_production_signals(
+    client, auth_headers, db: AsyncSession
+):
     db.add(
         IntegrationEvent(
             organization_id="default",
@@ -1613,7 +2056,9 @@ async def test_operator_health_rollup_surfaces_production_signals(client, auth_h
     } <= check_keys
     assert all(check["route"] for check in data["checks"])
     assert all(action["route"] for action in data["recommended_actions"])
-    integration_check = next(check for check in data["checks"] if check["key"] == "integration_failures")
+    integration_check = next(
+        check for check in data["checks"] if check["key"] == "integration_failures"
+    )
     assert integration_check["status"] == "critical"
     assert "Webhook signature mismatch" in integration_check["detail"]
 
@@ -1666,7 +2111,9 @@ async def test_production_config_audit_flags_launch_settings(client, auth_header
     } <= check_keys
     assert all(check["action"] for check in data["checks"])
     assert all(check["docs"] for check in data["checks"])
-    assert all(check["env_vars"] for check in data["checks"] if check["key"] != "communications_provider")
+    assert all(
+        check["env_vars"] for check in data["checks"] if check["key"] != "communications_provider"
+    )
 
     seed_check = next(check for check in data["checks"] if check["key"] == "seed_endpoints")
     assert seed_check["ready"] is False
@@ -1681,7 +2128,11 @@ async def test_browser_qa_session_evidence_is_audit_backed(client, auth_headers)
 
     created = await client.post(
         "/api/operations/browser-qa-sessions",
-        json={"session_name": "Manager browser QA", "browser": "Chrome", "note": "Pre-rehearsal walkthrough."},
+        json={
+            "session_name": "Manager browser QA",
+            "browser": "Chrome",
+            "note": "Pre-rehearsal walkthrough.",
+        },
         headers=auth_headers,
     )
     session = created.json()
@@ -1749,7 +2200,9 @@ async def test_browser_qa_session_evidence_is_audit_backed(client, auth_headers)
 
 @pytest.mark.asyncio
 async def test_go_live_packet_keeps_partial_dry_run_and_browser_qa_as_warning(client, auth_headers):
-    dry_run_checklist = await client.get("/api/operations/role-dry-run-checklists", headers=auth_headers)
+    dry_run_checklist = await client.get(
+        "/api/operations/role-dry-run-checklists", headers=auth_headers
+    )
     dry_run_role = dry_run_checklist.json()["roles"][0]
     dry_run_item = dry_run_role["items"][0]
     dry_run_created = await client.post(
@@ -1774,7 +2227,9 @@ async def test_go_live_packet_keeps_partial_dry_run_and_browser_qa_as_warning(cl
         headers=auth_headers,
     )
 
-    browser_checklist = await client.get("/api/operations/browser-qa-checklist", headers=auth_headers)
+    browser_checklist = await client.get(
+        "/api/operations/browser-qa-checklist", headers=auth_headers
+    )
     browser_item = browser_checklist.json()["items"][0]
     browser_created = await client.post(
         "/api/operations/browser-qa-sessions",
@@ -1815,7 +2270,11 @@ async def test_staff_training_session_evidence_is_audit_backed(client, auth_head
 
     created = await client.post(
         "/api/operations/staff-training-sessions",
-        json={"session_name": "Launch staff training", "trainer_name": "Operations Lead", "note": "Pre-live workflow review."},
+        json={
+            "session_name": "Launch staff training",
+            "trainer_name": "Operations Lead",
+            "note": "Pre-live workflow review.",
+        },
         headers=auth_headers,
     )
     session = created.json()
@@ -1886,7 +2345,11 @@ async def test_policy_approval_session_evidence_feeds_go_live_packet(client, aut
 
     created = await client.post(
         "/api/operations/policy-approval-sessions",
-        json={"session_name": "Compliance policy review", "reviewer_name": "Clinic Owner", "note": "Pre-live compliance review."},
+        json={
+            "session_name": "Compliance policy review",
+            "reviewer_name": "Clinic Owner",
+            "note": "Pre-live compliance review.",
+        },
         headers=auth_headers,
     )
     session = created.json()
@@ -1984,13 +2447,20 @@ async def test_live_use_rehearsal_dashboard_rolls_up_launch_evidence(client, aut
         "vendor_handoff_archives",
     } <= gate_keys
     assert all(gate["route"] for gate in data["gates"])
-    assert all(gate["status"] in {"ready", "warning", "blocking", "missing"} for gate in data["gates"])
+    assert all(
+        gate["status"] in {"ready", "warning", "blocking", "missing"} for gate in data["gates"]
+    )
 
     assert data["next_actions"]
     assert all(action["label"] and action["route"] for action in data["next_actions"])
     assert data["evidence"]
     evidence_keys = {item["key"] for item in data["evidence"]}
-    assert {"browser_qa_session", "staff_training_session", "policy_approval_session", "vendor_handoff_archives"} <= evidence_keys
+    assert {
+        "browser_qa_session",
+        "staff_training_session",
+        "policy_approval_session",
+        "vendor_handoff_archives",
+    } <= evidence_keys
 
     assert export.status_code == 200
     assert export.headers["content-type"].startswith("text/csv")
@@ -2038,7 +2508,10 @@ async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, a
         headers=auth_headers,
     )
     sessions = await client.get("/api/operations/cutover-runbook-sessions", headers=auth_headers)
-    export = await client.get(f"/api/operations/cutover-runbook-sessions/{session['session_id']}/export", headers=auth_headers)
+    export = await client.get(
+        f"/api/operations/cutover-runbook-sessions/{session['session_id']}/export",
+        headers=auth_headers,
+    )
     packet = await client.get("/api/operations/go-live-packet", headers=auth_headers)
     audit = await client.get(
         "/api/audit?page=1&page_size=5&event_type=operations.cutover_runbook_session",
@@ -2049,8 +2522,12 @@ async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, a
     checklist_data = checklist.json()
     phase_keys = {phase["key"] for phase in checklist_data["phases"]}
     assert {"pre_cutover", "cutover_window", "validation", "rollback"} <= phase_keys
-    assert checklist_data["total_steps"] == sum(len(phase["steps"]) for phase in checklist_data["phases"])
-    assert any(step["rollback_trigger"] for phase in checklist_data["phases"] for step in phase["steps"])
+    assert checklist_data["total_steps"] == sum(
+        len(phase["steps"]) for phase in checklist_data["phases"]
+    )
+    assert any(
+        step["rollback_trigger"] for phase in checklist_data["phases"] for step in phase["steps"]
+    )
 
     assert created.status_code == 201
     assert session["session_name"] == "Production cutover rehearsal"
@@ -2088,8 +2565,7 @@ async def test_cutover_runbook_session_tracks_steps_rollback_and_audit(client, a
 
     assert packet.status_code == 200
     cutover_evidence = next(
-        item for item in packet.json()["evidence"]
-        if item["key"] == "cutover_runbook_session"
+        item for item in packet.json()["evidence"] if item["key"] == "cutover_runbook_session"
     )
     assert cutover_evidence["status"] == "warning"
     assert "rollback_ready" in cutover_evidence["detail"]

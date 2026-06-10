@@ -144,8 +144,12 @@ async def test_operational_readiness_endpoints_require_manager(
 
     ready_blocked = await client.get("/api/ready", headers=headers_for(provider))
     ready_allowed = await client.get("/api/ready", headers=headers_for(manager))
-    capabilities_blocked = await client.get("/api/integration-capabilities", headers=headers_for(provider))
-    capabilities_allowed = await client.get("/api/integration-capabilities", headers=headers_for(manager))
+    capabilities_blocked = await client.get(
+        "/api/integration-capabilities", headers=headers_for(provider)
+    )
+    capabilities_allowed = await client.get(
+        "/api/integration-capabilities", headers=headers_for(manager)
+    )
 
     assert ready_blocked.status_code == 403
     assert ready_allowed.status_code == 200

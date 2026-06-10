@@ -55,9 +55,7 @@ class ConfiguredIntegration:
 
     def require_configured(self) -> None:
         if not self.configured:
-            raise IntegrationNotConfiguredError(
-                f"{self.name} integration requires {self.env_var}"
-            )
+            raise IntegrationNotConfiguredError(f"{self.name} integration requires {self.env_var}")
 
     async def health(self) -> IntegrationHealth:
         adapter_detail = self.adapter_detail or (
@@ -97,4 +95,5 @@ class ConfiguredIntegration:
 
 class BaseIntegrationClient:
     """Base class for vendor-specific integration clients."""
+
     pass

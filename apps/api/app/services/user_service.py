@@ -40,8 +40,8 @@ async def list_users(
 
     total = (await db.execute(countq)).scalar() or 0
     rows = (
-        await db.execute(query.order_by(User.role.asc(), User.display_name.asc()))
-    ).scalars().all()
+        (await db.execute(query.order_by(User.role.asc(), User.display_name.asc()))).scalars().all()
+    )
     return list(rows), total
 
 
@@ -155,12 +155,16 @@ async def issue_password_reset(
 
 async def recovery_summary(db: AsyncSession, current_user: User) -> dict:
     rows = (
-        await db.execute(
-            select(User)
-            .where(User.organization_id == current_user.organization_id)
-            .order_by(User.role.asc(), User.display_name.asc())
+        (
+            await db.execute(
+                select(User)
+                .where(User.organization_id == current_user.organization_id)
+                .order_by(User.role.asc(), User.display_name.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     data = [_recovery_item(user) for user in rows if user.password_must_change]
     return {
         "data": data,
@@ -177,21 +181,23 @@ async def access_review_summary(
     current_user: User,
 ) -> dict:
     rows = (
-        await db.execute(
-            select(User)
-            .where(User.organization_id == current_user.organization_id)
-            .order_by(User.role.asc(), User.display_name.asc())
+        (
+            await db.execute(
+                select(User)
+                .where(User.organization_id == current_user.organization_id)
+                .order_by(User.role.asc(), User.display_name.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     items = [_access_review_item(user) for user in rows]
     return {
         "data": items,
         "total": len(items),
         "due_count": sum(1 for item in items if item["review_status"] == "needs_review"),
         "privileged_without_mfa_count": sum(
-            1
-            for item in items
-            if "privileged_mfa_missing" in item["findings"]
+            1 for item in items if "privileged_mfa_missing" in item["findings"]
         ),
         "inactive_count": sum(1 for user in rows if not user.is_active),
         "review_window_days": ACCESS_REVIEW_WINDOW_DAYS,
@@ -200,15 +206,18 @@ async def access_review_summary(
 
 async def role_access_matrix(db: AsyncSession, current_user: User) -> dict:
     rows = (
-        await db.execute(
-            select(User)
-            .where(User.organization_id == current_user.organization_id)
-            .order_by(User.role.asc(), User.display_name.asc())
+        (
+            await db.execute(
+                select(User)
+                .where(User.organization_id == current_user.organization_id)
+                .order_by(User.role.asc(), User.display_name.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     active_by_role = {
-        role: sum(1 for user in rows if user.is_active and user.role == role)
-        for role in UserRole
+        role: sum(1 for user in rows if user.is_active and user.role == role) for role in UserRole
     }
     roles = [_role_matrix_item(role, active_by_role[role]) for role in UserRole]
     warnings = _role_matrix_warnings(rows)
@@ -257,7 +266,9 @@ async def mark_access_reviewed(
 
     before = {
         "mfa_enabled": user.mfa_enabled,
-        "access_reviewed_at": user.access_reviewed_at.isoformat() if user.access_reviewed_at else None,
+        "access_reviewed_at": user.access_reviewed_at.isoformat()
+        if user.access_reviewed_at
+        else None,
     }
     if "mfa_enabled" in data and data["mfa_enabled"] is not None:
         user.mfa_enabled = data["mfa_enabled"]
@@ -279,7 +290,9 @@ async def mark_access_reviewed(
             "before": before,
             "after": {
                 "mfa_enabled": user.mfa_enabled,
-                "access_reviewed_at": user.access_reviewed_at.isoformat() if user.access_reviewed_at else None,
+                "access_reviewed_at": user.access_reviewed_at.isoformat()
+                if user.access_reviewed_at
+                else None,
             },
         },
     )
@@ -298,7 +311,8 @@ def _role_matrix_item(role: UserRole, active_users: int) -> dict:
         "role": role.value,
         "label": label_map[role],
         "active_users": active_users,
-        "can_view_patients": role in {
+        "can_view_patients": role
+        in {
             UserRole.admin,
             UserRole.manager,
             UserRole.provider,
@@ -336,22 +350,26 @@ def _role_matrix_warnings(rows: list[User]) -> list[dict]:
         if user.is_active and user.role in PRIVILEGED_ROLES and not user.mfa_enabled
     ]
     if privileged_mfa_gaps:
-        warnings.append({
-            "key": "privileged_mfa_required",
-            "label": "Privileged MFA required",
-            "severity": "critical",
-            "role": None,
-            "detail": f"{len(privileged_mfa_gaps)} privileged active user(s) need MFA before production login.",
-        })
+        warnings.append(
+            {
+                "key": "privileged_mfa_required",
+                "label": "Privileged MFA required",
+                "severity": "critical",
+                "role": None,
+                "detail": f"{len(privileged_mfa_gaps)} privileged active user(s) need MFA before production login.",
+            }
+        )
     for role in UserRole:
         if not any(user.is_active and user.role == role for user in rows):
-            warnings.append({
-                "key": f"role_without_active_user:{role.value}",
-                "label": "No active staff assigned",
-                "severity": "warning",
-                "role": role.value,
-                "detail": f"No active {role.value.replace('_', ' ')} user is assigned.",
-            })
+            warnings.append(
+                {
+                    "key": f"role_without_active_user:{role.value}",
+                    "label": "No active staff assigned",
+                    "severity": "warning",
+                    "role": role.value,
+                    "detail": f"No active {role.value.replace('_', ' ')} user is assigned.",
+                }
+            )
     return warnings
 
 
@@ -371,7 +389,8 @@ def _access_review_item(user: User) -> dict:
     actionable = [
         finding
         for finding in findings
-        if finding in {"inactive_account", "privileged_mfa_missing", "never_reviewed", "stale_review"}
+        if finding
+        in {"inactive_account", "privileged_mfa_missing", "never_reviewed", "stale_review"}
     ]
     return {
         "user": user,

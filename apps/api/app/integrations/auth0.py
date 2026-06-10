@@ -25,6 +25,7 @@ class Auth0Client(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         domain = getattr(settings, "auth0_domain", "")
         return httpx.AsyncClient(
             base_url=f"https://{domain}",
@@ -39,6 +40,7 @@ class Auth0Client(ConfiguredIntegration):
     @property
     def _domain(self) -> str:
         from app.config import settings
+
         return getattr(settings, "auth0_domain", "")
 
     @with_api_retry(circuit_breaker="auth0")
@@ -80,7 +82,7 @@ class Auth0Client(ConfiguredIntegration):
 
         params: dict[str, str | int] = {"per_page": limit, "include_totals": "true"}
         if search:
-            params["q"] = f'email:*{search}* OR name:*{search}*'
+            params["q"] = f"email:*{search}* OR name:*{search}*"
         if role:
             params["q"] = f'app_metadata.roles:"{role}"'
 
@@ -197,6 +199,7 @@ class Auth0Client(ConfiguredIntegration):
             state: Optional state parameter for security
         """
         from app.config import settings
+
         client_id = getattr(settings, "auth0_client_id", "")
 
         params = f"response_type=code&client_id={client_id}&redirect_uri={redirect_uri}&scope=openid%20profile%20email"
@@ -220,6 +223,7 @@ class Auth0Client(ConfiguredIntegration):
         self.require_configured()
 
         from app.config import settings
+
         client_id = getattr(settings, "auth0_client_id", "")
         client_secret = getattr(settings, "auth0_client_secret", "")
 

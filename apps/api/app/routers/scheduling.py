@@ -8,14 +8,14 @@ from app.database import get_db
 from app.deps import front_office_write_required, get_current_user, manager_write_required
 from app.models.user import User
 from app.schemas.schedule import (
+    AppointmentConflictCheckOut,
     AppointmentCreate,
     AppointmentListOut,
     AppointmentOut,
-    AppointmentConflictCheckOut,
+    AppointmentReminderOut,
     AppointmentUpdate,
     AvailabilityCreate,
     AvailabilityOut,
-    AppointmentReminderOut,
     TodayQueueOut,
 )
 from app.services import schedule_service
@@ -120,7 +120,9 @@ async def update_appointment(
     if not update_data:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
     try:
-        appt = await schedule_service.update_appointment(db, current_user, appointment_id, update_data)
+        appt = await schedule_service.update_appointment(
+            db, current_user, appointment_id, update_data
+        )
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if not appt:

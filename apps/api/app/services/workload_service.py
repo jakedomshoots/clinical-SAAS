@@ -9,24 +9,32 @@ from app.schemas.workload import WorkloadBucketOut, WorkloadSummaryOut
 
 async def checkout_workload(db: AsyncSession, user: User) -> WorkloadSummaryOut:
     rows = (
-        await db.execute(
-            select(PatientCarePlanItem).where(
-                PatientCarePlanItem.organization_id == user.organization_id,
-                PatientCarePlanItem.status.in_(
-                    [CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]
-                ),
+        (
+            await db.execute(
+                select(PatientCarePlanItem).where(
+                    PatientCarePlanItem.organization_id == user.organization_id,
+                    PatientCarePlanItem.status.in_(
+                        [CarePlanStatus.open, CarePlanStatus.in_progress, CarePlanStatus.blocked]
+                    ),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     task_rows = (
-        await db.execute(
-            select(Task).where(
-                Task.organization_id == user.organization_id,
-                Task.source_type.like("checkout_handoff:%"),
-                Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
+        (
+            await db.execute(
+                select(Task).where(
+                    Task.organization_id == user.organization_id,
+                    Task.source_type.like("checkout_handoff:%"),
+                    Task.status.in_([TaskStatus.open, TaskStatus.in_progress, TaskStatus.blocked]),
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     user_ids = {item.assigned_to_id for item in rows if item.assigned_to_id}
     user_ids.update(task.assigned_to_id for task in task_rows if task.assigned_to_id)
     user_map = {}
@@ -81,7 +89,13 @@ async def checkout_workload(db: AsyncSession, user: User) -> WorkloadSummaryOut:
             bucket["urgent_tasks"] += 1
 
     return WorkloadSummaryOut(
-        data=[WorkloadBucketOut(**bucket) for bucket in sorted(buckets.values(), key=lambda item: (item["owner_role"], item["assigned_to_name"] or ""))],
+        data=[
+            WorkloadBucketOut(**bucket)
+            for bucket in sorted(
+                buckets.values(),
+                key=lambda item: (item["owner_role"], item["assigned_to_name"] or ""),
+            )
+        ],
         total_open_items=len(rows),
         unassigned_items=sum(1 for item in rows if not item.assigned_to_id),
         source_linked_tasks=len(task_rows),

@@ -7,7 +7,7 @@ All break-glass access is heavily audited and requires post-hoc justification.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -54,7 +54,7 @@ async def request_break_glass_access(
             detail="Justification must be at least 20 characters",
         )
 
-    session_id = f"bg-{provider_npi}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+    session_id = f"bg-{provider_npi}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}"
 
     session = {
         "session_id": session_id,
@@ -62,8 +62,8 @@ async def request_break_glass_access(
         "patient_id": patient_id,
         "justification": justification,
         "witness_contact": witness_contact,
-        "requested_at": datetime.now(timezone.utc).isoformat(),
-        "expires_at": (datetime.now(timezone.utc).replace(hour=23, minute=59, second=59)).isoformat(),
+        "requested_at": datetime.now(UTC).isoformat(),
+        "expires_at": (datetime.now(UTC).replace(hour=23, minute=59, second=59)).isoformat(),
         "status": "active",
         "ip_address": request.client.host if request.client else "unknown",
         "access_log": [],
@@ -116,7 +116,7 @@ async def revoke_break_glass(
         raise HTTPException(status_code=404, detail="Session not found")
 
     session["status"] = "revoked"
-    session["revoked_at"] = datetime.now(timezone.utc).isoformat()
+    session["revoked_at"] = datetime.now(UTC).isoformat()
     session["revoked_by"] = current_user.id
     session["revocation_reason"] = data.get("reason", "Administrative revocation")
 
@@ -146,7 +146,7 @@ async def complete_break_glass_review(
 
     session["review"] = {
         "reviewed_by": current_user.id,
-        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+        "reviewed_at": datetime.now(UTC).isoformat(),
         "clinical_appropriateness": data.get("clinical_appropriateness", False),
         "documentation_complete": data.get("documentation_complete", False),
         "follow_up_required": data.get("follow_up_required", False),

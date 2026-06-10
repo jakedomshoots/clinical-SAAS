@@ -25,6 +25,7 @@ class QuestClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         base_url = getattr(settings, "quest_api_base_url", "https://api.questdiagnostics.com/v1")
         if not base_url:
             base_url = "https://api.questdiagnostics.com/v1"

@@ -24,7 +24,11 @@ PRAPARE_QUESTIONS: list[dict] = [
         "options": [
             {"value": "i_have_housing", "label": "I have housing", "risk": False},
             {"value": "i_do_not_have_housing", "label": "I do not have housing", "risk": True},
-            {"value": "unstable_housing", "label": "Unstable housing (staying with others, temp housing)", "risk": True},
+            {
+                "value": "unstable_housing",
+                "label": "Unstable housing (staying with others, temp housing)",
+                "risk": True,
+            },
         ],
     },
     {

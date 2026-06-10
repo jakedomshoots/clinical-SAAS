@@ -9,7 +9,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -42,7 +42,9 @@ class SDOHScreeningResponse(Base):
         nullable=False,
         index=True,
     )
-    screening_tool: Mapped[str] = mapped_column(String(50), default="PRAPARE")  # PRAPARE, AHC-HRSN, custom
+    screening_tool: Mapped[str] = mapped_column(
+        String(50), default="PRAPARE"
+    )  # PRAPARE, AHC-HRSN, custom
     domain: Mapped[SDOHDomain] = mapped_column(SAEnum(SDOHDomain), nullable=False)
     question_code: Mapped[str] = mapped_column(String(50), nullable=False)
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
@@ -77,7 +79,9 @@ class SDOHReferral(Base):
     organization_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
     organization_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
     organization_address: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="pending")  # pending, active, completed, declined
+    status: Mapped[str] = mapped_column(
+        String(50), default="pending"
+    )  # pending, active, completed, declined
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

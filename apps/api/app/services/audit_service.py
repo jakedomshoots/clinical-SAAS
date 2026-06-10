@@ -8,7 +8,6 @@ from app.models.audit import AuditLog
 from app.models.user import User
 from app.redis_client import redis
 
-
 AUDIT_REVIEW_CATEGORIES = [
     {
         "key": "document_access",
@@ -191,22 +190,26 @@ async def list_events_for_export(
     return list(result.scalars().all())
 
 
-async def patient_access_history(db: AsyncSession, user, patient_id: str) -> tuple[list[AuditLog], int]:
+async def patient_access_history(
+    db: AsyncSession, user, patient_id: str
+) -> tuple[list[AuditLog], int]:
     query = select(AuditLog).where(
         AuditLog.organization_id == user.organization_id,
         AuditLog.payload["patient_id"].as_string() == patient_id,
-        AuditLog.event_type.in_([
-            "patient.profile_viewed",
-            "patient_document.accessed",
-            "patient_document.processed",
-            "patient_chart.viewed",
-            "patient_clinical.medications_viewed",
-            "patient_clinical.care_plan_viewed",
-            "patient_clinical.labs_viewed",
-            "patient_clinical.encounters_viewed",
-            "patient_checkout_handoff.viewed",
-            "patient_outreach.staged",
-        ]),
+        AuditLog.event_type.in_(
+            [
+                "patient.profile_viewed",
+                "patient_document.accessed",
+                "patient_document.processed",
+                "patient_chart.viewed",
+                "patient_clinical.medications_viewed",
+                "patient_clinical.care_plan_viewed",
+                "patient_clinical.labs_viewed",
+                "patient_clinical.encounters_viewed",
+                "patient_checkout_handoff.viewed",
+                "patient_outreach.staged",
+            ]
+        ),
     )
     result = await db.execute(query.order_by(AuditLog.created_at.desc()).limit(200))
     rows = list(result.scalars().all())
@@ -241,15 +244,17 @@ async def review_summary(db: AsyncSession, user: User) -> dict:
             )
         ).scalar_one_or_none()
         sensitive_event_count += count
-        categories.append({
-            "key": definition["key"],
-            "label": definition["label"],
-            "count": count,
-            "severity": definition["severity"] if count else "clear",
-            "event_types": event_types,
-            "last_event_at": latest,
-            "route": definition["route"],
-        })
+        categories.append(
+            {
+                "key": definition["key"],
+                "label": definition["label"],
+                "count": count,
+                "severity": definition["severity"] if count else "clear",
+                "event_types": event_types,
+                "last_event_at": latest,
+                "route": definition["route"],
+            }
+        )
 
     return {
         "generated_at": datetime.now(UTC).isoformat(),

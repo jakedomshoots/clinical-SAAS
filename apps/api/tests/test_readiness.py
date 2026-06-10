@@ -26,9 +26,15 @@ async def test_external_integrations_default_to_demo_mode(monkeypatch):
 async def test_external_integrations_report_placeholder_adapters_when_configured(monkeypatch):
     monkeypatch.setattr(readiness_service.settings, "ehr_api_base_url", "https://ehr.example.com")
     monkeypatch.setattr(readiness_service.settings, "fax_provider_api_key", "fax-key")
-    monkeypatch.setattr(readiness_service.settings, "portal_api_base_url", "https://portal.example.com")
-    monkeypatch.setattr(readiness_service.settings, "calendar_api_base_url", "https://calendar.example.com")
-    monkeypatch.setattr(readiness_service.settings, "copilotkit_runtime_url", "https://copilot.example.com")
+    monkeypatch.setattr(
+        readiness_service.settings, "portal_api_base_url", "https://portal.example.com"
+    )
+    monkeypatch.setattr(
+        readiness_service.settings, "calendar_api_base_url", "https://calendar.example.com"
+    )
+    monkeypatch.setattr(
+        readiness_service.settings, "copilotkit_runtime_url", "https://copilot.example.com"
+    )
     monkeypatch.setattr(readiness_service.settings, "communications_provider_api_key", "comms-key")
     monkeypatch.setattr(readiness_service.settings, "clearinghouse_api_key", "claims-key")
 

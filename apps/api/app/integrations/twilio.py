@@ -26,6 +26,7 @@ class TwilioClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         account_sid = getattr(settings, "twilio_account_sid", "")
         auth_token = self.api_key
         return httpx.AsyncClient(
@@ -36,6 +37,7 @@ class TwilioClient(ConfiguredIntegration):
 
     def _messaging_client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         account_sid = getattr(settings, "twilio_account_sid", "")
         auth_token = self.api_key
         return httpx.AsyncClient(
@@ -47,11 +49,13 @@ class TwilioClient(ConfiguredIntegration):
     @property
     def _account_sid(self) -> str:
         from app.config import settings
+
         return getattr(settings, "twilio_account_sid", "")
 
     @property
     def _from_number(self) -> str:
         from app.config import settings
+
         return getattr(settings, "twilio_from_number", "")
 
     @with_api_retry(circuit_breaker="twilio")

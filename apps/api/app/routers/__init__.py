@@ -1,1 +1,1 @@
-from app.routers import auth, patients, tasks, scheduling, faxes, messages, websocket
+from app.routers import auth, faxes, messages, patients, scheduling, tasks, websocket

@@ -1,6 +1,6 @@
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
-import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -102,11 +102,29 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Write or reconcile one encounter note in sandbox",
             ],
             adapter_methods=[
-                AdapterMethod("patient_search", "Patient search", "Find patients by name, DOB, MRN, or vendor identifier."),
-                AdapterMethod("demographics_sync", "Demographics sync", "Import and update patient demographics from the EHR source of truth."),
-                AdapterMethod("medication_sync", "Medication sync", "Import active medication lists for reconciliation."),
-                AdapterMethod("lab_import", "Lab import", "Import lab results and clinical review status."),
-                AdapterMethod("encounter_writeback", "Encounter writeback", "Write or reconcile encounter notes in the vendor sandbox."),
+                AdapterMethod(
+                    "patient_search",
+                    "Patient search",
+                    "Find patients by name, DOB, MRN, or vendor identifier.",
+                ),
+                AdapterMethod(
+                    "demographics_sync",
+                    "Demographics sync",
+                    "Import and update patient demographics from the EHR source of truth.",
+                ),
+                AdapterMethod(
+                    "medication_sync",
+                    "Medication sync",
+                    "Import active medication lists for reconciliation.",
+                ),
+                AdapterMethod(
+                    "lab_import", "Lab import", "Import lab results and clinical review status."
+                ),
+                AdapterMethod(
+                    "encounter_writeback",
+                    "Encounter writeback",
+                    "Write or reconcile encounter notes in the vendor sandbox.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -124,11 +142,31 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Download the source document and confirm patient matching",
             ],
             adapter_methods=[
-                AdapterMethod("send_document", "Send document", "Send outbound documents and referrals through the provider."),
-                AdapterMethod("receive_webhook", "Receive webhook", "Map inbound fax callbacks into integration events."),
-                AdapterMethod("delivery_status", "Delivery status sync", "Capture sent, failed, and delivered states."),
-                AdapterMethod("document_download", "Document download", "Download source documents or hand off signed object URLs."),
-                AdapterMethod("patient_document_match", "Patient document match", "Create patient document review records from matched inbound faxes."),
+                AdapterMethod(
+                    "send_document",
+                    "Send document",
+                    "Send outbound documents and referrals through the provider.",
+                ),
+                AdapterMethod(
+                    "receive_webhook",
+                    "Receive webhook",
+                    "Map inbound fax callbacks into integration events.",
+                ),
+                AdapterMethod(
+                    "delivery_status",
+                    "Delivery status sync",
+                    "Capture sent, failed, and delivered states.",
+                ),
+                AdapterMethod(
+                    "document_download",
+                    "Document download",
+                    "Download source documents or hand off signed object URLs.",
+                ),
+                AdapterMethod(
+                    "patient_document_match",
+                    "Patient document match",
+                    "Create patient document review records from matched inbound faxes.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -146,10 +184,24 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Import a portal-uploaded document",
             ],
             adapter_methods=[
-                AdapterMethod("send_message", "Send message", "Send portal messages through the external portal."),
-                AdapterMethod("thread_lookup", "Thread lookup", "Fetch and reconcile portal message threads."),
-                AdapterMethod("intake_webhook", "Intake webhook", "Map portal intake submissions into intake review."),
-                AdapterMethod("document_import", "Document import", "Import portal-uploaded documents into patient document review."),
+                AdapterMethod(
+                    "send_message",
+                    "Send message",
+                    "Send portal messages through the external portal.",
+                ),
+                AdapterMethod(
+                    "thread_lookup", "Thread lookup", "Fetch and reconcile portal message threads."
+                ),
+                AdapterMethod(
+                    "intake_webhook",
+                    "Intake webhook",
+                    "Map portal intake submissions into intake review.",
+                ),
+                AdapterMethod(
+                    "document_import",
+                    "Document import",
+                    "Import portal-uploaded documents into patient document review.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -167,10 +219,24 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Fetch provider availability and conflict results",
             ],
             adapter_methods=[
-                AdapterMethod("create_event", "Create event", "Create appointments in the external calendar."),
-                AdapterMethod("update_event", "Update event", "Update and cancel external calendar appointments."),
-                AdapterMethod("availability_sync", "Availability sync", "Fetch provider availability and conflict results."),
-                AdapterMethod("reminder_source", "Reminder source of truth", "Preserve reminder and schedule source-of-truth behavior."),
+                AdapterMethod(
+                    "create_event", "Create event", "Create appointments in the external calendar."
+                ),
+                AdapterMethod(
+                    "update_event",
+                    "Update event",
+                    "Update and cancel external calendar appointments.",
+                ),
+                AdapterMethod(
+                    "availability_sync",
+                    "Availability sync",
+                    "Fetch provider availability and conflict results.",
+                ),
+                AdapterMethod(
+                    "reminder_source",
+                    "Reminder source of truth",
+                    "Preserve reminder and schedule source-of-truth behavior.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -198,11 +264,31 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Confirm audit and retry states update",
             ],
             adapter_methods=[
-                AdapterMethod("send_outreach", "Send outreach", "Send consent-approved SMS, email, or portal outreach."),
-                AdapterMethod("queue_callback", "Queued callback", "Capture queued provider delivery callbacks."),
-                AdapterMethod("delivery_callback", "Delivery callback", "Capture delivered provider callbacks."),
-                AdapterMethod("failure_callback", "Failure callback", "Capture failed and blocked provider callbacks."),
-                AdapterMethod("retry_state", "Retry state", "Update retry and audit state after provider callbacks."),
+                AdapterMethod(
+                    "send_outreach",
+                    "Send outreach",
+                    "Send consent-approved SMS, email, or portal outreach.",
+                ),
+                AdapterMethod(
+                    "queue_callback",
+                    "Queued callback",
+                    "Capture queued provider delivery callbacks.",
+                ),
+                AdapterMethod(
+                    "delivery_callback",
+                    "Delivery callback",
+                    "Capture delivered provider callbacks.",
+                ),
+                AdapterMethod(
+                    "failure_callback",
+                    "Failure callback",
+                    "Capture failed and blocked provider callbacks.",
+                ),
+                AdapterMethod(
+                    "retry_state",
+                    "Retry state",
+                    "Update retry and audit state after provider callbacks.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -220,10 +306,24 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Verify tool authorization and audit logging",
             ],
             adapter_methods=[
-                AdapterMethod("runtime_health", "Runtime health", "Reach the configured CopilotKit runtime."),
-                AdapterMethod("tenant_authorization", "Tenant authorization", "Forward tenant and user authorization context."),
-                AdapterMethod("tool_allowlist", "Tool allowlist", "Restrict runtime tools to approved confirmation-gated actions."),
-                AdapterMethod("audit_capture", "Audit capture", "Capture assistant tool invocation audit evidence."),
+                AdapterMethod(
+                    "runtime_health", "Runtime health", "Reach the configured CopilotKit runtime."
+                ),
+                AdapterMethod(
+                    "tenant_authorization",
+                    "Tenant authorization",
+                    "Forward tenant and user authorization context.",
+                ),
+                AdapterMethod(
+                    "tool_allowlist",
+                    "Tool allowlist",
+                    "Restrict runtime tools to approved confirmation-gated actions.",
+                ),
+                AdapterMethod(
+                    "audit_capture",
+                    "Audit capture",
+                    "Capture assistant tool invocation audit evidence.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -247,11 +347,29 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Import ERA/remittance fixture into the billing timeline",
             ],
             adapter_methods=[
-                AdapterMethod("claim_submission", "Claim submission", "Submit claims and retain clearinghouse references."),
-                AdapterMethod("eligibility_check", "Eligibility check", "Run payer eligibility checks when supported."),
-                AdapterMethod("denial_callback", "Denial callback", "Map denial and acceptance callbacks to billing cases."),
-                AdapterMethod("payment_callback", "Payment callback", "Capture payment status callbacks."),
-                AdapterMethod("remittance_import", "ERA/remittance import", "Import ERA/remittance data into the billing timeline."),
+                AdapterMethod(
+                    "claim_submission",
+                    "Claim submission",
+                    "Submit claims and retain clearinghouse references.",
+                ),
+                AdapterMethod(
+                    "eligibility_check",
+                    "Eligibility check",
+                    "Run payer eligibility checks when supported.",
+                ),
+                AdapterMethod(
+                    "denial_callback",
+                    "Denial callback",
+                    "Map denial and acceptance callbacks to billing cases.",
+                ),
+                AdapterMethod(
+                    "payment_callback", "Payment callback", "Capture payment status callbacks."
+                ),
+                AdapterMethod(
+                    "remittance_import",
+                    "ERA/remittance import",
+                    "Import ERA/remittance data into the billing timeline.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -269,9 +387,19 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Check order status lifecycle",
             ],
             adapter_methods=[
-                AdapterMethod("fetch_lab_results", "Fetch lab results", "Import lab results and clinical review status from external source."),
-                AdapterMethod("submit_lab_order", "Submit lab order", "Submit lab orders to external lab vendor."),
-                AdapterMethod("check_order_status", "Check order status", "Track lab order status lifecycle."),
+                AdapterMethod(
+                    "fetch_lab_results",
+                    "Fetch lab results",
+                    "Import lab results and clinical review status from external source.",
+                ),
+                AdapterMethod(
+                    "submit_lab_order",
+                    "Submit lab order",
+                    "Submit lab orders to external lab vendor.",
+                ),
+                AdapterMethod(
+                    "check_order_status", "Check order status", "Track lab order status lifecycle."
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -289,9 +417,15 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Retrieve payment history",
             ],
             adapter_methods=[
-                AdapterMethod("process_payment", "Process payment", "Process patient payments through provider."),
+                AdapterMethod(
+                    "process_payment",
+                    "Process payment",
+                    "Process patient payments through provider.",
+                ),
                 AdapterMethod("refund_payment", "Refund payment", "Issue partial or full refunds."),
-                AdapterMethod("get_payment_history", "Payment history", "Retrieve patient payment history."),
+                AdapterMethod(
+                    "get_payment_history", "Payment history", "Retrieve patient payment history."
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -301,7 +435,12 @@ def integration_specs() -> list[IntegrationSpec]:
             label="eRx",
             env_values={"ERX_API_BASE_URL": settings.erx_api_base_url},
             fields=[IntegrationField("ERX_API_BASE_URL", "eRx API base URL")],
-            workflows=["Medication history", "Prescription transmission", "Status tracking", "Cancellation"],
+            workflows=[
+                "Medication history",
+                "Prescription transmission",
+                "Status tracking",
+                "Cancellation",
+            ],
             action="Connect certified eRx vendor and validate medication history, prescription transmission, status callbacks, and prescriber identity proofing.",
             sandbox_tests=[
                 "Fetch medication history for a test patient",
@@ -309,10 +448,24 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Check prescription status and cancellation",
             ],
             adapter_methods=[
-                AdapterMethod("get_medication_history", "Medication history", "Import medication history for reconciliation."),
-                AdapterMethod("send_prescription", "Send prescription", "Transmit prescriptions to pharmacy."),
-                AdapterMethod("check_prescription_status", "Prescription status", "Track prescription fill status."),
-                AdapterMethod("cancel_prescription", "Cancel prescription", "Cancel transmitted prescriptions when needed."),
+                AdapterMethod(
+                    "get_medication_history",
+                    "Medication history",
+                    "Import medication history for reconciliation.",
+                ),
+                AdapterMethod(
+                    "send_prescription", "Send prescription", "Transmit prescriptions to pharmacy."
+                ),
+                AdapterMethod(
+                    "check_prescription_status",
+                    "Prescription status",
+                    "Track prescription fill status.",
+                ),
+                AdapterMethod(
+                    "cancel_prescription",
+                    "Cancel prescription",
+                    "Cancel transmitted prescriptions when needed.",
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -321,8 +474,15 @@ def integration_specs() -> list[IntegrationSpec]:
             health_key="identity",
             label="Identity / MFA",
             env_values={"IDENTITY_PROVIDER_ISSUER_URL": settings.identity_provider_issuer_url},
-            fields=[IntegrationField("IDENTITY_PROVIDER_ISSUER_URL", "Identity provider issuer URL")],
-            workflows=["Staff authentication", "MFA verification", "User provisioning", "Deprovisioning"],
+            fields=[
+                IntegrationField("IDENTITY_PROVIDER_ISSUER_URL", "Identity provider issuer URL")
+            ],
+            workflows=[
+                "Staff authentication",
+                "MFA verification",
+                "User provisioning",
+                "Deprovisioning",
+            ],
             action="Connect identity provider and validate staff authentication, MFA enforcement, user provisioning, and emergency access.",
             sandbox_tests=[
                 "Authenticate a sandbox user",
@@ -330,10 +490,18 @@ def integration_specs() -> list[IntegrationSpec]:
                 "Provision and deprovision a test user",
             ],
             adapter_methods=[
-                AdapterMethod("authenticate_user", "Authenticate user", "Authenticate staff through external identity provider."),
-                AdapterMethod("verify_mfa", "Verify MFA", "Verify multi-factor authentication codes."),
+                AdapterMethod(
+                    "authenticate_user",
+                    "Authenticate user",
+                    "Authenticate staff through external identity provider.",
+                ),
+                AdapterMethod(
+                    "verify_mfa", "Verify MFA", "Verify multi-factor authentication codes."
+                ),
                 AdapterMethod("provision_user", "Provision user", "Provision new staff accounts."),
-                AdapterMethod("deprovision_user", "Deprovision user", "Deprovision offboarded staff accounts."),
+                AdapterMethod(
+                    "deprovision_user", "Deprovision user", "Deprovision offboarded staff accounts."
+                ),
             ],
             docs=["docs/integrations/vendor-adapter-plan.md"],
         ),
@@ -361,9 +529,7 @@ async def update_integration_config(
         | set(VENDOR_RISK_FIELDS)
     )
     sanitized = {
-        key: value.strip()
-        for key, value in values.items()
-        if key in allowed and value.strip()
+        key: value.strip() for key, value in values.items() if key in allowed and value.strip()
     }
     org_drafts = _draft_values.setdefault(user.organization_id, {})
     for key, value in sanitized.items():
@@ -401,7 +567,9 @@ async def test_integration_connection(
     configured = bool(health.get("configured")) or draft_configured
     healthy = bool(health.get("ok"))
     status = "succeeded" if healthy else "failed"
-    mode = "environment" if health.get("configured") else "setup_draft" if draft_configured else "demo"
+    mode = (
+        "environment" if health.get("configured") else "setup_draft" if draft_configured else "demo"
+    )
     message = (
         "Connection health check succeeded."
         if healthy
@@ -468,11 +636,15 @@ def _config_out(spec: IntegrationSpec, organization_id: str, health: dict) -> di
         "adapter_implemented": adapter_implemented,
         "adapter_detail": status.get("adapter_detail"),
         "adapter_methods": adapter_methods,
-        "adapter_method_ready_count": sum(1 for method in adapter_methods if method["status"] == "ready"),
+        "adapter_method_ready_count": sum(
+            1 for method in adapter_methods if method["status"] == "ready"
+        ),
         "adapter_method_total": len(adapter_methods),
         "readiness_mode": readiness_mode,
         "sandbox_ready": readiness_mode == "local_sandbox" and healthy and adapter_implemented,
-        "production_ready": readiness_mode == "production_vendor" and healthy and adapter_implemented,
+        "production_ready": readiness_mode == "production_vendor"
+        and healthy
+        and adapter_implemented,
         "mode": mode,
         "status": _config_status(configured, healthy, mode),
         "fields": [_field_out(spec, field, organization_id) for field in spec.fields],
@@ -678,26 +850,16 @@ async def run_all_sandbox_workflows(
 def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     fields = config["fields"]
     missing_fields = [
-        field["key"]
-        for field in fields
-        if field["required"] and not field["configured"]
+        field["key"] for field in fields if field["required"] and not field["configured"]
     ]
-    configured_fields = [
-        field["key"]
-        for field in fields
-        if field["configured"]
-    ]
+    configured_fields = [field["key"] for field in fields if field["configured"]]
     last_test_status = config.get("last_test_status")
     sandbox_evidence = [
         evidence_by_test.get(_sandbox_test_key(test), _empty_evidence(test))
         for test in config["sandbox_tests"]
     ]
-    passed_evidence_count = sum(
-        1 for item in sandbox_evidence if item["status"] == "passed"
-    )
-    failed_evidence = [
-        item for item in sandbox_evidence if item["status"] == "failed"
-    ]
+    passed_evidence_count = sum(1 for item in sandbox_evidence if item["status"] == "passed")
+    failed_evidence = [item for item in sandbox_evidence if item["status"] == "failed"]
     adapter_implemented = bool(config.get("adapter_implemented"))
     adapter_detail = (
         config.get("adapter_detail")
@@ -710,29 +872,19 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     vendor_profile = config.get("vendor_profile") or _empty_vendor_profile()
     cutover_evidence = config.get("cutover_evidence") or _empty_cutover_evidence()
     risk_register = config.get("risk_register") or _empty_risk_register()
-    sandbox_complete = (
-        len(sandbox_evidence) > 0
-        and passed_evidence_count == len(sandbox_evidence)
-    )
-    vendor_reference_complete = (
-        sandbox_complete
-        and all(_is_vendor_reference(item.get("reference_url")) for item in sandbox_evidence)
+    sandbox_complete = len(sandbox_evidence) > 0 and passed_evidence_count == len(sandbox_evidence)
+    vendor_reference_complete = sandbox_complete and all(
+        _is_vendor_reference(item.get("reference_url")) for item in sandbox_evidence
     )
     sandbox_ready = bool(config.get("sandbox_ready")) and sandbox_complete
     production_ready = (
-        bool(config.get("production_ready"))
-        and sandbox_complete
-        and vendor_reference_complete
+        bool(config.get("production_ready")) and sandbox_complete and vendor_reference_complete
     )
     if production_ready:
         status = "ready"
     elif missing_fields:
         status = "missing"
-    elif not adapter_implemented:
-        status = "blocked"
-    elif failed_evidence:
-        status = "blocked"
-    elif last_test_status == "failed":
+    elif not adapter_implemented or failed_evidence or last_test_status == "failed":
         status = "blocked"
     else:
         status = "staged"
@@ -741,8 +893,7 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         blockers.append(f"Missing required values: {', '.join(missing_fields)}")
     if not vendor_profile["profile_complete"]:
         blockers.append(
-            "Vendor profile is incomplete: "
-            + ", ".join(vendor_profile["missing_fields"])
+            "Vendor profile is incomplete: " + ", ".join(vendor_profile["missing_fields"])
         )
     if not cutover_evidence["evidence_complete"]:
         blockers.append(
@@ -758,16 +909,26 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             blockers.append(adapter_detail)
         if failed_evidence:
             failed_labels = ", ".join(item["test_label"] for item in failed_evidence)
-            blockers.append(f"Failed sandbox workflow evidence requires vendor review: {failed_labels}.")
+            blockers.append(
+                f"Failed sandbox workflow evidence requires vendor review: {failed_labels}."
+            )
         if last_test_status == "failed":
-            blockers.append("Latest connection test failed; vendor adapter or credentials need review.")
+            blockers.append(
+                "Latest connection test failed; vendor adapter or credentials need review."
+            )
     if status == "staged":
         if sandbox_ready and readiness_mode == "local_sandbox":
             blockers.append(
                 "Local sandbox workflows passed; production vendor credentials, adapter, and vendor sandbox references are still required before live use."
             )
-        elif readiness_mode == "production_vendor" and sandbox_complete and not vendor_reference_complete:
-            blockers.append("Vendor sandbox reference URLs are required for every passed workflow before production readiness.")
+        elif (
+            readiness_mode == "production_vendor"
+            and sandbox_complete
+            and not vendor_reference_complete
+        ):
+            blockers.append(
+                "Vendor sandbox reference URLs are required for every passed workflow before production readiness."
+            )
         else:
             blockers.append("Credentials are staged, but sandbox evidence is still pending.")
     if not missing_fields and not sandbox_complete:
@@ -786,7 +947,11 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
         {
             "key": "adapter",
             "label": "Vendor adapter implementation",
-            "status": "ready" if adapter_implemented else "blocked" if not missing_fields else "pending",
+            "status": "ready"
+            if adapter_implemented
+            else "blocked"
+            if not missing_fields
+            else "pending",
             "detail": (
                 f"Vendor adapter is implemented for live-use testing; {adapter_method_ready_count} of {adapter_method_total} required methods ready."
                 if adapter_implemented
@@ -848,7 +1013,8 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
             "label": "Sandbox workflow evidence",
             "status": (
                 "ready"
-                if sandbox_complete and (readiness_mode == "local_sandbox" or vendor_reference_complete)
+                if sandbox_complete
+                and (readiness_mode == "local_sandbox" or vendor_reference_complete)
                 else "blocked"
                 if failed_evidence
                 else "pending"
@@ -899,13 +1065,17 @@ def _preflight_item(config: dict, evidence_by_test: dict[str, dict]) -> dict:
     }
 
 
-async def _sandbox_evidence_by_integration(db: AsyncSession, user: User) -> dict[str, dict[str, dict]]:
+async def _sandbox_evidence_by_integration(
+    db: AsyncSession, user: User
+) -> dict[str, dict[str, dict]]:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == SANDBOX_EVIDENCE_EVENT,
             AuditLog.entity_type == "integration_config",
-        ).order_by(AuditLog.created_at.desc())
+        )
+        .order_by(AuditLog.created_at.desc())
     )
     evidence: dict[str, dict[str, dict]] = {}
     for event in result.scalars().all():
@@ -916,14 +1086,18 @@ async def _sandbox_evidence_by_integration(db: AsyncSession, user: User) -> dict
     return evidence
 
 
-async def _latest_handoff_packet_archive(db: AsyncSession, user: User, integration: str) -> dict | None:
+async def _latest_handoff_packet_archive(
+    db: AsyncSession, user: User, integration: str
+) -> dict | None:
     result = await db.execute(
-        select(AuditLog).where(
+        select(AuditLog)
+        .where(
             AuditLog.organization_id == user.organization_id,
             AuditLog.event_type == HANDOFF_PACKET_ARCHIVE_EVENT,
             AuditLog.entity_type == "integration_config",
             AuditLog.entity_id == integration,
-        ).order_by(AuditLog.created_at.desc())
+        )
+        .order_by(AuditLog.created_at.desc())
     )
     event = result.scalars().first()
     return _handoff_archive_from_audit(event) if event else None
@@ -1099,8 +1273,7 @@ def _empty_vendor_profile() -> dict:
         **{output_key: "" for output_key in VENDOR_PROFILE_FIELDS.values()},
         "profile_complete": False,
         "missing_fields": [
-            VENDOR_PROFILE_FIELDS[input_key]
-            for input_key in VENDOR_PROFILE_REQUIRED
+            VENDOR_PROFILE_FIELDS[input_key] for input_key in VENDOR_PROFILE_REQUIRED
         ],
     }
 
@@ -1135,8 +1308,7 @@ def _empty_cutover_evidence() -> dict:
         "live_rehearsal_approved": False,
         "evidence_complete": False,
         "missing_fields": [
-            CUTOVER_EVIDENCE_FIELDS[input_key]
-            for input_key in CUTOVER_EVIDENCE_REQUIRED
+            CUTOVER_EVIDENCE_FIELDS[input_key] for input_key in CUTOVER_EVIDENCE_REQUIRED
         ],
     }
 
@@ -1144,27 +1316,34 @@ def _empty_cutover_evidence() -> dict:
 def _risk_register_out(integration: str, organization_id: str) -> dict:
     drafts = _draft_values.get(organization_id, {})
     title = drafts.get(_draft_key(integration, "RISK_TITLE"), "").strip()
-    severity = drafts.get(_draft_key(integration, "RISK_SEVERITY"), "warning").strip().lower() or "warning"
+    severity = (
+        drafts.get(_draft_key(integration, "RISK_SEVERITY"), "warning").strip().lower() or "warning"
+    )
     if severity not in {"critical", "warning", "normal"}:
         severity = "warning"
-    mitigation_status = drafts.get(_draft_key(integration, "RISK_MITIGATION_STATUS"), "open").strip().lower() or "open"
+    mitigation_status = (
+        drafts.get(_draft_key(integration, "RISK_MITIGATION_STATUS"), "open").strip().lower()
+        or "open"
+    )
     risk = None
     if title:
-        blocks_live_rehearsal = _truthy_value(drafts.get(_draft_key(integration, "RISK_BLOCKS_REHEARSAL"), ""))
+        blocks_live_rehearsal = _truthy_value(
+            drafts.get(_draft_key(integration, "RISK_BLOCKS_REHEARSAL"), "")
+        )
         risk = {
             "key": "primary",
             "title": title,
             "severity": severity,
-            "mitigation_owner": drafts.get(_draft_key(integration, "RISK_MITIGATION_OWNER"), "").strip(),
+            "mitigation_owner": drafts.get(
+                _draft_key(integration, "RISK_MITIGATION_OWNER"), ""
+            ).strip(),
             "mitigation_status": mitigation_status,
             "blocks_live_rehearsal": blocks_live_rehearsal,
             "resolved": mitigation_status in MITIGATED_RISK_STATUSES,
         }
     risks = [risk] if risk else []
     blocking_count = sum(
-        1
-        for item in risks
-        if item["blocks_live_rehearsal"] and not item["resolved"]
+        1 for item in risks if item["blocks_live_rehearsal"] and not item["resolved"]
     )
     return {
         "risks": risks,
@@ -1227,9 +1406,7 @@ def _config_status(configured: bool, healthy: bool, mode: str) -> str:
 def _draft_configured(spec: IntegrationSpec, organization_id: str) -> bool:
     drafts = _draft_values.get(organization_id, {})
     return all(
-        bool(drafts.get(_draft_key(spec.key, field.key)))
-        for field in spec.fields
-        if field.required
+        bool(drafts.get(_draft_key(spec.key, field.key))) for field in spec.fields if field.required
     )
 
 

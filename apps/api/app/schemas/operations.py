@@ -370,7 +370,9 @@ class CutoverRunbookSessionUpdate(BaseModel):
     step_status: str | None = Field(default=None, pattern="^(pending|complete|blocked|rollback)$")
     owner_name: str | None = Field(default=None, max_length=120)
     step_note: str | None = Field(default=None, max_length=1000)
-    rollback_status: str | None = Field(default=None, pattern="^(not_reviewed|rollback_ready|rollback_required|not_needed)$")
+    rollback_status: str | None = Field(
+        default=None, pattern="^(not_reviewed|rollback_ready|rollback_required|not_needed)$"
+    )
     rollback_decision: str | None = Field(default=None, max_length=1000)
     session_status: str | None = Field(default=None, pattern="^(in_progress|completed|aborted)$")
     note: str | None = Field(default=None, max_length=1000)

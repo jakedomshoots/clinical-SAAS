@@ -23,7 +23,7 @@ from enum import Enum
 from typing import Any
 
 import httpx
-from jose import jwt, ExpiredSignatureError
+from jose import ExpiredSignatureError, jwt
 from jose.exceptions import JWTError
 
 from app.config import settings
@@ -180,17 +180,14 @@ class OIDCClient:
                 audience=self._config["client_id"],
                 issuer=discovery.get("issuer"),
             )
-        except ExpiredSignatureError:
-            raise TokenExpiredError("Token has expired")
+        except ExpiredSignatureError as exc:
+            raise TokenExpiredError("Token has expired") from exc
         except JWTError as e:
-            raise AuthenticationError(f"Invalid token: {e}")
+            raise AuthenticationError(f"Invalid token: {e}") from e
 
         # Check MFA if required
         mfa_verified = payload.get("amr", [])
-        mfa_verified = any(
-            method in mfa_verified
-            for method in ["mfa", "otp", "sms", "webauthn"]
-        )
+        mfa_verified = any(method in mfa_verified for method in ["mfa", "otp", "sms", "webauthn"])
 
         if self._config["mfa_required"] and not mfa_verified:
             # Check if provider has custom MFA claim
@@ -214,9 +211,7 @@ class OIDCClient:
         if allowed_domains:
             domain = email.split("@")[-1].lower()
             if domain not in [d.lower() for d in allowed_domains]:
-                raise AuthenticationError(
-                    f"Email domain '{domain}' is not allowed"
-                )
+                raise AuthenticationError(f"Email domain '{domain}' is not allowed")
 
         return UserIdentity(
             provider=self.provider,
@@ -367,8 +362,6 @@ class SessionManager:
         if not self._redis:
             return None
 
-        import json
-
         data = self._redis.get(f"session:{session_token}")
         if not data:
             return None
@@ -475,9 +468,7 @@ class WebhookSignatureVerifier:
     ) -> bool:
         """Verify Twilio request signature."""
         # Twilio signs the full URL with sorted POST params
-        sorted_params = "".join(
-            f"{k}{v}" for k, v in sorted(params.items())
-        )
+        sorted_params = "".join(f"{k}{v}" for k, v in sorted(params.items()))
         payload = url + sorted_params
 
         expected = base64.b64encode(
@@ -492,6 +483,7 @@ class WebhookSignatureVerifier:
 
 
 # Convenience functions for common identity providers
+
 
 async def get_auth0_client() -> OIDCClient:
     """Get configured Auth0 client."""

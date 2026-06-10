@@ -15,7 +15,7 @@ import hashlib
 import io
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -79,7 +79,7 @@ class ImportBatch:
     section: ImportSection
     mode: str  # dry-run or production
     rows: list[MigrationRow] = field(default_factory=list)
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     completed_at: str | None = None
     status: str = "pending"  # pending, processing, completed, failed
     create_count: int = 0
@@ -155,10 +155,7 @@ class DrChronoMigrationService:
 
         # Check for required fields
         required_fields = self._get_required_fields(row.section)
-        missing_fields = [
-            f for f in required_fields
-            if not row.source_data.get(f)
-        ]
+        missing_fields = [f for f in required_fields if not row.source_data.get(f)]
 
         if missing_fields:
             row.action = RowAction.MISSING_DEPENDENCY
@@ -217,7 +214,7 @@ class DrChronoMigrationService:
         # Generate summary
         total = len(analyzed_rows)
         dry_run_id = hashlib.sha256(
-            f"{section.value}:{datetime.now(timezone.utc).isoformat()}".encode()
+            f"{section.value}:{datetime.now(UTC).isoformat()}".encode()
         ).hexdigest()[:16]
 
         result = {
@@ -234,7 +231,7 @@ class DrChronoMigrationService:
             "confidence_score": self._calculate_confidence(analyzed_rows),
             "sample_rows": [r.to_dict() for r in analyzed_rows[:5]],
             "all_rows": [r.to_dict() for r in analyzed_rows],
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
         }
 
         self._dry_run_results[dry_run_id] = result
@@ -316,7 +313,7 @@ class DrChronoMigrationService:
                 row.errors.append(str(e))
 
         batch.status = "completed"
-        batch.completed_at = datetime.now(timezone.utc).isoformat()
+        batch.completed_at = datetime.now(UTC).isoformat()
         batch.summary = (
             f"Created: {batch.create_count}, "
             f"Updated: {batch.update_count}, "
@@ -373,9 +370,7 @@ class DrChronoMigrationService:
         else:
             key_parts = [json.dumps(data, sort_keys=True)]
 
-        return hashlib.sha256(
-            ":".join(key_parts).encode()
-        ).hexdigest()[:16]
+        return hashlib.sha256(":".join(key_parts).encode()).hexdigest()[:16]
 
     def _is_identical(
         self,
@@ -385,10 +380,9 @@ class DrChronoMigrationService:
         """Check if two records are identical."""
         # Compare common fields
         common_fields = set(source.keys()) & set(target.keys())
-        for field in common_fields:
-            if source.get(field) != target.get(field):
-                return False
-        return True
+        return all(
+            source.get(common_field) == target.get(common_field) for common_field in common_fields
+        )
 
     def _validate_data_quality(
         self,
@@ -424,11 +418,9 @@ class DrChronoMigrationService:
             return 1.0
 
         total = len(rows)
-        clean_rows = len([
-            r for r in rows
-            if r.action in (RowAction.CREATE, RowAction.UPDATE)
-            and not r.warnings
-        ])
+        clean_rows = len(
+            [r for r in rows if r.action in (RowAction.CREATE, RowAction.UPDATE) and not r.warnings]
+        )
 
         return clean_rows / total
 

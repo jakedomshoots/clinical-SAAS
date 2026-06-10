@@ -86,7 +86,9 @@ async def check_appointment_slot(
     end_time: datetime,
     exclude_appointment_id: str | None = None,
 ) -> dict:
-    has_conflict = await _provider_has_conflict(db, user, provider_id, start_time, end_time, exclude_appointment_id)
+    has_conflict = await _provider_has_conflict(
+        db, user, provider_id, start_time, end_time, exclude_appointment_id
+    )
     in_availability = await _provider_is_available(db, user, provider_id, start_time, end_time)
     warnings = []
     if has_conflict:
@@ -123,7 +125,13 @@ async def today_queue(
     for appointment in appointments:
         from app.services.patient_chart_service import get_patient_chart_summary
 
-        if appointment["status"] in {"checked_in", "roomed", "provider_review", "checkout", "in_progress"}:
+        if appointment["status"] in {
+            "checked_in",
+            "roomed",
+            "provider_review",
+            "checkout",
+            "in_progress",
+        }:
             checked_in += 1
         summary = await get_patient_chart_summary(db, user, appointment["patient_id"])
         readiness = summary.checkout_readiness if summary else "ready"
@@ -198,7 +206,9 @@ async def create_appointment(db: AsyncSession, user: User, data: dict) -> dict |
         data["end_time"],
     ):
         raise ValueError("Provider has a conflicting appointment in this time window")
-    if not await _provider_is_available(db, user, data["provider_id"], data["start_time"], data["end_time"]):
+    if not await _provider_is_available(
+        db, user, data["provider_id"], data["start_time"], data["end_time"]
+    ):
         raise ValueError("Appointment is outside configured provider availability")
 
     appt = Appointment(
@@ -232,7 +242,11 @@ async def create_appointment(db: AsyncSession, user: User, data: dict) -> dict |
         entity_type="appointment",
         entity_id=appt.id,
         idempotency_key=f"calendar:create:{appt.id}",
-        payload={"patient_id": appt.patient_id, "provider_id": appt.provider_id, "start_time": appt.start_time.isoformat()},
+        payload={
+            "patient_id": appt.patient_id,
+            "provider_id": appt.provider_id,
+            "start_time": appt.start_time.isoformat(),
+        },
     )
     return await get_appointment(db, user, appt.id)
 
@@ -258,13 +272,16 @@ async def update_appointment(db: AsyncSession, user: User, appt_id: str, data: d
 
         summary = await get_patient_chart_summary(db, user, appt.patient_id)
         if summary and summary.checkout_readiness == "blocked":
-            raise ValueError("; ".join(summary.blockers) or "Chart blockers must be resolved before completion")
+            raise ValueError(
+                "; ".join(summary.blockers) or "Chart blockers must be resolved before completion"
+            )
     next_provider_id = data.get("provider_id", appt.provider_id)
     next_start = data.get("start_time", appt.start_time)
     next_end = data.get("end_time", appt.end_time)
     if (
-        ("start_time" in data or "end_time" in data or "provider_id" in data)
-        and await _provider_has_conflict(db, user, next_provider_id, next_start, next_end, exclude_appointment_id=appt.id)
+        "start_time" in data or "end_time" in data or "provider_id" in data
+    ) and await _provider_has_conflict(
+        db, user, next_provider_id, next_start, next_end, exclude_appointment_id=appt.id
     ):
         raise ValueError("Provider has a conflicting appointment in this time window")
     for field, value in data.items():
@@ -337,11 +354,13 @@ async def queue_appointment_reminders(db: AsyncSession, user: User, appt_id: str
         ):
             option = _reminder_channel_option(patient, channel)
             if not option["eligible"]:
-                blocked_channels.append({
-                    "channel": channel,
-                    "offset_minutes": offset_minutes,
-                    "blocked_reason": option["blocked_reason"],
-                })
+                blocked_channels.append(
+                    {
+                        "channel": channel,
+                        "offset_minutes": offset_minutes,
+                        "blocked_reason": option["blocked_reason"],
+                    }
+                )
                 continue
             event = await record_event(
                 db,
@@ -541,8 +560,12 @@ async def _suggest_alternate_slots(
     cursor = start_time + timedelta(minutes=30)
     for _ in range(32):
         candidate_end = cursor + duration
-        if await _provider_is_available(db, user, provider_id, cursor, candidate_end) and not await _provider_has_conflict(db, user, provider_id, cursor, candidate_end):
-            suggestions.append({"start_time": cursor.isoformat(), "end_time": candidate_end.isoformat()})
+        if await _provider_is_available(
+            db, user, provider_id, cursor, candidate_end
+        ) and not await _provider_has_conflict(db, user, provider_id, cursor, candidate_end):
+            suggestions.append(
+                {"start_time": cursor.isoformat(), "end_time": candidate_end.isoformat()}
+            )
         if len(suggestions) >= 3:
             break
         cursor += timedelta(minutes=30)

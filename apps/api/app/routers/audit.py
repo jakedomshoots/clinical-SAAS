@@ -97,27 +97,31 @@ async def export_audit_events(
     )
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow([
-        "id",
-        "organization_id",
-        "created_at",
-        "actor_id",
-        "event_type",
-        "entity_type",
-        "entity_id",
-        "payload",
-    ])
+    writer.writerow(
+        [
+            "id",
+            "organization_id",
+            "created_at",
+            "actor_id",
+            "event_type",
+            "entity_type",
+            "entity_id",
+            "payload",
+        ]
+    )
     for event in events:
-        writer.writerow([
-            neutralize_csv_formula(event.id),
-            neutralize_csv_formula(event.organization_id),
-            neutralize_csv_formula(event.created_at.isoformat()),
-            neutralize_csv_formula(event.actor_id or ""),
-            neutralize_csv_formula(event.event_type),
-            neutralize_csv_formula(event.entity_type),
-            neutralize_csv_formula(event.entity_id),
-            neutralize_csv_formula(json.dumps(event.payload or {}, sort_keys=True)),
-        ])
+        writer.writerow(
+            [
+                neutralize_csv_formula(event.id),
+                neutralize_csv_formula(event.organization_id),
+                neutralize_csv_formula(event.created_at.isoformat()),
+                neutralize_csv_formula(event.actor_id or ""),
+                neutralize_csv_formula(event.event_type),
+                neutralize_csv_formula(event.entity_type),
+                neutralize_csv_formula(event.entity_id),
+                neutralize_csv_formula(json.dumps(event.payload or {}, sort_keys=True)),
+            ]
+        )
 
     return Response(
         content=buffer.getvalue(),

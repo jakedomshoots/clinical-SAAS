@@ -10,7 +10,7 @@ import enum
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -42,18 +42,24 @@ class FormTemplate(Base):
     __tablename__ = "form_templates"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default", index=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, default="default", index=True
+    )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     specialty: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
-    category: Mapped[str] = mapped_column(String(100), nullable=False, default="general")  # intake, consent, assessment, follow_up
+    category: Mapped[str] = mapped_column(
+        String(100), nullable=False, default="general"
+    )  # intake, consent, assessment, follow_up
     is_system_template: Mapped[bool] = mapped_column(Boolean, default=False)
     version: Mapped[int] = mapped_column(default=1)
     fields: Mapped[list] = mapped_column(JSON, default=list)
     conditional_logic: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     scoring_rules: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -62,11 +68,21 @@ class FormSubmission(Base):
     __tablename__ = "form_submissions"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    organization_id: Mapped[str] = mapped_column(String(36), nullable=False, default="default", index=True)
-    template_id: Mapped[str] = mapped_column(String(36), ForeignKey("form_templates.id", ondelete="CASCADE"), nullable=False, index=True)
-    patient_id: Mapped[str] = mapped_column(String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True)
-    appointment_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("appointments.id", ondelete="SET NULL"), nullable=True)
-    submitted_by_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    organization_id: Mapped[str] = mapped_column(
+        String(36), nullable=False, default="default", index=True
+    )
+    template_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("form_templates.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    patient_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("patients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    appointment_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("appointments.id", ondelete="SET NULL"), nullable=True
+    )
+    submitted_by_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     submitted_by_patient: Mapped[bool] = mapped_column(Boolean, default=False)
     responses: Mapped[dict] = mapped_column(JSON, default=dict)
     calculated_score: Mapped[float | None] = mapped_column(default=None)
@@ -80,6 +96,7 @@ class FormSubmission(Base):
 
 class FormTemplateLibrary(Base):
     """Pre-built specialty form templates."""
+
     __tablename__ = "form_template_library"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))

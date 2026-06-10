@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,6 +21,7 @@ router = APIRouter(prefix="/patient-portal", tags=["Patient Portal"])
 # Document access
 # ---------------------------------------------------------------------------
 
+
 @router.get("/patients/{patient_id}/documents")
 async def list_patient_documents(
     patient_id: str,
@@ -37,28 +38,32 @@ async def list_patient_documents(
     # Lab results
     labs = db.query(PatientLabResult).filter(PatientLabResult.patient_id == patient_id).all()
     for lab in labs:
-        documents.append({
-            "id": f"lab-{lab.id}",
-            "type": "lab_result",
-            "title": f"{lab.panel} — {lab.result}",
-            "date": lab.collected_at.isoformat() if lab.collected_at else None,
-            "status": lab.status.value if hasattr(lab.status, "value") else str(lab.status),
-            "provider": lab.source or "Unknown",
-            "downloadable": True,
-        })
+        documents.append(
+            {
+                "id": f"lab-{lab.id}",
+                "type": "lab_result",
+                "title": f"{lab.panel} — {lab.result}",
+                "date": lab.collected_at.isoformat() if lab.collected_at else None,
+                "status": lab.status.value if hasattr(lab.status, "value") else str(lab.status),
+                "provider": lab.source or "Unknown",
+                "downloadable": True,
+            }
+        )
 
     # Medications
     meds = db.query(PatientMedication).filter(PatientMedication.patient_id == patient_id).all()
     for med in meds:
-        documents.append({
-            "id": f"med-{med.id}",
-            "type": "medication",
-            "title": med.name,
-            "date": med.created_at.isoformat(),
-            "status": med.status.value if hasattr(med.status, "value") else str(med.status),
-            "provider": med.source or "Unknown",
-            "downloadable": False,
-        })
+        documents.append(
+            {
+                "id": f"med-{med.id}",
+                "type": "medication",
+                "title": med.name,
+                "date": med.created_at.isoformat(),
+                "status": med.status.value if hasattr(med.status, "value") else str(med.status),
+                "provider": med.source or "Unknown",
+                "downloadable": False,
+            }
+        )
 
     return documents
 
@@ -76,7 +81,7 @@ async def download_document(
         "document_id": document_id,
         "patient_id": patient_id,
         "download_url": f"/api/v1/patient-portal/patients/{patient_id}/documents/{document_id}/file",
-        "expires_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": datetime.now(UTC).isoformat(),
         "format": "pdf",
     }
 
@@ -85,9 +90,10 @@ async def download_document(
 # CCDA export
 # ---------------------------------------------------------------------------
 
+
 def _generate_ccda(patient: Patient, labs: list, meds: list) -> str:
     """Generate a CCDA (Consolidated Clinical Document Architecture) XML document."""
-    now = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    now = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <ClinicalDocument xmlns="urn:hl7-org:v3">
@@ -181,7 +187,7 @@ async def export_ccda(
     return {
         "patient_id": patient_id,
         "format": "CCDA",
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "document_size_bytes": len(ccda_xml.encode("utf-8")),
         "xml": ccda_xml,
     }
@@ -190,6 +196,7 @@ async def export_ccda(
 # ---------------------------------------------------------------------------
 # Proxy access (family members, caregivers)
 # ---------------------------------------------------------------------------
+
 
 @router.post("/patients/{patient_id}/proxies")
 async def add_proxy(
@@ -204,7 +211,7 @@ async def add_proxy(
         raise HTTPException(status_code=404, detail="Patient not found")
 
     proxy = {
-        "id": f"proxy-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "id": f"proxy-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
         "patient_id": patient_id,
         "proxy_name": data["proxy_name"],
         "proxy_email": data.get("proxy_email"),
@@ -213,7 +220,7 @@ async def add_proxy(
         "access_level": data.get("access_level", "limited"),  # limited, full, billing_only
         "consent_signed": data.get("consent_signed", False),
         "expires_at": data.get("expires_at"),
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
     return {
@@ -254,12 +261,13 @@ async def revoke_proxy(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Revoke proxy access."""
-    return {"status": "revoked", "proxy_id": proxy_id, "revoked_at": datetime.now(timezone.utc).isoformat()}
+    return {"status": "revoked", "proxy_id": proxy_id, "revoked_at": datetime.now(UTC).isoformat()}
 
 
 # ---------------------------------------------------------------------------
 # Patient messaging
 # ---------------------------------------------------------------------------
+
 
 @router.get("/patients/{patient_id}/messages")
 async def list_patient_messages(
@@ -297,11 +305,11 @@ async def send_patient_message(
 ) -> dict:
     """Send a secure message to the care team."""
     return {
-        "id": f"msg-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "id": f"msg-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
         "patient_id": patient_id,
         "subject": data.get("subject", ""),
         "body": data.get("body", ""),
-        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "sent_at": datetime.now(UTC).isoformat(),
         "status": "sent",
     }
 
@@ -309,6 +317,7 @@ async def send_patient_message(
 # ---------------------------------------------------------------------------
 # Online bill pay
 # ---------------------------------------------------------------------------
+
 
 @router.get("/patients/{patient_id}/bills")
 async def list_patient_bills(
@@ -354,7 +363,7 @@ async def pay_bill(
         "bill_id": bill_id,
         "amount_paid": data.get("amount", 0),
         "payment_method": data.get("payment_method", "card"),
-        "transaction_id": f"txn-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        "transaction_id": f"txn-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
         "status": "completed",
         "receipt_url": f"/receipts/{bill_id}",
     }

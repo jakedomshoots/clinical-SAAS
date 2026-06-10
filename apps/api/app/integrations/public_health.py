@@ -10,7 +10,7 @@ Supports:
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -32,7 +32,10 @@ class PublicHealthClient:
     def _client(self, base_url: str) -> httpx.AsyncClient:
         return httpx.AsyncClient(
             base_url=base_url,
-            headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/fhir+json"},
+            headers={
+                "Authorization": f"Bearer {self._api_key}",
+                "Content-Type": "application/fhir+json",
+            },
             timeout=60.0,
         )
 
@@ -56,15 +59,23 @@ class PublicHealthClient:
         """
         report = {
             "resourceType": "Bundle",
-            "id": f"ecr-{patient_id}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+            "id": f"ecr-{patient_id}-{datetime.now(UTC).strftime('%Y%m%d%H%M%S')}",
             "type": "document",
             "entry": [
                 {
                     "resource": {
                         "resourceType": "Composition",
                         "status": "final",
-                        "type": {"coding": [{"system": "http://loinc.org", "code": "55751-2", "display": "Initial Public Health Case Report"}]},
-                        "date": datetime.now(timezone.utc).isoformat(),
+                        "type": {
+                            "coding": [
+                                {
+                                    "system": "http://loinc.org",
+                                    "code": "55751-2",
+                                    "display": "Initial Public Health Case Report",
+                                }
+                            ]
+                        },
+                        "date": datetime.now(UTC).isoformat(),
                         "author": [{"reference": f"Practitioner/{provider_npi}"}],
                         "title": f"Case Report: {condition_name}",
                     }
@@ -72,7 +83,15 @@ class PublicHealthClient:
                 {
                     "resource": {
                         "resourceType": "Condition",
-                        "code": {"coding": [{"system": "http://snomed.info/sct", "code": condition_code, "display": condition_name}]},
+                        "code": {
+                            "coding": [
+                                {
+                                    "system": "http://snomed.info/sct",
+                                    "code": condition_code,
+                                    "display": condition_name,
+                                }
+                            ]
+                        },
                         "onsetDateTime": onset_date,
                     }
                 },
@@ -110,7 +129,11 @@ class PublicHealthClient:
                 {
                     "resource": {
                         "resourceType": "MessageHeader",
-                        "eventCoding": {"system": "http://terminology.hl7.org/CodeSystem/v2-0003", "code": "A08", "display": "Update patient information"},
+                        "eventCoding": {
+                            "system": "http://terminology.hl7.org/CodeSystem/v2-0003",
+                            "code": "A08",
+                            "display": "Update patient information",
+                        },
                         "source": {"name": facility_id},
                     }
                 },
@@ -118,7 +141,10 @@ class PublicHealthClient:
                     "resource": {
                         "resourceType": "Encounter",
                         "status": "finished",
-                        "class": {"system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": "EMER"},
+                        "class": {
+                            "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+                            "code": "EMER",
+                        },
                         "period": {"start": visit_date},
                         "reasonCode": [{"text": chief_complaint}],
                     }
@@ -155,7 +181,9 @@ class PublicHealthClient:
         observation = {
             "resourceType": "Observation",
             "status": "final",
-            "code": {"coding": [{"system": "http://loinc.org", "code": test_code, "display": test_name}]},
+            "code": {
+                "coding": [{"system": "http://loinc.org", "code": test_code, "display": test_name}]
+            },
             "valueString": result_value,
             "effectiveDateTime": result_date,
             "performer": [{"reference": f"Organization/{performing_lab_id}"}],
@@ -269,7 +297,15 @@ class PublicHealthClient:
         dispense = {
             "resourceType": "MedicationDispense",
             "status": "completed",
-            "medicationCodeableConcept": {"coding": [{"system": "http://www.nlm.nih.gov/research/umls/rxnorm", "code": medication_code, "display": medication_name}]},
+            "medicationCodeableConcept": {
+                "coding": [
+                    {
+                        "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+                        "code": medication_code,
+                        "display": medication_name,
+                    }
+                ]
+            },
             "quantity": {"value": quantity},
             "daysSupply": {"value": days_supply},
             "whenHandedOver": dispensing_date,

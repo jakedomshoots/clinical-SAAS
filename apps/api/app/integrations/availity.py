@@ -25,6 +25,7 @@ class AvailityClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         base_url = getattr(settings, "availity_api_base_url", "https://api.availity.com/v1")
         if not base_url:
             base_url = "https://api.availity.com/v1"

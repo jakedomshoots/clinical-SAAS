@@ -1,30 +1,18 @@
 from collections.abc import Sequence
 
 from app.config import settings
+from app.integrations.auth0 import Auth0Client
+from app.integrations.availity import AvailityClient
 from app.integrations.base import ConfiguredIntegration
-from app.integrations.calendar import CalendarClient
-from app.integrations.clearinghouse import ClearinghouseClient
-from app.integrations.communications import CommunicationsClient
 from app.integrations.copilotkit import CopilotRuntimeClient
+from app.integrations.dosespot import DoseSpotClient
 from app.integrations.ehr import EHRClient
-from app.integrations.erx import ERxClient
-from app.integrations.fax_provider import FaxProviderClient
-from app.integrations.identity import IdentityClient
-from app.integrations.labs_hie import LabsHIEClient
-from app.integrations.payments import PaymentsClient
-from app.integrations.portal import PortalClient
+from app.integrations.google_calendar import GoogleCalendarClient
 from app.integrations.intuit_payments import IntuitPaymentsClient
 from app.integrations.labcorp import LabCorpClient
+from app.integrations.labs_hie import LabsHIEClient
+from app.integrations.portal import PortalClient
 from app.integrations.quest import QuestClient
-
-from app.integrations.twilio import TwilioClient
-
-from app.integrations.srfax import SRFaxClient
-from app.integrations.availity import AvailityClient
-from app.integrations.dosespot import DoseSpotClient
-from app.integrations.auth0 import Auth0Client
-from app.integrations.google_calendar import GoogleCalendarClient
-
 from app.integrations.sandbox import (
     SandboxCalendarClient,
     SandboxClearinghouseClient,
@@ -37,6 +25,8 @@ from app.integrations.sandbox import (
     SandboxPaymentsClient,
     SandboxPortalClient,
 )
+from app.integrations.srfax import SRFaxClient
+from app.integrations.twilio import TwilioClient
 
 
 class IntegrationFactory:

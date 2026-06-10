@@ -25,6 +25,7 @@ class LabCorpClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         base_url = getattr(settings, "labcorp_api_base_url", "https://api.labcorp.com/v2")
         if not base_url:
             base_url = "https://api.labcorp.com/v2"

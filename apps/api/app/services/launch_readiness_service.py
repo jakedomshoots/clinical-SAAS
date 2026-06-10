@@ -33,12 +33,8 @@ class LaunchRequirement:
 async def launch_readiness() -> dict:
     ready = await check_readiness()
     requirements = _requirements(ready)
-    critical = sum(
-        1 for item in requirements if not item.ready and item.severity == "critical"
-    )
-    warning = sum(
-        1 for item in requirements if not item.ready and item.severity == "warning"
-    )
+    critical = sum(1 for item in requirements if not item.ready and item.severity == "critical")
+    warning = sum(1 for item in requirements if not item.ready and item.severity == "warning")
     ready_count = sum(1 for item in requirements if item.ready)
     return {
         "production_ready": critical == 0,
@@ -70,8 +66,7 @@ def _requirements(ready: dict) -> list[LaunchRequirement]:
             key="secret_key",
             category="Security",
             label="Unique API signing secret",
-            ready=settings.secret_key != DEFAULT_SECRET_KEY
-            and len(settings.secret_key) >= 32,
+            ready=settings.secret_key != DEFAULT_SECRET_KEY and len(settings.secret_key) >= 32,
             severity="critical",
             detail="JWT signing must not use the development default.",
             action="Generate and store a unique SECRET_KEY of at least 32 characters.",

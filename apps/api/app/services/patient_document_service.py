@@ -41,8 +41,12 @@ def _validated_patient_storage_location(file_url: str, patient_id: str) -> tuple
     if not parsed:
         raise ValueError("Document file URL must reference object storage")
     bucket, object_key = parsed
-    if bucket != settings.minio_bucket or not object_key.startswith(_patient_document_prefix(patient_id)):
-        raise ValueError("Document file URL must reference the prepared patient document upload path")
+    if bucket != settings.minio_bucket or not object_key.startswith(
+        _patient_document_prefix(patient_id)
+    ):
+        raise ValueError(
+            "Document file URL must reference the prepared patient document upload path"
+        )
     path_parts = object_key.split("/")
     if any(part in {"", ".", ".."} for part in path_parts):
         raise ValueError("Document file URL contains an invalid storage path")
@@ -136,7 +140,9 @@ async def document_review_queue(
     if review_priority:
         filters.append(PatientDocument.review_priority == review_priority)
 
-    count_query = select(func.count(PatientDocument.id)).select_from(PatientDocument, Patient).where(*filters)
+    count_query = (
+        select(func.count(PatientDocument.id)).select_from(PatientDocument, Patient).where(*filters)
+    )
     total = (await db.execute(count_query)).scalar() or 0
     offset = (page - 1) * page_size
     result = await db.execute(
@@ -148,13 +154,15 @@ async def document_review_queue(
     )
     rows = []
     for document, patient in result.all():
-        rows.append({
-            **PatientDocumentOut.model_validate(document).model_dump(),
-            "patient_name": f"{patient.first_name} {patient.last_name}",
-            "patient_mrn": patient.mrn,
-            "patient_dob": patient.dob,
-            "patient_phone": patient.phone,
-        })
+        rows.append(
+            {
+                **PatientDocumentOut.model_validate(document).model_dump(),
+                "patient_name": f"{patient.first_name} {patient.last_name}",
+                "patient_mrn": patient.mrn,
+                "patient_dob": patient.dob,
+                "patient_phone": patient.phone,
+            }
+        )
     return rows, total
 
 
@@ -191,7 +199,8 @@ async def create_patient_document(
         reviewed_at=data.get("reviewed_at"),
         pages=data.get("pages", 1),
         file_url=file_url,
-        upload_status=data.get("upload_status") or ("uploaded" if data.get("file_url") else "metadata_only"),
+        upload_status=data.get("upload_status")
+        or ("uploaded" if data.get("file_url") else "metadata_only"),
         ocr_status=data.get("ocr_status") or "not_started",
         classification=data.get("classification"),
         summary=data.get("summary"),
@@ -311,19 +320,24 @@ async def confirm_document_upload(
             },
         )
         return PatientDocumentOut.model_validate(duplicate).model_dump()
-    document = await create_patient_document(db, user, patient_id, {
-        "title": data["title"],
-        "source": data["source"],
-        "document_type": data["document_type"],
-        "status": PatientDocumentStatus.needs_review.value,
-        "matched_by": "upload confirmation",
-        "review_priority": "normal",
-        "pages": data.get("pages", 1),
-        "file_url": data["file_url"],
-        "upload_status": "uploaded",
-        "ocr_status": "queued",
-        "summary": f"Uploaded {data['filename']} ({data['content_type']}). Checksum: {checksum or 'not provided'}.",
-    })
+    document = await create_patient_document(
+        db,
+        user,
+        patient_id,
+        {
+            "title": data["title"],
+            "source": data["source"],
+            "document_type": data["document_type"],
+            "status": PatientDocumentStatus.needs_review.value,
+            "matched_by": "upload confirmation",
+            "review_priority": "normal",
+            "pages": data.get("pages", 1),
+            "file_url": data["file_url"],
+            "upload_status": "uploaded",
+            "ocr_status": "queued",
+            "summary": f"Uploaded {data['filename']} ({data['content_type']}). Checksum: {checksum or 'not provided'}.",
+        },
+    )
     if not document:
         return None
     await log_event(
@@ -387,7 +401,9 @@ async def process_patient_document(
                 organization_id=user.organization_id,
                 title=f"Review {document.classification or document.document_type}: {document.title}",
                 description=document.summary,
-                priority=TaskPriority.high if document.classification == "lab_result" else TaskPriority.normal,
+                priority=TaskPriority.high
+                if document.classification == "lab_result"
+                else TaskPriority.normal,
                 status=TaskStatus.open,
                 patient_id=patient_id,
                 source_type="document_processing",
@@ -552,9 +568,7 @@ async def get_document_access(
         }
     content_type = _infer_content_type(document.file_url)
     viewer_mode = (
-        "inline"
-        if content_type in {"application/pdf", "image/png", "image/jpeg"}
-        else "download"
+        "inline" if content_type in {"application/pdf", "image/png", "image/jpeg"} else "download"
     )
     access_token = _make_document_access_token(
         patient_id,
@@ -563,8 +577,7 @@ async def get_document_access(
         expires_ts,
     )
     access_url = (
-        f"/api/patients/{patient_id}/documents/{document.id}/download"
-        f"?token={access_token}"
+        f"/api/patients/{patient_id}/documents/{document.id}/download" f"?token={access_token}"
     )
     await log_event(
         db,
@@ -886,7 +899,12 @@ def _verify_upload_token(
 def _classify_document(document: PatientDocument) -> str:
     text = " ".join(
         item.lower()
-        for item in [document.title, document.document_type, document.source, document.summary or ""]
+        for item in [
+            document.title,
+            document.document_type,
+            document.source,
+            document.summary or "",
+        ]
     )
     if "lab" in text or "cmp" in text or "cbc" in text:
         return "lab_result"
@@ -899,5 +917,7 @@ def _classify_document(document: PatientDocument) -> str:
 
 def _default_summary(document: PatientDocument) -> str:
     if document.file_url:
-        return f"{document.document_type} from {document.source} was processed and needs chart review."
+        return (
+            f"{document.document_type} from {document.source} was processed and needs chart review."
+        )
     return f"{document.document_type} metadata from {document.source} is available without an attached file."

@@ -25,6 +25,7 @@ class DoseSpotClient(ConfiguredIntegration):
 
     def _client(self) -> httpx.AsyncClient:
         from app.config import settings
+
         base_url = getattr(settings, "dosespot_api_base_url", "https://my.dosespot.com/webapi")
         if not base_url:
             base_url = "https://my.dosespot.com/webapi"

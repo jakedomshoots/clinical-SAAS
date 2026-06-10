@@ -24,10 +24,14 @@ async def create_visit(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Create a video visit for an appointment."""
-    appointment = db.query(Appointment).filter(
-        Appointment.id == data["appointment_id"],
-        Appointment.organization_id == current_user.organization_id,
-    ).first()
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == data["appointment_id"],
+            Appointment.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
@@ -55,10 +59,14 @@ async def get_join_url(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get join URL for a video visit."""
-    appointment = db.query(Appointment).filter(
-        Appointment.id == appointment_id,
-        Appointment.organization_id == current_user.organization_id,
-    ).first()
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == appointment_id,
+            Appointment.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
@@ -75,10 +83,14 @@ async def end_visit(
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """End a video visit and clean up the room."""
-    appointment = db.query(Appointment).filter(
-        Appointment.id == appointment_id,
-        Appointment.organization_id == current_user.organization_id,
-    ).first()
+    appointment = (
+        db.query(Appointment)
+        .filter(
+            Appointment.id == appointment_id,
+            Appointment.organization_id == current_user.organization_id,
+        )
+        .first()
+    )
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 

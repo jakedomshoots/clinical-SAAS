@@ -1,7 +1,8 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import UTC, datetime, timedelta
 
 from app.models.user import UserRole
 from tests.conftest import headers_for, make_user
@@ -375,16 +376,20 @@ async def test_task_assignee_must_belong_to_user_organization(
 
 @pytest.mark.asyncio
 async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth_headers):
-    patient_res = await client.post("/api/patients", json={
-        "first_name": "Outreach",
-        "last_name": "Patient",
-        "dob": "1990-01-01",
-        "gender": "Unknown",
-        "phone": "555-0100",
-        "email": "outreach.patient@example.com",
-        "email_consent": True,
-        "preferred_contact_channel": "email",
-    }, headers=auth_headers)
+    patient_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "Outreach",
+            "last_name": "Patient",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+            "phone": "555-0100",
+            "email": "outreach.patient@example.com",
+            "email_consent": True,
+            "preferred_contact_channel": "email",
+        },
+        headers=auth_headers,
+    )
     patient_id = patient_res.json()["id"]
     task_res = await client.post(
         "/api/tasks",
@@ -401,8 +406,18 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
     draft = res.json()
     assert draft["patient_id"] == patient_id
     assert draft["patient_email"] == "outreach.patient@example.com"
-    assert next(option for option in draft["channel_options"] if option["channel"] == "email")["eligible"] is True
-    assert next(option for option in draft["channel_options"] if option["channel"] == "sms")["eligible"] is False
+    assert (
+        next(option for option in draft["channel_options"] if option["channel"] == "email")[
+            "eligible"
+        ]
+        is True
+    )
+    assert (
+        next(option for option in draft["channel_options"] if option["channel"] == "sms")[
+            "eligible"
+        ]
+        is False
+    )
     assert "Discuss lab follow-up" in draft["subject"]
 
     delivery = await client.post(
@@ -430,14 +445,18 @@ async def test_patient_outreach_draft_for_patient_task(client: AsyncClient, auth
 
 @pytest.mark.asyncio
 async def test_patient_outreach_blocks_without_channel_consent(client: AsyncClient, auth_headers):
-    patient_res = await client.post("/api/patients", json={
-        "first_name": "No",
-        "last_name": "Consent",
-        "dob": "1990-01-01",
-        "gender": "Unknown",
-        "phone": "555-0100",
-        "email": "no.consent@example.com",
-    }, headers=auth_headers)
+    patient_res = await client.post(
+        "/api/patients",
+        json={
+            "first_name": "No",
+            "last_name": "Consent",
+            "dob": "1990-01-01",
+            "gender": "Unknown",
+            "phone": "555-0100",
+            "email": "no.consent@example.com",
+        },
+        headers=auth_headers,
+    )
     task_res = await client.post(
         "/api/tasks",
         json={"title": "Consent guarded outreach", "patient_id": patient_res.json()["id"]},

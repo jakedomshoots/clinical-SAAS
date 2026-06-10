@@ -11,15 +11,15 @@ colon cancer screening, tobacco cessation, etc.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
 
 class CQMStatus(str, Enum):
-    numerator = "numerator"      # Met the measure
+    numerator = "numerator"  # Met the measure
     denominator = "denominator"  # Eligible but not met
-    exclusion = "exclusion"      # Excluded from denominator
+    exclusion = "exclusion"  # Excluded from denominator
     not_eligible = "not_eligible"
 
 
@@ -278,21 +278,25 @@ class CQMEngine:
     def _is_excluded(cls, patient: dict, measure: CQMeasure) -> bool:
         """Check if patient is excluded from the measure."""
         exclusions = patient.get("exclusions", [])
-        if "hospice" in exclusions:
-            return True
-        if measure.id == "cms122" and "pregnancy" in exclusions:
-            return True
-        if measure.id == "cms165" and ("esrd" in exclusions or "pregnancy" in exclusions):
-            return True
-        return False
+        return (
+            "hospice" in exclusions
+            or measure.id == "cms122"
+            and "pregnancy" in exclusions
+            or measure.id == "cms165"
+            and ("esrd" in exclusions or "pregnancy" in exclusions)
+        )
 
     @classmethod
     def _in_denominator(cls, patient: dict, measure: CQMeasure, age: int, gender: str) -> bool:
         """Check if patient is in the denominator."""
         if measure.id == "cms122":
-            return 18 <= age <= 75 and any("diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
+            return 18 <= age <= 75 and any(
+                "diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", [])
+            )
         elif measure.id == "cms165":
-            return 18 <= age <= 85 and any("hypertension" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
+            return 18 <= age <= 85 and any(
+                "hypertension" in d.get("code", "").lower() for d in patient.get("diagnoses", [])
+            )
         elif measure.id == "cms125":
             return 50 <= age <= 74 and gender == "female"
         elif measure.id == "cms130":
@@ -305,10 +309,10 @@ class CQMEngine:
             return age >= 65
         elif measure.id == "cms117":
             return 2 <= age < 3
-        elif measure.id == "cms131":
-            return 18 <= age <= 75 and any("diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
-        elif measure.id == "cms134":
-            return 18 <= age <= 75 and any("diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", []))
+        elif measure.id == "cms131" or measure.id == "cms134":
+            return 18 <= age <= 75 and any(
+                "diabetes" in d.get("code", "").lower() for d in patient.get("diagnoses", [])
+            )
         return False
 
     @classmethod
@@ -335,14 +339,21 @@ class CQMEngine:
             intervention = patient.get("tobacco_intervention", False)
             return screened and (not user or intervention)
         elif measure.id == "cms147":
-            return any("influenza" in i.get("name", "").lower() for i in patient.get("immunizations", []))
+            return any(
+                "influenza" in i.get("name", "").lower() for i in patient.get("immunizations", [])
+            )
         elif measure.id == "cms127":
-            return any("pneumococcal" in i.get("name", "").lower() for i in patient.get("immunizations", []))
+            return any(
+                "pneumococcal" in i.get("name", "").lower()
+                for i in patient.get("immunizations", [])
+            )
         elif measure.id == "cms131":
             return any("eye_exam" in p.get("name", "").lower() for p in procedures)
         elif measure.id == "cms134":
             has_urine_albumin = labs.get("urine_albumin") is not None
-            on_ace_arb = any(m.get("name", "").lower() in ["lisinopril", "enalapril", "losartan"] for m in meds)
+            on_ace_arb = any(
+                m.get("name", "").lower() in ["lisinopril", "enalapril", "losartan"] for m in meds
+            )
             return has_urine_albumin or on_ace_arb
         return False
 
